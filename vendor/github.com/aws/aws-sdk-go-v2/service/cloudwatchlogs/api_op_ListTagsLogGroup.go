@@ -4,6 +4,8 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -40,6 +42,18 @@ type ListTagsLogGroupInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *ListTagsLogGroupInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ListTagsLogGroupRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ListTagsLogGroupInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.LogGroupName != nil {
+		s.WriteString(schemas.ListTagsLogGroupRequest_logGroupName, *v.LogGroupName)
+	}
+}
+
 type ListTagsLogGroupOutput struct {
 
 	// The tags for the log group.
@@ -51,13 +65,29 @@ type ListTagsLogGroupOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *ListTagsLogGroupOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ListTagsLogGroupResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ListTagsLogGroupOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeTags(s, schemas.ListTagsLogGroupResponse_tags, v.Tags)
+}
+func (v *ListTagsLogGroupOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.ListTagsLogGroupResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.ListTagsLogGroupResponse_tags:
+			return deserializeTags(d, schemas.ListTagsLogGroupResponse_tags, &v.Tags)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationListTagsLogGroupMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpListTagsLogGroup{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.ListTagsLogGroup, schemas.ListTagsLogGroupRequest, schemas.ListTagsLogGroupResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpListTagsLogGroup{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.ListTagsLogGroup, schemas.ListTagsLogGroupRequest, schemas.ListTagsLogGroupResponse), output: &ListTagsLogGroupOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

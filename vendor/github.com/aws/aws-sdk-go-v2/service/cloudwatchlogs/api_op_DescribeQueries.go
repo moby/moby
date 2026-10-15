@@ -4,7 +4,9 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -53,6 +55,30 @@ type DescribeQueriesInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DescribeQueriesInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DescribeQueriesRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DescribeQueriesInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.LogGroupName != nil {
+		s.WriteString(schemas.DescribeQueriesRequest_logGroupName, *v.LogGroupName)
+	}
+	if v.MaxResults != nil {
+		s.WriteInt32(schemas.DescribeQueriesRequest_maxResults, *v.MaxResults)
+	}
+	if v.NextToken != nil {
+		s.WriteString(schemas.DescribeQueriesRequest_nextToken, *v.NextToken)
+	}
+	if v.QueryLanguage != "" {
+		s.WriteString(schemas.DescribeQueriesRequest_queryLanguage, string(v.QueryLanguage))
+	}
+	if v.Status != "" {
+		s.WriteString(schemas.DescribeQueriesRequest_status, string(v.Status))
+	}
+}
+
 type DescribeQueriesOutput struct {
 
 	// The token for the next set of items to return. The token expires after 24 hours.
@@ -67,13 +93,35 @@ type DescribeQueriesOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DescribeQueriesOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DescribeQueriesResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DescribeQueriesOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.NextToken != nil {
+		s.WriteString(schemas.DescribeQueriesResponse_nextToken, *v.NextToken)
+	}
+	serializeQueryInfoList(s, schemas.DescribeQueriesResponse_queries, v.Queries)
+}
+func (v *DescribeQueriesOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.DescribeQueriesResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.DescribeQueriesResponse_nextToken:
+			v.NextToken = new(string)
+			return d.ReadString(schemas.DescribeQueriesResponse_nextToken, v.NextToken)
+		case schemas.DescribeQueriesResponse_queries:
+			return deserializeQueryInfoList(d, schemas.DescribeQueriesResponse_queries, &v.Queries)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationDescribeQueriesMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDescribeQueries{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DescribeQueries, schemas.DescribeQueriesRequest, schemas.DescribeQueriesResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDescribeQueries{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DescribeQueries, schemas.DescribeQueriesRequest, schemas.DescribeQueriesResponse), output: &DescribeQueriesOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

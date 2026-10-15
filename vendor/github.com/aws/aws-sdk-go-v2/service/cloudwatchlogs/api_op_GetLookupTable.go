@@ -4,6 +4,8 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -31,6 +33,18 @@ type GetLookupTableInput struct {
 	LookupTableArn *string
 
 	noSmithyDocumentSerde
+}
+
+func (v *GetLookupTableInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.GetLookupTableRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *GetLookupTableInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.LookupTableArn != nil {
+		s.WriteString(schemas.GetLookupTableRequest_lookupTableArn, *v.LookupTableArn)
+	}
 }
 
 type GetLookupTableOutput struct {
@@ -63,13 +77,68 @@ type GetLookupTableOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *GetLookupTableOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.GetLookupTableResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *GetLookupTableOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Description != nil {
+		s.WriteString(schemas.GetLookupTableResponse_description, *v.Description)
+	}
+	if v.KmsKeyId != nil {
+		s.WriteString(schemas.GetLookupTableResponse_kmsKeyId, *v.KmsKeyId)
+	}
+	if v.LastUpdatedTime != nil {
+		s.WriteInt64(schemas.GetLookupTableResponse_lastUpdatedTime, *v.LastUpdatedTime)
+	}
+	if v.LookupTableArn != nil {
+		s.WriteString(schemas.GetLookupTableResponse_lookupTableArn, *v.LookupTableArn)
+	}
+	if v.LookupTableName != nil {
+		s.WriteString(schemas.GetLookupTableResponse_lookupTableName, *v.LookupTableName)
+	}
+	if v.SizeBytes != nil {
+		s.WriteInt64(schemas.GetLookupTableResponse_sizeBytes, *v.SizeBytes)
+	}
+	if v.TableBody != nil {
+		s.WriteString(schemas.GetLookupTableResponse_tableBody, *v.TableBody)
+	}
+}
+func (v *GetLookupTableOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.GetLookupTableResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.GetLookupTableResponse_description:
+			v.Description = new(string)
+			return d.ReadString(schemas.GetLookupTableResponse_description, v.Description)
+		case schemas.GetLookupTableResponse_kmsKeyId:
+			v.KmsKeyId = new(string)
+			return d.ReadString(schemas.GetLookupTableResponse_kmsKeyId, v.KmsKeyId)
+		case schemas.GetLookupTableResponse_lastUpdatedTime:
+			v.LastUpdatedTime = new(int64)
+			return d.ReadInt64(schemas.GetLookupTableResponse_lastUpdatedTime, v.LastUpdatedTime)
+		case schemas.GetLookupTableResponse_lookupTableArn:
+			v.LookupTableArn = new(string)
+			return d.ReadString(schemas.GetLookupTableResponse_lookupTableArn, v.LookupTableArn)
+		case schemas.GetLookupTableResponse_lookupTableName:
+			v.LookupTableName = new(string)
+			return d.ReadString(schemas.GetLookupTableResponse_lookupTableName, v.LookupTableName)
+		case schemas.GetLookupTableResponse_sizeBytes:
+			v.SizeBytes = new(int64)
+			return d.ReadInt64(schemas.GetLookupTableResponse_sizeBytes, v.SizeBytes)
+		case schemas.GetLookupTableResponse_tableBody:
+			v.TableBody = new(string)
+			return d.ReadString(schemas.GetLookupTableResponse_tableBody, v.TableBody)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationGetLookupTableMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpGetLookupTable{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.GetLookupTable, schemas.GetLookupTableRequest, schemas.GetLookupTableResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpGetLookupTable{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.GetLookupTable, schemas.GetLookupTableRequest, schemas.GetLookupTableResponse), output: &GetLookupTableOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

@@ -1,3 +1,30 @@
+# v1.89.3 (2026-10-09.2)
+
+* **Dependency Update**: Update to smithy-go v1.28.5.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.89.2 (2026-10-08)
+
+* **Bug Fix**: Fix modeled errors returning an empty `ErrorMessage()` when the service sends the message under a differently-cased key (`Message` instead of `message`). This was a regression introduced with schema-based deserialization.
+* **Dependency Update**: Update to smithy-go v1.28.4.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.89.1 (2026-10-06)
+
+* No change notes available for this release.
+
+# v1.89.0 (2026-09-30)
+
+* **Feature**: Amazon CloudWatch Logs now supports an optional roleArn parameter on PutDeliveryDestination for X-Ray trace delivery destinations, specifying the IAM role to assume when delivering traces.
+
+# v1.88.1 (2026-09-24)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.88.0 (2026-09-15)
+
+* **Feature**: Enable schema-based (de)serialization for this service.
+
 # v1.87.0 (2026-09-09)
 
 * **Feature**: Stop registering the `retry.MetricsHeader` middleware in generated clients. The `Amz-Sdk-Request` header is now set by the retry middleware itself.

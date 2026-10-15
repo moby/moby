@@ -5,7 +5,9 @@ package cloudwatchlogs
 import (
 	"context"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -47,6 +49,27 @@ type ListAnomaliesInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *ListAnomaliesInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ListAnomaliesRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ListAnomaliesInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.AnomalyDetectorArn != nil {
+		s.WriteString(schemas.ListAnomaliesRequest_anomalyDetectorArn, *v.AnomalyDetectorArn)
+	}
+	if v.Limit != nil {
+		s.WriteInt32(schemas.ListAnomaliesRequest_limit, *v.Limit)
+	}
+	if v.NextToken != nil {
+		s.WriteString(schemas.ListAnomaliesRequest_nextToken, *v.NextToken)
+	}
+	if v.SuppressionState != "" {
+		s.WriteString(schemas.ListAnomaliesRequest_suppressionState, string(v.SuppressionState))
+	}
+}
+
 type ListAnomaliesOutput struct {
 
 	// An array of structures, where each structure contains information about one
@@ -62,13 +85,35 @@ type ListAnomaliesOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *ListAnomaliesOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ListAnomaliesResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ListAnomaliesOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeAnomalies(s, schemas.ListAnomaliesResponse_anomalies, v.Anomalies)
+	if v.NextToken != nil {
+		s.WriteString(schemas.ListAnomaliesResponse_nextToken, *v.NextToken)
+	}
+}
+func (v *ListAnomaliesOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.ListAnomaliesResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.ListAnomaliesResponse_anomalies:
+			return deserializeAnomalies(d, schemas.ListAnomaliesResponse_anomalies, &v.Anomalies)
+		case schemas.ListAnomaliesResponse_nextToken:
+			v.NextToken = new(string)
+			return d.ReadString(schemas.ListAnomaliesResponse_nextToken, v.NextToken)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationListAnomaliesMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpListAnomalies{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.ListAnomalies, schemas.ListAnomaliesRequest, schemas.ListAnomaliesResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpListAnomalies{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.ListAnomalies, schemas.ListAnomaliesRequest, schemas.ListAnomaliesResponse), output: &ListAnomaliesOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

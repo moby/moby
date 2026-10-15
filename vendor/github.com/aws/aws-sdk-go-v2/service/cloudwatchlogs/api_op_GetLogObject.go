@@ -5,7 +5,9 @@ package cloudwatchlogs
 import (
 	"context"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 	smithysync "github.com/aws/smithy-go/sync"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
@@ -66,6 +68,21 @@ type GetLogObjectInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *GetLogObjectInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.GetLogObjectRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *GetLogObjectInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.LogObjectPointer != nil {
+		s.WriteString(schemas.GetLogObjectRequest_logObjectPointer, *v.LogObjectPointer)
+	}
+	if v.Unmask != false {
+		s.WriteBool(schemas.GetLogObjectRequest_unmask, v.Unmask)
+	}
+}
+
 // The response from the GetLogObject operation.
 type GetLogObjectOutput struct {
 	eventStream *GetLogObjectEventStream
@@ -76,24 +93,38 @@ type GetLogObjectOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *GetLogObjectOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.GetLogObjectResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *GetLogObjectOutput) SerializeMembers(s smithy.ShapeSerializer) {
+}
+func (v *GetLogObjectOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.GetLogObjectResponse, func(s *smithy.Schema) error {
+		switch s {
+		}
+		return nil
+	})
+}
+
 // GetStream returns the type to interact with the event stream.
 func (o *GetLogObjectOutput) GetStream() *GetLogObjectEventStream {
 	return o.eventStream
 }
 
 func (c *Client) addOperationGetLogObjectMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpGetLogObject{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.GetLogObject, schemas.GetLogObjectRequest, schemas.GetLogObjectResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpGetLogObject{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.GetLogObject, schemas.GetLogObjectRequest, schemas.GetLogObjectResponse), output: &GetLogObjectOutput{}}, middleware.After); err != nil {
+		return err
+	}
+	if err := stack.Deserialize.Insert(&deserializeOpEventStreamGetLogObject{options: &options}, "OperationDeserializer", middleware.Before); err != nil {
 		return err
 	}
 
-	if err = addEventStreamGetLogObjectMiddleware(stack, options); err != nil {
-		return err
-	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}

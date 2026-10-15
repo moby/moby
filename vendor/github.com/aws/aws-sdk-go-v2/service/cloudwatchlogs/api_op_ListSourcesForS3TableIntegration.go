@@ -5,7 +5,9 @@ package cloudwatchlogs
 import (
 	"context"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -45,6 +47,24 @@ type ListSourcesForS3TableIntegrationInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *ListSourcesForS3TableIntegrationInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ListSourcesForS3TableIntegrationRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ListSourcesForS3TableIntegrationInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.IntegrationArn != nil {
+		s.WriteString(schemas.ListSourcesForS3TableIntegrationRequest_integrationArn, *v.IntegrationArn)
+	}
+	if v.MaxResults != nil {
+		s.WriteInt32(schemas.ListSourcesForS3TableIntegrationRequest_maxResults, *v.MaxResults)
+	}
+	if v.NextToken != nil {
+		s.WriteString(schemas.ListSourcesForS3TableIntegrationRequest_nextToken, *v.NextToken)
+	}
+}
+
 type ListSourcesForS3TableIntegrationOutput struct {
 
 	// The token for the next set of items to return. The token expires after 24 hours.
@@ -59,13 +79,35 @@ type ListSourcesForS3TableIntegrationOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *ListSourcesForS3TableIntegrationOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ListSourcesForS3TableIntegrationResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ListSourcesForS3TableIntegrationOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.NextToken != nil {
+		s.WriteString(schemas.ListSourcesForS3TableIntegrationResponse_nextToken, *v.NextToken)
+	}
+	serializeS3TableIntegrationSources(s, schemas.ListSourcesForS3TableIntegrationResponse_sources, v.Sources)
+}
+func (v *ListSourcesForS3TableIntegrationOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.ListSourcesForS3TableIntegrationResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.ListSourcesForS3TableIntegrationResponse_nextToken:
+			v.NextToken = new(string)
+			return d.ReadString(schemas.ListSourcesForS3TableIntegrationResponse_nextToken, v.NextToken)
+		case schemas.ListSourcesForS3TableIntegrationResponse_sources:
+			return deserializeS3TableIntegrationSources(d, schemas.ListSourcesForS3TableIntegrationResponse_sources, &v.Sources)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationListSourcesForS3TableIntegrationMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpListSourcesForS3TableIntegration{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.ListSourcesForS3TableIntegration, schemas.ListSourcesForS3TableIntegrationRequest, schemas.ListSourcesForS3TableIntegrationResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpListSourcesForS3TableIntegration{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.ListSourcesForS3TableIntegration, schemas.ListSourcesForS3TableIntegrationRequest, schemas.ListSourcesForS3TableIntegrationResponse), output: &ListSourcesForS3TableIntegrationOutput{}}, middleware.After); err != nil {
 		return err
 	}
 
