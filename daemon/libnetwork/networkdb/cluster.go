@@ -271,14 +271,6 @@ func (nDB *NetworkDB) reapDeadNode() {
 		nDB.deleteNodeTableEntries(n.Name)
 		delete(nDB.failedNodes, id)
 	}
-	for id, n := range nDB.leftNodes {
-		if n.reapTime > nodeReapPeriod {
-			n.reapTime -= nodeReapPeriod
-			continue
-		}
-		log.G(context.TODO()).Debugf("Garbage collect node %v", n.Name)
-		delete(nDB.leftNodes, id)
-	}
 }
 
 // rejoinClusterBootStrap is called periodically to check if all bootStrap nodes are active in the cluster,

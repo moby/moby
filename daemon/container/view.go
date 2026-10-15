@@ -398,15 +398,22 @@ func (v *View) transform(ctr *Container) *Snapshot {
 				continue
 			}
 			for _, binding := range bindings {
-				// TODO(thaJeztah): if this is always a port/proto (no range), we can simplify this to [network.ParsePort].
-				h, err := network.ParsePortRange(binding.HostPort)
-				if err != nil {
-					log.G(context.TODO()).WithError(err).Warn("invalid host port map")
-					continue
+				// A routed-mode binding (gateway_mode_ipv4=routed or gateway_mode_ipv6=routed)
+				// has no host port. The port is still published, so report it without a public
+				// port rather than discarding it.
+				var publicPort uint16
+				if binding.HostPort != "" {
+					// TODO(thaJeztah): if this is always a port/proto (no range), we can simplify this to [network.ParsePort].
+					h, err := network.ParsePortRange(binding.HostPort)
+					if err != nil {
+						log.G(context.TODO()).WithError(err).Warn("invalid host port map")
+						continue
+					}
+					publicPort = h.Start()
 				}
 				snapshot.Ports = append(snapshot.Ports, container.PortSummary{
 					PrivatePort: p.Num(),
-					PublicPort:  h.Start(),
+					PublicPort:  publicPort,
 					Type:        string(p.Proto()),
 					IP:          binding.HostIP,
 				})

@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"context"
 	"maps"
 	"os"
 	"path/filepath"
@@ -31,7 +30,7 @@ func setupFakeDaemon(t *testing.T, c *container.Container) *Daemon {
 	err := os.MkdirAll(rootfs, 0o755)
 	assert.NilError(t, err)
 
-	netController, err := libnetwork.New(context.Background(), nwconfig.OptionDataDir(t.TempDir()))
+	netController, err := libnetwork.New(t.Context(), nwconfig.OptionDataDir(t.TempDir()))
 	assert.NilError(t, err)
 
 	d := &Daemon{
@@ -380,7 +379,7 @@ func TestDefaultResources(t *testing.T) {
 	}
 	d := setupFakeDaemon(t, c)
 
-	s, err := d.createSpec(context.Background(), &configStore{}, c, nil)
+	s, err := d.createSpec(t.Context(), &configStore{}, c, nil)
 	assert.NilError(t, err)
 	checkResourcesAreUnset(t, s.Linux.Resources)
 }

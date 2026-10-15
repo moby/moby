@@ -27,6 +27,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
+	"slices"
 	"time"
 
 	bootapi "github.com/containerd/containerd/api/runtime/bootstrap/v1"
@@ -118,8 +119,6 @@ var (
 const (
 	ttrpcAddressEnv = "TTRPC_ADDRESS"
 	grpcAddressEnv  = "GRPC_ADDRESS"
-	namespaceEnv    = "NAMESPACE"
-	maxVersionEnv   = "MAX_SHIM_VERSION"
 )
 
 func parseFlags() {
@@ -166,7 +165,7 @@ func setLogger(ctx context.Context, id string) (context.Context, error) {
 	l := log.G(ctx)
 	_ = log.SetFormat(log.TextFormat)
 	if debugFlag {
-		_ = log.SetLevel("debug")
+		_ = log.SetLevel(log.DebugLevel)
 	}
 	f, err := openLog(ctx, id)
 	if err != nil {
@@ -271,20 +270,16 @@ func run(ctx context.Context, manager Shim, config Config) error {
 		}
 		return nil
 	case "start":
-		// We try reading stdin twice: first for the new boot API, then runc Options.
-		// The stdin pipe is not seekable, so this should be read into memory first.
+		// Read stdin into memory so the bootstrap payload can be validated.
 		// Protect against unbounded memory consumption with a limit (e.g., 10MB).
 		input, err := io.ReadAll(io.LimitReader(os.Stdin, 10<<20))
 		if err != nil {
 			return fmt.Errorf("failed to read stdin: %w", err)
 		}
 
-		var params bootapi.BootstrapParams
-		if len(input) == 0 || proto.Unmarshal(input, &params) != nil {
-			// TODO: Return error once the new API is stable
-			if err := readBootstrapParamsFromDeprecatedFields(input, &params, id, namespaceFlag, containerdBinaryFlag, debugFlag); err != nil {
-				return err
-			}
+		params, err := parseBootstrapParams(input, id, namespaceFlag)
+		if err != nil {
+			return err
 		}
 
 		// Persist the socket directory so the long-running server process
@@ -295,7 +290,7 @@ func run(ctx context.Context, manager Shim, config Config) error {
 			}
 		}
 
-		result, err := manager.Start(ctx, &params)
+		result, err := manager.Start(ctx, params)
 		if err != nil {
 			return err
 		}
@@ -410,10 +405,21 @@ func run(ctx context.Context, manager Shim, config Config) error {
 		}
 
 		if src, ok := instance.(TTRPCServerUnaryOptioner); ok {
-			ttrpcUnaryInterceptors = append(ttrpcUnaryInterceptors, src.UnaryServerInterceptor())
+			// Tracing goes first, it establishes the context the others read.
+			at := len(ttrpcUnaryInterceptors)
+			if result.Registration.ID == "otelttrpc" {
+				at = 0
+			}
+			ttrpcUnaryInterceptors = slices.Insert(ttrpcUnaryInterceptors, at, src.UnaryServerInterceptor())
 		}
 
-		if result.Registration.ID == "pprof" {
+		switch result.Registration.ID {
+		case "tracing":
+			// The tracing plugin buffers spans, closing it flushes them.
+			if c, ok := instance.(io.Closer); ok {
+				sd.RegisterCallback(func(context.Context) error { return c.Close() })
+			}
+		case "pprof":
 			if src, ok := instance.(server); ok {
 				pprofHandler = src
 			}

@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"context"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -77,7 +76,7 @@ func TestCheckpointOperationsValidateBeforeContainerLookup(t *testing.T) {
 		{
 			name: "restore",
 			operation: func() error {
-				return daemon.ContainerStart(context.Background(), "missing", "../outside", "")
+				return daemon.ContainerStart(t.Context(), "missing", "../outside", "")
 			},
 		},
 	}

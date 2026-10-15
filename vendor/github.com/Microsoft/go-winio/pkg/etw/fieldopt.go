@@ -411,7 +411,7 @@ func Time(name string, value time.Time) FieldOpt {
 // type. The intent of this is to make it easier to see which types are not
 // supported in traces, so we can evaluate adding support for more types in the
 // future.
-func SmartField(name string, v interface{}) FieldOpt {
+func SmartField(name string, v any) FieldOpt {
 	switch v := v.(type) {
 	case bool:
 		return BoolField(name, v)
@@ -511,7 +511,7 @@ func SmartField(name string, v interface{}) FieldOpt {
 			return SmartField(name, rv.String())
 		case reflect.Struct:
 			fields := make([]FieldOpt, 0, rv.NumField())
-			for i := 0; i < rv.NumField(); i++ {
+			for i := range rv.NumField() {
 				field := rv.Field(i)
 				if field.CanInterface() {
 					fields = append(fields, SmartField(name, field.Interface()))
@@ -519,7 +519,7 @@ func SmartField(name string, v interface{}) FieldOpt {
 			}
 			return Struct(name, fields...)
 		case reflect.Array, reflect.Chan, reflect.Complex128, reflect.Complex64,
-			reflect.Func, reflect.Interface, reflect.Invalid, reflect.Map, reflect.Ptr,
+			reflect.Func, reflect.Interface, reflect.Invalid, reflect.Map, reflect.Pointer,
 			reflect.Slice, reflect.UnsafePointer:
 		}
 	}

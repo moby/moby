@@ -187,7 +187,7 @@ func TestPluginInstall(t *testing.T) {
 		auth := &registrytypes.AuthConfig{ServerAddress: registry.DefaultURL, Username: "testuser", Password: "testpassword"}
 		assert.NilError(t, plugin.CreateInRegistry(ctx, repo, auth))
 
-		authEncoded, err := json.Marshal(auth)
+		authEncoded, err := json.Marshal(auth) // #nosec G117 -- struct intentionally contains password.
 		assert.NilError(t, err)
 
 		rdr, err := apiclient.PluginInstall(ctx, repo, client.PluginInstallOptions{

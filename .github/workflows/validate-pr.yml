@@ -119,6 +119,28 @@ jobs:
           echo "Keep GitHub issue or PR references in GitHub-visible text, such as PR descriptions or comments."
           exit 1
 
+  check-agent-coauthors:
+    permissions:
+      contents: read
+      pull-requests: read
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-check-agent-coauthors
+      cancel-in-progress: true
+    if: ${{ github.event.pull_request.state == 'open' }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: .github/scripts
+      - name: Check agent co-authorship
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const check = require('./.github/scripts/check-agent-coauthors.js');
+            await check({ github, context, core });
+
   check-pr-branch:
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-check-pr-branch

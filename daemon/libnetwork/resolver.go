@@ -304,7 +304,7 @@ func (r *Resolver) handleIPQuery(ctx context.Context, query *dns.Msg, ipType typ
 	r.log(ctx).Debugf("[resolver] lookup for %s: IP %v", name, addr)
 
 	resp := createRespMsg(query)
-	rand.Shuffle(len(addr), func(i, j int) {
+	rand.Shuffle(len(addr), func(i, j int) { // #nosec G404 -- use of math/rand/v2 is fine for this purpose.
 		addr[i], addr[j] = addr[j], addr[i]
 	})
 	if ipType == types.IPv4 {

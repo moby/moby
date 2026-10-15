@@ -531,6 +531,7 @@ func (t *http2Server) operateHeaders(ctx context.Context, frame *http2.MetaHeade
 	if frame.StreamEnded() {
 		// s is just created by the caller. No lock needed.
 		s.state = streamReadDone
+		s.write(recvMsg{err: io.EOF})
 	}
 	if timeoutSet {
 		s.ctx, s.cancel = context.WithTimeout(ctx, timeout)

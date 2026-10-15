@@ -347,9 +347,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 	group.Wait()
 
 	for _, c := range containers {
-		group.Add(1)
-		go func(c *container.Container) {
-			defer group.Done()
+		group.Go(func() {
 			_ = sem.Acquire(context.Background(), 1)
 			defer sem.Release(1)
 
@@ -542,12 +540,15 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 
 				c.ResetRestartManager(false)
 				if !c.HostConfig.NetworkMode.IsContainer() && c.State.IsRunning() {
-					options, err := buildSandboxOptions(&cfg.Config, c)
-					if err != nil {
-						logger(c).WithError(err).Warn("failed to build sandbox option to restore container")
-					}
 					mapLock.Lock()
-					activeSandboxes[c.NetworkSettings.SandboxID] = options
+					activeSandboxes[c.NetworkSettings.SandboxID] = libnetwork.ActiveSandboxOptionBuilder(func(controller *libnetwork.Controller) []libnetwork.SandboxOption {
+						setHostGatewayIP(controller, &cfg.Config)
+						options, err := buildSandboxOptions(&cfg.Config, c)
+						if err != nil {
+							logger(c).WithError(err).Warn("failed to build sandbox option to restore container")
+						}
+						return options
+					})
 					mapLock.Unlock()
 				}
 			}
@@ -594,7 +595,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 			}
 			c.Unlock()
 			logger(c).Debug("done restoring container")
-		}(c)
+		})
 	}
 	group.Wait()
 
@@ -626,8 +627,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 
 	// Now that all the containers are registered, register the links
 	for _, c := range containers {
-		group.Add(1)
-		go func(c *container.Container) {
+		group.Go(func() {
 			_ = sem.Acquire(context.Background(), 1)
 
 			if err := daemon.registerLinks(c); err != nil {
@@ -635,14 +635,12 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 			}
 
 			sem.Release(1)
-			group.Done()
-		}(c)
+		})
 	}
 	group.Wait()
 
 	for c, notifyChan := range restartContainers {
-		group.Add(1)
-		go func(c *container.Container, chNotify chan struct{}) {
+		group.Go(func() {
 			_ = sem.Acquire(context.Background(), 1)
 
 			logger := log.G(ctx).WithField("container", c.ID)
@@ -671,19 +669,16 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 			if err := daemon.containerStart(context.Background(), cfg, c, "", "", true); err != nil {
 				logger.WithError(err).Error("failed to start container")
 			}
-			close(chNotify)
+			close(notifyChan)
 
 			sem.Release(1)
-			group.Done()
-		}(c, notifyChan)
+		})
 	}
 	group.Wait()
 
-	for id, c := range removeContainers {
-		group.Add(1)
-		go func(cid string, c *container.Container) {
+	for cid, c := range removeContainers {
+		group.Go(func() {
 			_ = sem.Acquire(context.Background(), 1)
-			defer group.Done()
 			defer sem.Release(1)
 
 			if c.State.IsDead() {
@@ -696,7 +691,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 			if err := daemon.containerRm(&cfg.Config, cid, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
 				log.G(ctx).WithField("container", cid).WithError(err).Error("failed to remove container")
 			}
-		}(id, c)
+		})
 	}
 	group.Wait()
 
@@ -717,8 +712,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 			continue
 		}
 
-		group.Add(1)
-		go func(c *container.Container) {
+		group.Go(func() {
 			_ = sem.Acquire(context.Background(), 1)
 
 			if err := daemon.prepareMountPoints(c); err != nil {
@@ -726,8 +720,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 			}
 
 			sem.Release(1)
-			group.Done()
-		}(c)
+		})
 	}
 	group.Wait()
 
@@ -762,11 +755,9 @@ func (daemon *Daemon) restartSwarmContainers(ctx context.Context, cfg *configSto
 		// swarm endpoint now that the cluster is
 		// initialized.
 		if cfg.AutoRestart && c.ShouldRestart() && c.NetworkSettings.HasSwarmEndpoint && c.HasBeenStartedBefore {
-			group.Add(1)
-			go func(c *container.Container) {
+			group.Go(func() {
 				if err := sem.Acquire(ctx, 1); err != nil {
 					// ctx is done.
-					group.Done()
 					return
 				}
 
@@ -775,8 +766,7 @@ func (daemon *Daemon) restartSwarmContainers(ctx context.Context, cfg *configSto
 				}
 
 				sem.Release(1)
-				group.Done()
-			}(c)
+			})
 		}
 	}
 	group.Wait()
@@ -896,7 +886,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	if err != nil {
 		return nil, fmt.Errorf("Unable to get the full path to the TempDir (%s): %s", tmp, err)
 	}
-	if isWindows {
+	if runtime.GOOS == "windows" {
 		if err := os.MkdirAll(realTmp, 0); err != nil {
 			return nil, fmt.Errorf("Unable to create the TempDir (%s): %s", realTmp, err)
 		}
@@ -1009,7 +999,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	if isWindows {
+	if runtime.GOOS == "windows" {
 		// Note that permissions (0o700) are ignored on Windows; passing them to
 		// show intent only. We could consider using idtools.MkdirAndChown here
 		// to apply an ACL.
@@ -1074,7 +1064,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			shim     string
 			shimOpts any
 		)
-		if !isWindows {
+		if runtime.GOOS != "windows" {
 			shim, shimOpts, err = rts.Get("")
 			if err != nil {
 				return nil, err
@@ -1377,7 +1367,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		}
 	}
 
-	go d.execCommandGC()
+	go d.execCommandGC(ctx)
 
 	d.containerd, err = libcontainerd.NewClient(ctx, d.containerdClient, filepath.Join(config.ExecRoot, "containerd"), config.ContainerdNamespace, d)
 	if err != nil {
@@ -1641,7 +1631,7 @@ func (daemon *Daemon) Mount(container *container.Container) error {
 		// The mount path reported by the graph driver should always be trusted on Windows, since the
 		// volume path for a given mounted layer may change over time.  This should only be an error
 		// on non-Windows operating systems.
-		if !isWindows {
+		if runtime.GOOS != "windows" {
 			daemon.Unmount(container)
 			driver := daemon.ImageService().StorageDriver()
 			return fmt.Errorf("driver %s is returning inconsistent paths for container %s ('%s' then '%s')",

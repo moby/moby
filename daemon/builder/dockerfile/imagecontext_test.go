@@ -101,7 +101,7 @@ func TestAddFromScratchPopulatesPlatformIfNil(t *testing.T) {
 
 func TestImageSourceGetAddsToMounts(t *testing.T) {
 	is := getMockImageSource(nil, nil, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err := is.Get(ctx, "test", false, nil)
 	assert.NilError(t, err)
 	assert.Equal(t, len(is.mounts), 1)

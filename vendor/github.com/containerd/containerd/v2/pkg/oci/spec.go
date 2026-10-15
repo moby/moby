@@ -22,7 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
+	"path"
 	"runtime"
 	"slices"
 	"strconv"
@@ -200,7 +200,7 @@ func populateDefaultUnixSpec(ctx context.Context, s *Spec, id string) error {
 				"/proc/sys",
 				"/proc/sysrq-trigger",
 			},
-			CgroupsPath: filepath.Join("/", ns, id),
+			CgroupsPath: path.Join("/", ns, id),
 			Resources: &specs.LinuxResources{
 				Devices: []specs.LinuxDeviceCgroup{
 					{

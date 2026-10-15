@@ -6,23 +6,46 @@
 package huff0
 
 // decompress4x_main_loop_arm64 is an arm64 assembler implementation
-// of Decompress4X when tablelog > 8.
+// of Decompress4X when tablelog > 8, decoding fastSymbols symbols per
+// stream between bit container reloads.
 //
 //go:noescape
 func decompress4x_main_loop_arm64(ctx *decompress4xContext)
 
 // decompress4x_8b_main_loop_arm64 is an arm64 assembler implementation
-// of Decompress4X when tablelog <= 8 which decodes 4 entries
-// per loop.
+// of Decompress4X when tablelog <= 8, decoding fast8bSymbols symbols
+// per stream between bit container reloads.
 //
 //go:noescape
 func decompress4x_8b_main_loop_arm64(ctx *decompress4xContext)
 
+// decompress4x_4b_main_loop_arm64 is an arm64 assembler implementation
+// of Decompress4X when tablelog <= 4, decoding fast4bSymbols symbols
+// per stream between bit container reloads.
+//
+//go:noescape
+func decompress4x_4b_main_loop_arm64(ctx *decompress4xContext)
+
 // decompress1x_main_loop_arm64 is an arm64 assembler implementation
-// of Decompress1X when tablelog > 8.
+// of Decompress1X when tablelog > 8, decoding fastSymbols symbols
+// between bit container reloads.
 //
 //go:noescape
 func decompress1x_main_loop_arm64(ctx *decompress1xContext)
+
+// decompress1x_8b_main_loop_arm64 is an arm64 assembler implementation
+// of Decompress1X when tablelog <= 8, decoding fast8bSymbols symbols
+// between bit container reloads.
+//
+//go:noescape
+func decompress1x_8b_main_loop_arm64(ctx *decompress1xContext)
+
+// decompress1x_4b_main_loop_arm64 is an arm64 assembler implementation
+// of Decompress1X when tablelog <= 4, decoding fast4bSymbols symbols
+// between bit container reloads.
+//
+//go:noescape
+func decompress1x_4b_main_loop_arm64(ctx *decompress1xContext)
 
 func decompress4x_main_loop_asm(ctx *decompress4xContext) {
 	decompress4x_main_loop_arm64(ctx)
@@ -32,6 +55,18 @@ func decompress4x_8b_main_loop_asm(ctx *decompress4xContext) {
 	decompress4x_8b_main_loop_arm64(ctx)
 }
 
+func decompress4x_4b_main_loop_asm(ctx *decompress4xContext) {
+	decompress4x_4b_main_loop_arm64(ctx)
+}
+
 func decompress1x_main_loop_asm(ctx *decompress1xContext) {
 	decompress1x_main_loop_arm64(ctx)
+}
+
+func decompress1x_8b_main_loop_asm(ctx *decompress1xContext) {
+	decompress1x_8b_main_loop_arm64(ctx)
+}
+
+func decompress1x_4b_main_loop_asm(ctx *decompress1xContext) {
+	decompress1x_4b_main_loop_arm64(ctx)
 }

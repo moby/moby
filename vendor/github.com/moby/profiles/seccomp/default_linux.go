@@ -1,20 +1,137 @@
-// Copyright The Moby Authors.
+// SPDX-FileCopyrightText: Copyright The Moby Authors
 // SPDX-License-Identifier: Apache-2.0
 
 package seccomp
 
 import (
+	"slices"
+
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/sys/unix"
 )
 
-// The socket rules in DefaultProfile rely on AF_ALG and AF_VSOCK being
-// exactly two apart (38 and 40), with a single family (39) between them.
-var (
-	_ [38]byte = [unix.AF_ALG]byte{}
-	_ [40]byte = [unix.AF_VSOCK]byte{}
-	_ [1]byte  = [unix.AF_VSOCK - unix.AF_ALG - 1]byte{}
-)
+// These are the Linux socket domains currently defined by the UAPI:
+// https://github.com/torvalds/linux/blob/master/include/linux/socket.h
+// AF_UNSPEC is not a creatable domain, AF_MAX is a sentinel, and AF_LOCAL/AF_FILE
+// and AF_ROUTE are aliases of AF_UNIX and AF_NETLINK respectively.
+var allowedSocketDomains = []uint64{
+	unix.AF_UNIX,
+	unix.AF_INET,
+	unix.AF_AX25,
+	unix.AF_IPX,
+	unix.AF_APPLETALK,
+	unix.AF_NETROM,
+	unix.AF_BRIDGE,
+	unix.AF_ATMPVC,
+	unix.AF_X25,
+	unix.AF_INET6,
+	unix.AF_ROSE,
+	unix.AF_DECnet,
+	unix.AF_NETBEUI,
+	unix.AF_SECURITY,
+	unix.AF_KEY,
+	unix.AF_NETLINK,
+	unix.AF_PACKET,
+	unix.AF_ASH,
+	unix.AF_ECONET,
+	unix.AF_ATMSVC,
+	unix.AF_RDS,
+	unix.AF_SNA,
+	unix.AF_IRDA,
+	unix.AF_PPPOX,
+	unix.AF_WANPIPE,
+	unix.AF_LLC,
+	unix.AF_IB,
+	unix.AF_MPLS,
+	unix.AF_CAN,
+	unix.AF_TIPC,
+	unix.AF_BLUETOOTH,
+	unix.AF_IUCV,
+	unix.AF_RXRPC,
+	unix.AF_ISDN,
+	unix.AF_PHONET,
+	unix.AF_IEEE802154,
+	unix.AF_CAIF,
+
+	// AF_ALG gives userspace direct access to the kernel cryptography API. The
+	// vulnerabilities demonstrated by https://copy.fail/ have been fixed, but
+	// general-purpose containers have no practical need for this interface.
+	// Keep it blocked to avoid exposing an unnecessary kernel attack surface.
+	//
+	// unix.AF_ALG,
+
+	unix.AF_NFC,
+
+	// AF_VSOCK provides host/guest communication. Before Linux 7.0 it was global
+	// across network namespaces, allowing a container to reach any visible VM by
+	// CID. Linux 7.0 added opt-in namespace isolation for vhost-vsock and
+	// loopback, but global mode remains the default. Keep it blocked for older
+	// kernels and default-global configurations; intentional users can provide a
+	// custom seccomp profile. See https://docs.kernel.org/admin-guide/sysctl/net.html.
+	//
+	// unix.AF_VSOCK,
+
+	unix.AF_KCM,
+	unix.AF_QIPCRTR,
+	unix.AF_SMC,
+	unix.AF_XDP,
+	unix.AF_MCTP,
+}
+
+func socketSyscalls() []*Syscall {
+	// Keep range detection independent of the declaration order above.
+	s := slices.Clone(allowedSocketDomains)
+	slices.Sort(s)
+	return socketSyscallsForDomains(s)
+}
+
+func socketSyscallsForDomains(domains []uint64) []*Syscall {
+	syscalls := make([]*Syscall, 0, len(domains))
+	// runc treats repeated comparisons for one argument as separate OR rules,
+	// so bounded ranges cannot use both a lower and an upper comparison.
+	// See https://github.com/opencontainers/runc/issues/2735.
+	//
+	// A one-sided range starting at AF_UNIX is safe because AF_UNSPEC is not a
+	// creatable domain. Collapse it only when doing so removes equality rules.
+	rangeEnd := 0
+	if len(domains) > 1 && domains[0] == unix.AF_UNIX && domains[1] == domains[0]+1 {
+		// The first domains are represented by the range instead of equalities.
+		rangeEnd = 2
+		lastDomain := domains[1]
+		for _, domain := range domains[2:] {
+			// Stop at the first gap so the range does not include a blocked domain.
+			if domain != lastDomain+1 {
+				break
+			}
+			lastDomain = domain
+			rangeEnd++
+		}
+		// OpLessThan is exclusive, so compare with the value after the range.
+		syscalls = append(syscalls, socketSyscall(lastDomain+1, specs.OpLessThan))
+	}
+
+	// Every later run is bounded, so preserve it with one equality per domain.
+	for _, domain := range domains[rangeEnd:] {
+		syscalls = append(syscalls, socketSyscall(domain, specs.OpEqualTo))
+	}
+	return syscalls
+}
+
+func socketSyscall(value uint64, op specs.LinuxSeccompOperator) *Syscall {
+	return &Syscall{
+		LinuxSyscall: specs.LinuxSyscall{
+			Names:  []string{"socket"},
+			Action: specs.ActAllow,
+			Args: []specs.LinuxSeccompArg{
+				{
+					Index: 0,
+					Value: value,
+					Op:    op,
+				},
+			},
+		},
+	}
+}
 
 func arches() []Architecture {
 	return []Architecture{
@@ -442,51 +559,14 @@ func DefaultProfile() *Seccomp {
 				MinKernel: &KernelVersion{4, 8},
 			},
 		},
-		// Allow socket(2) for all address families except AF_VSOCK and AF_ALG.
-		// NOTE: on 32-bit x86, socket() goes through socketcall(2) which is
-		// allowed unconditionally above, so AF_VSOCK/AF_ALG is still reachable
-		// via the socketcall-based socket() path. These arg filters only apply
-		// to the direct socket syscall, and do not protect 32-bit x86 unless
-		// socketcall(2) is also addressed.
-		{
-			LinuxSyscall: specs.LinuxSyscall{
-				Names:  []string{"socket"},
-				Action: specs.ActAllow,
-				Args: []specs.LinuxSeccompArg{
-					{
-						Index: 0,
-						Value: unix.AF_ALG,
-						Op:    specs.OpLessThan,
-					},
-				},
-			},
-		},
-		{
-			LinuxSyscall: specs.LinuxSyscall{
-				Names:  []string{"socket"},
-				Action: specs.ActAllow,
-				Args: []specs.LinuxSeccompArg{
-					{
-						Index: 0,
-						Value: unix.AF_ALG + 1,
-						Op:    specs.OpEqualTo,
-					},
-				},
-			},
-		},
-		{
-			LinuxSyscall: specs.LinuxSyscall{
-				Names:  []string{"socket"},
-				Action: specs.ActAllow,
-				Args: []specs.LinuxSeccompArg{
-					{
-						Index: 0,
-						Value: unix.AF_VSOCK,
-						Op:    specs.OpGreaterThan,
-					},
-				},
-			},
-		},
+	}
+
+	// Allow socket(2) for the address families listed in allowedSocketDomains.
+	// On ABIs that use socketcall(2), the socket arguments are behind a pointer
+	// and cannot be filtered by seccomp. Because socketcall(2) is allowed above,
+	// this domain allow-list applies only to the direct socket syscall.
+	syscalls = append(syscalls, socketSyscalls()...)
+	syscalls = append(syscalls, []*Syscall{
 		{
 			LinuxSyscall: specs.LinuxSyscall{
 				Names:  []string{"personality"},
@@ -874,7 +954,7 @@ func DefaultProfile() *Seccomp {
 				Caps: []string{"CAP_PERFMON"},
 			},
 		},
-	}
+	}...)
 
 	errnoRet := uint(unix.EPERM)
 	return &Seccomp{

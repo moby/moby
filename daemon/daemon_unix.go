@@ -52,8 +52,6 @@ import (
 )
 
 const (
-	isWindows = false
-
 	// These values were used to adjust the CPU-shares for older API versions,
 	// but were not used for validation.
 	//

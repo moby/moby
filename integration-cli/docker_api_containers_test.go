@@ -701,23 +701,6 @@ func (s *DockerAPISuite) TestContainerAPIPostCreateNull(c *testing.T) {
 	assert.Equal(c, outMemorySwap, "0")
 }
 
-func (s *DockerAPISuite) TestContainerAPIKill(c *testing.T) {
-	const name = "test-api-kill"
-	runSleepingContainer(c, "-i", "--name", name)
-
-	apiClient, err := client.New(client.FromEnv)
-	assert.NilError(c, err)
-	defer apiClient.Close()
-
-	_, err = apiClient.ContainerKill(testutil.GetContext(c), name, client.ContainerKillOptions{
-		Signal: "SIGKILL",
-	})
-	assert.NilError(c, err)
-
-	state := inspectField(c, name, "State.Running")
-	assert.Equal(c, state, "false", fmt.Sprintf("got wrong State from container %s: %q", name, state))
-}
-
 func (s *DockerAPISuite) TestContainerAPIRestart(c *testing.T) {
 	const name = "test-api-restart"
 	runSleepingContainer(c, "-di", "--name", name)

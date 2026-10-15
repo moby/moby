@@ -2,11 +2,11 @@ package main
 
 import (
 	"archive/tar"
+	"bytes"
 	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -98,20 +98,13 @@ func (s *DockerRegistrySuite) TestPushMultipleTags(c *testing.T) {
 func (s *DockerRegistrySuite) TestPushEmptyLayer(c *testing.T) {
 	const imgRepo = privateRegistryURL + "/dockercli/emptylayer"
 
-	emptyTarball, err := os.CreateTemp("", "empty_tarball")
-	assert.NilError(c, err, "Unable to create test file")
-
-	tw := tar.NewWriter(emptyTarball)
-	err = tw.Close()
-	assert.NilError(c, err, "Error creating empty tarball")
-
-	freader, err := os.Open(emptyTarball.Name())
-	assert.NilError(c, err, "Could not open test tarball")
-	defer freader.Close()
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	assert.NilError(c, tw.Close(), "error creating empty tarball")
 
 	icmd.RunCmd(icmd.Cmd{
 		Command: []string{dockerBinary, "import", "-", imgRepo},
-		Stdin:   freader,
+		Stdin:   &buf,
 	}).Assert(c, icmd.Success)
 
 	// Now verify we can push it

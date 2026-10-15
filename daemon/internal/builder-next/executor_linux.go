@@ -169,7 +169,7 @@ func (iface *lnInterface) Set(s *specs.Spec) error {
 	shortNetCtlrID := stringid.TruncateID(iface.provider.Controller.ID())
 	// attach netns to bridge within the container namespace, using reexec in a prestart hook
 	s.Hooks = &specs.Hooks{
-		Prestart: []specs.Hook{{
+		Prestart: []specs.Hook{{ //nolint:staticcheck // ignore SA1019 (Prestart is deprecated); FIXME(thaJeztah): see https://github.com/moby/moby/issues/52488
 			Path: filepath.Join("/proc", strconv.Itoa(os.Getpid()), "exe"),
 			Args: []string{"libnetwork-setkey", "-exec-root=" + iface.provider.Config().ExecRoot, iface.sbx.ContainerID(), shortNetCtlrID},
 		}},

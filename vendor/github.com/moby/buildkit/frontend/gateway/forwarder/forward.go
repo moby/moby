@@ -41,7 +41,7 @@ func LLBBridgeToGatewayClient(ctx context.Context, llbBridge frontend.FrontendLL
 		sid:                sid,
 		sm:                 sm,
 		workers:            w,
-		workerRefByID:      make(map[string]*worker.WorkerRef),
+		resultByID:         make(map[string]solver.Result),
 		executor:           exec,
 		mounts:             make(map[string]snapshot.Mounter),
 		containerCtx:       containerCtx,
@@ -59,17 +59,18 @@ type BridgeClient struct {
 	containerCtx       context.Context
 	cancelContainerCtx context.CancelCauseFunc
 	// newContainer is overridden by tests.
-	newContainer  func(context.Context, container.NewContainerRequest) (client.Container, error)
-	opts          map[string]string
-	inputs        map[string]*opspb.Definition
-	sid           string
-	sm            *session.Manager
-	refs          []*ref
-	workers       worker.Infos
-	workerRefByID map[string]*worker.WorkerRef
-	buildOpts     client.BuildOpts
-	ctrs          []client.Container
-	executor      executor.Executor
+	newContainer func(context.Context, container.NewContainerRequest) (client.Container, error)
+	opts         map[string]string
+	inputs       map[string]*opspb.Definition
+	sid          string
+	sm           *session.Manager
+	refs         []*ref
+	workers      worker.Infos
+	resultByID   map[string]solver.Result
+	discarded    bool
+	buildOpts    client.BuildOpts
+	ctrs         []client.Container
+	executor     executor.Executor
 
 	mounts       map[string]snapshot.Mounter
 	mountsMu     sync.Mutex
@@ -173,7 +174,7 @@ func (c *BridgeClient) wrapSolveError(solveErr error) error {
 	}
 	if errors.As(solveErr, &sce) {
 		var err error
-		inputIDs, err = c.registerResultIDs(sce.Result)
+		inputIDs, err = c.registerSlowCacheResult(sce.Result)
 		if err != nil {
 			return err
 		}
@@ -186,6 +187,28 @@ func (c *BridgeClient) registerResultIDs(results ...solver.Result) (ids []string
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	return c.registerResultIDsLocked(results...)
+}
+
+// registerSlowCacheResult registers a clone of a result borrowed from the
+// solver job. The clone is only taken before the client is discarded, as the
+// job may be released after that.
+func (c *BridgeClient) registerSlowCacheResult(res solver.Result) ([]string, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.discarded {
+		return nil, nil
+	}
+	// Validate before cloning so a type error can't leak the clone. Once
+	// cloned, registerResultIDsLocked either keeps or releases it.
+	if _, ok := res.Sys().(*worker.WorkerRef); !ok {
+		return nil, errors.Errorf("unexpected type for result, got %T", res.Sys())
+	}
+	return c.registerResultIDsLocked(res.Clone())
+}
+
+func (c *BridgeClient) registerResultIDsLocked(results ...solver.Result) (ids []string, err error) {
 	ids = make([]string, len(results))
 	for i, res := range results {
 		if res == nil {
@@ -197,15 +220,16 @@ func (c *BridgeClient) registerResultIDs(results ...solver.Result) (ids []string
 		}
 		id := workerRef.ID()
 		ids[i] = id
-		if existing, ok := c.workerRefByID[id]; ok {
-			if existing != workerRef {
-				if err := workerRef.Release(context.TODO()); err != nil {
+		if existing, ok := c.resultByID[id]; ok {
+			if existing != res {
+				if err := res.Release(context.TODO()); err != nil {
 					return ids, errors.WithStack(err)
 				}
 			}
 			continue
 		}
-		c.workerRefByID[id] = workerRef
+		// Keep the result wrapper so Release balances split-result ownership.
+		c.resultByID[id] = res
 	}
 	return ids, nil
 }
@@ -256,12 +280,12 @@ func (c *BridgeClient) discard(err error) {
 	c.discardMounts()
 
 	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	for id, workerRef := range c.workerRefByID {
-		workerRef.Release(context.TODO())
-		delete(c.workerRefByID, id)
+	c.discarded = true
+	for id, res := range c.resultByID {
+		res.Release(context.TODO())
+		delete(c.resultByID, id)
 	}
+	c.mu.Unlock()
 	for _, r := range c.refs {
 		if r != nil {
 			r.resultProxy.Release(context.TODO())
@@ -318,6 +342,7 @@ func (c *BridgeClient) NewContainer(ctx context.Context, req client.NewContainer
 		NetMode:     req.NetMode,
 		Hostname:    req.Hostname,
 		Mounts:      make([]container.Mount, len(req.Mounts)),
+		Platform:    req.Platform,
 	}
 
 	eg, egCtx := errgroup.WithContext(ctx)
@@ -341,10 +366,13 @@ func (c *BridgeClient) NewContainer(ctx context.Context, req client.NewContainer
 					return errors.Errorf("invalid ref: %T", res.Sys())
 				}
 			} else if m.ResultID != "" {
-				var ok bool
 				c.mu.Lock()
-				workerRef, ok = c.workerRefByID[m.ResultID]
+				res, found := c.resultByID[m.ResultID]
 				c.mu.Unlock()
+				var ok bool
+				if found {
+					workerRef, ok = res.Sys().(*worker.WorkerRef)
+				}
 				if !ok {
 					return errors.Errorf("failed to find ref %s for %q mount", m.ResultID, m.Dest)
 				}

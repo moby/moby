@@ -3,9 +3,7 @@ package tarsum
 import (
 	"archive/tar"
 	"errors"
-	"fmt"
 	"slices"
-	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -100,28 +98,29 @@ func containsVersion(versions []Version, version Version) bool {
 	return slices.Contains(versions, version)
 }
 
+// TestSelectXattrsV1 verifies compatibility with the deprecated [tar.Header.Xattrs]
+// field, including its precedence over equivalent SCHILY.xattr entries in PAXRecords.
 func TestSelectXattrsV1(t *testing.T) {
 	hdr := &tar.Header{
-		Xattrs: map[string]string{ //nolint:staticcheck
-			"user.xattronly": "x",
-			"user.foo":       "xattr",
+		Xattrs: map[string]string{ //nolint:staticcheck // verify compatibility with deprecated field
+			"user.xattrs-only": "xattrs-only",
+			"user.both":        "from-xattrs",
 		},
 		PAXRecords: map[string]string{
-			"SCHILY.xattr.user.paxonly": "p",
-			"SCHILY.xattr.user.foo":     "paxrecord",
+			"SCHILY.xattr.user.pax-only": "pax-only",
+			"SCHILY.xattr.user.both":     "from-pax",
 		},
 	}
+
 	selected := v1TarHeaderSelect(hdr)
 
-	var s strings.Builder
+	var elements []string
 	for _, elem := range selected {
-		fmt.Fprintf(&s, "%s=%s\n", elem[0], elem[1])
+		elements = append(elements, elem[0]+"="+elem[1])
 	}
-	t.Logf("Selected headers:\n%s", s.String())
-
 	assert.Check(t, is.DeepEqual(selected[len(selected)-3:], [][2]string{
-		{"user.foo", "xattr"},
-		{"user.paxonly", "p"},
-		{"user.xattronly", "x"},
-	}))
+		{"user.both", "from-xattrs"},
+		{"user.pax-only", "pax-only"},
+		{"user.xattrs-only", "xattrs-only"},
+	}), "selected elements: %#v", elements)
 }

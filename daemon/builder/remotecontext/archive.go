@@ -47,7 +47,7 @@ type modifiableContext interface {
 // all those sums then becomes the source of truth for all operations on this Context.
 //
 // Closing tarStream has to be done by the caller.
-func FromArchive(tarStream io.Reader) (builder.Source, error) {
+func FromArchive(tarStream io.Reader) (_ builder.Source, retErr error) {
 	root, err := longpath.MkdirTemp("", "docker-builder")
 	if err != nil {
 		return nil, err
@@ -56,11 +56,11 @@ func FromArchive(tarStream io.Reader) (builder.Source, error) {
 	// Assume local file system. Since it's coming from a tar file.
 	tsc := &archiveContext{root: root}
 
-	// Make sure we clean-up upon error.  In the happy case the caller
-	// is expected to manage the clean-up
+	// Cleanup upon error. In the happy case the caller
+	// is expected to manage the cleanup.
 	defer func() {
-		if err != nil {
-			tsc.Close()
+		if retErr != nil {
+			_ = tsc.Close()
 		}
 	}()
 

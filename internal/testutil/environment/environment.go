@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -209,7 +210,7 @@ func (e *Execution) UsingSnapshotter() bool {
 // Note that this is done by filtering and then checking whether there were any
 // results -- so ambiguous references might result in false-positives.
 func (e *Execution) HasExistingImage(t testing.TB, reference string) bool {
-	imageList, err := e.APIClient().ImageList(context.Background(), client.ImageListOptions{
+	imageList, err := e.APIClient().ImageList(t.Context(), client.ImageListOptions{
 		All: true,
 		Filters: make(client.Filters).
 			Add("dangling", "false").
@@ -233,6 +234,17 @@ func (e *Execution) IsSELinuxEnforcing() bool {
 	}
 
 	return strings.TrimSpace(string(data)) == "1"
+}
+
+// IsKernelModuleLoadable returns whether the given kernel module is loadable.
+// Returns true when the module is already loaded or built-in into the kernel.
+func (e *Execution) IsKernelModuleLoadable(module string) bool {
+	if runtime.GOOS != "linux" {
+		return false
+	}
+	// modprobe is aware of `/lib/modules/$(uname -r)/modules.builtin`,
+	// so it does not fail for already built-in modules.
+	return exec.Command("/sbin/modprobe", "-n", module).Run() == nil
 }
 
 // EnsureFrozenImagesLinux loads frozen test images into the daemon

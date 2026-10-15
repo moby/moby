@@ -62,22 +62,22 @@ func TestPortMappingConfig(t *testing.T) {
 	}
 
 	ipdList4 := getIPv4Data(t)
-	err = d.CreateNetwork(context.Background(), "dummy", netOptions, nil, ipdList4, getIPv6Data(t))
+	err = d.CreateNetwork(t.Context(), "dummy", netOptions, nil, ipdList4, getIPv6Data(t))
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
 	te := newTestEndpoint(ipdList4[0].Pool, 11)
-	err = d.CreateEndpoint(context.Background(), "dummy", "ep1", te.Interface(), nil)
+	err = d.CreateEndpoint(t.Context(), "dummy", "ep1", te.Interface(), nil)
 	if err != nil {
 		t.Fatalf("Failed to create the endpoint: %s", err.Error())
 	}
 
-	if err = d.Join(context.Background(), "dummy", "ep1", "sbox", te, nil, sbOptions); err != nil {
+	if err = d.Join(t.Context(), "dummy", "ep1", "sbox", te, nil, sbOptions); err != nil {
 		t.Fatalf("Failed to join the endpoint: %v", err)
 	}
 
-	if err = d.ProgramExternalConnectivity(context.Background(), "dummy", "ep1", "ep1", ""); err != nil {
+	if err = d.ProgramExternalConnectivity(t.Context(), "dummy", "ep1", "ep1", ""); err != nil {
 		t.Fatalf("Failed to program external connectivity: %v", err)
 	}
 
@@ -106,7 +106,7 @@ func TestPortMappingConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = d.ProgramExternalConnectivity(context.Background(), "dummy", "ep1", "", "")
+	err = d.ProgramExternalConnectivity(t.Context(), "dummy", "ep1", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,22 +146,22 @@ func TestPortMappingV6Config(t *testing.T) {
 
 	ipdList4 := getIPv4Data(t)
 	ipdList6 := getIPv6Data(t)
-	err = d.CreateNetwork(context.Background(), "dummy", netOptions, nil, ipdList4, ipdList6)
+	err = d.CreateNetwork(t.Context(), "dummy", netOptions, nil, ipdList4, ipdList6)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
 	te := newTestEndpoint46(ipdList4[0].Pool, ipdList6[0].Pool, 11)
-	err = d.CreateEndpoint(context.Background(), "dummy", "ep1", te.Interface(), nil)
+	err = d.CreateEndpoint(t.Context(), "dummy", "ep1", te.Interface(), nil)
 	if err != nil {
 		t.Fatalf("Failed to create the endpoint: %s", err.Error())
 	}
 
-	if err = d.Join(context.Background(), "dummy", "ep1", "sbox", te, nil, sbOptions); err != nil {
+	if err = d.Join(t.Context(), "dummy", "ep1", "sbox", te, nil, sbOptions); err != nil {
 		t.Fatalf("Failed to join the endpoint: %v", err)
 	}
 
-	if err = d.ProgramExternalConnectivity(context.Background(), "dummy", "ep1", "ep1", "ep1"); err != nil {
+	if err = d.ProgramExternalConnectivity(t.Context(), "dummy", "ep1", "ep1", "ep1"); err != nil {
 		t.Fatalf("Failed to program external connectivity: %v", err)
 	}
 
@@ -180,7 +180,7 @@ func TestPortMappingV6Config(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = d.ProgramExternalConnectivity(context.Background(), "dummy", "ep1", "", "")
+	err = d.ProgramExternalConnectivity(t.Context(), "dummy", "ep1", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -789,7 +789,7 @@ func TestAddPortMappings(t *testing.T) {
 				bridge: &bridgeInterface{},
 				driver: driver,
 			}
-			fwn, err := n.newFirewallerNetwork(context.Background())
+			fwn, err := n.newFirewallerNetwork(t.Context())
 			assert.NilError(t, err)
 			assert.Check(t, fwn != nil, "no firewaller network")
 			n.firewallerNetwork = fwn
@@ -810,7 +810,7 @@ func TestAddPortMappings(t *testing.T) {
 			var sb strings.Builder
 			logger := logrus.New()
 			logger.Out = &sb
-			ctx := log.WithLogger(context.Background(), &log.Entry{Logger: logger})
+			ctx := log.WithLogger(t.Context(), &log.Entry{Logger: logger})
 			t.Cleanup(func() {
 				if t.Failed() {
 					t.Logf("Daemon logs:\n%s", sb.String())

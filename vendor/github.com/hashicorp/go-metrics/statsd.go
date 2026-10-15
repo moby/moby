@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2013, 2025
+// Copyright IBM Corp. 2013, 2026
 // SPDX-License-Identifier: MIT
 
 package metrics
@@ -19,12 +19,22 @@ const (
 	statsdMaxLen = 1400
 )
 
+// SinkLogger is a minimal structured logging interface that sink implementations
+// use to emit operational error messages. It is satisfied by hclog.Logger and
+// any other structured logger that provides Warn and Error methods with
+// key/value pair arguments.
+type SinkLogger interface {
+	Warn(msg string, args ...any)
+	Error(msg string, args ...any)
+}
+
 // StatsdSink provides a MetricSink that can be used
 // with a statsite or statsd metrics server. It uses
 // only UDP packets, while StatsiteSink uses TCP.
 type StatsdSink struct {
 	addr        string
 	metricQueue chan string
+	logger      SinkLogger
 }
 
 // NewStatsdSinkFromURL creates an StatsdSink from a URL. It is used
@@ -41,6 +51,47 @@ func NewStatsdSink(addr string) (*StatsdSink, error) {
 	}
 	go s.flushMetrics()
 	return s, nil
+}
+
+// NewStatsdSinkWithLogger is used to create a new StatsdSink with a SinkLogger.
+// The logger is set before the background flush goroutine starts, ensuring all
+// operational errors are routed through it from the first connection attempt.
+func NewStatsdSinkWithLogger(addr string, logger SinkLogger) (*StatsdSink, error) {
+	s := &StatsdSink{
+		addr:        addr,
+		metricQueue: make(chan string, 4096),
+		logger:      logger,
+	}
+	go s.flushMetrics()
+	return s, nil
+}
+
+// SetLogger assigns a SinkLogger to the sink. When set, operational errors
+// such as connection failures and flush errors are emitted through the provided
+// logger instead of the stdlib log package, allowing callers to control the
+// log format and destination.
+func (s *StatsdSink) SetLogger(logger SinkLogger) {
+	s.logger = logger
+}
+
+// logWarn emits a warning through the configured SinkLogger when one is set,
+// falling back to stdlib log.Printf otherwise.
+func (s *StatsdSink) logWarn(msg string, err error) {
+	if s.logger != nil {
+		s.logger.Warn(msg, "error", err)
+	} else {
+		log.Printf("[WARN] %s Err: %s", msg, err)
+	}
+}
+
+// logErr emits an error through the configured SinkLogger when one is set,
+// falling back to stdlib log.Printf otherwise.
+func (s *StatsdSink) logErr(msg string, err error) {
+	if s.logger != nil {
+		s.logger.Error(msg, "error", err)
+	} else {
+		log.Printf("[ERR] %s Err: %s", msg, err)
+	}
 }
 
 // Close is used to stop flushing to statsd
@@ -139,7 +190,7 @@ CONNECT:
 	// Attempt to connect
 	sock, err = net.Dial("udp", s.addr)
 	if err != nil {
-		log.Printf("[ERR] Error connecting to statsd! Err: %s", err)
+		s.logErr("Error connecting to statsd!", err)
 		goto WAIT
 	}
 
@@ -156,7 +207,7 @@ CONNECT:
 				_, err := sock.Write(buf.Bytes())
 				buf.Reset()
 				if err != nil {
-					log.Printf("[ERR] Error writing to statsd! Err: %s", err)
+					s.logErr("Error writing to statsd!", err)
 					goto WAIT
 				}
 			}
@@ -172,7 +223,7 @@ CONNECT:
 			_, err := sock.Write(buf.Bytes())
 			buf.Reset()
 			if err != nil {
-				log.Printf("[ERR] Error flushing to statsd! Err: %s", err)
+				s.logErr("Error flushing to statsd!", err)
 				goto WAIT
 			}
 		}

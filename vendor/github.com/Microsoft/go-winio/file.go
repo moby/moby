@@ -234,12 +234,17 @@ func (f *win32File) Read(b []byte) (int, error) {
 	runtime.KeepAlive(b)
 
 	// Handle EOF conditions.
-	if err == nil && n == 0 && len(b) != 0 {
+	switch err {
+	case windows.ERROR_BROKEN_PIPE: //nolint:errorlint // err is Errno
 		return 0, io.EOF
-	} else if err == windows.ERROR_BROKEN_PIPE { //nolint:errorlint // err is Errno
-		return 0, io.EOF
+	case nil:
+		if n == 0 && len(b) != 0 {
+			return 0, io.EOF
+		}
+		return n, nil
+	default:
+		return n, err
 	}
-	return n, err
 }
 
 // Write writes to a file handle.

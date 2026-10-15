@@ -73,8 +73,16 @@ type ActivateOptions struct {
 	// AllowMountTypes indicates that the caller will handle the specified
 	// mount types and should not be handled by the mount manager even if
 	// there is a configured handler for the type.
-	// Use "/*" suffix to match prepare mount types, such as "format/*".
 	AllowMountTypes []string
+
+	// AllowTransforms indicates that the caller will apply the specified
+	// mount transforms, such as "format" or "mkfs", and that the mount
+	// manager should not apply them.
+	//
+	// Transforms are named without the "/<mount-type>" suffix that appears
+	// in a mount type, so "format" here matches the mount types "format/bind"
+	// and "format/mkdir/overlay" alike.
+	AllowTransforms []string
 }
 
 // ActivateOpt is a function option for Activate
@@ -94,15 +102,29 @@ func WithLabels(labels map[string]string) ActivateOpt {
 	}
 }
 
-// WithAllowMountType indicates the mount types that the peformer
+// WithAllowMountType indicates the mount types that the performer
 // of the mounts will support. Even if there is a custom handler
 // registered for the mount type to the mount handler, these mounts
-// should not performed unless required to support subsequent mounts.
-// For prepare mount types, use "/*" suffix to match all prepare types,
-// such as "format/*".
+// should not be performed unless required to support subsequent mounts.
+//
+// To claim a transform, such as "format" or "mkfs", use
+// [WithAllowTransform] instead.
 func WithAllowMountType(mountType string) ActivateOpt {
 	return func(o *ActivateOptions) {
 		o.AllowMountTypes = append(o.AllowMountTypes, mountType)
+	}
+}
+
+// WithAllowTransform indicates a mount transform, such as "format" or "mkfs",
+// that the performer of the mounts will apply itself. The mount manager will
+// not apply it unless it is required to support subsequent mounts.
+//
+// The transform is named on its own, without the "/<mount-type>" suffix that
+// appears in a mount type, so "format" matches the mount types "format/bind"
+// and "format/mkdir/overlay" alike.
+func WithAllowTransform(transform string) ActivateOpt {
+	return func(o *ActivateOptions) {
+		o.AllowTransforms = append(o.AllowTransforms, transform)
 	}
 }
 

@@ -2,20 +2,11 @@
 
 *Go language library to map between non-negative integers and boolean values*
 
-[![Test](https://github.com/bits-and-blooms/bitset/workflows/Test/badge.svg)](https://github.com/willf/bitset/actions?query=workflow%3ATest)
-[![Go Report Card](https://goreportcard.com/badge/github.com/willf/bitset)](https://goreportcard.com/report/github.com/willf/bitset)
+[![Test](https://github.com/bits-and-blooms/bitset/workflows/Test/badge.svg)](https://github.com/bits-and-blooms/bitset/actions?query=workflow%3ATest)
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/bits-and-blooms/bitset?tab=doc)](https://pkg.go.dev/github.com/bits-and-blooms/bitset?tab=doc)
 
 
-This library is part of the [awesome go collection](https://github.com/avelino/awesome-go). It is used in production by several important systems:
-
-* [beego](https://github.com/beego/beego)
-* [CubeFS](https://github.com/cubefs/cubefs)
-* [Amazon EKS Distro](https://github.com/aws/eks-distro)
-* [sourcegraph](https://github.com/sourcegraph/sourcegraph)
-* [torrent](https://github.com/anacrolix/torrent)
-
-
+This library is part of the [awesome go collection](https://github.com/avelino/awesome-go). It is used in production by several important systems.
 ## Description
 
 Package bitset implements bitsets, a mapping between non-negative integers and boolean values.
@@ -25,7 +16,7 @@ It provides methods for setting, clearing, flipping, and testing individual inte
 
 But it also provides set intersection, union, difference, complement, and symmetric operations, as well as tests to check whether any, all, or no bits are set, and querying a bitset's current length and number of positive bits.
 
-BitSets are expanded to the size of the largest set bit; the memory allocation is approximately Max bits, where Max is the largest set bit. BitSets are never shrunk. On creation, a hint can be given for the number of bits that will be used.
+BitSets are expanded to the size of the largest set bit; the memory allocation is approximately Max bits, where Max is the largest set bit. BitSets are never shrunk automatically, but `Shrink` and `Compact` methods are available. On creation, a hint can be given for the number of bits that will be used.
 
 Many of the methods, including Set, Clear, and Flip, return a BitSet pointer, which allows for chaining.
 
@@ -68,6 +59,13 @@ func main() {
 	}
 }
 ```
+
+If you have Go 1.23 or better, you can iterate over the set bits like so:
+
+```go
+for i := range b.EachSet() {}
+```
+
 
 
 Package documentation is at: https://pkg.go.dev/github.com/bits-and-blooms/bitset?tab=doc
@@ -125,7 +123,7 @@ E.g.,
 
 ## Memory Usage
 
-The memory usage of a bitset using `N` bits is at least `N/8` bytes. The number of bits in a bitset is at least as large as one plus the greatest bit index you have accessed. Thus it is possible to run out of memory while using a bitset. If you have lots of bits, you might prefer compressed bitsets, like the [Roaring bitmaps](http://roaringbitmap.org) and its [Go implementation](https://github.com/RoaringBitmap/roaring).
+The memory usage of a bitset using `N` bits is at least `N/8` bytes. The number of bits in a bitset is at least as large as one plus the greatest bit index you have accessed. Thus it is possible to run out of memory while using a bitset. If you have lots of bits, you might prefer compressed bitsets, like the [Roaring bitmaps](https://roaringbitmap.org) and its [Go implementation](https://github.com/RoaringBitmap/roaring).
 
 The `roaring` library allows you to go back and forth between compressed Roaring bitmaps and the conventional bitset instances:
 ```Go
@@ -134,17 +132,70 @@ The `roaring` library allows you to go back and forth between compressed Roaring
 ```
 
 
-## Implementation Note
+### Goroutine safety
 
-Go 1.9 introduced a native `math/bits` library. We provide backward compatibility to Go 1.7, which might be removed.
+In general, it's not safe to access the same BitSet using different goroutines--they are unsynchronized for performance.
 
-It is possible that a later version will match the `math/bits` return signature for counts (which is `int`, rather than our library's `uint64`). If so, the version will be bumped.
+Should you want to access a BitSet from more than one goroutine, you should provide synchronization. Typically this is done by using channels to pass the *BitSet around (in Go style; so there is only ever one owner), or by using `sync.Mutex` to serialize operations on BitSets.
 
 ## Installation
 
 ```bash
 go get github.com/bits-and-blooms/bitset
 ```
+
+## Users
+
+
+
+Databases & Storage
+- [milvus-io/milvus](https://github.com/milvus-io/milvus) — popular open-source vector database
+- [cubefs/cubefs](https://github.com/cubefs/cubefs) — CNCF distributed filesystem (used at JD.com)
+- [sourcenetwork/defradb](https://github.com/sourcenetwork/defradb) — decentralized document database
+- [siglens/siglens](https://github.com/siglens/siglens) — open-source observability/log analytics platform
+- [ByteStorage/FlyDB](https://github.com/ByteStorage/FlyDB) — high-performance KV store
+
+Search & Indexing
+- [blevesearch/bleve](https://github.com/blevesearch/bleve) — full-text search library for Go
+- [blevesearch/vellum](https://github.com/blevesearch/vellum) — FST library used internally by Bleve
+- [blugelabs/bluge](https://github.com/blugelabs/bluge) — modern Go search library (successor to Bleve)
+- [geange/lucene-go](https://github.com/geange/lucene-go) — Lucene port to Go
+
+Blockchain & Cryptography
+- [consensys/gnark](https://github.com/consensys/gnark) — zk-SNARK proving system
+- [consensys/gnark-crypto](https://github.com/consensys/gnark-crypto) — elliptic curve cryptography for ZK proofs
+- [NethermindEth/juno](https://github.com/NethermindEth/juno) — StarkNet full node
+- [onflow/cadence](https://github.com/onflow/cadence) — Flow blockchain smart contract language runtime
+- [cosmos/cosmos-sdk](https://github.com/cosmos/cosmos-sdk) — Cosmos blockchain SDK (slashing module)
+- [babylonlabs-io/babylon](https://github.com/babylonlabs-io/babylon) — Bitcoin staking protocol
+- [bnb-chain/greenfield](https://github.com/bnb-chain/greenfield) — BNB Chain decentralized storage
+
+Infrastructure & Networking
+- [moby/swarmkit](https://github.com/moby/swarmkit) — Docker Swarm orchestration (ID management)
+- [coredhcp/coredhcp](https://github.com/coredhcp/coredhcp) — pluggable DHCP server (bitmap IP allocation)
+- [Scalingo/sand](https://github.com/Scalingo/sand) — private networking for containers (IP allocation)
+- [AliyunContainerService/terway](https://github.com/AliyunContainerService/terway) — Alibaba Cloud K8s CNI
+- [pomerium/pomerium](https://github.com/pomerium/pomerium) — identity-aware access proxy
+
+Distributed Systems & Messaging
+- [apache/pulsar-client-go](https://github.com/apache/pulsar-client-go) — official Apache Pulsar Go client
+- [d7y.io/dragonfly](https://github.com/dragonflyoss/Dragonfly2) — CNCF P2P file distribution system
+- [RoaringBitmap/roaring](https://github.com/RoaringBitmap/roaring) — compressed bitmap library (interops with bitset)
+- [zhenghaoz/gorse](https://github.com/zhenghaoz/gorse) — Go recommendation engine
+
+Machine Learning / Vector Search
+- [fogfish/hnsw](https://github.com/fogfish/hnsw) — HNSW approximate nearest-neighbor graph
+- [semafind/semadb](https://github.com/semafind/semadb) — vector database
+
+Developer Tools & Security
+- [bearer/bearer](https://github.com/bearer/bearer) — security code scanner (AST traversal)
+- [zrepl/zrepl](https://github.com/zrepl/zrepl) — ZFS replication tool
+- [NVIDIA/dcgm-exporter](https://github.com/NVIDIA/dcgm-exporter) — NVIDIA GPU Prometheus exporter
+- [NVIDIA/go-dcgm](https://github.com/NVIDIA/go-dcgm) — NVIDIA datacenter GPU management bindings
+- [gohugoio/hugo](https://github.com/gohugoio/hugo) — the Hugo static site generator
+- [godoctor/godoctor](https://github.com/godoctor/godoctor) — Go refactoring tool (dataflow analysis)
+
+
 
 ## Contributing
 
@@ -157,3 +208,9 @@ Before committing the code, please check if it passes tests, has adequate covera
 go test
 go test -cover
 ```
+
+
+## Further reading
+
+<p>Mastering Programming: From Testing to Performance in Go</p>
+<div><a href="https://www.amazon.com/dp/B0FMPGSWR5"><img style="margin-left: auto; margin-right: auto;" src="https://m.media-amazon.com/images/I/61feneHS7kL._SL1499_.jpg" alt="" width="250px" /></a></div>

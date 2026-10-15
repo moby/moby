@@ -28,6 +28,10 @@ import (
 	"github.com/containernetworking/cni/pkg/types"
 	types100 "github.com/containernetworking/cni/pkg/types/100"
 	"github.com/containernetworking/cni/pkg/version"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type CNI interface {
@@ -84,6 +88,10 @@ type libcni struct {
 	// - lock in public methods: write lock when mutating the state, read lock when reading the state.
 	// - never lock in private methods.
 	RWMutex
+}
+
+func tracer() trace.Tracer {
+	return otel.Tracer("github.com/containerd/go-cni")
 }
 
 func defaultCNIConfig() *libcni {
@@ -165,6 +173,14 @@ func (c *libcni) Networks() []*Network {
 
 // Setup setups the network in the namespace and returns a Result
 func (c *libcni) Setup(ctx context.Context, id string, path string, opts ...NamespaceOpts) (*Result, error) {
+	ctx, span := tracer().Start(ctx, "cni.Setup", // starting new span as a child of the callers current span in ctx
+		trace.WithAttributes(
+			attribute.String("cni.id", id),
+			attribute.String("cni.path", path),
+		),
+	)
+	defer span.End()
+
 	c.RLock()
 	defer c.RUnlock()
 	if err := c.ready(); err != nil {
@@ -183,6 +199,14 @@ func (c *libcni) Setup(ctx context.Context, id string, path string, opts ...Name
 
 // SetupSerially setups the network in the namespace and returns a Result
 func (c *libcni) SetupSerially(ctx context.Context, id string, path string, opts ...NamespaceOpts) (*Result, error) {
+	ctx, span := tracer().Start(ctx, "cni.SetupSerially",
+		trace.WithAttributes(
+			attribute.String("cni.id", id),
+			attribute.String("cni.path", path),
+		),
+	)
+	defer span.End()
+
 	c.RLock()
 	defer c.RUnlock()
 	if err := c.ready(); err != nil {
@@ -202,7 +226,22 @@ func (c *libcni) SetupSerially(ctx context.Context, id string, path string, opts
 func (c *libcni) attachNetworksSerially(ctx context.Context, ns *Namespace) ([]*types100.Result, error) {
 	var results []*types100.Result
 	for _, network := range c.networks {
-		r, err := network.Attach(ctx, ns)
+		r, err := func() (*types100.Result, error) {
+			ctx, span := tracer().Start(ctx, "cni.attachNetworksSerially",
+				trace.WithAttributes(
+					attribute.String("cni.ifname", network.ifName),
+					attribute.String("cni.name", network.config.Name),
+				),
+			)
+			defer func() {
+				span.End()
+			}()
+			r, err := network.Attach(ctx, ns)
+			if err != nil {
+				span.SetStatus(codes.Error, err.Error())
+			}
+			return r, err
+		}()
 		if err != nil {
 			return nil, err
 		}
@@ -220,6 +259,9 @@ type asynchAttachResult struct {
 func asynchAttach(ctx context.Context, index int, n *Network, ns *Namespace, wg *sync.WaitGroup, rc chan asynchAttachResult) {
 	defer wg.Done()
 	r, err := n.Attach(ctx, ns)
+	if err != nil {
+		trace.SpanFromContext(ctx).SetStatus(codes.Error, err.Error())
+	}
 	rc <- asynchAttachResult{index: index, res: r, err: err}
 }
 
@@ -231,7 +273,17 @@ func (c *libcni) attachNetworks(ctx context.Context, ns *Namespace) ([]*types100
 
 	for i, network := range c.networks {
 		wg.Add(1)
-		go asynchAttach(ctx, i, network, ns, &wg, rc)
+		go func(i int, network *Network) {
+			ctx, span := tracer().Start(ctx, "cni.asynchAttach",
+				trace.WithAttributes(
+					attribute.Int("cni.index", i),
+					attribute.String("cni.ifname", network.ifName),
+					attribute.String("cni.name", network.config.Name),
+				),
+			)
+			defer span.End()
+			asynchAttach(ctx, i, network, ns, &wg, rc)
+		}(i, network)
 	}
 
 	for range c.networks {
@@ -248,6 +300,14 @@ func (c *libcni) attachNetworks(ctx context.Context, ns *Namespace) ([]*types100
 
 // Remove removes the network config from the namespace
 func (c *libcni) Remove(ctx context.Context, id string, path string, opts ...NamespaceOpts) error {
+	ctx, span := tracer().Start(ctx, "cni.Remove",
+		trace.WithAttributes(
+			attribute.String("cni.id", id),
+			attribute.String("cni.path", path),
+		),
+	)
+	defer span.End()
+
 	c.RLock()
 	defer c.RUnlock()
 	if err := c.ready(); err != nil {
@@ -278,6 +338,14 @@ func (c *libcni) Remove(ctx context.Context, id string, path string, opts ...Nam
 
 // Check checks if the network is still in desired state
 func (c *libcni) Check(ctx context.Context, id string, path string, opts ...NamespaceOpts) error {
+	ctx, span := tracer().Start(ctx, "cni.Check",
+		trace.WithAttributes(
+			attribute.String("cni.id", id),
+			attribute.String("cni.path", path),
+		),
+	)
+	defer span.End()
+
 	c.RLock()
 	defer c.RUnlock()
 	if err := c.ready(); err != nil {

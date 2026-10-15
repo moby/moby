@@ -1,7 +1,6 @@
 package image
 
 import (
-	"context"
 	"strings"
 	"testing"
 
@@ -58,7 +57,7 @@ func TestUsernsCommit(t *testing.T) {
 
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	dUserRemap := daemon.New(t, daemon.WithUserNsRemap("default"))
 	dUserRemap.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false")
 	clientUserRemap := dUserRemap.NewClientT(t)

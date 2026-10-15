@@ -12,11 +12,18 @@ func JoinPath(a, b string) string {
 		a = "/" + a
 	}
 
+	// Record b's trailing slash before the strip below can erase it (a bare
+	// "/" becomes "").
+	keepTrailing := len(b) > 0 && b[len(b)-1] == '/'
 	if len(b) != 0 && b[0] == '/' {
 		b = b[1:]
 	}
 
 	if len(b) != 0 && len(a) > 1 && a[len(a)-1] != '/' {
+		a = a + "/"
+	}
+
+	if keepTrailing && len(b) == 0 && a[len(a)-1] != '/' {
 		a = a + "/"
 	}
 

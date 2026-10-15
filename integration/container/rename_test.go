@@ -3,6 +3,7 @@ package container
 import (
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
@@ -95,9 +96,18 @@ func TestRenameInvalidName(t *testing.T) {
 	cID := container.Run(ctx, t, apiClient, container.WithName(oldName))
 
 	_, err := apiClient.ContainerRename(ctx, oldName, client.ContainerRenameOptions{NewName: "new:invalid"})
-	assert.Check(t, is.ErrorContains(err, "Invalid container name"))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
+	assert.Check(t, is.ErrorContains(err, "invalid container name (new:invalid):"))
 
 	inspect, err := apiClient.ContainerInspect(ctx, oldName, client.ContainerInspectOptions{})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(cID, inspect.Container.ID))
+
+	_, err = apiClient.ContainerRename(ctx, oldName, client.ContainerRenameOptions{NewName: "a"})
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
+	assert.Check(t, is.ErrorContains(err, "invalid container name (a): name must be at least 2 characters"))
+
+	inspect, err = apiClient.ContainerInspect(ctx, oldName, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(cID, inspect.Container.ID))
 }

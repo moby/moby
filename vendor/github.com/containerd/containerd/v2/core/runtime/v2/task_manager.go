@@ -36,6 +36,7 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-spec/specs-go/features"
 
+	bootapi "github.com/containerd/containerd/api/runtime/bootstrap/v1"
 	apitypes "github.com/containerd/containerd/api/types"
 
 	"github.com/containerd/containerd/v2/core/mount"
@@ -44,13 +45,6 @@ import (
 	"github.com/containerd/containerd/v2/pkg/timeout"
 	"github.com/containerd/containerd/v2/plugins"
 	"github.com/containerd/containerd/v2/plugins/services/warning"
-)
-
-const (
-	// allowedMounts are the custom mount types allowed by the runtime. These
-	// types should not be handled by the mount manager.
-	// To include prepare mount types, use "/*" suffix, such as "format/*"
-	allowedMounts = "containerd.io/runtime-allow-mounts"
 )
 
 // TaskConfig for the runtime task manager
@@ -120,7 +114,10 @@ func init() {
 				root:    root,
 				state:   state,
 				manager: shimManager,
-				mounts:  mounts,
+				taskMounts: &taskMountController{
+					manager: mounts,
+					legacy:  newDeprecatedMountCapabilities(shimManager),
+				},
 			}, nil
 		},
 	})
@@ -128,10 +125,10 @@ func init() {
 
 // TaskManager wraps task service client on top of shim manager.
 type TaskManager struct {
-	root    string
-	state   string
-	manager *ShimManager
-	mounts  mount.Manager
+	root       string
+	state      string
+	manager    *ShimManager
+	taskMounts *taskMountController
 }
 
 // NewTaskManager creates a new task manager instance.
@@ -146,6 +143,9 @@ func NewTaskManager(ctx context.Context, root, state string, shims *ShimManager)
 		root:    root,
 		state:   state,
 		manager: shims,
+		taskMounts: &taskMountController{
+			legacy: newDeprecatedMountCapabilities(shims),
+		},
 	}
 	return m, nil
 }
@@ -172,48 +172,42 @@ func (m *TaskManager) Create(ctx context.Context, taskID string, opts runtime.Cr
 		"runtime": opts.Runtime,
 	}).Debug("creating task")
 
-	activateOpts := []mount.ActivateOpt{
-		mount.WithLabels(map[string]string{
-			"containerd.io/gc.bref.container": taskID,
-		}),
-	}
-	if info, err := m.manager.loadShimInfo(ctx, opts.Runtime); err == nil {
-		for _, t := range info.handledMounts {
-			activateOpts = append(activateOpts, mount.WithAllowMountType(t))
-		}
-	} else {
-		log.G(ctx).WithError(err).WithField("runtime", opts.Runtime).Error("failed to load runtime info")
-	}
-
-	// Add options based on runtime
-	if ai, err := m.mounts.Activate(ctx, taskID, opts.Rootfs, activateOpts...); err == nil {
-		opts.Rootfs = ai.System
-		defer func() {
-			if retErr != nil {
-				dctx, cancel := timeout.WithContext(context.WithoutCancel(ctx), cleanupTimeout)
-				defer cancel()
-				if err := m.mounts.Deactivate(dctx, taskID); err != nil {
-					log.G(ctx).WithError(err).WithField("task", taskID).Errorf("failed to deactivate mounts")
-				}
+	// Registered before the shim is started so that it runs after the shim
+	// cleanup below: the shim may still be using these mounts.
+	var activation mountActivation
+	defer func() {
+		if retErr != nil && activation.owned {
+			dctx, cancel := timeout.WithContext(context.WithoutCancel(ctx), cleanupTimeout)
+			defer cancel()
+			if err := m.taskMounts.Deactivate(dctx, taskID); err != nil {
+				log.G(ctx).WithError(err).WithField("task", taskID).Errorf("failed to deactivate mounts")
 			}
-		}()
-	} else if errdefs.IsAlreadyExists(err) {
-		// If creation of task with same identifier, use existing mount rather than forcing
-		// deactivation of the old one. The back reference will prevent racing between
-		// deactivation and re-use, as the container with the same ID would still exist.
-		ai, err = m.mounts.Info(ctx, taskID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get info on already active mount: %w", err)
 		}
-		opts.Rootfs = ai.System
-	} else if !errdefs.IsNotImplemented(err) {
-		return nil, err
-	}
+	}()
 
+	// The shim is started before its mounts are activated so that it can report
+	// which mount types and transforms it performs itself, which decides what
+	// the mount manager must do on its behalf. Starting the shim does not
+	// require the rootfs; only the task.Create call below consumes opts.Rootfs.
 	shim, err := m.manager.Start(ctx, taskID, bundle, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start shim: %w", err)
 	}
+	defer func() {
+		if retErr != nil {
+			m.cleanupStartedShim(ctx, taskID, shim)
+		}
+	}()
+
+	var bootstrap *bootapi.BootstrapResult
+	if sc, ok := shim.(shimCapabilities); ok {
+		bootstrap = sc.BootstrapResult()
+	}
+	activation, err = m.taskMounts.Activate(ctx, taskID, opts.Runtime, bootstrap, opts.Rootfs)
+	if err != nil {
+		return nil, err
+	}
+	opts.Rootfs = activation.rootfs
 
 	// Cast to shim task and call task service to create a new container task instance.
 	// This will not be required once shim service / client implemented.
@@ -250,15 +244,33 @@ func (m *TaskManager) Create(ctx context.Context, taskID string, opts runtime.Cr
 		return t, err
 	}()
 	if err != nil {
-		// NOTE: ctx contains required namespace information.
-		m.manager.shims.Delete(ctx, taskID)
-
-		_ = cleanupShimTask(ctx, shimTask, opts.SandboxID != "")
-
+		// The shim is torn down, including removing it from m.manager.shims,
+		// by the deferred cleanupStartedShim above.
 		return nil, fmt.Errorf("failed to create shim task: %w", err)
 	}
 
 	return t, nil
+}
+
+// cleanupStartedShim tears down a shim that was started for a task which then
+// failed to be created. It may be called before a *shimTask exists for shim,
+// since it also covers the window between a successful shim start and
+// taskMounts.Activate/newShimTask succeeding.
+func (m *TaskManager) cleanupStartedShim(ctx context.Context, taskID string, shim ShimInstance) {
+	// NOTE: ctx contains required namespace information.
+	m.manager.shims.Delete(ctx, taskID)
+
+	shimTask, err := newShimTask(shim)
+	if err != nil {
+		log.G(ctx).WithError(err).WithField("id", taskID).
+			Error("failed to create shim task to clean up shim")
+		shim.Close()
+		return
+	}
+
+	if err := cleanupShimTask(ctx, shimTask); err != nil && !errdefs.IsNotFound(err) {
+		log.G(ctx).WithError(err).WithField("id", taskID).Error("failed to clean up shim")
+	}
 }
 
 // Get a specific task
@@ -294,7 +306,7 @@ func (m *TaskManager) Delete(ctx context.Context, taskID string) (*runtime.Exit,
 		return nil, err
 	}
 
-	container, err := m.manager.containers.Get(ctx, taskID)
+	_, err = m.manager.containers.Get(ctx, taskID)
 	if err != nil {
 		return nil, err
 	}
@@ -304,20 +316,29 @@ func (m *TaskManager) Delete(ctx context.Context, taskID string) (*runtime.Exit,
 		return nil, err
 	}
 
-	sandboxed := container.SandboxID != ""
-
-	exit, err := shimTask.delete(ctx, sandboxed, func(ctx context.Context, id string) {
+	exit, err := shimTask.delete(ctx, func(ctx context.Context, id string) {
 		m.manager.shims.Delete(ctx, id)
 	})
+
+	// An ErrNotFound here means the shim has no record of the task and there
+	// was no cached delete result to fall back to. For example, the task was
+	// never created successfully in the shim, or a previous containerd process
+	// deleted it. The runtime side has still been cleaned up, so we should
+	// deactivate the mounts before returning the error.
+	if err != nil && !errdefs.IsNotFound(err) {
+		return nil, fmt.Errorf("failed to delete task: %w", err)
+	}
+
+	// FIXME(fuweid): It seems that cleaning this up is best-effort because
+	// GC can guarantee that the mount is deleted when the container is deleted.
+	// What if we reuse the container and restart the task?
+	if merr := m.taskMounts.Deactivate(ctx, taskID); merr != nil && !errdefs.IsNotFound(merr) {
+		log.G(ctx).WithError(merr).WithField("task", taskID).Errorf("failed to deactivate mounts")
+	}
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to delete task: %w", err)
 	}
-
-	if err := m.mounts.Deactivate(ctx, taskID); err != nil && !errdefs.IsNotFound(err) {
-		log.G(ctx).WithError(err).WithField("task", taskID).Errorf("failed to deactivate mounts")
-	}
-
 	return exit, nil
 }
 

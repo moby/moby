@@ -19,6 +19,7 @@ package proxy
 import (
 	"context"
 	"fmt"
+	"io"
 
 	api "github.com/containerd/containerd/api/services/events/v1"
 	"github.com/containerd/containerd/api/types"
@@ -108,7 +109,7 @@ func (p *grpcEventsProxy) Subscribe(ctx context.Context, filters ...string) (ch 
 		Filters: filters,
 	})
 	if err != nil {
-		errq <- err
+		errq <- errgrpc.ToNative(err)
 		close(errq)
 		return
 	}
@@ -119,6 +120,9 @@ func (p *grpcEventsProxy) Subscribe(ctx context.Context, filters ...string) (ch 
 		for {
 			ev, err := session.Recv()
 			if err != nil {
+				if err != io.EOF {
+					err = errgrpc.ToNative(err)
+				}
 				errq <- err
 				return
 			}
@@ -189,7 +193,7 @@ func (p *ttrpcEventsProxy) Subscribe(ctx context.Context, filters ...string) (ch
 		Filters: filters,
 	})
 	if err != nil {
-		errq <- err
+		errq <- errgrpc.ToNative(err)
 		close(errq)
 		return
 	}
@@ -200,6 +204,9 @@ func (p *ttrpcEventsProxy) Subscribe(ctx context.Context, filters ...string) (ch
 		for {
 			ev, err := session.Recv()
 			if err != nil {
+				if err != io.EOF {
+					err = errgrpc.ToNative(err)
+				}
 				errq <- err
 				return
 			}

@@ -139,6 +139,6 @@ func valueFromType(typ valueType, val any) (Value, error) {
 		copy(tv[:], v)
 		return tv, err
 	default:
-		panic(fmt.Sprintf("unknown type, %s, %T", typ.String(), val))
+		return nil, fmt.Errorf("unable to decode unknown type, %s, %T", typ.String(), val)
 	}
 }

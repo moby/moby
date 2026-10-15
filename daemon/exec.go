@@ -341,26 +341,34 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 	return nil
 }
 
-// execCommandGC runs a ticker to clean up the daemon references
-// of exec configs that are no longer part of the container.
-func (daemon *Daemon) execCommandGC() {
-	for range time.Tick(5 * time.Minute) {
-		var (
-			cleaned          int
-			liveExecCommands = daemon.containerExecIds()
-		)
-		for id, config := range daemon.execCommands.Commands() {
-			if config.CanRemove {
-				cleaned++
-				daemon.execCommands.Delete(id)
-			} else {
+// execCommandGC periodically cleans up daemon references to exec configs that
+// are no longer associated with a container.
+func (daemon *Daemon) execCommandGC(ctx context.Context) {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			var (
+				cleaned          int
+				liveExecCommands = daemon.containerExecIds()
+			)
+			for id, config := range daemon.execCommands.Commands() {
+				if config.CanRemove {
+					cleaned++
+					daemon.execCommands.Delete(id)
+					continue
+				}
 				if _, exists := liveExecCommands[id]; !exists {
 					config.CanRemove = true
 				}
 			}
-		}
-		if cleaned > 0 {
-			log.G(context.TODO()).Debugf("clean %d unused exec commands", cleaned)
+			if cleaned > 0 {
+				log.G(ctx).Debugf("clean %d unused exec commands", cleaned)
+			}
 		}
 	}
 }

@@ -632,7 +632,7 @@ func (s *store) writer(ctx context.Context, ref string, total int64, expected di
 // be cancelled. Any resources associated with the ingest will be cleaned.
 func (s *store) Abort(ctx context.Context, ref string) error {
 	root := s.ingestRoot(ref)
-	if err := os.RemoveAll(root); err != nil {
+	if err := removePath(root); err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf("ingest ref %q: %w", ref, errdefs.ErrNotFound)
 		}
@@ -684,7 +684,7 @@ func readFileString(path string) (string, error) {
 
 // readFileTimestamp reads a file with just a timestamp present.
 func readFileTimestamp(p string) (time.Time, error) {
-	b, err := os.ReadFile(p)
+	b, err := readFileWithRetry(p)
 	if err != nil {
 		if os.IsNotExist(err) {
 			err = fmt.Errorf("%s: %w", err.Error(), errdefs.ErrNotFound)

@@ -1,5 +1,19 @@
 # Changes
 
+## [0.10.0](https://github.com/googleapis/google-cloud-go/compare/compute/metadata/v0.9.1...compute/metadata/v0.10.0) (2026-09-23)
+
+
+### Features
+
+* **all:** Update supported go versions ([#20520](https://github.com/googleapis/google-cloud-go/issues/20520)) ([90413d3](https://github.com/googleapis/google-cloud-go/commit/90413d3e9d381ef4b92e3c496d98b023c5b2d8cc))
+
+## [0.9.1](https://github.com/googleapis/google-cloud-go/compare/compute/metadata/v0.9.0...compute/metadata/v0.9.1) (2026-09-17)
+
+
+### Bug Fixes
+
+* **compute/metadata:** Timeout initial metadata subscriber GET request ([#20488](https://github.com/googleapis/google-cloud-go/issues/20488)) ([f06f6b3](https://github.com/googleapis/google-cloud-go/commit/f06f6b35e4b7ae8b48a3f9d1715229fe81cb2ebd)), refs [#20487](https://github.com/googleapis/google-cloud-go/issues/20487)
+
 ## [0.9.0](https://github.com/googleapis/google-cloud-go/compare/compute/metadata/v0.8.4...compute/metadata/v0.9.0) (2025-09-24)
 
 

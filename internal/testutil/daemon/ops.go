@@ -99,6 +99,14 @@ func WithSwarmIptables(useIptables bool) Option {
 	}
 }
 
+// WithUserlandProxy enables/disables the userland proxy, overriding the
+// DOCKER_USERLANDPROXY environment variable.
+func WithUserlandProxy(enable bool) Option {
+	return func(d *Daemon) {
+		d.userlandProxy = enable
+	}
+}
+
 // WithSwarmDefaultAddrPool sets the swarm default address pool to use for swarm mode
 func WithSwarmDefaultAddrPool(defaultAddrPool ...netip.Prefix) Option {
 	return func(d *Daemon) {

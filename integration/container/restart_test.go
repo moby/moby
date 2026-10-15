@@ -191,7 +191,7 @@ func TestContainerRestartStoppedContainer(t *testing.T) {
 	_, err = apiClient.ContainerRestart(ctx, cID, client.ContainerRestartOptions{})
 	assert.NilError(t, err)
 	assertContainerExitCode(t, wait, 0, waitTimeout)
-	poll.WaitOn(t, logsContains(ctx, apiClient, cID, "foobar\nfoobar\n"), poll.WithTimeout(waitTimeout))
+	poll.WaitOn(t, logsContains(ctx, apiClient, cID, "foobar\nfoobar\n"), poll.WithTimeout(waitTimeout)) //nolint:dupword // ignore duplicate "foobar"
 }
 
 func TestContainerRestartWithVolumes(t *testing.T) {

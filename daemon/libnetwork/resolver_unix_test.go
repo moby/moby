@@ -3,8 +3,8 @@
 package libnetwork
 
 import (
-	"context"
 	"net"
+	"sync/atomic"
 	"testing"
 
 	"github.com/miekg/dns"
@@ -16,14 +16,14 @@ import (
 // test only works on linux
 func TestDNSIPQuery(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	c, err := New(context.Background(), config.OptionDataDir(t.TempDir()),
+	c, err := New(t.Context(), config.OptionDataDir(t.TempDir()),
 		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer c.Stop()
 
-	n, err := c.NewNetwork(context.Background(), "bridge", "dtnet1", "", NetworkOptionEnableIPv4(true))
+	n, err := c.NewNetwork(t.Context(), "bridge", "dtnet1", "", NetworkOptionEnableIPv4(true))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,25 +33,25 @@ func TestDNSIPQuery(t *testing.T) {
 		}
 	}()
 
-	ep, err := n.CreateEndpoint(context.Background(), "testep")
+	ep, err := n.CreateEndpoint(t.Context(), "testep")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	sb, err := c.NewSandbox(context.Background(), "c1")
+	sb, err := c.NewSandbox(t.Context(), "c1")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	defer func() {
-		if err := sb.Delete(context.Background()); err != nil {
+		if err := sb.Delete(t.Context()); err != nil {
 			t.Fatal(err)
 		}
 	}()
 
 	// we need the endpoint only to populate ep_list for the sandbox as part of resolve_name
 	// it is not set as a target for name resolution and does not serve any other purpose
-	err = ep.Join(context.Background(), sb)
+	err = ep.Join(t.Context(), sb)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +114,7 @@ func TestDNSProxyServFail(t *testing.T) {
 	osctx := netnsutils.SetupTestOSContextEx(t)
 	defer osctx.Cleanup(t)
 
-	c, err := New(context.Background(),
+	c, err := New(t.Context(),
 		config.OptionDataDir(t.TempDir()),
 		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
 	if err != nil {
@@ -122,7 +122,7 @@ func TestDNSProxyServFail(t *testing.T) {
 	}
 	defer c.Stop()
 
-	n, err := c.NewNetwork(context.Background(), "bridge", "dtnet2", "", NetworkOptionEnableIPv4(true))
+	n, err := c.NewNetwork(t.Context(), "bridge", "dtnet2", "", NetworkOptionEnableIPv4(true))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,26 +132,35 @@ func TestDNSProxyServFail(t *testing.T) {
 		}
 	}()
 
-	sb, err := c.NewSandbox(context.Background(), "c1")
+	sb, err := c.NewSandbox(t.Context(), "c1")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	defer func() {
-		if err := sb.Delete(context.Background()); err != nil {
+		if err := sb.Delete(t.Context()); err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	var nRequests int
+	var nRequests atomic.Int32
 	// initialize a local DNS server and configure it to fail the first query
 	dns.HandleFunc(".", newDNSHandlerServFailOnce(&nRequests))
-	// use TCP for predictable results. Connection tests (to figure out DNS server initialization) don't work with UDP
-	server := &dns.Server{Addr: "127.0.0.1:53", Net: "tcp"}
+	serveStarted := make(chan struct{})
+	server := &dns.Server{
+		Addr:              "127.0.0.1:53",
+		Net:               "udp",
+		NotifyStartedFunc: func() { close(serveStarted) },
+	}
 	srvErrCh := make(chan error, 1)
 	osctx.Go(t, func() {
 		srvErrCh <- server.ListenAndServe()
 	})
+	select {
+	case err := <-srvErrCh:
+		t.Fatal(err)
+	case <-serveStarted:
+	}
 	defer func() {
 		server.Shutdown() //nolint:errcheck
 		if err := <-srvErrCh; err != nil {
@@ -159,10 +168,7 @@ func TestDNSProxyServFail(t *testing.T) {
 		}
 	}()
 
-	waitForLocalDNSServer(t)
-	t.Log("DNS Server can be reached")
-
-	w := new(tstwriter)
+	w := &tstwriter{network: "udp"}
 	r := NewResolver(resolverIPSandbox, true, sb)
 	q := new(dns.Msg)
 	q.SetQuestion("name1.", dns.TypeA)
@@ -177,8 +183,8 @@ func TestDNSProxyServFail(t *testing.T) {
 	// this should generate two requests: the first will fail leading to a retry
 	r.SetExtServers(localDNSEntries)
 	r.serveDNS(w, q)
-	if nRequests != 2 {
-		t.Fatalf("Expected 2 DNS queries. Found: %d", nRequests)
+	if n := nRequests.Load(); n != 2 {
+		t.Fatalf("Expected 2 DNS queries. Found: %d", n)
 	}
 	t.Logf("Expected number of DNS requests generated")
 }

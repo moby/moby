@@ -197,7 +197,7 @@ func trustedLocation(req *http.Request) bool {
 func addRequiredHeadersToRedirectedRequests(req *http.Request, via []*http.Request) error {
 	if len(via) != 0 && via[0] != nil {
 		if trustedLocation(req) && trustedLocation(via[0]) {
-			req.Header = via[0].Header
+			req.Header = via[0].Header // #nosec G119 --ignore "Unsafe redirect may propagate sensitive headers" - guarded by trustedLocation
 			return nil
 		}
 		for k, v := range via[0].Header {

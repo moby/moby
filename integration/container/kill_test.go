@@ -63,6 +63,15 @@ func TestKillContainer(t *testing.T) {
 			status: containertypes.StateExited,
 			skipOs: "",
 		},
+		{
+			// SIGKILL takes a direct path in daemon.ContainerKill (daemon.kill,
+			// not killWithSignal), so it needs its own case even though the
+			// behavior looks the same as the "killing signal" case above.
+			doc:    "SIGKILL",
+			signal: "SIGKILL",
+			status: containertypes.StateExited,
+			skipOs: "",
+		},
 	}
 
 	var pollOpts []poll.SettingOp

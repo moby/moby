@@ -229,7 +229,7 @@ func (r *Route) Copy() *Route {
 }
 
 // Well known error codes
-// see https://github.com/containernetworking/cni/blob/main/SPEC.md#well-known-error-codes
+// see https://github.com/containernetworking/cni/blob/main/SPEC.md#error
 const (
 	ErrUnknown                     uint = iota // 0
 	ErrIncompatibleCNIVersion                  // 1
@@ -241,6 +241,8 @@ const (
 	ErrInvalidNetworkConfig                    // 7
 	ErrInvalidNetNS                            // 8
 	ErrTryAgainLater               uint = 11
+	ErrPluginNotAvailable          uint = 50
+	ErrLimitedConnectivity         uint = 51
 	ErrInternal                    uint = 999
 )
 

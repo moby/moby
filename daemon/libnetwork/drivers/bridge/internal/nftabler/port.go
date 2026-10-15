@@ -67,6 +67,10 @@ func (n *network) setPerPortRules(ctx context.Context, pbs []types.PortBinding, 
 	if !unprotected {
 		n.setPerPortForwarding(pbs, updater, ipv)
 	}
+	// Also needed in nat-unprotected mode. That mode skips the per-port
+	// forwarding rules above, and its blanket accept comes after the ICC rule,
+	// so nothing else would accept hairpinned packets.
+	n.setPerPortHairpinForwarding(pbs, updater, ipv)
 	n.setPerPortDNAT(pbs, updater, ipv)
 	n.setPerPortHairpinMasq(pbs, updater, ipv)
 	n.filterPortMappedOnLoopback(pbs, updater, ipv)
@@ -93,6 +97,46 @@ func (n *network) setPerPortForwarding(pbs []types.PortBinding, updater func(nft
 			Rule: []string{
 				string(ipv), "daddr", pb.IP.String(), pb.Proto.String(),
 				"dport", strconv.Itoa(int(pb.Port)), "counter accept",
+			},
+			IgnoreExist: true,
+		})
+	}
+}
+
+// setPerPortHairpinForwarding opens a container's published port to the other
+// containers on its own network, for packets that reached it via one of the
+// host's addresses.
+//
+// When ICC is disabled, the ICC rule drops packets from other containers on
+// this network. But a published port is meant to be reachable via the host's
+// addresses from anywhere that can route to them, including the port's own
+// network. So these rules come before the ICC rule, and only match packets
+// arriving on the bridge. Packets for the port from anywhere else are accepted
+// after the ICC rule.
+//
+// A rule also only matches packets that were DNATed, by requiring that the
+// connection's original destination is not the container's own address.
+// Otherwise it would allow direct access to the container's address, which is
+// what disabling ICC prevents. By the time they get here, the two kinds of
+// packet are otherwise the same: same input interface, destination and port.
+func (n *network) setPerPortHairpinForwarding(pbs []types.PortBinding, updater func(nftables.Obj), ipv nftables.Family) {
+	if n.config.ICC {
+		return
+	}
+	chainName := chainFilterFwdIn(n.config.IfName)
+	for _, pb := range pbs {
+		if pb.HostPort == 0 {
+			continue
+		}
+		updater(nftables.Rule{
+			Chain: chainName,
+			Group: fwdInHairpinPortsRuleGroup,
+			Rule: []string{
+				"iifname ==", n.config.IfName,
+				string(ipv), "daddr", pb.IP.String(), pb.Proto.String(),
+				"dport", strconv.Itoa(int(pb.Port)),
+				"ct original", string(ipv), "daddr !=", pb.IP.String(),
+				"counter accept",
 			},
 			IgnoreExist: true,
 		})

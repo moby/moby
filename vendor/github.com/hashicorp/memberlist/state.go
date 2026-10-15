@@ -13,7 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	metrics "github.com/hashicorp/go-metrics/compat"
+	metrics "github.com/hashicorp/go-metrics"
 )
 
 type NodeStateType int
@@ -712,9 +712,8 @@ func (m *Memberlist) verifyProtocol(remote []pushNodeState) error {
 			continue
 		}
 
-		// Skip nodes that don't have versions set, it just means
-		// their version is zero.
-		if len(rn.Vsn) == 0 {
+		// Skip nodes that don't have proper version info
+		if len(rn.Vsn) < 5 {
 			continue
 		}
 
@@ -763,7 +762,7 @@ func (m *Memberlist) verifyProtocol(remote []pushNodeState) error {
 	// node in the cluster satisifies this.
 	for _, n := range remote {
 		var nPCur, nDCur uint8
-		if len(n.Vsn) > 0 {
+		if len(n.Vsn) >= 6 {
 			nPCur = n.Vsn[2]
 			nDCur = n.Vsn[5]
 		}
@@ -1117,7 +1116,7 @@ func (m *Memberlist) aliveNode(a *alive, notify chan struct{}, bootstrap bool) {
 		m.encodeBroadcastNotify(a.Node, aliveMsg, a, notify)
 
 		// Update protocol versions if it arrived
-		if len(a.Vsn) > 0 {
+		if len(a.Vsn) >= 6 {
 			state.PMin = a.Vsn[0]
 			state.PMax = a.Vsn[1]
 			state.PCur = a.Vsn[2]

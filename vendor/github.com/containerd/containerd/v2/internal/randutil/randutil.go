@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-// Package randutil provides utilities for [cyrpto/rand].
+// Package randutil provides utilities for [crypto/rand].
 package randutil
 
 import (

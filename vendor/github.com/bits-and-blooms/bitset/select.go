@@ -1,10 +1,12 @@
 package bitset
 
+import "math/bits"
+
 func select64(w uint64, j uint) uint {
 	seen := 0
 	// Divide 64bit
 	part := w & 0xFFFFFFFF
-	n := uint(popcount(part))
+	n := uint(bits.OnesCount64(part))
 	if n <= j {
 		part = w >> 32
 		seen += 32
@@ -15,7 +17,7 @@ func select64(w uint64, j uint) uint {
 	// Divide 32bit
 	part = ww & 0xFFFF
 
-	n = uint(popcount(part))
+	n = uint(bits.OnesCount64(part))
 	if n <= j {
 		part = ww >> 16
 		seen += 16
@@ -25,7 +27,7 @@ func select64(w uint64, j uint) uint {
 
 	// Divide 16bit
 	part = ww & 0xFF
-	n = uint(popcount(part))
+	n = uint(bits.OnesCount64(part))
 	if n <= j {
 		part = ww >> 8
 		seen += 8

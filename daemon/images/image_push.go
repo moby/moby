@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
+	c8dimages "github.com/containerd/containerd/v2/core/images"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/distribution/reference"
-	"github.com/docker/distribution/manifest/schema2"
 	"github.com/moby/moby/v2/daemon/internal/distribution"
 	progressutils "github.com/moby/moby/v2/daemon/internal/distribution/utils"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
@@ -59,7 +59,7 @@ func (i *ImageService) PushImage(ctx context.Context, ref reference.Named, optio
 			ImageStore:       distribution.NewImageConfigStoreFromStore(i.imageStore),
 			ReferenceStore:   i.referenceStore,
 		},
-		ConfigMediaType: schema2.MediaTypeImageConfig,
+		ConfigMediaType: c8dimages.MediaTypeDockerSchema2Config,
 		LayerStores:     distribution.NewLayerProvidersFromStore(i.layerStore),
 		UploadManager:   i.uploadManager,
 	}

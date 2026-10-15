@@ -23,7 +23,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/moby/sys/sequential"
+	"golang.org/x/sys/windows"
 )
 
 // chmodTarEntry is used to adjust the file permissions used in tar header based
@@ -44,13 +44,21 @@ func setHeaderForSpecialDevice(*tar.Header, string, os.FileInfo) error {
 func open(p string) (*os.File, error) {
 	// We use sequential file access to avoid depleting the standby list on
 	// Windows.
-	return sequential.Open(p)
+	//
+	// Refer to the [Win32 API documentation] for details on sequential file access.
+	//
+	// [Win32 API documentation]: https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea#FILE_FLAG_SEQUENTIAL_SCAN
+	return os.OpenFile(p, os.O_RDONLY|windows.O_FILE_FLAG_SEQUENTIAL_SCAN, 0)
 }
 
 func openFile(name string, flag int, perm os.FileMode) (*os.File, error) {
 	// Source is regular file. We use sequential file access to avoid depleting
 	// the standby list on Windows.
-	return sequential.OpenFile(name, flag, perm)
+	//
+	// Refer to the [Win32 API documentation] for details on sequential file access.
+	//
+	// [Win32 API documentation]: https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea#FILE_FLAG_SEQUENTIAL_SCAN
+	return os.OpenFile(name, flag|windows.O_FILE_FLAG_SEQUENTIAL_SCAN, perm)
 }
 
 func mkdir(path string, perm os.FileMode) error {

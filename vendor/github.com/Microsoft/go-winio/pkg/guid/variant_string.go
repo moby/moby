@@ -20,8 +20,9 @@ const _Variant_name = "UnknownNCSRFC 4122MicrosoftFuture"
 var _Variant_index = [...]uint8{0, 7, 10, 18, 27, 33}
 
 func (i Variant) String() string {
-	if i >= Variant(len(_Variant_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_Variant_index)-1 {
 		return "Variant(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _Variant_name[_Variant_index[i]:_Variant_index[i+1]]
+	return _Variant_name[_Variant_index[idx]:_Variant_index[idx+1]]
 }

@@ -33,7 +33,6 @@ import (
 )
 
 const (
-	isWindows            = true
 	windowsMinCPUShares  = 1
 	windowsMaxCPUShares  = 10000
 	windowsMinCPUPercent = 1
@@ -44,6 +43,9 @@ const (
 // have > 20 system processes which why we use much smaller parallelism value.
 func adjustParallelLimit(n int, limit int) int {
 	return int(math.Max(1, math.Floor(float64(runtime.NumCPU())*.8)))
+}
+
+func setHostGatewayIP(*libnetwork.Controller, *config.Config) {
 }
 
 // Windows has no concept of an execution state directory. So use config.Root here.

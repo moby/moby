@@ -188,7 +188,7 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 		}
 		platform = img.Platform()
 		imgID = img.ID()
-	} else if isWindows {
+	} else if runtime.GOOS == "windows" {
 		platform.OS = "linux" // 'scratch' case.
 	}
 

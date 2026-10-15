@@ -1,7 +1,5 @@
 package ansiterm
 
-type stateID int
-
 type state interface {
 	Enter() error
 	Exit() error

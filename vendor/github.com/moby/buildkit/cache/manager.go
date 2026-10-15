@@ -379,7 +379,7 @@ func (cm *cacheManager) GetByBlob(ctx context.Context, desc ocispecs.Descriptor,
 }
 
 // init loads all snapshots from metadata state and tries to load the records
-// from the snapshotter. If snaphot can't be found, metadata is deleted as well.
+// from the snapshotter. If snapshot can't be found, metadata is deleted as well.
 func (cm *cacheManager) init(ctx context.Context) error {
 	items, err := cm.MetadataStore.All()
 	if err != nil {

@@ -1,7 +1,6 @@
 package distribution
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -50,7 +49,7 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 		},
 	}
 	p := newPuller(registrypkg.APIEndpoint{URL: uri}, repoName, imagePullConfig, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 	p.repo, err = newRepository(ctx, repoName, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
 		t.Fatal(err)
@@ -85,7 +84,7 @@ func TestTokenPassThruDifferentHost(t *testing.T) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		http.Redirect(w, r, ts.URL+r.URL.Path, http.StatusMovedPermanently)
+		http.Redirect(w, r, ts.URL+r.URL.Path, http.StatusMovedPermanently) // #nosec G710 -- redirect stays on the fixed test-server origin.
 	}))
 	defer tsredirect.Close()
 

@@ -626,17 +626,12 @@ func WithUser(userstr string) SpecOpts {
 			return nil
 		}
 
-		isErrRange := func(err error) bool {
-			var numErr *strconv.NumError
-			return errors.As(err, &numErr) && numErr.Err == strconv.ErrRange
-		}
-
 		parts := strings.Split(userstr, ":")
 		switch len(parts) {
 		case 1:
 			v, err := strconv.Atoi(parts[0])
 			if err != nil {
-				if isErrRange(err) {
+				if errors.Is(err, strconv.ErrRange) {
 					return fmt.Errorf("invalid USER value %q: uid out of range", userstr)
 				}
 				// Non-numeric user value; treat it as a username.
@@ -654,7 +649,7 @@ func WithUser(userstr string) SpecOpts {
 			var uid, gid uint32
 			v, err := strconv.Atoi(parts[0])
 			if err != nil {
-				if isErrRange(err) {
+				if errors.Is(err, strconv.ErrRange) {
 					return fmt.Errorf("invalid USER value %q: uid out of range", userstr)
 				}
 				username = parts[0]
@@ -665,7 +660,7 @@ func WithUser(userstr string) SpecOpts {
 			}
 			v, err = strconv.Atoi(parts[1])
 			if err != nil {
-				if isErrRange(err) {
+				if errors.Is(err, strconv.ErrRange) {
 					return fmt.Errorf("invalid USER value %q: gid out of range", userstr)
 				}
 				groupname = parts[1]

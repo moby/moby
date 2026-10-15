@@ -50,12 +50,6 @@ const (
 	protoUnix        = "unix"
 )
 
-func getSysProcAttr() *syscall.SysProcAttr {
-	return &syscall.SysProcAttr{
-		Setpgid: true,
-	}
-}
-
 // AdjustOOMScore sets the OOM score for the process to the parents OOM score +1
 // to ensure that they parent has a lower* score than the shim
 // if not already at the maximum OOM Score
@@ -180,8 +174,7 @@ func RemoveSocket(address string) error {
 // SocketEaddrinuse returns true if the provided error is caused by the
 // EADDRINUSE error number
 func SocketEaddrinuse(err error) bool {
-	var netErr *net.OpError
-	if errors.As(err, &netErr) {
+	if netErr, ok := errors.AsType[*net.OpError](err); ok {
 		if netErr.Op != "listen" {
 			return false
 		}

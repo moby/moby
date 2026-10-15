@@ -23,7 +23,7 @@ func TestMiddlewares(t *testing.T) {
 
 	req, _ := http.NewRequest(http.MethodGet, "/containers/json", http.NoBody)
 	resp := httptest.NewRecorder()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	localHandler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 		if httputils.VersionFromContext(ctx) == "" {

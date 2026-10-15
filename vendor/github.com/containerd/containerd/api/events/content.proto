@@ -26,6 +26,7 @@ option (containerd.types.fieldpath_all) = true;
 message ContentCreate {
   string digest = 1;
   int64 size = 2;
+  string mediaType = 3;
 }
 
 message ContentDelete {

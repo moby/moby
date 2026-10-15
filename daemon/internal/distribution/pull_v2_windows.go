@@ -12,10 +12,10 @@ import (
 	"strings"
 
 	"github.com/Microsoft/hcsshim/osversion"
+	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/log"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
-	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -24,7 +24,7 @@ import (
 var _ distribution.Describable = &layerDescriptor{}
 
 func (ld *layerDescriptor) Descriptor() distribution.Descriptor {
-	if ld.src.MediaType == schema2.MediaTypeForeignLayer && len(ld.src.URLs) > 0 {
+	if ld.src.MediaType == c8dimages.MediaTypeDockerSchema2LayerForeignGzip && len(ld.src.URLs) > 0 {
 		return ld.src
 	}
 	return distribution.Descriptor{}

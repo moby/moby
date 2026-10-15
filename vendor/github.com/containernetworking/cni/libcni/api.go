@@ -663,9 +663,9 @@ func (c *CNIConfig) DelNetwork(ctx context.Context, net *PluginConfig, rt *Runti
 	if gtet, err := version.GreaterThanOrEqualTo(net.Network.CNIVersion, "0.4.0"); err != nil {
 		return err
 	} else if gtet {
-		cachedResult, err = c.getCachedResult(net.Network.Name, net.Network.CNIVersion, rt)
-		if err != nil {
-			return fmt.Errorf("failed to get network %q cached result: %w", net.Network.Name, err)
+		if cachedResult, err = c.getCachedResult(net.Network.Name, net.Network.CNIVersion, rt); err != nil {
+			_ = c.cacheDel(net.Network.Name, rt)
+			cachedResult = nil
 		}
 	}
 

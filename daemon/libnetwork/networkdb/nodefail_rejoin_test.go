@@ -10,14 +10,14 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/go-events"
 	"github.com/hashicorp/memberlist"
-	"github.com/hashicorp/serf/serf"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/lamport"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
 
 // newTestNetworkDBWithPeer returns a NetworkDB which has joined network1, and
 // a peer node1 attached to it, along with the delegates needed to drive them.
-func newTestNetworkDBWithPeer(t *testing.T) (*NetworkDB, *eventDelegate, *memberlist.Node, func(ltime serf.LamportTime, typ TableEvent_Type, key string, value []byte)) {
+func newTestNetworkDBWithPeer(t *testing.T) (*NetworkDB, *eventDelegate, *memberlist.Node, func(ltime lamport.Time, typ TableEvent_Type, key string, value []byte)) {
 	t.Helper()
 	nDB := newNetworkDB(DefaultConfig())
 	nDB.networkBroadcasts = &memberlist.TransmitLimitedQueue{}
@@ -37,7 +37,7 @@ func newTestNetworkDBWithPeer(t *testing.T) (*NetworkDB, *eventDelegate, *member
 	d := &delegate{nDB}
 	msgs := &messageBuffer{t: t}
 	appendTableEvent := tableEventHelper(msgs, "node1", "network1", "table1")
-	deliver := func(ltime serf.LamportTime, typ TableEvent_Type, key string, value []byte) {
+	deliver := func(ltime lamport.Time, typ TableEvent_Type, key string, value []byte) {
 		t.Helper()
 		msgs.Reset()
 		appendTableEvent(ltime, typ, key, value)
@@ -117,9 +117,9 @@ func TestLeftNodeClearsNetworkMembership(t *testing.T) {
 	defer cancel()
 
 	nDB.Lock()
-	_, err := nDB.changeNodeState("node1", nodeLeftState)
+	ok := nDB.forgetNode(t.Context(), "node1")
 	nDB.Unlock()
-	assert.NilError(t, err)
+	assert.Assert(t, ok)
 
 	nDB.RLock()
 	present := slices.Contains(nDB.networkNodes["network1"], "node1")
@@ -212,9 +212,9 @@ func TestFailedThenLeftDropsRememberedState(t *testing.T) {
 	ed.NotifyLeave(mn)
 
 	nDB.Lock()
-	_, err := nDB.changeNodeState("node1", nodeLeftState)
+	ok := nDB.forgetNode(t.Context(), "node1")
 	nDB.Unlock()
-	assert.NilError(t, err)
+	assert.Assert(t, ok)
 
 	nDB.RLock()
 	_, rawErr := nDB.getEntry("table1", "network1", "key1")

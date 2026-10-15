@@ -64,7 +64,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, options
 	}()
 
 	if len(options.Platforms) > 0 && !options.Force {
-		return nil, cerrdefs.ErrInvalidArgument.WithMessage("Content will be removed from all images referencing this variant. Use —-force to force delete.")
+		return nil, cerrdefs.ErrInvalidArgument.WithMessage("Content will be removed from all images referencing this variant. Use --force to force delete.")
 	}
 
 	force := options.Force

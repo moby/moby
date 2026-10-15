@@ -711,7 +711,7 @@ func (h *Queue) ImportError(ctx context.Context, err error) (_ *spb.Status, _ *c
 		return nil, nil, nil, err
 	}
 
-	w, err := h.OpenBlobWriter(ctx, "application/vnd.googeapis.google.rpc.status+proto")
+	w, err := h.OpenBlobWriter(ctx, "application/vnd.googleapis.google.rpc.status+proto")
 	if err != nil {
 		return nil, nil, nil, err
 	}

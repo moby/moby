@@ -1,16 +1,19 @@
 package container
 
 import (
-	"context"
 	"math/rand"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
 	"github.com/moby/moby/api/types/container"
+	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
+	"github.com/moby/moby/v2/daemon/network"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -29,7 +32,7 @@ func TestViewSaveDelete(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	c := newContainer(t, tmpDir)
-	assert.NilError(t, c.CheckpointTo(context.Background(), db))
+	assert.NilError(t, c.CheckpointTo(t.Context(), db))
 	assert.NilError(t, db.Delete(c))
 }
 
@@ -42,10 +45,10 @@ func TestViewAll(t *testing.T) {
 	two := newContainer(t, tmpDir)
 
 	one.State.Pid = 10
-	assert.NilError(t, one.CheckpointTo(context.Background(), db))
+	assert.NilError(t, one.CheckpointTo(t.Context(), db))
 
 	two.State.Pid = 20
-	assert.NilError(t, two.CheckpointTo(context.Background(), db))
+	assert.NilError(t, two.CheckpointTo(t.Context(), db))
 
 	all, err := db.Snapshot().All()
 	assert.NilError(t, err)
@@ -72,7 +75,7 @@ func TestViewGet(t *testing.T) {
 	const imgID = "some-image-123"
 	one.ImageID = imgID
 
-	assert.NilError(t, one.CheckpointTo(context.Background(), db))
+	assert.NilError(t, one.CheckpointTo(t.Context(), db))
 	s, err := db.Snapshot().Get(one.ID)
 	assert.NilError(t, err)
 	assert.Equal(t, s.ID, one.ID)
@@ -151,10 +154,71 @@ func TestViewWithHealthCheck(t *testing.T) {
 			Status: container.Starting,
 		},
 	}
-	assert.NilError(t, one.CheckpointTo(context.Background(), db))
+	assert.NilError(t, one.CheckpointTo(t.Context(), db))
 	s, err := db.Snapshot().Get(one.ID)
 	assert.NilError(t, err)
 	assert.Equal(t, s.Health, container.Starting)
+}
+
+func TestViewWithPortBindings(t *testing.T) {
+	tests := []struct {
+		name     string
+		ports    networktypes.PortMap
+		expected []container.PortSummary
+	}{
+		{
+			name: "published",
+			ports: networktypes.PortMap{
+				networktypes.MustParsePort("80/tcp"): {
+					{
+						HostIP:   netip.MustParseAddr("127.0.0.1"),
+						HostPort: "8080",
+					},
+				},
+			},
+			expected: []container.PortSummary{{
+				PrivatePort: 80,
+				PublicPort:  8080,
+				Type:        "tcp",
+				IP:          netip.MustParseAddr("127.0.0.1"),
+			}},
+		},
+		{
+			// A port published on a network using gateway_mode_ipv4=routed
+			// or gateway_mode_ipv6=routed has no HostPort.
+			//
+			// Regression test for https://github.com/moby/moby/issues/53692
+			name: "routed",
+			ports: networktypes.PortMap{
+				networktypes.MustParsePort("80/tcp"): {{
+					HostIP: netip.MustParseAddr("127.0.0.1"),
+				}},
+			},
+			expected: []container.PortSummary{{
+				PrivatePort: 80,
+				Type:        "tcp",
+				IP:          netip.MustParseAddr("127.0.0.1"),
+			}},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			db, err := NewViewDB()
+			assert.NilError(t, err)
+
+			ctr := newContainer(t, t.TempDir())
+			ctr.NetworkSettings = &network.Settings{
+				Ports: tc.ports,
+			}
+
+			assert.NilError(t, ctr.CheckpointTo(t.Context(), db))
+
+			s, err := db.Snapshot().Get(ctr.ID)
+			assert.NilError(t, err)
+			assert.DeepEqual(t, s.Ports, tc.expected, cmpopts.EquateComparable(netip.Addr{}))
+		})
+	}
 }
 
 func TestTruncIndex(t *testing.T) {

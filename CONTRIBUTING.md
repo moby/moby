@@ -17,6 +17,7 @@ start participating.
 * [Design and Cleanup Proposals](#design-and-cleanup-proposals)
 * [Reporting Issues](#reporting-other-issues)
 * [Quick Contribution Tips and Guidelines](#quick-contribution-tips-and-guidelines)
+* [AI Usage Policy](#ai-usage-policy)
 * [Community Guidelines](#moby-community-guidelines)
 
 ## Reporting security issues
@@ -235,6 +236,10 @@ a subsequent commit that uses it.
 Remember, you're telling part of the story with the commit message. Don't make
 your chapter weird.
 
+Contributors are responsible for their commits, including any AI-assisted work.
+Do not credit LLMs or AI agents with `Co-Authored-By` trailers; reserve those for human contributors.
+Disclose AI usage in the issue or pull request description, not in commit messages, as required by the [AI usage policy](#ai-usage-policy).
+
 ### Review
 
 Code review comments may be added to your pull request. Discuss, then make the
@@ -327,7 +332,7 @@ Then you just add a line to every git commit message:
 
     Signed-off-by: Joe Smith <joe.smith@email.com>
 
-Use your real name (sorry, no pseudonyms or anonymous contributions.)
+Use a known identity (sorry, no anonymous contributions.)
 
 If you set your `user.name` and `user.email` git configs, you can sign your
 commit automatically with `git commit -s`.
@@ -341,6 +346,11 @@ file in this repository.
 Don't forget: being a maintainer is a time investment. Make sure you
 will have time to make yourself available. You don't have to be a
 maintainer to make a difference on the project!
+
+## AI usage policy
+
+Moby follows the shared [Moby and Docker AI usage policy](https://github.com/moby/.github/blob/main/AI_POLICY.md) for AI-assisted issues, pull requests, and discussions.
+Read and follow it before contributing with AI tools.
 
 ## Moby community guidelines
 

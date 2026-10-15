@@ -39,7 +39,7 @@ func detachedNetNS() (string, error) {
 		return "", nil
 	}
 	p := filepath.Join(stateDir, "netns")
-	if _, err := os.Stat(p); err != nil {
+	if _, err := os.Stat(p); err != nil { // #nosec G703 -- trusted as the configured RootlessKit state directory
 		if errors.Is(err, os.ErrNotExist) {
 			return "", nil
 		}

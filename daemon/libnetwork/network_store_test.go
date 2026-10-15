@@ -1,7 +1,6 @@
 package libnetwork
 
 import (
-	"context"
 	"slices"
 	"strings"
 	"testing"
@@ -13,18 +12,18 @@ import (
 
 func TestNetworkStore(t *testing.T) {
 	configOption := config.OptionDataDir(t.TempDir())
-	c, err := New(context.Background(), configOption)
+	c, err := New(t.Context(), configOption)
 	assert.NilError(t, err)
 	defer c.Stop()
 
 	// Insert a first network
 	nw1 := &Network{id: "testNetwork1", configFrom: "config-network"}
-	err = c.storeNetwork(context.Background(), nw1)
+	err = c.storeNetwork(t.Context(), nw1)
 	assert.NilError(t, err)
 
 	// Then a second network
 	nw2 := &Network{id: "testNetwork2"}
-	err = c.storeNetwork(context.Background(), nw2)
+	err = c.storeNetwork(t.Context(), nw2)
 	assert.NilError(t, err)
 
 	// Check that we can find both networks, and that the returned values are
@@ -65,6 +64,6 @@ func TestNetworkStore(t *testing.T) {
 	assert.Check(t, is.Equal(found[0], nw2), "got: %s; expected: %s", found[0].id, nw2.id)
 
 	// Store the second network again
-	err = c.storeNetwork(context.Background(), nw2)
+	err = c.storeNetwork(t.Context(), nw2)
 	assert.NilError(t, err)
 }

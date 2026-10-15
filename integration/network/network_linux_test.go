@@ -466,6 +466,7 @@ func TestMixL3IPVlanAndBridge(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "no ipvlan on Windows")
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.48"), "gw-priority requires API v1.48")
 	skip.If(t, testEnv.IsRootless, "can't see the dummy parent interface from the rootless namespace")
+	skip.If(t, !testEnv.IsKernelModuleLoadable("ipvlan"), "ipvlan kernel module is not loadable")
 
 	ctx := testutil.StartSpan(baseContext, t)
 

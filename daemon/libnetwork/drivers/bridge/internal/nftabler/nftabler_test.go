@@ -3,7 +3,6 @@
 package nftabler
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/netip"
@@ -136,20 +135,20 @@ func testNftabler(t *testing.T, tn string, config firewaller.Config, netConfig f
 
 	// Initialise iptables, check the iptables config looks like it should look at the
 	// end of the test (after deleting per-network and per-port rules).
-	fw, err := NewNftabler(context.Background(), config)
+	fw, err := NewNftabler(t.Context(), config)
 	assert.NilError(t, err)
 	defer fw.Close()
 	checkResults("ip", rnWSL2Mirrored(fmt.Sprintf("%s/cleaned,hairpin=%v", tn, config.Hairpin)), config.IPv4)
 	checkResults("ip6", fmt.Sprintf("%s/cleaned,hairpin=%v", tn, config.Hairpin), config.IPv6)
 
 	// Add the network.
-	nw, err := fw.NewNetwork(context.Background(), netConfig)
+	nw, err := fw.NewNetwork(t.Context(), netConfig)
 	assert.NilError(t, err)
 
 	// Add an endpoint.
 	epAddr4 := netip.MustParseAddr("192.168.0.2")
 	epAddr6 := netip.MustParseAddr("fd49:efd7:54aa::1")
-	err = nw.AddEndpoint(context.Background(), epAddr4, epAddr6)
+	err = nw.AddEndpoint(t.Context(), epAddr4, epAddr6)
 	assert.NilError(t, err)
 
 	// Add IPv4 and IPv6 port mappings.
@@ -161,7 +160,7 @@ func testNftabler(t *testing.T, tn string, config firewaller.Config, netConfig f
 		pb4 = makePB("0.0.0.0", epAddr4)
 		pb6 = makePB("::", epAddr6)
 	}
-	err = nw.AddPorts(context.Background(), []types.PortBinding{pb4, pb6})
+	err = nw.AddPorts(t.Context(), []types.PortBinding{pb4, pb6})
 	assert.NilError(t, err)
 
 	// Check the resulting iptables config.
@@ -170,11 +169,11 @@ func testNftabler(t *testing.T, tn string, config firewaller.Config, netConfig f
 
 	// Remove the port mappings and the network, and check the result (should be the same
 	// for all tests with the same "hairpin" setting).
-	err = nw.DelPorts(context.Background(), []types.PortBinding{pb4, pb6})
+	err = nw.DelPorts(t.Context(), []types.PortBinding{pb4, pb6})
 	assert.NilError(t, err)
-	err = nw.DelEndpoint(context.Background(), epAddr4, epAddr6)
+	err = nw.DelEndpoint(t.Context(), epAddr4, epAddr6)
 	assert.NilError(t, err)
-	err = nw.DelNetworkLevelRules(context.Background())
+	err = nw.DelNetworkLevelRules(t.Context())
 	assert.NilError(t, err)
 	checkResults("ip", rnWSL2Mirrored(fmt.Sprintf("%s/cleaned,hairpin=%v", tn, config.Hairpin)), config.IPv4)
 	checkResults("ip6", fmt.Sprintf("%s/cleaned,hairpin=%v", tn, config.Hairpin), config.IPv6)

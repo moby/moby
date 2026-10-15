@@ -1345,7 +1345,7 @@ func (gs *gitSourceHandler) checkout(ctx context.Context, repo *gitRepo, g sessi
 	}
 
 	if gs.src.MTime == "commit" {
-		commitTime, err := getCommitTime(ctx, git, refOrCommit)
+		commitTime, err := getCommitTime(ctx, repo.GitCLI, refOrCommit)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get commit time for %s", urlutil.RedactCredentials(gs.src.Remote))
 		}

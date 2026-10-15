@@ -13,7 +13,6 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/v2/daemon/libnetwork/etchosts"
 	"github.com/moby/moby/v2/daemon/libnetwork/osl"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
@@ -188,10 +187,6 @@ func (sb *Sandbox) delete(ctx context.Context, force bool) error {
 		sb.mu.Unlock()
 		return fmt.Errorf("could not cleanup all the endpoints in container %s / sandbox %s", sb.containerID, sb.id)
 	}
-	// Container is going away. Path cache in etchosts is most
-	// likely not required any more. Drop it.
-	etchosts.Drop(sb.config.hostsPath)
-
 	if sb.resolver != nil {
 		sb.resolver.Stop()
 	}

@@ -16,6 +16,56 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
+func TestHijackHooks(t *testing.T) {
+	const (
+		reqHeaderKey    = "X-Test-Request"
+		reqHeaderValue  = "request"
+		respHeaderKey   = "X-Test-Header"
+		respHeaderValue = "hello-world"
+	)
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		assert.Equal(t, req.Header.Get(reqHeaderKey), reqHeaderValue)
+
+		conn, _, err := w.(http.Hijacker).Hijack()
+		assert.NilError(t, err)
+		defer func() { _ = conn.Close() }()
+
+		headers := []string{
+			"HTTP/1.1 101 UPGRADED",
+			"Connection: Upgrade",
+			"Upgrade: tcp",
+			respHeaderKey + ": " + respHeaderValue,
+		}
+
+		_, err = io.WriteString(conn, strings.Join(headers, "\r\n")+"\r\n\r\n")
+		assert.NilError(t, err)
+	}))
+	defer ts.Close()
+
+	serverURL, err := url.Parse(ts.URL)
+	assert.NilError(t, err)
+
+	var gotResponseHeader string
+	c, err := New(
+		WithHost("tcp://"+serverURL.Host),
+		WithHTTPRequestHook(func(req *http.Request) error {
+			req.Header.Set(reqHeaderKey, reqHeaderValue)
+			return nil
+		}),
+		WithHTTPResponseHook(func(resp *http.Response) {
+			gotResponseHeader = resp.Header.Get(respHeaderKey)
+		}),
+	)
+	assert.NilError(t, err)
+
+	conn, err := c.DialHijack(t.Context(), ts.URL+"/test", "tcp", nil)
+	assert.NilError(t, err)
+	defer func() { _ = conn.Close() }()
+
+	assert.Equal(t, gotResponseHeader, respHeaderValue)
+}
+
 func TestTLSCloseWriter(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithCancel(t.Context())
@@ -108,7 +158,8 @@ func TestTLSCloseWriter(t *testing.T) {
 	client, err := New(WithHost("tcp://"+serverURL.Host), WithHTTPClient(httpClient))
 	assert.NilError(t, err)
 
-	resp, err := client.postHijacked(ctx, "/asdf", url.Values{}, nil, map[string][]string{"Content-Type": {"text/plain"}})
+	headers := http.Header{"Content-Type": {"text/plain"}}
+	resp, err := client.postHijacked(ctx, "/asdf", url.Values{}, headers, nil)
 	assert.NilError(t, err)
 	defer resp.Close()
 

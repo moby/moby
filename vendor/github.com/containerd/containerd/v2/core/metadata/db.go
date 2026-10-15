@@ -43,7 +43,7 @@ const (
 	// schemaVersion represents the schema version of
 	// the database. This schema version represents the
 	// structure of the data in the database. The schema
-	// can envolve at any time but any backwards
+	// can evolve at any time but any backwards
 	// incompatible changes or structural changes require
 	// bumping the schema version.
 	schemaVersion = "v1"

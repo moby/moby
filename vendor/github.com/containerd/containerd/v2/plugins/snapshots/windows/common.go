@@ -35,7 +35,7 @@ import (
 )
 
 // windowsBaseSnapshotter is a type that implements common functionality required by both windows & cimfs
-// snapshotters (sort of a base type that windows & cimfs snapshotter types derive from - however, windowsBaseSnapshotter does NOT impelement the full Snapshotter interface).  Some functions
+// snapshotters (sort of a base type that windows & cimfs snapshotter types derive from - however, windowsBaseSnapshotter does NOT implement the full Snapshotter interface).  Some functions
 // (like Stat, Update) that are identical for both snapshotters are directly implemented in this base
 // snapshotter and such functions handle database transaction creation etc. However, the functions that are
 // not common don't create a transaction to allow the caller the flexibility of deciding whether to commit or

@@ -1,7 +1,6 @@
 package nat
 
 import (
-	"context"
 	"testing"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/portmapperapi"
@@ -30,7 +29,7 @@ func TestBindHostPortsError(t *testing.T) {
 		},
 	}
 	pm := &PortMapper{}
-	pbs, err := pm.MapPorts(context.Background(), cfg)
+	pbs, err := pm.MapPorts(t.Context(), cfg)
 	assert.Check(t, is.Error(err, "port binding mismatch 80/tcp:8080-8080, 80/tcp:8080-8081"))
 	assert.Check(t, is.Nil(pbs))
 }

@@ -13,6 +13,7 @@ COMMIT
 :DOCKER-FORWARD - [0:0]
 :DOCKER-INTERNAL - [0:0]
 -A FORWARD -j DOCKER-FORWARD
+-A DOCKER -d 192.168.0.2/32 -i br-dummy -o br-dummy -p tcp -m tcp --dport 80 -m conntrack ! --ctorigdst 192.168.0.2 -j ACCEPT
 -A DOCKER ! -i br-dummy -o br-dummy -j ACCEPT
 -A DOCKER-BRIDGE -o br-dummy -j DOCKER
 -A DOCKER-CT -o br-dummy -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT

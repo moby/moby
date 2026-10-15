@@ -21,6 +21,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"slices"
 
 	"github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/pkg/archive/compression"
@@ -48,8 +49,8 @@ func RegisterProcessor(handler Handler) {
 // GetProcessor returns the processor for a media-type
 func GetProcessor(ctx context.Context, stream StreamProcessor, payloads map[string]typeurl.Any) (StreamProcessor, error) {
 	// reverse this list so that user configured handlers come up first
-	for i := len(handlers) - 1; i >= 0; i-- {
-		processor, ok := handlers[i](ctx, stream.MediaType())
+	for _, handler := range slices.Backward(handlers) {
+		processor, ok := handler(ctx, stream.MediaType())
 		if ok {
 			return processor(ctx, stream, payloads)
 		}

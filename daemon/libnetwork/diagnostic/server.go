@@ -222,5 +222,5 @@ func HTTPReply(w http.ResponseWriter, r *HTTPResult, j *JSONOutput) (int, error)
 	} else {
 		response = []byte(r.String())
 	}
-	return fmt.Fprint(w, string(response))
+	return fmt.Fprint(w, string(response)) // #nosec G705 -- ignore "XSS via taint analysis" - inputs are trusted and for debugging.
 }

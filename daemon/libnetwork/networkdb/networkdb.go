@@ -19,8 +19,8 @@ import (
 	"github.com/docker/go-events"
 	iradix "github.com/hashicorp/go-immutable-radix/v2"
 	"github.com/hashicorp/memberlist"
-	"github.com/hashicorp/serf/serf"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/lamport"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
@@ -36,10 +36,10 @@ type NetworkDB struct {
 	// in this struct due to Golang issue #599.
 
 	// Global lamport clock for node network attach events.
-	networkClock serf.LamportClock
+	networkClock lamport.Clock
 
 	// Global lamport clock for table events.
-	tableClock serf.LamportClock
+	tableClock lamport.Clock
 
 	sync.RWMutex
 
@@ -55,7 +55,7 @@ type NetworkDB struct {
 
 	// List of all peer nodes in the cluster not-limited to any
 	// network.
-	nodes map[string]*node
+	nodes nodeMap
 
 	// An approximation of len(nodes) that can be accessed without
 	// synchronization.
@@ -64,10 +64,7 @@ type NetworkDB struct {
 	// List of all peer nodes which have failed. The attachments and table
 	// entries of a failed node are remembered, hidden rather than dropped,
 	// and put back in place if the node returns before it is reaped.
-	failedNodes map[string]*node
-
-	// List of all peer nodes which have left
-	leftNodes map[string]*node
+	failedNodes nodeMap
 
 	// A multi-dimensional map of network/node attachments for peer nodes.
 	// The first key is a node name and the second key is a network ID for
@@ -137,7 +134,7 @@ type PeerClusterInfo struct {
 
 type node struct {
 	memberlist.Node
-	ltime serf.LamportTime
+	ltime lamport.Time
 	// Number of hours left before the reaper removes the node
 	reapTime time.Duration
 }
@@ -145,7 +142,7 @@ type node struct {
 // network describes the node/network attachment.
 type network struct {
 	// Lamport time for the latest state of the entry.
-	ltime serf.LamportTime
+	ltime lamport.Time
 
 	// Node leave is in progress.
 	leaving bool
@@ -302,7 +299,7 @@ type entry struct {
 	node string
 
 	// Lamport time for the most recent update to the entry
-	ltime serf.LamportTime
+	ltime lamport.Time
 
 	// Opaque value store in the entry
 	value []byte
@@ -321,7 +318,7 @@ type entry struct {
 // Done is closed when a bulk sync from the node is received with an LTime
 // greater than the subscription's LTime.
 type bulkSyncSubscription struct {
-	LTime serf.LamportTime
+	LTime lamport.Time
 	Done  chan<- struct{}
 }
 
@@ -376,7 +373,6 @@ func newNetworkDB(c *Config) *NetworkDB {
 		thisNodeNetworks: make(map[string]*thisNodeNetwork),
 		nodes:            make(map[string]*node),
 		failedNodes:      make(map[string]*node),
-		leftNodes:        make(map[string]*node),
 		networkNodes:     make(map[string][]string),
 		bulkSyncAckTbl:   make(map[string][]bulkSyncSubscription),
 		broadcaster:      events.NewBroadcaster(),

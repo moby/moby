@@ -75,9 +75,8 @@ func (cli *Client) ContainerAttach(ctx context.Context, containerID string, opti
 		query.Set("logs", "1")
 	}
 
-	hijacked, err := cli.postHijacked(ctx, "/containers/"+containerID+"/attach", query, nil, http.Header{
-		"Content-Type": {"text/plain"},
-	})
+	headers := http.Header{"Content-Type": {"text/plain"}}
+	hijacked, err := cli.postHijacked(ctx, "/containers/"+containerID+"/attach", query, headers, nil)
 	if err != nil {
 		return ContainerAttachResult{}, err
 	}

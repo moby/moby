@@ -242,6 +242,10 @@ func WithUser(name string) ChownOption {
 				opt.User = &UserOpt{UID: uid}
 			}
 		case 1:
+			// An omitted group uses the same default as a user without a colon.
+			if v == "" {
+				continue
+			}
 			gid, err := parseUID(v)
 			if err != nil {
 				opt.Group = &UserOpt{Name: v}

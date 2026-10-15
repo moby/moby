@@ -73,14 +73,13 @@ func ComputeV2MetadataHMACKey(authConfig *registry.AuthConfig) ([]byte, error) {
 	if authConfig == nil {
 		return nil, nil
 	}
-	key := authConfigKeyInput{
+	buf, err := json.Marshal(&authConfigKeyInput{
 		Username:      authConfig.Username,
-		Password:      authConfig.Password,
+		Password:      authConfig.Password, // #nosec G117 -- included only as input to the derived digest below.
 		Auth:          authConfig.Auth,
 		IdentityToken: authConfig.IdentityToken,
 		RegistryToken: authConfig.RegistryToken,
-	}
-	buf, err := json.Marshal(&key)
+	})
 	if err != nil {
 		return nil, err
 	}

@@ -7,6 +7,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"hash/crc32"
 	"io"
@@ -14,7 +15,7 @@ import (
 	"net"
 	"time"
 
-	metrics "github.com/hashicorp/go-metrics/compat"
+	metrics "github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/go-msgpack/v2/codec"
 )
 
@@ -86,8 +87,11 @@ const (
 	userMsgOverhead        = 1
 	blockingWarning        = 10 * time.Millisecond // Warn if a UDP packet takes this long to process
 	maxPushStateBytes      = 20 * 1024 * 1024
-	maxPushStateNodes      = 1024 * 1024 // Each requires conservatively  ~20 bytes when encoded
-	maxPushPullRequests    = 128         // Maximum number of concurrent push/pull requests
+	maxPushStateNodes      = 1024 * 1024      // Each requires conservatively  ~20 bytes when encoded
+	maxUserMsgBytes        = 20 * 1024 * 1024 // Largest user message we will buffer off the wire
+	maxPushPullRequests    = 128              // Maximum number of concurrent push/pull requests
+
+	maxDecompressedBytes = 2 * maxPushStateBytes // Largest push/pull we will decompress: user state plus an equal node budget
 )
 
 // ping request sent directly to node
@@ -1212,6 +1216,9 @@ func (m *Memberlist) readStream(conn net.Conn, streamLabel string) (messageType,
 		if err != nil {
 			return 0, nil, nil, err
 		}
+		if len(decomp) == 0 {
+			return 0, nil, nil, errors.New("decompressed message is empty")
+		}
 
 		// Reset the message type
 		msgType = messageType(decomp[0])
@@ -1288,19 +1295,22 @@ func (m *Memberlist) mergeRemoteState(join bool, remoteNodes []pushNodeState, us
 	if join && m.config.Merge != nil {
 		nodes := make([]*Node, len(remoteNodes))
 		for idx, n := range remoteNodes {
-			nodes[idx] = &Node{
+			node := &Node{
 				Name:  n.Name,
 				Addr:  n.Addr,
 				Port:  n.Port,
 				Meta:  n.Meta,
 				State: n.State,
-				PMin:  n.Vsn[0],
-				PMax:  n.Vsn[1],
-				PCur:  n.Vsn[2],
-				DMin:  n.Vsn[3],
-				DMax:  n.Vsn[4],
-				DCur:  n.Vsn[5],
 			}
+			if len(n.Vsn) >= 6 {
+				node.PMin = n.Vsn[0]
+				node.PMax = n.Vsn[1]
+				node.PCur = n.Vsn[2]
+				node.DMin = n.Vsn[3]
+				node.DMax = n.Vsn[4]
+				node.DCur = n.Vsn[5]
+			}
+			nodes[idx] = node
 		}
 		if err := m.config.Merge.NotifyMerge(nodes); err != nil {
 			return err
@@ -1323,6 +1333,10 @@ func (m *Memberlist) readUserMsg(bufConn io.Reader, dec *codec.Decoder) error {
 	var header userMsgHeader
 	if err := dec.Decode(&header); err != nil {
 		return err
+	}
+
+	if header.UserMsgLen < 0 || header.UserMsgLen > maxUserMsgBytes {
+		return fmt.Errorf("user message length (%d) exceeds limit", header.UserMsgLen)
 	}
 
 	// Read the user message into a buffer

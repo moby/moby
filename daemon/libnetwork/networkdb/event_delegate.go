@@ -42,9 +42,9 @@ func (e *eventDelegate) NotifyJoin(mn *memberlist.Node) {
 	e.nDB.Lock()
 	defer e.nDB.Unlock()
 
-	// In case the node is rejoining after a failure or leave,
+	// In case the node is rejoining after a failure,
 	// just add the node back to active
-	if moved, _ := e.nDB.changeNodeState(mn.Name, nodeActiveState); moved {
+	if moved := e.nDB.reactivateNode(context.TODO(), mn.Name); moved {
 		return
 	}
 
@@ -65,22 +65,27 @@ func (e *eventDelegate) NotifyLeave(mn *memberlist.Node) {
 	e.nDB.Lock()
 	defer e.nDB.Unlock()
 
-	n, currState, _ := e.nDB.findNode(mn.Name)
-	if n == nil {
-		log.G(context.TODO()).Errorf("Node %s/%s not found in the node lists", mn.Name, mn.Addr)
+	// Now that memberlist has given up on this node, an active node at its
+	// address means the cluster has replaced it: retire it rather than leave
+	// reconnectNode retrying a name nobody answers to any more. This is the
+	// other half of [NetworkDB.purgeReincarnation], which leaves the active
+	// list alone precisely so that this can be decided here.
+	var hasCollision bool
+	for range e.nDB.nodes.AllColliding(mn) {
+		hasCollision = true
+		break
+	}
+	if hasCollision && e.nDB.forgetNode(context.TODO(), mn.Name) {
+		log.G(context.TODO()).Infof("Node %s/%s, superseded at its address", mn.Name, mn.Addr)
 		return
 	}
-	// if the node was active means that did not send the leave cluster message, so it's probable that
-	// failed. Else would be already in the left list so nothing else has to be done
-	if currState == nodeActiveState {
-		moved, err := e.nDB.changeNodeState(mn.Name, nodeFailedState)
-		if err != nil {
-			log.G(context.TODO()).WithError(err).Errorf("impossible condition, node %s/%s not present in the list", mn.Name, mn.Addr)
-			return
-		}
-		if moved {
-			log.G(context.TODO()).Infof("Node %s/%s, added to failed nodes list", mn.Name, mn.Addr)
-		}
+
+	// Try to transition the node from active to failed. If the node was
+	// active means that we did not receive the leave cluster message, so it's
+	// probable that the node failed. Else it would already be removed from
+	// the lists so nothing else has to be done.
+	if e.nDB.failNode(context.TODO(), mn.Name) {
+		log.G(context.TODO()).Infof("Node %s/%s, added to failed nodes list", mn.Name, mn.Addr)
 	}
 }
 

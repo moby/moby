@@ -83,7 +83,7 @@ func WithSize(size uint64) scratchCreationOpt {
 // defaultScratchCreationOptions returns the default options for scratch VHD creation
 func defaultScratchCreationOptions() *scratchCreationOptions {
 	return &scratchCreationOptions{
-		ntfsFormat:  true,
+		ntfsFormat:  false,
 		sizeInBytes: defaultScratchVHDSizeInBytes,
 	}
 }
@@ -420,7 +420,7 @@ func createDifferencingScratchVHDs(ctx context.Context, path string) (err error)
 	}()
 
 	if !baseVHDExists {
-		if err = createScratchVHD(ctx, baseVHDPath); err != nil {
+		if err = createScratchVHD(ctx, baseVHDPath, WithNTFSFormat()); err != nil {
 			return fmt.Errorf("failed to create base vhd: %w", err)
 		}
 	}
