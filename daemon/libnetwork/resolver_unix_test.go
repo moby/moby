@@ -16,7 +16,7 @@ import (
 // test only works on linux
 func TestDNSIPQuery(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	c, err := New(t.Context(), config.OptionDataDir(t.TempDir()),
+	c, err := New(t.Context(),
 		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
 	if err != nil {
 		t.Fatal(err)
@@ -115,7 +115,6 @@ func TestDNSProxyServFail(t *testing.T) {
 	defer osctx.Cleanup(t)
 
 	c, err := New(t.Context(),
-		config.OptionDataDir(t.TempDir()),
 		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
 	if err != nil {
 		t.Fatal(err)

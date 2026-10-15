@@ -112,6 +112,18 @@ func TestImagePullWithExistingSnapshot(t *testing.T) {
 	assert.NilError(t, rdr.Wait(ctx))
 
 	checkSavedLayers()
+
+	// Pull again with all content present. Layer progress should be omitted.
+	//
+	// regression test for https://github.com/moby/moby/issues/53855
+	rdr, err = apiClient.ImagePull(ctx, remote, client.ImagePullOptions{})
+	assert.NilError(t, err)
+
+	for msg, err := range rdr.JSONMessages(ctx) {
+		assert.NilError(t, err)
+		isPullingLayer := msg.ID != "" && msg.Status == "Pulling fs layer"
+		assert.Check(t, !isPullingLayer)
+	}
 }
 
 func TestImagePullPlatformInvalid(t *testing.T) {

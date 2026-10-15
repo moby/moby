@@ -2113,6 +2113,7 @@ func (n *Network) createLoadBalancerSandbox() (retErr error) {
 	epOptions := []EndpointOption{
 		CreateOptionIPAM(n.loadBalancerIP, nil, nil),
 		CreateOptionLoadBalancer(),
+		CreateOptionDisableResolution(),
 	}
 	ep, err := n.createEndpoint(context.TODO(), endpointName, epOptions...)
 	if err != nil {

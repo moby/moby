@@ -233,11 +233,7 @@ func TestGetEmptyCapabilities(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	d := newDriver(plugin, client)
-	if d.Type() != plugin {
-		t.Fatal("Driver type does not match that given")
-	}
-
+	d := newDriver(client)
 	_, err = d.getCapabilities()
 	if err == nil {
 		t.Fatal("There should be error reported when get empty capability")
@@ -267,11 +263,7 @@ func TestGetExtraCapabilities(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	d := newDriver(plugin, client)
-	if d.Type() != plugin {
-		t.Fatal("Driver type does not match that given")
-	}
-
+	d := newDriver(client)
 	c, err := d.getCapabilities()
 	if err != nil {
 		t.Fatal(err)
@@ -303,11 +295,7 @@ func TestGetInvalidCapabilities(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	d := newDriver(plugin, client)
-	if d.Type() != plugin {
-		t.Fatal("Driver type does not match that given")
-	}
-
+	d := newDriver(client)
 	_, err = d.getCapabilities()
 	if err == nil {
 		t.Fatal("There should be error reported when get invalid capability")
@@ -430,11 +418,7 @@ func TestRemoteDriver(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	d := newDriver(plugin, client)
-	if d.Type() != plugin {
-		t.Fatal("Driver type does not match that given")
-	}
-
+	d := newDriver(client)
 	c, err := d.getCapabilities()
 	if err != nil {
 		t.Fatal(err)
@@ -557,7 +541,7 @@ func TestRemoteDriverJoinDstName(t *testing.T) {
 			assert.NilError(t, err)
 			client, err := getPluginClient(p)
 			assert.NilError(t, err)
-			d := newDriver(plugin, client)
+			d := newDriver(client)
 
 			err = d.Join(t.Context(), "dummy-network", "dummy-endpoint", "sandbox-key", ep, nil, map[string]any{})
 			assert.NilError(t, err)
@@ -587,7 +571,7 @@ func TestDriverError(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d := newDriver(plugin, client)
+	d := newDriver(client)
 	if err := d.CreateEndpoint(t.Context(), "dummy", "dummy", &testEndpoint{t: t}, map[string]any{}); err == nil {
 		t.Fatal("Expected error from driver")
 	}
@@ -624,7 +608,7 @@ func TestMissingValues(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d := newDriver(plugin, client)
+	d := newDriver(client)
 	if err := d.CreateEndpoint(t.Context(), "dummy", "dummy", ep, map[string]any{}); err != nil {
 		t.Fatal(err)
 	}
@@ -693,7 +677,7 @@ func TestRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d := newDriver(plugin, client)
+	d := newDriver(client)
 	ep := &rollbackEndpoint{}
 	if err := d.CreateEndpoint(t.Context(), "dummy", "dummy", ep.Interface(), map[string]any{}); err == nil {
 		t.Fatal("Expected error from driver")

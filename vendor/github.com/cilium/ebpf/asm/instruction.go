@@ -2,15 +2,19 @@ package asm
 
 import (
 	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 	"math"
 	"sort"
 	"strings"
 
+	"github.com/cilium/ebpf/internal"
+	"github.com/cilium/ebpf/internal/platform"
 	"github.com/cilium/ebpf/internal/sys"
 )
 
@@ -41,11 +45,19 @@ type Instruction struct {
 	Metadata Metadata
 }
 
+// Width returns how many raw BPF instructions the Instruction occupies within
+// an instruction stream. For example, an Instruction encoding a 64-bit value
+// will typically occupy 2 raw instructions, while a 32-bit constant can be
+// encoded in a single raw instruction.
+func (ins *Instruction) Width() RawInstructionOffset {
+	return RawInstructionOffset(ins.OpCode.rawInstructions())
+}
+
 // Unmarshal decodes a BPF instruction.
-func (ins *Instruction) Unmarshal(r io.Reader, bo binary.ByteOrder) (uint64, error) {
+func (ins *Instruction) Unmarshal(r io.Reader, bo binary.ByteOrder, platform string) error {
 	data := make([]byte, InstructionSize)
 	if _, err := io.ReadFull(r, data); err != nil {
-		return 0, err
+		return err
 	}
 
 	ins.OpCode = OpCode(data[0])
@@ -60,7 +72,23 @@ func (ins *Instruction) Unmarshal(r io.Reader, bo binary.ByteOrder) (uint64, err
 
 	ins.Offset = int16(bo.Uint16(data[2:4]))
 
-	if ins.OpCode.Class().IsALU() {
+	// Convert to int32 before widening to int64
+	// to ensure the signed bit is carried over.
+	ins.Constant = int64(int32(bo.Uint32(data[4:8])))
+
+	if ins.IsBuiltinCall() {
+		if ins.Constant >= 0 {
+			// Leave negative constants from the instruction stream
+			// unchanged. These are sometimes used as placeholders for later
+			// patching.
+			// This relies on not having a valid platform tag with a high bit set.
+			fn, err := BuiltinFuncForPlatform(platform, uint32(ins.Constant))
+			if err != nil {
+				return err
+			}
+			ins.Constant = int64(fn)
+		}
+	} else if ins.OpCode.Class().IsALU() {
 		switch ins.OpCode.ALUOp() {
 		case Div:
 			if ins.Offset == 1 {
@@ -85,33 +113,35 @@ func (ins *Instruction) Unmarshal(r io.Reader, bo binary.ByteOrder) (uint64, err
 				ins.Offset = 0
 			}
 		}
+	} else if ins.OpCode.Class() == StXClass &&
+		ins.OpCode.Mode() == AtomicMode {
+		// For atomic ops, part of the opcode is stored in the
+		// constant field. Shift over 8 bytes so we can OR with the actual opcode and
+		// apply `atomicMask` to avoid merging unknown bits that may be added in the future.
+		ins.OpCode |= (OpCode((ins.Constant << 8)) & atomicMask)
 	}
 
-	// Convert to int32 before widening to int64
-	// to ensure the signed bit is carried over.
-	ins.Constant = int64(int32(bo.Uint32(data[4:8])))
-
 	if !ins.OpCode.IsDWordLoad() {
-		return InstructionSize, nil
+		return nil
 	}
 
 	// Pull another instruction from the stream to retrieve the second
 	// half of the 64-bit immediate value.
 	if _, err := io.ReadFull(r, data); err != nil {
 		// No Wrap, to avoid io.EOF clash
-		return 0, errors.New("64bit immediate is missing second half")
+		return errors.New("64bit immediate is missing second half")
 	}
 
 	// Require that all fields other than the value are zero.
 	if bo.Uint32(data[0:4]) != 0 {
-		return 0, errors.New("64bit immediate has non-zero fields")
+		return errors.New("64bit immediate has non-zero fields")
 	}
 
 	cons1 := uint32(ins.Constant)
 	cons2 := int32(bo.Uint32(data[4:8]))
 	ins.Constant = int64(cons2)<<32 | int64(cons1)
 
-	return 2 * InstructionSize, nil
+	return nil
 }
 
 // Marshal encodes a BPF instruction.
@@ -133,7 +163,14 @@ func (ins Instruction) Marshal(w io.Writer, bo binary.ByteOrder) (uint64, error)
 		return 0, fmt.Errorf("can't marshal registers: %s", err)
 	}
 
-	if ins.OpCode.Class().IsALU() {
+	if ins.IsBuiltinCall() {
+		fn := BuiltinFunc(ins.Constant)
+		plat, value := platform.DecodeConstant(fn)
+		if plat != platform.Native {
+			return 0, fmt.Errorf("function %s (%s): %w", fn, plat, internal.ErrNotSupportedOnOS)
+		}
+		cons = int32(value)
+	} else if ins.OpCode.Class().IsALU() {
 		newOffset := int16(0)
 		switch ins.OpCode.ALUOp() {
 		case SDiv:
@@ -156,6 +193,9 @@ func (ins Instruction) Marshal(w io.Writer, bo binary.ByteOrder) (uint64, error)
 			return 0, fmt.Errorf("extended ALU opcodes should have an .Offset of 0: %s", ins)
 		}
 		ins.Offset = newOffset
+	} else if atomic := ins.OpCode.AtomicOp(); atomic != InvalidAtomic {
+		ins.OpCode = ins.OpCode &^ atomicMask
+		ins.Constant = int64(atomic >> 8)
 	}
 
 	op, err := ins.OpCode.bpfOpCode()
@@ -203,43 +243,11 @@ func (ins *Instruction) AssociateMap(m FDer) error {
 	return nil
 }
 
-// RewriteMapPtr changes an instruction to use a new map fd.
-//
-// Returns an error if the instruction doesn't load a map.
-//
-// Deprecated: use AssociateMap instead. If you cannot provide a Map,
-// wrap an fd in a type implementing FDer.
-func (ins *Instruction) RewriteMapPtr(fd int) error {
-	if !ins.IsLoadFromMap() {
-		return errors.New("not a load from a map")
-	}
-
-	ins.encodeMapFD(fd)
-
-	return nil
-}
-
 func (ins *Instruction) encodeMapFD(fd int) {
 	// Preserve the offset value for direct map loads.
 	offset := uint64(ins.Constant) & (math.MaxUint32 << 32)
 	rawFd := uint64(uint32(fd))
 	ins.Constant = int64(offset | rawFd)
-}
-
-// MapPtr returns the map fd for this instruction.
-//
-// The result is undefined if the instruction is not a load from a map,
-// see IsLoadFromMap.
-//
-// Deprecated: use Map() instead.
-func (ins *Instruction) MapPtr() int {
-	// If there is a map associated with the instruction, return its FD.
-	if fd := ins.Metadata.Get(mapMeta{}); fd != nil {
-		return fd.(FDer).FD()
-	}
-
-	// Fall back to the fd stored in the Constant field
-	return ins.mapFd()
 }
 
 // mapFd returns the map file descriptor stored in the 32 least significant
@@ -367,8 +375,8 @@ func (ins Instruction) Format(f fmt.State, c rune) {
 			fmt.Fprintf(f, "dst: %s src: %s imm: %d", ins.Dst, ins.Src, ins.Constant)
 		case MemMode, MemSXMode:
 			fmt.Fprintf(f, "dst: %s src: %s off: %d imm: %d", ins.Dst, ins.Src, ins.Offset, ins.Constant)
-		case XAddMode:
-			fmt.Fprintf(f, "dst: %s src: %s", ins.Dst, ins.Src)
+		case AtomicMode:
+			fmt.Fprintf(f, "dst: %s src: %s off: %d", ins.Dst, ins.Src, ins.Offset)
 		}
 
 	case cls.IsALU():
@@ -388,13 +396,19 @@ func (ins Instruction) Format(f fmt.State, c rune) {
 		}
 
 	case cls.IsJump():
-		fmt.Fprintf(f, "%v ", op)
 		switch jop := op.JumpOp(); jop {
 		case Call:
+			fmt.Fprintf(f, "%v ", op)
 			switch ins.Src {
 			case PseudoCall:
-				// bpf-to-bpf call
-				fmt.Fprint(f, ins.Constant)
+				// bpf-to-bpf call. For JIT-compiled programs, the kernel stores
+				// the PC offset in the 'off' field (ins.Offset) rather than 'imm'
+				// (ins.Constant). See kernel bpf_insn_prepare_dump in verifier.c.
+				if ins.Offset != 0 {
+					fmt.Fprint(f, ins.Offset)
+				} else {
+					fmt.Fprint(f, ins.Constant)
+				}
 			case PseudoKfuncCall:
 				// kfunc call
 				fmt.Fprintf(f, "Kfunc(%d)", ins.Constant)
@@ -403,13 +417,23 @@ func (ins Instruction) Format(f fmt.State, c rune) {
 			}
 
 		case Ja:
+			fmt.Fprintf(f, "%v ", op)
 			if ins.OpCode.Class() == Jump32Class {
 				fmt.Fprintf(f, "imm: %d", ins.Constant)
 			} else {
 				fmt.Fprintf(f, "off: %d", ins.Offset)
 			}
 
+		case JCOND:
+			switch ins.Src {
+			case PseudoMayGoto:
+				fmt.Fprintf(f, "JCond may_goto off: %d", ins.Offset)
+			default:
+				fmt.Fprintf(f, "%v", op)
+			}
+
 		default:
+			fmt.Fprintf(f, "%v ", op)
 			fmt.Fprintf(f, "dst: %s off: %d ", ins.Dst, ins.Offset)
 			if op.Source() == ImmSource {
 				fmt.Fprintf(f, "imm: %d", ins.Constant)
@@ -454,13 +478,6 @@ type symbolMeta struct{}
 func (ins Instruction) WithSymbol(name string) Instruction {
 	ins.Metadata.Set(symbolMeta{}, name)
 	return ins
-}
-
-// Sym creates a symbol.
-//
-// Deprecated: use WithSymbol instead.
-func (ins Instruction) Sym(name string) Instruction {
-	return ins.WithSymbol(name)
 }
 
 // Symbol returns the value ins has been marked with using WithSymbol,
@@ -529,29 +546,24 @@ type FDer interface {
 // Instructions is an eBPF program.
 type Instructions []Instruction
 
-// Unmarshal unmarshals an Instructions from a binary instruction stream.
-// All instructions in insns are replaced by instructions decoded from r.
-func (insns *Instructions) Unmarshal(r io.Reader, bo binary.ByteOrder) error {
-	if len(*insns) > 0 {
-		*insns = nil
-	}
-
+// AppendInstructions decodes [Instruction] from r and appends them to insns.
+func AppendInstructions(insns Instructions, r io.Reader, bo binary.ByteOrder, platform string) (Instructions, error) {
 	var offset uint64
 	for {
 		var ins Instruction
-		n, err := ins.Unmarshal(r, bo)
+		err := ins.Unmarshal(r, bo, platform)
 		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
-			return fmt.Errorf("offset %d: %w", offset, err)
+			return nil, fmt.Errorf("offset %d: %w", offset, err)
 		}
 
-		*insns = append(*insns, ins)
-		offset += n
+		insns = append(insns, ins)
+		offset += ins.Size()
 	}
 
-	return nil
+	return insns, nil
 }
 
 // Name returns the name of the function insns belongs to, if any.
@@ -596,39 +608,6 @@ func (insns Instructions) AssociateMap(symbol string, m FDer) error {
 		if err := ins.AssociateMap(m); err != nil {
 			return err
 		}
-
-		found = true
-	}
-
-	if !found {
-		return fmt.Errorf("symbol %s: %w", symbol, ErrUnreferencedSymbol)
-	}
-
-	return nil
-}
-
-// RewriteMapPtr rewrites all loads of a specific map pointer to a new fd.
-//
-// Returns ErrUnreferencedSymbol if the symbol isn't used.
-//
-// Deprecated: use AssociateMap instead.
-func (insns Instructions) RewriteMapPtr(symbol string, fd int) error {
-	if symbol == "" {
-		return errors.New("empty symbol")
-	}
-
-	var found bool
-	for i := range insns {
-		ins := &insns[i]
-		if ins.Reference() != symbol {
-			continue
-		}
-
-		if !ins.IsLoadFromMap() {
-			return errors.New("not a load from a map")
-		}
-
-		ins.encodeMapFD(fd)
 
 		found = true
 	}
@@ -792,18 +771,72 @@ func (insns Instructions) Marshal(w io.Writer, bo binary.ByteOrder) error {
 // It mirrors bpf_prog_calc_tag in the kernel and so can be compared
 // to ProgramInfo.Tag to figure out whether a loaded program matches
 // certain instructions.
+//
+// Deprecated: The value produced by this method no longer matches tags produced
+// by the kernel since Linux 6.18. Use [Instructions.HasTag] instead.
 func (insns Instructions) Tag(bo binary.ByteOrder) (string, error) {
+	// We cannot determine which hashing function to use without probing the kernel.
+	// So use the legacy SHA-1 implementation and deprecate this method.
+	return insns.tagSha1(bo)
+}
+
+// HasTag returns true if the given tag matches the kernel tag of insns.
+func (insns Instructions) HasTag(tag string, bo binary.ByteOrder) (bool, error) {
+	sha256Tag, err := insns.tagSha256(bo)
+	if err != nil {
+		return false, fmt.Errorf("hashing sha256: %w", err)
+	}
+	if tag == sha256Tag {
+		return true, nil
+	}
+
+	sha1Tag, err := insns.tagSha1(bo)
+	if err != nil {
+		return false, fmt.Errorf("hashing sha1: %w", err)
+	}
+
+	return tag == sha1Tag, nil
+}
+
+// tagSha1 calculates the kernel tag for a series of instructions.
+//
+// It mirrors bpf_prog_calc_tag in kernels up to v6.18 and can be compared to
+// ProgramInfo.Tag to figure out whether a loaded Program matches insns.
+func (insns Instructions) tagSha1(bo binary.ByteOrder) (string, error) {
 	h := sha1.New()
+	if err := insns.hash(h, bo); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)[:sys.BPF_TAG_SIZE]), nil
+}
+
+// tagSha256 calculates the kernel tag for a series of instructions.
+//
+// It mirrors bpf_prog_calc_tag in the kernel and can be compared to
+// ProgramInfo.Tag to figure out whether a loaded Program matches insns.
+func (insns Instructions) tagSha256(bo binary.ByteOrder) (string, error) {
+	h := sha256.New()
+	if err := insns.hash(h, bo); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)[:sys.BPF_TAG_SIZE]), nil
+}
+
+// hash calculates the hash of the instruction stream. Map load instructions
+// are zeroed out, since these contain map file descriptors or pointers to
+// maps, which will be different from load to load and would make the hash
+// non-deterministic.
+func (insns Instructions) hash(h hash.Hash, bo binary.ByteOrder) error {
 	for i, ins := range insns {
 		if ins.IsLoadFromMap() {
 			ins.Constant = 0
 		}
 		_, err := ins.Marshal(h, bo)
 		if err != nil {
-			return "", fmt.Errorf("instruction %d: %w", i, err)
+			return fmt.Errorf("instruction %d: %w", i, err)
 		}
 	}
-	return hex.EncodeToString(h.Sum(nil)[:sys.BPF_TAG_SIZE]), nil
+	return nil
 }
 
 // encodeFunctionReferences populates the Offset (or Constant, depending on
@@ -942,12 +975,4 @@ func newBPFRegisters(dst, src Register, bo binary.ByteOrder) (bpfRegisters, erro
 	default:
 		return 0, fmt.Errorf("unrecognized ByteOrder %T", bo)
 	}
-}
-
-// IsUnreferencedSymbol returns true if err was caused by
-// an unreferenced symbol.
-//
-// Deprecated: use errors.Is(err, asm.ErrUnreferencedSymbol).
-func IsUnreferencedSymbol(err error) bool {
-	return errors.Is(err, ErrUnreferencedSymbol)
 }

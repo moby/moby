@@ -39,9 +39,6 @@ type Store interface {
 	// Delete deletes a value at "key". Unlike AtomicDelete it doesn't check
 	// whether the deleted key is at a specific version before deleting.
 	Delete(key string) error
-
-	// Close the store connection
-	Close()
 }
 
 // KVPair represents {Key, Value, LastIndex} tuple

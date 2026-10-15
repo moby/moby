@@ -1,3 +1,5 @@
+//go:build !windows
+
 package link
 
 import (
@@ -72,6 +74,10 @@ func (frt *simpleRawTracepoint) Unpin() error {
 	return fmt.Errorf("unpin raw_tracepoint: %w", ErrNotSupported)
 }
 
+func (frt *simpleRawTracepoint) Detach() error {
+	return fmt.Errorf("detach raw_tracepoint: %w", ErrNotSupported)
+}
+
 func (frt *simpleRawTracepoint) Info() (*Info, error) {
 	return nil, fmt.Errorf("can't get raw_tracepoint info: %w", ErrNotSupported)
 }
@@ -84,4 +90,20 @@ var _ Link = (*rawTracepoint)(nil)
 
 func (rt *rawTracepoint) Update(_ *ebpf.Program) error {
 	return fmt.Errorf("update raw_tracepoint: %w", ErrNotSupported)
+}
+
+func (rt *rawTracepoint) Info() (*Info, error) {
+	var info sys.RawTracepointLinkInfo
+	name, err := queryInfoWithString(rt.fd, &info, &info.TpName, &info.TpNameLen)
+	if err != nil {
+		return nil, err
+	}
+	return &Info{
+		info.Type,
+		info.Id,
+		ebpf.ProgramID(info.ProgId),
+		&RawTracepointInfo{
+			Name: name,
+		},
+	}, nil
 }

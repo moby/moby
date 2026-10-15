@@ -13,12 +13,23 @@ import (
 	"github.com/cilium/ebpf/internal"
 )
 
-// ExtInfos contains ELF section metadata.
+// ExtInfos contains raw, per-section extended BTF metadata from the .BTF.ext
+// ELF section.
 type ExtInfos struct {
-	// The slices are sorted by offset in ascending order.
-	funcInfos       map[string]FuncOffsets
-	lineInfos       map[string]LineOffsets
-	relocationInfos map[string]CORERelocationInfos
+	Funcs     map[string]FuncOffsets
+	Lines     map[string]LineOffsets
+	CORERelos map[string]CORERelocationOffsets
+}
+
+// Section returns the FuncOffsets, LineOffsets and CORERelocationOffsets for
+// the given section name. Returns all nils if ExtInfos is nil, or individual
+// nils if there is no metadata of that type for the section.
+func (ei *ExtInfos) Section(name string) (FuncOffsets, LineOffsets, CORERelocationOffsets) {
+	if ei == nil {
+		return nil, nil, nil
+	}
+
+	return ei.Funcs[name], ei.Lines[name], ei.CORERelos[name]
 }
 
 // loadExtInfosFromELF parses ext infos from the .BTF.ext section in an ELF.
@@ -91,7 +102,7 @@ func loadExtInfos(r io.ReaderAt, bo binary.ByteOrder, spec *Spec) (*ExtInfos, er
 		return nil, fmt.Errorf("parsing CO-RE relocation info: %w", err)
 	}
 
-	coreRelos := make(map[string]CORERelocationInfos, len(btfCORERelos))
+	coreRelos := make(map[string]CORERelocationOffsets, len(btfCORERelos))
 	for section, brs := range btfCORERelos {
 		coreRelos[section], err = newRelocationInfos(brs, spec, spec.strings)
 		if err != nil {
@@ -100,46 +111,6 @@ func loadExtInfos(r io.ReaderAt, bo binary.ByteOrder, spec *Spec) (*ExtInfos, er
 	}
 
 	return &ExtInfos{funcInfos, lineInfos, coreRelos}, nil
-}
-
-type (
-	funcInfoMeta       struct{}
-	coreRelocationMeta struct{}
-)
-
-// Assign per-section metadata from BTF to a section's instructions.
-func (ei *ExtInfos) Assign(insns asm.Instructions, section string) {
-	funcInfos := ei.funcInfos[section]
-	lineInfos := ei.lineInfos[section]
-	reloInfos := ei.relocationInfos[section]
-
-	AssignMetadataToInstructions(insns, funcInfos, lineInfos, reloInfos)
-}
-
-// Assign per-instruction metadata to the instructions in insns.
-func AssignMetadataToInstructions(
-	insns asm.Instructions,
-	funcInfos FuncOffsets,
-	lineInfos LineOffsets,
-	reloInfos CORERelocationInfos,
-) {
-	iter := insns.Iterate()
-	for iter.Next() {
-		if len(funcInfos) > 0 && funcInfos[0].Offset == iter.Offset {
-			*iter.Ins = WithFuncMetadata(*iter.Ins, funcInfos[0].Func)
-			funcInfos = funcInfos[1:]
-		}
-
-		if len(lineInfos) > 0 && lineInfos[0].Offset == iter.Offset {
-			*iter.Ins = iter.Ins.WithSource(lineInfos[0].Line)
-			lineInfos = lineInfos[1:]
-		}
-
-		if len(reloInfos.infos) > 0 && reloInfos.infos[0].offset == iter.Offset {
-			iter.Ins.Metadata.Set(coreRelocationMeta{}, reloInfos.infos[0].relo)
-			reloInfos.infos = reloInfos.infos[1:]
-		}
-	}
 }
 
 // MarshalExtInfos encodes function and line info embedded in insns into kernel
@@ -335,8 +306,8 @@ func parseExtInfoRecordSize(r io.Reader, bo binary.ByteOrder) (uint32, error) {
 	return recordSize, nil
 }
 
-// FuncOffsets is a sorted slice of FuncOffset.
-type FuncOffsets []FuncOffset
+// FuncOffsets is a slice of FuncOffsets sorted by offset.
+type FuncOffsets = []FuncOffset
 
 // The size of a FuncInfo in BTF wire format.
 var FuncInfoSize = uint32(binary.Size(bpfFuncInfo{}))
@@ -466,7 +437,7 @@ func parseFuncInfoRecords(r io.Reader, bo binary.ByteOrder, recordSize uint32, r
 		return nil, fmt.Errorf("expected FuncInfo record size %d, but BTF blob contains %d", exp, got)
 	}
 
-	for i := uint32(0); i < recordNum; i++ {
+	for range recordNum {
 		if err := binary.Read(r, bo, &fi); err != nil {
 			return nil, fmt.Errorf("can't read function info: %v", err)
 		}
@@ -518,8 +489,8 @@ func (li *Line) String() string {
 	return li.line
 }
 
-// LineOffsets contains a sorted list of line infos.
-type LineOffsets []LineOffset
+// LineOffsets is a slice of LineOffsets sorted by offset.
+type LineOffsets = []LineOffset
 
 // LineOffset represents a line info and its raw instruction offset.
 type LineOffset struct {
@@ -559,12 +530,12 @@ func LoadLineInfos(reader io.Reader, bo binary.ByteOrder, recordNum uint32, spec
 }
 
 func newLineInfo(li bpfLineInfo, strings *stringTable) (LineOffset, error) {
-	line, err := strings.Lookup(li.LineOff)
+	line, err := strings.LookupCached(li.LineOff)
 	if err != nil {
 		return LineOffset{}, fmt.Errorf("lookup of line: %w", err)
 	}
 
-	fileName, err := strings.Lookup(li.FileNameOff)
+	fileName, err := strings.LookupCached(li.FileNameOff)
 	if err != nil {
 		return LineOffset{}, fmt.Errorf("lookup of filename: %w", err)
 	}
@@ -671,9 +642,15 @@ func parseLineInfoRecords(r io.Reader, bo binary.ByteOrder, recordSize uint32, r
 		return nil, fmt.Errorf("expected LineInfo record size %d, but BTF blob contains %d", exp, got)
 	}
 
-	out := make([]bpfLineInfo, recordNum)
-	if err := binary.Read(r, bo, out); err != nil {
-		return nil, fmt.Errorf("can't read line info: %v", err)
+	out := make([]bpfLineInfo, 0)
+	chunk := make([]bpfLineInfo, min(1024, recordNum))
+	for remaining := recordNum; remaining > 0; {
+		n := min(uint32(1024), remaining)
+		if err := binary.Read(r, bo, chunk[:n]); err != nil {
+			return nil, fmt.Errorf("can't read line info: %v", err)
+		}
+		out = append(out, chunk[:n]...)
+		remaining -= n
 	}
 
 	if offsetInBytes {
@@ -713,22 +690,32 @@ func (cr *CORERelocation) String() string {
 	return fmt.Sprintf("CORERelocation(%s, %s[%s], local_id=%d)", cr.kind, cr.typ, cr.accessor, cr.id)
 }
 
+type coreRelocationMeta struct{}
+
+// CORERelocationMetadata returns the CORERelocation associated with ins.
 func CORERelocationMetadata(ins *asm.Instruction) *CORERelocation {
 	relo, _ := ins.Metadata.Get(coreRelocationMeta{}).(*CORERelocation)
 	return relo
 }
 
-// CORERelocationInfos contains a sorted list of co:re relocation infos.
-type CORERelocationInfos struct {
-	infos []coreRelocationInfo
+// WithCORERelocationMetadata associates a CORERelocation with ins and returns
+// the modified Instruction.
+func WithCORERelocationMetadata(ins asm.Instruction, relo *CORERelocation) asm.Instruction {
+	ins.Metadata.Set(coreRelocationMeta{}, relo)
+	return ins
 }
 
-type coreRelocationInfo struct {
-	relo   *CORERelocation
-	offset asm.RawInstructionOffset
+// CORERelocationOffsets is a slice of CORERelocationOffsets sorted by offset.
+type CORERelocationOffsets = []CORERelocationOffset
+
+// CORERelocationOffset represents a CO-RE relocation and an offset at which it
+// should be applied.
+type CORERelocationOffset struct {
+	Relo   *CORERelocation
+	Offset asm.RawInstructionOffset
 }
 
-func newRelocationInfo(relo bpfCORERelo, spec *Spec, strings *stringTable) (*coreRelocationInfo, error) {
+func newRelocationInfo(relo bpfCORERelo, spec *Spec, strings *stringTable) (*CORERelocationOffset, error) {
 	typ, err := spec.TypeByID(relo.TypeID)
 	if err != nil {
 		return nil, err
@@ -744,7 +731,7 @@ func newRelocationInfo(relo bpfCORERelo, spec *Spec, strings *stringTable) (*cor
 		return nil, fmt.Errorf("accessor %q: %s", accessorStr, err)
 	}
 
-	return &coreRelocationInfo{
+	return &CORERelocationOffset{
 		&CORERelocation{
 			typ,
 			accessor,
@@ -755,20 +742,21 @@ func newRelocationInfo(relo bpfCORERelo, spec *Spec, strings *stringTable) (*cor
 	}, nil
 }
 
-func newRelocationInfos(brs []bpfCORERelo, spec *Spec, strings *stringTable) (CORERelocationInfos, error) {
-	rs := CORERelocationInfos{
-		infos: make([]coreRelocationInfo, 0, len(brs)),
-	}
+func newRelocationInfos(brs []bpfCORERelo, spec *Spec, strings *stringTable) (CORERelocationOffsets, error) {
+	rs := make(CORERelocationOffsets, 0, len(brs))
+
 	for _, br := range brs {
 		relo, err := newRelocationInfo(br, spec, strings)
 		if err != nil {
-			return CORERelocationInfos{}, fmt.Errorf("offset %d: %w", br.InsnOff, err)
+			return nil, fmt.Errorf("offset %d: %w", br.InsnOff, err)
 		}
-		rs.infos = append(rs.infos, *relo)
+		rs = append(rs, *relo)
 	}
-	sort.Slice(rs.infos, func(i, j int) bool {
-		return rs.infos[i].offset < rs.infos[j].offset
+
+	sort.Slice(rs, func(i, j int) bool {
+		return rs[i].Offset < rs[j].Offset
 	})
+
 	return rs, nil
 }
 
@@ -812,7 +800,7 @@ func parseCOREReloRecords(r io.Reader, bo binary.ByteOrder, recordNum uint32) ([
 	var out []bpfCORERelo
 
 	var relo bpfCORERelo
-	for i := uint32(0); i < recordNum; i++ {
+	for range recordNum {
 		if err := binary.Read(r, bo, &relo); err != nil {
 			return nil, fmt.Errorf("can't read CO-RE relocation: %v", err)
 		}

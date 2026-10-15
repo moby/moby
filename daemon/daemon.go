@@ -77,6 +77,7 @@ import (
 	nwconfig "github.com/moby/moby/v2/daemon/libnetwork/config"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamutils"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipbits"
+	"github.com/moby/moby/v2/daemon/libnetwork/kvstore/boltdb"
 	dlogger "github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/network"
 	"github.com/moby/moby/v2/daemon/pkg/plugin"
@@ -121,6 +122,7 @@ type Daemon struct {
 	registryService   *registry.Service
 	EventsService     *events.Events
 	netController     *libnetwork.Controller
+	netStore          *boltdb.BoltDB
 	volumes           *volumesservice.VolumesService
 	root              string
 	sysInfoOnce       sync.Once
@@ -956,7 +958,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	// Build the host after installing the cleanup defer: this starts extension
 	// processes and must be covered if initialization fails.
-	d.extensionHost, err = newExtensionHost(ctx, config)
+	d.extensionHost, err = d.newExtensionHost(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1347,6 +1349,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			PolicyVerifierProvider: verifierProvider(cfgStore.Root),
 			MaxConcurrentDownloads: config.MaxConcurrentDownloads,
 			MaxConcurrentUploads:   config.MaxConcurrentUploads,
+			Features:               d,
 		})
 
 		if migrationConfig.ImageCount > 0 {
@@ -1594,6 +1597,9 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 	if daemon.netController != nil {
 		daemon.netController.Stop()
 	}
+	if daemon.netStore != nil {
+		daemon.netStore.Close()
+	}
 
 	if daemon.containerdClient != nil {
 		daemon.containerdClient.Close()
@@ -1722,9 +1728,24 @@ func isBridgeNetworkDisabled(conf *config.Config) bool {
 	return conf.BridgeConfig.Iface == config.DisableNetworkBridge
 }
 
+// newNetworkController creates the libnetwork controller, which keeps its
+// state in the daemon's data root.
+func (daemon *Daemon) newNetworkController(ctx context.Context, conf *config.Config, options []nwconfig.Option) error {
+	store, err := boltdb.New(filepath.Join(conf.Root, config.LibnetDataPath, "local-kv.db"))
+	if err != nil {
+		return err
+	}
+	controller, err := libnetwork.New(ctx, append(options, nwconfig.WithKVStore(store))...)
+	if err != nil {
+		store.Close()
+		return err
+	}
+	daemon.netController, daemon.netStore = controller, store
+	return nil
+}
+
 func (daemon *Daemon) networkOptions(conf *config.Config, pg plugingetter.PluginGetter, hostID string, activeSandboxes map[string]any) ([]nwconfig.Option, error) {
 	options := []nwconfig.Option{
-		nwconfig.OptionDataDir(filepath.Join(conf.Root, config.LibnetDataPath)),
 		nwconfig.OptionExecRoot(conf.GetExecRoot()),
 		nwconfig.OptionDefaultDriver(network.DefaultNetwork),
 		nwconfig.OptionDefaultNetwork(network.DefaultNetwork),

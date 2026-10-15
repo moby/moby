@@ -5,14 +5,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/v2/daemon/libnetwork/config"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestNetworkStore(t *testing.T) {
-	configOption := config.OptionDataDir(t.TempDir())
-	c, err := New(t.Context(), configOption)
+	c, err := New(t.Context())
 	assert.NilError(t, err)
 	defer c.Stop()
 

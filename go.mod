@@ -14,7 +14,7 @@ require (
 	cloud.google.com/go/compute/metadata v0.10.0
 	cloud.google.com/go/logging v1.20.0
 	dario.cat/mergo v1.0.2
-	github.com/Azure/go-ansiterm v0.0.0-20260917205352-e937bb47801a
+	github.com/Azure/go-ansiterm v0.0.0-20261006220739-8c912ac31dd4
 	github.com/Graylog2/go-gelf v0.0.0-20191017102106-1550ee647df0 // head of v2 branch
 	github.com/Microsoft/go-winio v0.6.3-0.20260930231756-f19d9717deb0 // see https://github.com/microsoft/hcsshim/pull/2545
 	github.com/Microsoft/hcsshim v0.15.0-rc.4
@@ -31,6 +31,7 @@ require (
 	github.com/containerd/containerd/v2 v2.4.1
 	github.com/containerd/continuity v0.5.0
 	github.com/containerd/errdefs v1.0.0
+	github.com/containerd/errdefs/pkg v0.3.0
 	github.com/containerd/fifo v1.1.0
 	github.com/containerd/log v0.2.0
 	github.com/containerd/log/otel v0.1.0
@@ -63,7 +64,7 @@ require (
 	github.com/miekg/dns v1.1.73
 	github.com/mistifyio/go-zfs/v4 v4.0.0
 	github.com/mitchellh/copystructure v1.2.0
-	github.com/moby/buildkit v0.34.0-rc1
+	github.com/moby/buildkit v0.34.0-rc2
 	github.com/moby/docker-image-spec v1.3.1
 	github.com/moby/extensions v0.0.0-20260918151408-e4c23d866037
 	github.com/moby/go-archive v0.3.3
@@ -72,7 +73,7 @@ require (
 	github.com/moby/moby/api v1.56.1
 	github.com/moby/moby/client v0.6.1
 	github.com/moby/patternmatcher v0.6.1
-	github.com/moby/policy-helpers v0.0.0-20260928152613-27d9ecfb5a76
+	github.com/moby/policy-helpers v0.0.0-20261006174519-bd98f4747414
 	github.com/moby/profiles/apparmor v0.2.2
 	github.com/moby/profiles/seccomp v0.2.4
 	github.com/moby/pubsub v1.0.0
@@ -155,12 +156,11 @@ require (
 	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/cilium/ebpf v0.17.3 // indirect
+	github.com/cilium/ebpf v0.22.0 // indirect
 	github.com/cloudflare/circl v1.6.3 // indirect
 	github.com/container-storage-interface/spec v1.10.0 // indirect
 	github.com/containerd/accelerated-container-image v1.3.0 // indirect
 	github.com/containerd/console v1.0.5 // indirect
-	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/go-cni v1.1.14 // indirect
 	github.com/containerd/go-runc v1.2.1 // indirect
 	github.com/containerd/nydus-snapshotter v0.15.15 // indirect
@@ -274,10 +274,10 @@ require (
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	github.com/zmap/zcrypto v0.0.0-20230310154051-c8b263fd8300 // indirect
 	github.com/zmap/zlint/v3 v3.5.0 // indirect
-	go.etcd.io/etcd/api/v3 v3.6.14 // indirect
-	go.etcd.io/etcd/client/pkg/v3 v3.6.14 // indirect
-	go.etcd.io/etcd/pkg/v3 v3.6.14 // indirect
-	go.etcd.io/etcd/server/v3 v3.6.14 // indirect
+	go.etcd.io/etcd/api/v3 v3.6.15 // indirect
+	go.etcd.io/etcd/client/pkg/v3 v3.6.15 // indirect
+	go.etcd.io/etcd/pkg/v3 v3.6.15 // indirect
+	go.etcd.io/etcd/server/v3 v3.6.15 // indirect
 	go.etcd.io/raft/v3 v3.6.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace v0.71.0 // indirect

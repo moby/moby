@@ -1,6 +1,6 @@
 package asm
 
-//go:generate go run golang.org/x/tools/cmd/stringer@latest -output alu_string.go -type=Source,Endianness,ALUOp
+//go:generate go tool stringer -output alu_string.go -type=Source,Endianness,ALUOp
 
 // Source of ALU / ALU64 / Branch operations
 //

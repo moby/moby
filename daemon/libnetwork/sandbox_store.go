@@ -202,8 +202,6 @@ func (c *Controller) sandboxRestore(activeSandboxes map[string]any) error {
 			isRestore = true
 			opts := val.(ActiveSandboxOptionBuilder)(c)
 			sb.processOptions(opts...)
-			sb.restoreHostsPath()
-			sb.restoreResolvConfPath()
 			create = !sb.config.useDefaultSandBox
 		}
 

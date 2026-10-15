@@ -6,8 +6,8 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/libnetwork/cluster"
-	"github.com/moby/moby/v2/daemon/libnetwork/datastore"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamutils"
+	"github.com/moby/moby/v2/daemon/libnetwork/kvstore"
 	"github.com/moby/moby/v2/pkg/plugingetter"
 )
 
@@ -20,7 +20,9 @@ const (
 type Config struct {
 	PlatformConfig
 
-	DataDir string
+	// KVStore is where the controller keeps its state. If it is nil, the
+	// controller keeps its state in memory.
+	KVStore kvstore.Store
 	// ExecRoot is the base-path for libnetwork external key listeners
 	// (created in "<ExecRoot>/libnetwork/<Controller-Short-ID>.sock"),
 	// and is passed as "-exec-root: argument for "libnetwork-setkey".
@@ -36,7 +38,6 @@ type Config struct {
 	ClusterProvider        cluster.Provider
 	NetworkControlPlaneMTU int
 	DefaultAddressPool     []*ipamutils.NetworkToSplit
-	DatastoreBucket        string
 	ActiveSandboxes        map[string]any
 	PluginGetter           plugingetter.PluginGetter
 	FirewallBackend        string
@@ -47,9 +48,7 @@ type Config struct {
 
 // New creates a new Config and initializes it with the given Options.
 func New(opts ...Option) *Config {
-	cfg := &Config{
-		DatastoreBucket: datastore.DefaultBucket,
-	}
+	cfg := &Config{}
 
 	for _, opt := range opts {
 		if opt != nil {
@@ -87,10 +86,11 @@ func OptionDefaultAddressPoolConfig(addressPool []*ipamutils.NetworkToSplit) Opt
 	}
 }
 
-// OptionDataDir function returns an option setter for data folder
-func OptionDataDir(dataDir string) Option {
+// WithKVStore returns an option setter for the store the controller keeps its
+// state in.
+func WithKVStore(kv kvstore.Store) Option {
 	return func(c *Config) {
-		c.DataDir = dataDir
+		c.KVStore = kv
 	}
 }
 

@@ -78,10 +78,6 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]any, error) {
 	return make(map[string]any), nil
 }
 
-func (d *driver) Type() string {
-	return NetworkType
-}
-
 func (d *driver) IsBuiltIn() bool {
 	return true
 }

@@ -15,7 +15,7 @@ import (
 
 func TestCleanupServiceDiscovery(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	c, err := New(t.Context(), config.OptionDataDir(t.TempDir()),
+	c, err := New(t.Context(),
 		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
 	assert.NilError(t, err)
 	defer c.Stop()
@@ -69,7 +69,7 @@ func TestServiceAliasRefCounting(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	ctx := t.Context()
 
-	c, err := New(ctx, config.OptionDataDir(t.TempDir()),
+	c, err := New(ctx,
 		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
 	assert.NilError(t, err)
 	defer c.Stop()

@@ -9,11 +9,12 @@ import (
 
 var ErrCompactionBusy = errors.New("database maintenance in progress")
 
-// CompactOptions controls when a database is compacted. When both reclaim
-// thresholds are set, satisfying either threshold permits compaction.
+// CompactOptions controls when a database is compacted. The percentage floor
+// applies even when the reclaimable byte threshold is met.
 type CompactOptions struct {
-	MinReclaimBytes   int64
-	MinReclaimPercent int64
+	MinReclaimBytes        int64
+	MinReclaimPercent      int64
+	MinReclaimPercentFloor int64
 	// MinInterval also throttles failed attempts.
 	MinInterval time.Duration
 	// PauseTimeout bounds draining transactions. Zero selects the default.
@@ -25,19 +26,25 @@ type CompactOptions struct {
 	Progress chan<- string
 }
 
-// MeetsReclaimThreshold reports whether the reclaimable space satisfies at
-// least one configured threshold. With no configured thresholds, it returns true.
+// MeetsReclaimThreshold reports whether reclaimable space meets the percentage
+// floor and at least one configured byte or percentage threshold.
 func (o CompactOptions) MeetsReclaimThreshold(size, reclaimable int64) bool {
+	if o.MinReclaimPercentFloor > 0 && !meetsReclaimPercent(size, reclaimable, o.MinReclaimPercentFloor) {
+		return false
+	}
 	if o.MinReclaimBytes <= 0 && o.MinReclaimPercent <= 0 {
 		return true
 	}
 	if o.MinReclaimBytes > 0 && reclaimable >= o.MinReclaimBytes {
 		return true
 	}
-	if o.MinReclaimPercent <= 0 || size <= 0 {
+	return o.MinReclaimPercent > 0 && meetsReclaimPercent(size, reclaimable, o.MinReclaimPercent)
+}
+
+func meetsReclaimPercent(size, reclaimable, percent int64) bool {
+	if size <= 0 {
 		return false
 	}
-	percent := o.MinReclaimPercent
 	return reclaimable >= size/100*percent+(size%100*percent+99)/100
 }
 

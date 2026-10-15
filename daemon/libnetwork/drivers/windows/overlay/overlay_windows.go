@@ -103,10 +103,6 @@ func (d *driver) convertToOverlayNetwork(v *hcsshim.HNSNetwork) *network {
 	return n
 }
 
-func (d *driver) Type() string {
-	return NetworkType
-}
-
 func (d *driver) IsBuiltIn() bool {
 	return true
 }

@@ -30,6 +30,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/options"
 	"github.com/moby/moby/v2/daemon/libnetwork/osl"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
+	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/netnsutils"
 	"github.com/moby/moby/v2/pkg/plugins"
 	"github.com/moby/sys/reexec"
@@ -48,7 +49,6 @@ func newController(t *testing.T) *libnetwork.Controller {
 	t.Helper()
 	c, err := libnetwork.New(
 		t.Context(),
-		config.OptionDataDir(t.TempDir()),
 		config.OptionBridgeConfig(bridge.Configuration{
 			EnableIPForwarding: true,
 		}),
@@ -855,7 +855,7 @@ func TestEndpointUpdateParent(t *testing.T) {
 	sbx2, err := controller.NewSandbox(t.Context(), "c2",
 		libnetwork.OptionHostname("test2"),
 		libnetwork.OptionDomainname("example.com"),
-		libnetwork.OptionHostsPath("/var/lib/docker/test_network/container2/hosts"),
+		libnetwork.OptionWriteHostsFile("/var/lib/docker/test_network/container2/hosts"),
 		libnetwork.OptionExtraHost("web", netip.MustParseAddr("192.168.0.2")))
 	assert.NilError(t, err)
 	defer func() {
@@ -885,14 +885,18 @@ func TestInvalidRemoteDriver(t *testing.T) {
 		assert.Check(t, os.RemoveAll(specPath))
 	}()
 
-	err = os.WriteFile(filepath.Join(specPath, "invalid-network-driver.spec"), []byte(server.URL), 0o644)
+	// pkg/plugins caches plugins by name for the life of the process, so
+	// a fixed name would resolve to the plugin, and the closed server, of
+	// a previous run of this test (go test -count).
+	driverName := "invalid-network-driver-" + testutil.RandomAlpha(12)
+	err = os.WriteFile(filepath.Join(specPath, driverName+".spec"), []byte(server.URL), 0o644)
 	assert.NilError(t, err)
 
-	ctrlr, err := libnetwork.New(t.Context(), config.OptionDataDir(t.TempDir()))
+	ctrlr, err := libnetwork.New(t.Context())
 	assert.NilError(t, err)
 	defer ctrlr.Stop()
 
-	_, err = ctrlr.NewNetwork(t.Context(), "invalid-network-driver", "dummy", "",
+	_, err = ctrlr.NewNetwork(t.Context(), driverName, "dummy", "",
 		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
 	assert.Check(t, is.ErrorIs(err, plugins.ErrNotImplements))
 }
@@ -925,11 +929,15 @@ func TestValidRemoteDriver(t *testing.T) {
 		assert.Check(t, os.RemoveAll(specPath))
 	}()
 
-	err = os.WriteFile(filepath.Join(specPath, "valid-network-driver.spec"), []byte(server.URL), 0o644)
+	// pkg/plugins caches plugins by name for the life of the process, so
+	// a fixed name would resolve to the plugin, and the closed server, of
+	// a previous run of this test (go test -count).
+	driverName := "valid-network-driver-" + testutil.RandomAlpha(12)
+	err = os.WriteFile(filepath.Join(specPath, driverName+".spec"), []byte(server.URL), 0o644)
 	assert.NilError(t, err)
 
 	controller := newController(t)
-	n, err := controller.NewNetwork(t.Context(), "valid-network-driver", "dummy", "",
+	n, err := controller.NewNetwork(t.Context(), driverName, "dummy", "",
 		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
 	if err != nil {
 		// Only fail if we could not find the plugin driver
@@ -1363,7 +1371,7 @@ func TestResolvConf(t *testing.T) {
 			}
 
 			sbOpts := append(tc.sbOpts,
-				libnetwork.OptionResolvConfPath(resolvConfPath),
+				libnetwork.OptionWriteResolvConf(resolvConfPath),
 				libnetwork.OptionOriginResolvConfPath(originResolvConfPath),
 			)
 			sb, err := c.NewSandbox(t.Context(), containerID, sbOpts...)

@@ -35,8 +35,6 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	pkgerrors "github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -611,17 +609,20 @@ func (c *client) processEventStream(ctx context.Context, ns string) {
 	for {
 		select {
 		case err := <-errC:
-			if err != nil {
-				errStatus, ok := status.FromError(err)
-				if !ok || errStatus.Code() != codes.Canceled {
-					c.logger.WithError(err).Error("Failed to get event")
-					c.logger.Info("Waiting for containerd to be ready to restart event processing")
-					if c.waitServe(ctx) {
-						go c.processEventStream(ctx, ns)
-						return
-					}
-				}
+			if errors.Is(err, context.Canceled) {
+				c.logger.WithError(err).Info("stopping event stream following graceful shutdown")
+				return
+			}
+			if ctx.Err() != nil {
 				c.logger.WithError(ctx.Err()).Info("stopping event stream following graceful shutdown")
+				return
+			}
+			if err != nil {
+				c.logger.WithError(err).Error("Failed to get event")
+				c.logger.Info("Waiting for containerd to be ready to restart event processing")
+				if c.waitServe(ctx) {
+					go c.processEventStream(ctx, ns)
+				}
 			}
 			return
 		case ev := <-eventStream:

@@ -20,9 +20,8 @@ import (
 )
 
 const (
-	defaultPrefix = "/var/lib/docker/network/files"
-	dirPerm       = 0o755
-	filePerm      = 0o644
+	dirPerm  = 0o755
+	filePerm = 0o644
 
 	resolverIPSandbox = "127.0.0.11"
 )
@@ -36,6 +35,9 @@ func (sb *Sandbox) AddHostsEntry(ctx context.Context, name string, ip netip.Addr
 // UpdateHostsEntry updates the IP address in a /etc/hosts entry where the
 // name matches the regular expression regexp.
 func (sb *Sandbox) UpdateHostsEntry(regexp string, ip netip.Addr) error {
+	if sb.config.hostsPath == "" {
+		return nil
+	}
 	return etchosts.Update(sb.config.hostsPath, ip.String(), regexp)
 }
 
@@ -100,13 +102,6 @@ func (sb *Sandbox) setupResolutionFiles(ctx context.Context) error {
 	// Create a hosts file that can be mounted during container setup. For most
 	// networking modes (not host networking) it will be re-created before the
 	// container start, once its support for IPv6 is known.
-	if sb.config.hostsPath == "" {
-		sb.config.hostsPath = defaultPrefix + "/" + sb.id + "/hosts"
-	}
-	dir, _ := filepath.Split(sb.config.hostsPath)
-	if err := createBasePath(dir); err != nil {
-		return err
-	}
 	if err := sb.buildHostsFile(ctx, nil); err != nil {
 		return err
 	}
@@ -115,10 +110,11 @@ func (sb *Sandbox) setupResolutionFiles(ctx context.Context) error {
 }
 
 func (sb *Sandbox) buildHostsFile(ctx context.Context, ifaceIPs []netip.Addr) error {
+	if sb.config.hostsPath == "" {
+		return nil
+	}
 	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.buildHostsFile")
 	defer span.End()
-
-	sb.restoreHostsPath()
 
 	dir, _ := filepath.Split(sb.config.hostsPath)
 	if err := createBasePath(dir); err != nil {
@@ -176,6 +172,9 @@ func (sb *Sandbox) makeHostsRecs(ifaceIPs []netip.Addr) []etchosts.Record {
 }
 
 func (sb *Sandbox) addHostsEntries(ctx context.Context, ifaceAddrs []netip.Addr) {
+	if sb.config.hostsPath == "" {
+		return
+	}
 	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.addHostsEntries")
 	defer span.End()
 
@@ -195,21 +194,11 @@ func (sb *Sandbox) addHostsEntries(ctx context.Context, ifaceAddrs []netip.Addr)
 }
 
 func (sb *Sandbox) deleteHostsEntries(ifaceAddrs []netip.Addr) {
+	if sb.config.hostsPath == "" {
+		return
+	}
 	if err := etchosts.Delete(sb.config.hostsPath, sb.makeHostsRecs(ifaceAddrs)); err != nil {
 		log.G(context.TODO()).Warnf("Failed deleting service host entries to the running container: %v", err)
-	}
-}
-
-func (sb *Sandbox) restoreResolvConfPath() {
-	if sb.config.resolvConfPath == "" {
-		sb.config.resolvConfPath = defaultPrefix + "/" + sb.id + "/resolv.conf"
-	}
-	sb.config.resolvConfHashFile = sb.config.resolvConfPath + ".hash"
-}
-
-func (sb *Sandbox) restoreHostsPath() {
-	if sb.config.hostsPath == "" {
-		sb.config.hostsPath = defaultPrefix + "/" + sb.id + "/hosts"
 	}
 }
 
@@ -264,8 +253,10 @@ func (sb *Sandbox) loadResolvConf(path string) (*resolvconf.ResolvConf, error) {
 // be a copy of the host's file, with overrides for nameservers, options and search
 // domains applied.
 func (sb *Sandbox) setupDNS() error {
+	if sb.config.resolvConfPath == "" {
+		return nil
+	}
 	// Make sure the directory exists.
-	sb.restoreResolvConfPath()
 	dir, _ := filepath.Split(sb.config.resolvConfPath)
 	if err := createBasePath(dir); err != nil {
 		return err
@@ -280,6 +271,9 @@ func (sb *Sandbox) setupDNS() error {
 
 // Called when an endpoint has joined the sandbox.
 func (sb *Sandbox) updateDNS(ipv6Enabled bool) error {
+	if sb.config.resolvConfPath == "" {
+		return nil
+	}
 	if mod, err := resolvconf.UserModified(sb.config.resolvConfPath, sb.config.resolvConfHashFile); err != nil || mod {
 		return err
 	}
@@ -302,8 +296,10 @@ func (sb *Sandbox) updateDNS(ipv6Enabled bool) error {
 // Embedded DNS server has to be enabled for this sandbox. Rebuild the container's resolv.conf.
 func (sb *Sandbox) rebuildDNS() error {
 	// Don't touch the file if the user has modified it.
-	if mod, err := resolvconf.UserModified(sb.config.resolvConfPath, sb.config.resolvConfHashFile); err != nil || mod {
-		return err
+	if sb.config.resolvConfPath != "" {
+		if mod, err := resolvconf.UserModified(sb.config.resolvConfPath, sb.config.resolvConfHashFile); err != nil || mod {
+			return err
+		}
 	}
 
 	// Load the host's resolv.conf as a starting point.
@@ -328,6 +324,9 @@ func (sb *Sandbox) rebuildDNS() error {
 	// Extract the list of nameservers that just got swapped out, and store them as
 	// upstream nameservers.
 	sb.setExternalResolvers(extNameServers)
+	if sb.config.resolvConfPath == "" {
+		return nil
+	}
 
 	// Write the file for the container - preserving old behaviour, not updating the
 	// hash file (so, no further updates will be made).

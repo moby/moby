@@ -132,5 +132,16 @@ func (d *DB) Close() error {
 	if d.policy != nil {
 		err = d.policy.Close()
 	}
+	if d.opts.NoFreelistSync && !d.opts.ReadOnly && !d.reopenNeeded.Load() {
+		// Keep normal commits cheap, but avoid reconstructing the freelist on
+		// the next open after an orderly shutdown.
+		d.bdb.NoFreelistSync = false
+		// Let bbolt sync the freelist pages before the new meta page.
+		d.bdb.NoSync = false
+		if checkpointErr := d.bdb.Update(func(*bolt.Tx) error { return nil }); checkpointErr != nil {
+			bklog.L.WithError(checkpointErr).Warnf("failed to checkpoint bbolt freelist for %s", d.path)
+			err = stderrors.Join(err, errors.Wrap(checkpointErr, "failed to checkpoint bbolt freelist"))
+		}
+	}
 	return stderrors.Join(err, d.bdb.Close())
 }
