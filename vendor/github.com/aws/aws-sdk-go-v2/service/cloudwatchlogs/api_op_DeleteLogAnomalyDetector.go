@@ -4,6 +4,8 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -36,6 +38,18 @@ type DeleteLogAnomalyDetectorInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DeleteLogAnomalyDetectorInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DeleteLogAnomalyDetectorRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DeleteLogAnomalyDetectorInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.AnomalyDetectorArn != nil {
+		s.WriteString(schemas.DeleteLogAnomalyDetectorRequest_anomalyDetectorArn, *v.AnomalyDetectorArn)
+	}
+}
+
 type DeleteLogAnomalyDetectorOutput struct {
 	// Metadata pertaining to the operation's result.
 	ResultMetadata middleware.Metadata
@@ -43,13 +57,26 @@ type DeleteLogAnomalyDetectorOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DeleteLogAnomalyDetectorOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(nil)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DeleteLogAnomalyDetectorOutput) SerializeMembers(s smithy.ShapeSerializer) {
+}
+func (v *DeleteLogAnomalyDetectorOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, nil, func(s *smithy.Schema) error {
+		switch s {
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationDeleteLogAnomalyDetectorMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDeleteLogAnomalyDetector{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DeleteLogAnomalyDetector, schemas.DeleteLogAnomalyDetectorRequest, nil)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDeleteLogAnomalyDetector{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DeleteLogAnomalyDetector, schemas.DeleteLogAnomalyDetectorRequest, nil), output: &DeleteLogAnomalyDetectorOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

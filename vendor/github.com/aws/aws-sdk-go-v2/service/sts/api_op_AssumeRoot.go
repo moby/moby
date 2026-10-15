@@ -88,6 +88,12 @@ type AssumeRootInput struct {
 	// By default, the value is set to 900 seconds.
 	DurationSeconds *int32
 
+	// The minimum size, in bytes, of the session token that STS issues for the
+	// request. STS increases the session token to at least this size, regardless of
+	// its actual content. The value must not exceed 4,096 bytes. When set to 0 or not
+	// specified, the session token size is unchanged.
+	MinimumSessionTokenSize *int32
+
 	noSmithyDocumentSerde
 }
 
@@ -99,6 +105,14 @@ type AssumeRootOutput struct {
 	// The size of the security token that STS API operations return is not fixed. We
 	// strongly recommend that you make no assumptions about the maximum size.
 	Credentials *types.Credentials
+
+	// The size, in bytes, of the session token returned in the Credentials for this
+	// response.
+	SessionTokenSize *int32
+
+	// The percentage (0-100) of the maximum allowed session token size that the
+	// returned session token consumes.
+	SessionTokenUtilization *int32
 
 	// The source identity specified by the principal that is calling the AssumeRoot
 	// operation.

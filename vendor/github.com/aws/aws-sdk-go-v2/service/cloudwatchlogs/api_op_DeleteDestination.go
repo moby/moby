@@ -4,6 +4,8 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -35,6 +37,18 @@ type DeleteDestinationInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DeleteDestinationInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DeleteDestinationRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DeleteDestinationInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.DestinationName != nil {
+		s.WriteString(schemas.DeleteDestinationRequest_destinationName, *v.DestinationName)
+	}
+}
+
 type DeleteDestinationOutput struct {
 	// Metadata pertaining to the operation's result.
 	ResultMetadata middleware.Metadata
@@ -42,13 +56,26 @@ type DeleteDestinationOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DeleteDestinationOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(nil)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DeleteDestinationOutput) SerializeMembers(s smithy.ShapeSerializer) {
+}
+func (v *DeleteDestinationOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, nil, func(s *smithy.Schema) error {
+		switch s {
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationDeleteDestinationMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDeleteDestination{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DeleteDestination, schemas.DeleteDestinationRequest, nil)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDeleteDestination{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DeleteDestination, schemas.DeleteDestinationRequest, nil), output: &DeleteDestinationOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

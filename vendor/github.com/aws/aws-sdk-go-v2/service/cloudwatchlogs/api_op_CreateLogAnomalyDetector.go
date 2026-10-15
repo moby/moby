@@ -4,7 +4,9 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -106,6 +108,32 @@ type CreateLogAnomalyDetectorInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *CreateLogAnomalyDetectorInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.CreateLogAnomalyDetectorRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *CreateLogAnomalyDetectorInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.AnomalyVisibilityTime != nil {
+		s.WriteInt64(schemas.CreateLogAnomalyDetectorRequest_anomalyVisibilityTime, *v.AnomalyVisibilityTime)
+	}
+	if v.DetectorName != nil {
+		s.WriteString(schemas.CreateLogAnomalyDetectorRequest_detectorName, *v.DetectorName)
+	}
+	if v.EvaluationFrequency != "" {
+		s.WriteString(schemas.CreateLogAnomalyDetectorRequest_evaluationFrequency, string(v.EvaluationFrequency))
+	}
+	if v.FilterPattern != nil {
+		s.WriteString(schemas.CreateLogAnomalyDetectorRequest_filterPattern, *v.FilterPattern)
+	}
+	if v.KmsKeyId != nil {
+		s.WriteString(schemas.CreateLogAnomalyDetectorRequest_kmsKeyId, *v.KmsKeyId)
+	}
+	serializeLogGroupArnList(s, schemas.CreateLogAnomalyDetectorRequest_logGroupArnList, v.LogGroupArnList)
+	serializeTags(s, schemas.CreateLogAnomalyDetectorRequest_tags, v.Tags)
+}
+
 type CreateLogAnomalyDetectorOutput struct {
 
 	// The ARN of the log anomaly detector that you just created.
@@ -117,13 +145,32 @@ type CreateLogAnomalyDetectorOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *CreateLogAnomalyDetectorOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.CreateLogAnomalyDetectorResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *CreateLogAnomalyDetectorOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.AnomalyDetectorArn != nil {
+		s.WriteString(schemas.CreateLogAnomalyDetectorResponse_anomalyDetectorArn, *v.AnomalyDetectorArn)
+	}
+}
+func (v *CreateLogAnomalyDetectorOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.CreateLogAnomalyDetectorResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.CreateLogAnomalyDetectorResponse_anomalyDetectorArn:
+			v.AnomalyDetectorArn = new(string)
+			return d.ReadString(schemas.CreateLogAnomalyDetectorResponse_anomalyDetectorArn, v.AnomalyDetectorArn)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationCreateLogAnomalyDetectorMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpCreateLogAnomalyDetector{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.CreateLogAnomalyDetector, schemas.CreateLogAnomalyDetectorRequest, schemas.CreateLogAnomalyDetectorResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpCreateLogAnomalyDetector{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.CreateLogAnomalyDetector, schemas.CreateLogAnomalyDetectorRequest, schemas.CreateLogAnomalyDetectorResponse), output: &CreateLogAnomalyDetectorOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

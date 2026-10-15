@@ -4,6 +4,8 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -60,6 +62,30 @@ type UpdateLookupTableInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *UpdateLookupTableInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.UpdateLookupTableRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *UpdateLookupTableInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Description != nil {
+		s.WriteString(schemas.UpdateLookupTableRequest_description, *v.Description)
+	}
+	if v.KmsKeyId != nil {
+		s.WriteString(schemas.UpdateLookupTableRequest_kmsKeyId, *v.KmsKeyId)
+	}
+	if v.LookupTableArn != nil {
+		s.WriteString(schemas.UpdateLookupTableRequest_lookupTableArn, *v.LookupTableArn)
+	}
+	if v.QueryId != nil {
+		s.WriteString(schemas.UpdateLookupTableRequest_queryId, *v.QueryId)
+	}
+	if v.TableBody != nil {
+		s.WriteString(schemas.UpdateLookupTableRequest_tableBody, *v.TableBody)
+	}
+}
+
 type UpdateLookupTableOutput struct {
 
 	// The time when the lookup table was last updated, expressed as the number of
@@ -75,13 +101,38 @@ type UpdateLookupTableOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *UpdateLookupTableOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.UpdateLookupTableResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *UpdateLookupTableOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.LastUpdatedTime != nil {
+		s.WriteInt64(schemas.UpdateLookupTableResponse_lastUpdatedTime, *v.LastUpdatedTime)
+	}
+	if v.LookupTableArn != nil {
+		s.WriteString(schemas.UpdateLookupTableResponse_lookupTableArn, *v.LookupTableArn)
+	}
+}
+func (v *UpdateLookupTableOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.UpdateLookupTableResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.UpdateLookupTableResponse_lastUpdatedTime:
+			v.LastUpdatedTime = new(int64)
+			return d.ReadInt64(schemas.UpdateLookupTableResponse_lastUpdatedTime, v.LastUpdatedTime)
+		case schemas.UpdateLookupTableResponse_lookupTableArn:
+			v.LookupTableArn = new(string)
+			return d.ReadString(schemas.UpdateLookupTableResponse_lookupTableArn, v.LookupTableArn)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationUpdateLookupTableMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpUpdateLookupTable{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.UpdateLookupTable, schemas.UpdateLookupTableRequest, schemas.UpdateLookupTableResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpUpdateLookupTable{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.UpdateLookupTable, schemas.UpdateLookupTableRequest, schemas.UpdateLookupTableResponse), output: &UpdateLookupTableOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

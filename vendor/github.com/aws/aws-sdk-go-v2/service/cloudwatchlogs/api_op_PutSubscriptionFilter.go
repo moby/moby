@@ -4,7 +4,9 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -143,6 +145,40 @@ type PutSubscriptionFilterInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutSubscriptionFilterInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutSubscriptionFilterRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutSubscriptionFilterInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.ApplyOnTransformedLogs != false {
+		s.WriteBool(schemas.PutSubscriptionFilterRequest_applyOnTransformedLogs, v.ApplyOnTransformedLogs)
+	}
+	if v.DestinationArn != nil {
+		s.WriteString(schemas.PutSubscriptionFilterRequest_destinationArn, *v.DestinationArn)
+	}
+	if v.Distribution != "" {
+		s.WriteString(schemas.PutSubscriptionFilterRequest_distribution, string(v.Distribution))
+	}
+	serializeEmitSystemFields(s, schemas.PutSubscriptionFilterRequest_emitSystemFields, v.EmitSystemFields)
+	if v.FieldSelectionCriteria != nil {
+		s.WriteString(schemas.PutSubscriptionFilterRequest_fieldSelectionCriteria, *v.FieldSelectionCriteria)
+	}
+	if v.FilterName != nil {
+		s.WriteString(schemas.PutSubscriptionFilterRequest_filterName, *v.FilterName)
+	}
+	if v.FilterPattern != nil {
+		s.WriteString(schemas.PutSubscriptionFilterRequest_filterPattern, *v.FilterPattern)
+	}
+	if v.LogGroupName != nil {
+		s.WriteString(schemas.PutSubscriptionFilterRequest_logGroupName, *v.LogGroupName)
+	}
+	if v.RoleArn != nil {
+		s.WriteString(schemas.PutSubscriptionFilterRequest_roleArn, *v.RoleArn)
+	}
+}
+
 type PutSubscriptionFilterOutput struct {
 	// Metadata pertaining to the operation's result.
 	ResultMetadata middleware.Metadata
@@ -150,13 +186,26 @@ type PutSubscriptionFilterOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutSubscriptionFilterOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(nil)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutSubscriptionFilterOutput) SerializeMembers(s smithy.ShapeSerializer) {
+}
+func (v *PutSubscriptionFilterOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, nil, func(s *smithy.Schema) error {
+		switch s {
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationPutSubscriptionFilterMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpPutSubscriptionFilter{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutSubscriptionFilter, schemas.PutSubscriptionFilterRequest, nil)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpPutSubscriptionFilter{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutSubscriptionFilter, schemas.PutSubscriptionFilterRequest, nil), output: &PutSubscriptionFilterOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

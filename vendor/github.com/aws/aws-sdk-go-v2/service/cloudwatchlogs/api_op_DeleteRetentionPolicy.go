@@ -4,6 +4,8 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -36,6 +38,18 @@ type DeleteRetentionPolicyInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DeleteRetentionPolicyInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DeleteRetentionPolicyRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DeleteRetentionPolicyInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.LogGroupName != nil {
+		s.WriteString(schemas.DeleteRetentionPolicyRequest_logGroupName, *v.LogGroupName)
+	}
+}
+
 type DeleteRetentionPolicyOutput struct {
 	// Metadata pertaining to the operation's result.
 	ResultMetadata middleware.Metadata
@@ -43,13 +57,26 @@ type DeleteRetentionPolicyOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DeleteRetentionPolicyOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(nil)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DeleteRetentionPolicyOutput) SerializeMembers(s smithy.ShapeSerializer) {
+}
+func (v *DeleteRetentionPolicyOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, nil, func(s *smithy.Schema) error {
+		switch s {
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationDeleteRetentionPolicyMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDeleteRetentionPolicy{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DeleteRetentionPolicy, schemas.DeleteRetentionPolicyRequest, nil)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDeleteRetentionPolicy{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DeleteRetentionPolicy, schemas.DeleteRetentionPolicyRequest, nil), output: &DeleteRetentionPolicyOutput{}}, middleware.After); err != nil {
 		return err
 	}
 
