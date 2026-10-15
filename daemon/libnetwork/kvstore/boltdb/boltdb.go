@@ -81,6 +81,9 @@ func (b *BoltDB) Put(key string, value []byte) error {
 		}
 
 		dbIndex := b.dbIndex.Add(1)
+		if len(value) > bolt.MaxValueSize-libkvmetadatalen {
+			return berrors.ErrValueTooLarge
+		}
 		dbval := make([]byte, 0, libkvmetadatalen+len(value))
 		dbval = binary.LittleEndian.AppendUint64(dbval, dbIndex)
 		dbval = append(dbval, value...)
@@ -230,6 +233,9 @@ func (b *BoltDB) AtomicPut(key string, value []byte, previous *store.KVPair) (*s
 			}
 		}
 		dbIndex = b.dbIndex.Add(1)
+		if len(value) > bolt.MaxValueSize-libkvmetadatalen {
+			return berrors.ErrValueTooLarge
+		}
 		dbval := make([]byte, 0, libkvmetadatalen+len(value))
 		dbval = binary.LittleEndian.AppendUint64(dbval, dbIndex)
 		dbval = append(dbval, value...)

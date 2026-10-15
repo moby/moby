@@ -1,0 +1,94 @@
+name: merge-queue
+
+permissions:
+  contents: read
+
+on:
+  merge_group:
+
+jobs:
+  validate:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        script:
+          - golangci-lint
+          - vendor
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          buildkitd-flags: --debug
+      -
+        name: Build dev image
+        uses: docker/bake-action@018cb6412ab401ebaa809aa5f85966b74628600f # v7.4.0
+        with:
+          targets: dev
+          set: |
+            *.cache-from=type=gha,scope=dev-amd64
+      -
+        name: Validate
+        env:
+          SCRIPT: ${{ matrix.script }}
+        run: |
+          make -o build "validate-${SCRIPT}"
+
+  build:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm64
+          - windows/amd64
+    steps:
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          buildkitd-flags: --debug
+      -
+        name: Build
+        uses: docker/bake-action@018cb6412ab401ebaa809aa5f85966b74628600f # v7.4.0
+        with:
+          targets: binary
+          set: |
+            *.platform=${{ matrix.platform }}
+
+  # Stub for the required "validate-milestone" check. The milestone is pull
+  # request metadata, which that check already validated before queueing.
+  validate-milestone:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      -
+        name: Report success
+        run: echo "Milestone was validated on the pull request"
+
+  # This name is a bit misleading, it's aggregate step that validates the other steps in this workflow.
+  # It's because the "build-binary" is marked as "required" check in Github branch protections.
+  build-binary:
+    name: build (binary)
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    # Skipped jobs satisfy required checks, so always run and fail explicitly.
+    if: ${{ always() }}
+    needs:
+      - validate
+      - build
+    steps:
+      -
+        name: Check merge queue result
+        if: ${{ needs.validate.result != 'success' || needs.build.result != 'success' }}
+        run: exit 1
+      -
+        name: Report success
+        run: echo "Merge queue checks completed successfully"

@@ -302,8 +302,10 @@ func (ps *progressState) run(pr progress.Reader) {
 			if errors.Is(err, io.EOF) {
 				ps.mu.Lock()
 				ps.done = true
+				writers := ps.writers
+				ps.writers = nil
 				ps.mu.Unlock()
-				for _, w := range ps.writers {
+				for _, w := range writers {
 					w.Close()
 				}
 			}

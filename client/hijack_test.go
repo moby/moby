@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -15,6 +16,121 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
+
+func TestHijackCancellation(t *testing.T) {
+	for _, phase := range []string{"write request", "read response"} {
+		for _, post := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/post=%t", phase, post), func(t *testing.T) {
+				ctx, cancel := context.WithCancel(t.Context())
+				defer cancel()
+				conn, peer := net.Pipe()
+				t.Cleanup(func() { _ = conn.Close(); _ = peer.Close() })
+				c, err := New(WithAPIVersion(MaxAPIVersion), WithDialContext(func(context.Context, string, string) (net.Conn, error) {
+					return conn, nil
+				}))
+				assert.NilError(t, err)
+				t.Cleanup(func() { _ = c.Close() })
+
+				peerDone := make(chan error, 1)
+				go func() {
+					var err error
+					if phase == "write request" {
+						// Consume only one byte, leaving the request write blocked.
+						_, err = peer.Read(make([]byte, 1))
+					} else {
+						_, err = http.ReadRequest(bufio.NewReader(peer))
+					}
+					cancel()
+					peerDone <- err
+				}()
+
+				if post {
+					resp, err := c.postHijacked(ctx, "/test", nil, nil, nil)
+					assert.ErrorIs(t, err, context.Canceled)
+					assert.Check(t, resp.Conn == nil)
+				} else {
+					got, err := c.DialHijack(ctx, "http://docker/test", "tcp", nil)
+					assert.ErrorIs(t, err, context.Canceled)
+					assert.Check(t, got == nil)
+				}
+				assert.NilError(t, <-peerDone)
+				_, err = peer.Read(make([]byte, 1))
+				assert.ErrorIs(t, err, io.EOF)
+			})
+		}
+	}
+}
+
+func TestHijackDeadline(t *testing.T) {
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+	conn, peer := net.Pipe()
+	t.Cleanup(func() { _ = conn.Close(); _ = peer.Close() })
+	c, err := New(WithDialContext(func(context.Context, string, string) (net.Conn, error) {
+		return conn, nil
+	}))
+	assert.NilError(t, err)
+	t.Cleanup(func() { _ = c.Close() })
+	peerDone := make(chan error, 1)
+	go func() {
+		_, err := http.ReadRequest(bufio.NewReader(peer))
+		peerDone <- err
+	}()
+	got, err := c.DialHijack(ctx, "http://docker/test", "tcp", nil)
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.Check(t, got == nil)
+	assert.NilError(t, <-peerDone)
+}
+
+func TestHijackCancellationOwnership(t *testing.T) {
+	for _, duringHandshake := range []bool{false, true} {
+		t.Run(fmt.Sprintf("during handshake=%t", duringHandshake), func(t *testing.T) {
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			conn, peer := net.Pipe()
+			t.Cleanup(func() { _ = conn.Close(); _ = peer.Close() })
+			c, err := New(
+				WithDialContext(func(context.Context, string, string) (net.Conn, error) { return conn, nil }),
+				WithHTTPResponseHook(func(*http.Response) {
+					if duringHandshake {
+						cancel()
+					}
+				}),
+			)
+			assert.NilError(t, err)
+			t.Cleanup(func() { _ = c.Close() })
+			peerDone := make(chan error, 1)
+			go func() {
+				if _, err := http.ReadRequest(bufio.NewReader(peer)); err != nil {
+					peerDone <- err
+					return
+				}
+				// Include stream data in the same write to exercise buffered data.
+				_, err := io.WriteString(peer, "HTTP/1.1 101 UPGRADED\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\nhello")
+				peerDone <- err
+			}()
+			got, err := c.DialHijack(ctx, "http://docker/test", "tcp", nil)
+			if duringHandshake {
+				assert.ErrorIs(t, err, context.Canceled)
+				assert.Check(t, got == nil)
+			} else {
+				assert.NilError(t, err)
+				defer func() { _ = got.Close() }()
+				cancel()
+				buf := make([]byte, 5)
+				_, err = io.ReadFull(got, buf)
+				assert.NilError(t, err)
+				assert.Equal(t, string(buf), "hello")
+				// Read from the underlying connection after cancellation as well.
+				go func() { _, _ = io.WriteString(peer, "world") }()
+				_, err = io.ReadFull(got, buf)
+				assert.NilError(t, err)
+				assert.Equal(t, string(buf), "world")
+			}
+			assert.NilError(t, <-peerDone)
+		})
+	}
+}
 
 func TestHijackHooks(t *testing.T) {
 	const (
