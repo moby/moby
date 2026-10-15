@@ -400,8 +400,11 @@ func (s *State) SetRemoved() {
 // SetRemovalError is to be called in case a container remove failed.
 // It sets an error and notifies all waiters.
 func (s *State) SetRemovalError(err error) {
-	s.SetError(err)
 	s.Lock()
+	s.ErrorMsg = ""
+	if err != nil {
+		s.ErrorMsg = err.Error()
+	}
 	s.removed = true
 	s.notifyAndClear(&s.removeOnlyWaiters)
 	s.notifyAndClear(&s.stopWaiters)

@@ -2,6 +2,7 @@ package container
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -109,6 +110,42 @@ func TestStateRunStop(t *testing.T) {
 		// Should have the final exit code from the loop.
 		t.Fatalf("Removal wait exitCode %v, expected %v, err %q", status.ExitCode(), 2, status.Err())
 	}
+}
+
+// TestStateSetRemovalErrorConcurrentRead verifies that SetRemovalError and
+// SetRemoved update ErrorMsg under the state lock, so they do not race with
+// readers holding the lock, such as container inspect.
+func TestStateSetRemovalErrorConcurrentRead(t *testing.T) {
+	t.Parallel()
+	s := &State{}
+
+	done := make(chan struct{})
+	readerDone := make(chan struct{})
+	go func() {
+		defer close(readerDone)
+		for {
+			select {
+			case <-done:
+				return
+			default:
+				s.Lock()
+				_ = s.ErrorMsg
+				s.Unlock()
+			}
+		}
+	}()
+
+	removalWait := s.Wait(t.Context(), container.WaitConditionRemoved)
+	s.SetRemovalError(errors.New("removal failed"))
+	status := <-removalWait
+	assert.Check(t, is.Error(status.Err(), "removal failed"))
+
+	s.SetRemoved()
+	status = <-s.Wait(t.Context(), container.WaitConditionRemoved)
+	assert.Check(t, is.Nil(status.Err()))
+
+	close(done)
+	<-readerDone
 }
 
 func TestStateTimeoutWait(t *testing.T) {
