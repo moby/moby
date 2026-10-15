@@ -6,7 +6,7 @@ package protogen
 
 import (
 	context "context"
-	sdkapi "github.com/moby/extensions/sdk/sdkapi"
+	mobyextcontract "github.com/moby/extensions/sdk/sdkapi"
 	grpc "google.golang.org/grpc"
 )
 
@@ -95,18 +95,18 @@ func (c *serviceClient) Initialize(ctx context.Context, in *InitializeRequest, o
 }
 
 // RegisterServer serves impl as the Extension service on r.
-func RegisterServer(r grpc.ServiceRegistrar, impl sdkapi.Extension) {
+func RegisterServer(r grpc.ServiceRegistrar, impl mobyextcontract.Extension) {
 	r.RegisterService(&serviceDesc, &grpcServer{impl: impl})
 }
 
-// NewClient returns a sdkapi.Extension that calls the Extension service over conn.
-func NewClient(conn grpc.ClientConnInterface) sdkapi.Extension {
+// NewClient returns a mobyextcontract.Extension that calls the Extension service over conn.
+func NewClient(conn grpc.ClientConnInterface) mobyextcontract.Extension {
 	return &grpcClient{client: NewExtensionClient(conn)}
 }
 
 // grpcServer serves an implementation of the contract's Go interface.
 type grpcServer struct {
-	impl sdkapi.Extension
+	impl mobyextcontract.Extension
 }
 
 func (s *grpcServer) Describe(ctx context.Context, req *DescribeRequest) (*DescribeResponse, error) {
@@ -129,7 +129,7 @@ type grpcClient struct {
 	client ExtensionClient
 }
 
-func (c *grpcClient) Describe(ctx context.Context, req *sdkapi.DescribeRequest) (*sdkapi.DescribeResponse, error) {
+func (c *grpcClient) Describe(ctx context.Context, req *mobyextcontract.DescribeRequest) (*mobyextcontract.DescribeResponse, error) {
 	resp, err := c.client.Describe(ctx, describeRequestToProto(req))
 	if err != nil {
 		return nil, err
@@ -137,7 +137,7 @@ func (c *grpcClient) Describe(ctx context.Context, req *sdkapi.DescribeRequest) 
 	return describeResponseFromProto(resp), nil
 }
 
-func (c *grpcClient) Initialize(ctx context.Context, req *sdkapi.InitializeRequest) (*sdkapi.InitializeResponse, error) {
+func (c *grpcClient) Initialize(ctx context.Context, req *mobyextcontract.InitializeRequest) (*mobyextcontract.InitializeResponse, error) {
 	resp, err := c.client.Initialize(ctx, initializeRequestToProto(req))
 	if err != nil {
 		return nil, err
@@ -145,7 +145,7 @@ func (c *grpcClient) Initialize(ctx context.Context, req *sdkapi.InitializeReque
 	return initializeResponseFromProto(resp), nil
 }
 
-func declarationToProto(in *sdkapi.Declaration) *Declaration {
+func declarationToProto(in *mobyextcontract.Declaration) *Declaration {
 	if in == nil {
 		return nil
 	}
@@ -165,11 +165,11 @@ func declarationToProto(in *sdkapi.Declaration) *Declaration {
 	return out
 }
 
-func declarationFromProto(in *Declaration) *sdkapi.Declaration {
+func declarationFromProto(in *Declaration) *mobyextcontract.Declaration {
 	if in == nil {
 		return nil
 	}
-	out := &sdkapi.Declaration{}
+	out := &mobyextcontract.Declaration{}
 	out.ID = in.GetId()
 	for _, e := range in.GetProviders() {
 		out.Providers = append(out.Providers, *pointDeclarationFromProto(e))
@@ -185,7 +185,7 @@ func declarationFromProto(in *Declaration) *sdkapi.Declaration {
 	return out
 }
 
-func dependencyToProto(in *sdkapi.Dependency) *Dependency {
+func dependencyToProto(in *mobyextcontract.Dependency) *Dependency {
 	if in == nil {
 		return nil
 	}
@@ -196,18 +196,18 @@ func dependencyToProto(in *sdkapi.Dependency) *Dependency {
 	return out
 }
 
-func dependencyFromProto(in *Dependency) *sdkapi.Dependency {
+func dependencyFromProto(in *Dependency) *mobyextcontract.Dependency {
 	if in == nil {
 		return nil
 	}
-	out := &sdkapi.Dependency{}
+	out := &mobyextcontract.Dependency{}
 	out.Point = in.GetPoint()
 	out.Extension = in.GetExtension()
 	out.Optional = in.GetOptional()
 	return out
 }
 
-func describeRequestToProto(in *sdkapi.DescribeRequest) *DescribeRequest {
+func describeRequestToProto(in *mobyextcontract.DescribeRequest) *DescribeRequest {
 	if in == nil {
 		return nil
 	}
@@ -215,15 +215,15 @@ func describeRequestToProto(in *sdkapi.DescribeRequest) *DescribeRequest {
 	return out
 }
 
-func describeRequestFromProto(in *DescribeRequest) *sdkapi.DescribeRequest {
+func describeRequestFromProto(in *DescribeRequest) *mobyextcontract.DescribeRequest {
 	if in == nil {
 		return nil
 	}
-	out := &sdkapi.DescribeRequest{}
+	out := &mobyextcontract.DescribeRequest{}
 	return out
 }
 
-func describeResponseToProto(in *sdkapi.DescribeResponse) *DescribeResponse {
+func describeResponseToProto(in *mobyextcontract.DescribeResponse) *DescribeResponse {
 	if in == nil {
 		return nil
 	}
@@ -232,16 +232,16 @@ func describeResponseToProto(in *sdkapi.DescribeResponse) *DescribeResponse {
 	return out
 }
 
-func describeResponseFromProto(in *DescribeResponse) *sdkapi.DescribeResponse {
+func describeResponseFromProto(in *DescribeResponse) *mobyextcontract.DescribeResponse {
 	if in == nil {
 		return nil
 	}
-	out := &sdkapi.DescribeResponse{}
+	out := &mobyextcontract.DescribeResponse{}
 	out.Declaration = declarationFromProto(in.GetDeclaration())
 	return out
 }
 
-func initializeRequestToProto(in *sdkapi.InitializeRequest) *InitializeRequest {
+func initializeRequestToProto(in *mobyextcontract.InitializeRequest) *InitializeRequest {
 	if in == nil {
 		return nil
 	}
@@ -249,15 +249,15 @@ func initializeRequestToProto(in *sdkapi.InitializeRequest) *InitializeRequest {
 	return out
 }
 
-func initializeRequestFromProto(in *InitializeRequest) *sdkapi.InitializeRequest {
+func initializeRequestFromProto(in *InitializeRequest) *mobyextcontract.InitializeRequest {
 	if in == nil {
 		return nil
 	}
-	out := &sdkapi.InitializeRequest{}
+	out := &mobyextcontract.InitializeRequest{}
 	return out
 }
 
-func initializeResponseToProto(in *sdkapi.InitializeResponse) *InitializeResponse {
+func initializeResponseToProto(in *mobyextcontract.InitializeResponse) *InitializeResponse {
 	if in == nil {
 		return nil
 	}
@@ -265,15 +265,15 @@ func initializeResponseToProto(in *sdkapi.InitializeResponse) *InitializeRespons
 	return out
 }
 
-func initializeResponseFromProto(in *InitializeResponse) *sdkapi.InitializeResponse {
+func initializeResponseFromProto(in *InitializeResponse) *mobyextcontract.InitializeResponse {
 	if in == nil {
 		return nil
 	}
-	out := &sdkapi.InitializeResponse{}
+	out := &mobyextcontract.InitializeResponse{}
 	return out
 }
 
-func pointDeclarationToProto(in *sdkapi.PointDeclaration) *PointDeclaration {
+func pointDeclarationToProto(in *mobyextcontract.PointDeclaration) *PointDeclaration {
 	if in == nil {
 		return nil
 	}
@@ -282,16 +282,16 @@ func pointDeclarationToProto(in *sdkapi.PointDeclaration) *PointDeclaration {
 	return out
 }
 
-func pointDeclarationFromProto(in *PointDeclaration) *sdkapi.PointDeclaration {
+func pointDeclarationFromProto(in *PointDeclaration) *mobyextcontract.PointDeclaration {
 	if in == nil {
 		return nil
 	}
-	out := &sdkapi.PointDeclaration{}
+	out := &mobyextcontract.PointDeclaration{}
 	out.ID = in.GetId()
 	return out
 }
 
-func providerServicesToProto(in *sdkapi.ProviderServices) *ProviderServices {
+func providerServicesToProto(in *mobyextcontract.ProviderServices) *ProviderServices {
 	if in == nil {
 		return nil
 	}
@@ -301,11 +301,11 @@ func providerServicesToProto(in *sdkapi.ProviderServices) *ProviderServices {
 	return out
 }
 
-func providerServicesFromProto(in *ProviderServices) *sdkapi.ProviderServices {
+func providerServicesFromProto(in *ProviderServices) *mobyextcontract.ProviderServices {
 	if in == nil {
 		return nil
 	}
-	out := &sdkapi.ProviderServices{}
+	out := &mobyextcontract.ProviderServices{}
 	out.Point = in.GetPoint()
 	out.Services = in.GetServices()
 	return out
