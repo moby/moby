@@ -15,7 +15,7 @@ import (
 )
 
 type typeValidator struct {
-	Path     string
+	Path     pathSegments
 	In       string
 	Type     spec.StringOrArray
 	Nullable bool
@@ -23,14 +23,14 @@ type typeValidator struct {
 	Options  *SchemaValidatorOptions
 }
 
-func newTypeValidator(path, in string, typ spec.StringOrArray, nullable bool, format string, opts *SchemaValidatorOptions) *typeValidator {
+func newTypeValidator(path pathSegments, in string, typ spec.StringOrArray, nullable bool, format string, opts *SchemaValidatorOptions) *typeValidator {
 	if opts == nil {
 		opts = new(SchemaValidatorOptions)
 	}
 
 	var t *typeValidator
 	if opts.recycleValidators {
-		t = pools.poolOfTypeValidators.BorrowValidator()
+		t = validatorPools.typeValidators.Borrow()
 	} else {
 		t = new(typeValidator)
 	}
@@ -43,10 +43,6 @@ func newTypeValidator(path, in string, typ spec.StringOrArray, nullable bool, fo
 	t.Options = opts
 
 	return t
-}
-
-func (t *typeValidator) SetPath(path string) {
-	t.Path = path
 }
 
 func (t *typeValidator) Applies(source any, _ reflect.Kind) bool {
@@ -72,7 +68,7 @@ func (t *typeValidator) Validate(data any) *Result {
 	if data == nil {
 		// nil or zero value for the passed structure require Type: null
 		if len(t.Type) > 0 && !t.Type.Contains(nullType) && !t.Nullable { // NOTE: if a property is not required it also passes this
-			return errorHelp.sErr(errors.InvalidType(t.Path, t.In, strings.Join(t.Type, ","), nullType), t.Options.recycleResult)
+			return errorHelp.sErrAt(t.Path, errors.InvalidType(t.Path.dotted(), t.In, strings.Join(t.Type, ","), nullType), t.Options.recycleResult)
 		}
 
 		return emptyResult
@@ -98,7 +94,7 @@ func (t *typeValidator) Validate(data any) *Result {
 		!isFloatInt && !isIntFloat && !isLowerInt && !isLowerFloat
 	if formatMismatch {
 		// NOTE: test case
-		return errorHelp.sErr(errors.InvalidType(t.Path, t.In, t.Format, format), t.Options.recycleResult)
+		return errorHelp.sErrAt(t.Path, errors.InvalidType(t.Path.dotted(), t.In, t.Format, format), t.Options.recycleResult)
 	}
 
 	if !t.Type.Contains(numberType) && !t.Type.Contains(integerType) && t.Format != "" && (kind == reflect.String || kind == reflect.Slice) {
@@ -106,7 +102,7 @@ func (t *typeValidator) Validate(data any) *Result {
 	}
 
 	if !t.Type.Contains(schType) && !isFloatInt && !isIntFloat {
-		return errorHelp.sErr(errors.InvalidType(t.Path, t.In, strings.Join(t.Type, ","), schType), t.Options.recycleResult)
+		return errorHelp.sErrAt(t.Path, errors.InvalidType(t.Path.dotted(), t.In, strings.Join(t.Type, ","), schType), t.Options.recycleResult)
 	}
 
 	return emptyResult
@@ -201,6 +197,10 @@ func (t *typeValidator) schemaInfoForType(data any) (string, string) {
 	return "", ""
 }
 
+func (t *typeValidator) setPath(path pathSegments) {
+	t.Path = path
+}
+
 func (t *typeValidator) redeem() {
-	pools.poolOfTypeValidators.RedeemValidator(t)
+	validatorPools.typeValidators.Redeem(t)
 }

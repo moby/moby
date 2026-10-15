@@ -30,6 +30,15 @@ type referenceAnalysis struct {
 	parameterItems map[string]spec.Ref
 	allRefs        map[string]spec.Ref
 	pathItems      map[string]spec.Ref
+
+	// unmappedRefs holds the $ref found under keywords the Swagger 2.0 model does not map, which
+	// land in [spec.Schema.ExtraProps] as raw JSON: propertyNames, contains, if/then/else, $defs.
+	//
+	// They are kept apart from allRefs and schemas on purpose. Flatten needs them to import their
+	// target and rewrite the pointer; every other consumer of this analysis - AllRefs,
+	// AllReferences, AllDefinitionReferences and what go-swagger builds on them - addresses schemas
+	// through the model, and a key naming a raw JSON node is of no use there.
+	unmappedRefs map[string]spec.Ref
 }
 
 func (r *referenceAnalysis) addRef(key string, ref spec.Ref) {
@@ -46,6 +55,11 @@ func (r *referenceAnalysis) addItemsRef(key string, items *spec.Items, location 
 	} else {
 		r.parameterItems["#"+key] = items.Ref
 	}
+}
+
+// addUnmappedRef records a $ref held by a keyword the model does not map.
+func (r *referenceAnalysis) addUnmappedRef(key string, ref spec.Ref) {
+	r.unmappedRefs["#"+key] = ref
 }
 
 func (r *referenceAnalysis) addSchemaRef(key string, ref SchemaRef) {
@@ -585,6 +599,20 @@ func (s *Spec) AllRefs() (result []spec.Ref) {
 	return
 }
 
+// AllRefsByLocation returns all the references found in the document, keyed by
+// where each one is declared.
+//
+// Keys are local JSON references into the analyzed document, with tokens
+// escaped as per RFC 6901, e.g. "#/paths/~1pets/get/responses/200/schema".
+//
+// Unlike [Spec.AllRefs], the result is not deduplicated: the same reference
+// declared in several places appears under each of its locations.
+//
+// The map is cloned to avoid accidental changes.
+func (s *Spec) AllRefsByLocation() map[string]spec.Ref {
+	return cloneRefMap(s.references.allRefs)
+}
+
 // ParameterPatterns returns all the patterns found in parameters
 // the map is cloned to avoid accidental changes.
 func (s *Spec) ParameterPatterns() map[string]string {
@@ -725,6 +753,7 @@ func (s *Spec) reset() {
 	s.references.headerItems = make(map[string]spec.Ref, allocLargeMap)
 	s.references.parameterItems = make(map[string]spec.Ref, allocLargeMap)
 	s.references.allRefs = make(map[string]spec.Ref, allocLargeMap)
+	s.references.unmappedRefs = make(map[string]spec.Ref, allocSmallMap)
 	s.patterns.parameters = make(map[string]string, allocLargeMap)
 	s.patterns.headers = make(map[string]string, allocLargeMap)
 	s.patterns.items = make(map[string]string, allocLargeMap)
@@ -958,6 +987,42 @@ func (s *Spec) analyzeResponse(prefix string, k int, res spec.Response) {
 	}
 }
 
+// analyzeUnmapped records the $ref held by the keywords of a schema that the Swagger 2.0 model
+// does not map, which json.Unmarshal leaves in ExtraProps as raw JSON.
+//
+// The keys it produces address the node holding the $ref, so "#/definitions/deep/propertyNames"
+// or "#/definitions/deep/if/anyOf/0". [replace.UpdateRef] writes to them through the same
+// jsonpointer call every other key goes through.
+func (s *Spec) analyzeUnmapped(prefix string, extra map[string]any) {
+	for key := range extra {
+		s.analyzeUnmappedNode(slashpath.Join(prefix, jsonpointer.Escape(key)), extra[key])
+	}
+}
+
+func (s *Spec) analyzeUnmappedNode(refURI string, node any) {
+	switch value := node.(type) {
+	case map[string]any:
+		if raw, ok := value["$ref"].(string); ok {
+			ref, err := spec.NewRef(raw)
+			if err != nil {
+				return // a string under a "$ref" key is not necessarily a reference
+			}
+
+			s.references.addUnmappedRef(refURI, ref)
+
+			return // a $ref makes its siblings irrelevant
+		}
+
+		for key := range value {
+			s.analyzeUnmappedNode(slashpath.Join(refURI, jsonpointer.Escape(key)), value[key])
+		}
+	case []any:
+		for i := range value {
+			s.analyzeUnmappedNode(slashpath.Join(refURI, strconv.Itoa(i)), value[i])
+		}
+	}
+}
+
 func (s *Spec) analyzeSchema(name string, schema *spec.Schema, prefix string) {
 	refURI := slashpath.Join(prefix, jsonpointer.Escape(name))
 	schRef := SchemaRef{
@@ -980,6 +1045,8 @@ func (s *Spec) analyzeSchema(name string, schema *spec.Schema, prefix string) {
 	if len(schema.Enum) > 0 {
 		s.enums.addSchemaEnum(refURI, schema.Enum)
 	}
+
+	s.analyzeUnmapped(refURI, schema.ExtraProps)
 
 	for k, v := range schema.Definitions {
 		s.analyzeSchema(k, &v, slashpath.Join(refURI, "definitions"))
@@ -1048,6 +1115,13 @@ func (s *Spec) analyzeSchema(name string, schema *spec.Schema, prefix string) {
 
 func cloneStringMap(source map[string]string) map[string]string {
 	res := make(map[string]string, len(source))
+	maps.Copy(res, source)
+
+	return res
+}
+
+func cloneRefMap(source map[string]spec.Ref) map[string]spec.Ref {
+	res := make(map[string]spec.Ref, len(source))
 	maps.Copy(res, source)
 
 	return res

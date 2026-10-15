@@ -17,9 +17,18 @@
 package longrunning
 
 import (
+	"iter"
+
 	longrunningpb "cloud.google.com/go/longrunning/autogen/longrunningpb"
+	gaxiter "github.com/googleapis/gax-go/v2/iterator"
 	"google.golang.org/api/iterator"
 )
+
+// All returns an iterator. If an error is returned by the iterator, the
+// iterator will stop after that iteration.
+func (it *OperationIterator) All() iter.Seq2[*longrunningpb.Operation, error] {
+	return gaxiter.RangeAdapter(it.Next)
+}
 
 // OperationIterator manages a stream of *longrunningpb.Operation.
 type OperationIterator struct {
