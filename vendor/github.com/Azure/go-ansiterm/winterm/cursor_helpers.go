@@ -1,10 +1,12 @@
-// +build windows
+//go:build windows
 
 package winterm
 
 const (
 	horizontal = iota
 	vertical
+	line
+	column
 )
 
 func (h *windowsAnsiEventHandler) getCursorWindow(info *CONSOLE_SCREEN_BUFFER_INFO) SMALL_RECT {
@@ -58,44 +60,20 @@ func (h *windowsAnsiEventHandler) moveCursor(moveMode int, param int) error {
 		position.X += int16(param)
 	case vertical:
 		position.Y += int16(param)
+	case line:
+		position.X = 0
+		position.Y += int16(param)
+	case column:
+		position.X = int16(param) - 1
 	}
 
-	if err = h.setCursorPosition(position, h.getCursorWindow(info)); err != nil {
-		return err
-	}
-
-	return nil
+	return h.setCursorPosition(position, h.getCursorWindow(info))
 }
 
 func (h *windowsAnsiEventHandler) moveCursorLine(param int) error {
-	info, err := GetConsoleScreenBufferInfo(h.fd)
-	if err != nil {
-		return err
-	}
-
-	position := info.CursorPosition
-	position.X = 0
-	position.Y += int16(param)
-
-	if err = h.setCursorPosition(position, h.getCursorWindow(info)); err != nil {
-		return err
-	}
-
-	return nil
+	return h.moveCursor(line, param)
 }
 
 func (h *windowsAnsiEventHandler) moveCursorColumn(param int) error {
-	info, err := GetConsoleScreenBufferInfo(h.fd)
-	if err != nil {
-		return err
-	}
-
-	position := info.CursorPosition
-	position.X = int16(param) - 1
-
-	if err = h.setCursorPosition(position, h.getCursorWindow(info)); err != nil {
-		return err
-	}
-
-	return nil
+	return h.moveCursor(column, param)
 }
