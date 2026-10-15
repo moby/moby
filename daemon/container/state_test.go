@@ -51,7 +51,7 @@ func TestStateRunStop(t *testing.T) {
 
 		// Set the state to "Running".
 		s.Lock()
-		s.SetRunning(nil, &mockTask{pid: uint32(i)}, time.Now())
+		s.Transition(Transition{To: container.StateRunning, Task: &mockTask{pid: uint32(i)}, StartedAt: time.Now()})
 		s.Unlock()
 
 		// Assert desired state.
@@ -74,7 +74,7 @@ func TestStateRunStop(t *testing.T) {
 
 		// Set the state to "Exited".
 		s.Lock()
-		s.SetStopped(&ExitStatus{ExitCode: i})
+		s.Transition(Transition{To: container.StateExited, ExitCode: i})
 		s.Unlock()
 
 		// Assert desired state.
@@ -152,7 +152,7 @@ func TestStateTimeoutWait(t *testing.T) {
 	s := &State{}
 
 	s.Lock()
-	s.SetRunning(nil, nil, time.Now())
+	s.Transition(Transition{To: container.StateRunning, StartedAt: time.Now()})
 	s.Unlock()
 
 	// Start a wait with a timeout.
@@ -176,7 +176,7 @@ func TestStateTimeoutWait(t *testing.T) {
 	}
 
 	s.Lock()
-	s.SetStopped(&ExitStatus{ExitCode: 0})
+	s.Transition(Transition{To: container.StateExited})
 	s.Unlock()
 
 	// Start another wait with a timeout. This one should return
@@ -205,18 +205,18 @@ func TestStateWaitReturnsExitStatusAfterRestart(t *testing.T) {
 	s := &State{}
 
 	s.Lock()
-	s.SetRunning(nil, nil, time.Now())
+	s.Transition(Transition{To: container.StateRunning, StartedAt: time.Now()})
 	s.Unlock()
 
 	waitC := s.Wait(t.Context(), container.WaitConditionNotRunning)
-	want := ExitStatus{ExitCode: 10, ExitedAt: time.Now()}
+	want := Transition{To: container.StateRestarting, ExitCode: 10, ExitedAt: time.Now()}
 
 	s.Lock()
-	s.SetRestarting(&want)
+	s.Transition(want)
 	s.Unlock()
 
 	s.Lock()
-	s.SetRunning(nil, nil, time.Now())
+	s.Transition(Transition{To: container.StateRunning, StartedAt: time.Now()})
 	s.Unlock()
 
 	got := <-waitC

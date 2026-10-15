@@ -57,7 +57,7 @@ func TestKillWithSignalWaitsIndefinitelyForDelayedExit(t *testing.T) {
 	ctr.Config = &containertypes.Config{StopTimeout: &stopTimeout}
 	ctr.HostConfig = &containertypes.HostConfig{}
 	ctr.Lock()
-	ctr.State.SetRunning(nil, task, time.Now())
+	ctr.State.Transition(container.Transition{To: containertypes.StateRunning, Task: task, StartedAt: time.Now()})
 	ctr.Unlock()
 
 	daemon := &Daemon{
@@ -75,7 +75,7 @@ func TestKillWithSignalWaitsIndefinitelyForDelayedExit(t *testing.T) {
 	}
 
 	ctr.Lock()
-	ctr.State.SetStopped(&container.ExitStatus{})
+	ctr.State.Transition(container.Transition{To: containertypes.StateExited})
 	ctr.Unlock()
 }
 
@@ -85,7 +85,7 @@ func TestKillWithSignalDetachesContext(t *testing.T) {
 	ctr.Config = &containertypes.Config{}
 	ctr.HostConfig = &containertypes.HostConfig{}
 	ctr.Lock()
-	ctr.State.SetRunning(nil, task, time.Now())
+	ctr.State.Transition(container.Transition{To: containertypes.StateRunning, Task: task, StartedAt: time.Now()})
 	ctr.Unlock()
 
 	daemon := &Daemon{
