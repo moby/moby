@@ -1,5 +1,7 @@
 package ansiterm
 
+import "slices"
+
 type escapeState struct {
 	baseState
 }
@@ -16,11 +18,11 @@ func (escState escapeState) Handle(b byte) (s state, e error) {
 		return escState.parser.csiEntry, nil
 	case b == ANSI_OSC_STRING_ENTRY:
 		return escState.parser.oscString, nil
-	case sliceContains(executors, b):
+	case slices.Contains(executors, b):
 		return escState, escState.parser.execute()
-	case sliceContains(escapeToGroundBytes, b):
+	case slices.Contains(escapeToGroundBytes, b):
 		return escState.parser.ground, nil
-	case sliceContains(intermeds, b):
+	case slices.Contains(intermeds, b):
 		return escState.parser.escapeIntermediate, nil
 	}
 

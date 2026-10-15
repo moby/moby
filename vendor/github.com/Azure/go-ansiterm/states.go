@@ -1,5 +1,7 @@
 package ansiterm
 
+import "slices"
+
 type state interface {
 	Enter() error
 	Exit() error
@@ -32,7 +34,7 @@ func (base baseState) Handle(b byte) (s state, e error) {
 		return base.parser.escape, nil
 	case b == OSC_STRING:
 		return base.parser.oscString, nil
-	case sliceContains(toGroundBytes, b):
+	case slices.Contains(toGroundBytes, b):
 		return base.parser.ground, nil
 	}
 
@@ -52,7 +54,7 @@ func (base baseState) Transition(s state) error {
 		execBytes = append(execBytes, 0x99)
 		execBytes = append(execBytes, 0x9A)
 
-		if sliceContains(execBytes, base.parser.context.currentChar) {
+		if slices.Contains(execBytes, base.parser.context.currentChar) {
 			return base.parser.execute()
 		}
 	}

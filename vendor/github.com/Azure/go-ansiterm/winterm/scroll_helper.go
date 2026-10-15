@@ -1,4 +1,4 @@
-// +build windows
+//go:build windows
 
 package winterm
 
@@ -39,9 +39,8 @@ func (h *windowsAnsiEventHandler) deleteLines(param int) error {
 	if start >= sr.top && start <= sr.bottom {
 		sr.top = start
 		return h.scroll(param, sr, info)
-	} else {
-		return nil
 	}
+	return nil
 }
 
 func (h *windowsAnsiEventHandler) insertLines(param int) error {
@@ -72,10 +71,7 @@ func (h *windowsAnsiEventHandler) scroll(param int, sr scrollRegion, info *CONSO
 		Attributes:  h.attributes,
 	}
 
-	if err := ScrollConsoleScreenBuffer(h.fd, scrollRect, scrollRect, destOrigin, char); err != nil {
-		return err
-	}
-	return nil
+	return ScrollConsoleScreenBuffer(h.fd, scrollRect, scrollRect, destOrigin, char)
 }
 
 func (h *windowsAnsiEventHandler) deleteCharacters(param int) error {
@@ -111,8 +107,5 @@ func (h *windowsAnsiEventHandler) scrollLine(columns int, position COORD, info *
 		Attributes:  h.attributes,
 	}
 
-	if err := ScrollConsoleScreenBuffer(h.fd, scrollRect, scrollRect, destOrigin, char); err != nil {
-		return err
-	}
-	return nil
+	return ScrollConsoleScreenBuffer(h.fd, scrollRect, scrollRect, destOrigin, char)
 }
