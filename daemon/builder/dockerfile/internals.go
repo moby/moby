@@ -24,12 +24,33 @@ import (
 	networkSettings "github.com/moby/moby/v2/daemon/network"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/buildbackend"
+	"github.com/moby/sys/user"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
 func (b *Builder) getArchiver() *archive.Archiver {
 	return chrootarchive.NewArchiver(b.idMapping)
+}
+
+// getCopyFileOptions returns the options to copy the sources of inst,
+// with id being the owner of the copied files (unless their ownership
+// is preserved).
+func (b *Builder) getCopyFileOptions(inst copyInstruction, id identity) copyFileOptions {
+	opts := copyFileOptions{
+		decompress: inst.allowLocalDecompression,
+		archiver:   b.getArchiver(),
+	}
+	opts.rootUID, opts.rootGID = b.idMapping.RootPair()
+	if inst.fromImage {
+		// Files in another build stage or image are already owned
+		// by host (remapped) IDs, so they must not be remapped again.
+		opts.archiver = chrootarchive.NewArchiver(user.IdentityMapping{})
+	}
+	if !inst.preserveOwnership {
+		opts.identity = &id
+	}
+	return opts
 }
 
 func (b *Builder) commit(ctx context.Context, dispatchState *dispatchState, comment string) error {
@@ -169,14 +190,8 @@ func (b *Builder) performCopy(ctx context.Context, req dispatchRequest, inst cop
 		}
 	}
 
+	opts := b.getCopyFileOptions(inst, id)
 	for _, info := range inst.infos {
-		opts := copyFileOptions{
-			decompress: inst.allowLocalDecompression,
-			archiver:   b.getArchiver(),
-		}
-		if !inst.preserveOwnership {
-			opts.identity = &id
-		}
 		if err := performCopyForInfo(destInfo, info, opts); err != nil {
 			return errors.Wrapf(err, "failed to copy files")
 		}

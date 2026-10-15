@@ -325,7 +325,9 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 	// Restart all autostart containers which has a swarm endpoint
 	// and is not yet running now that we have successfully
 	// initialized the cluster.
-	d.RestartSwarmContainers()
+	if err := d.RestartSwarmContainers(ctx); err != nil {
+		return fmt.Errorf("failed to restart swarm containers: %w", err)
+	}
 
 	b, shutdownBuildKit, err := initBuildkit(ctx, d, cdiCache, cli.containerdDialer)
 	if err != nil {

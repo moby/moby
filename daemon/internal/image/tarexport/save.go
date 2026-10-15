@@ -528,6 +528,7 @@ func (s *saveSession) saveConfigAndLayer(ctx context.Context, id layer.ChainID, 
 	if err != nil {
 		return distribution.Descriptor{}, err
 	}
+	defer layer.ReleaseAndLog(s.lss, l)
 
 	lDiffID := l.DiffID()
 	lDgst := lDiffID
@@ -535,7 +536,6 @@ func (s *saveSession) saveConfigAndLayer(ctx context.Context, id layer.ChainID, 
 		return s.savedLayers[lDiffID], nil
 	}
 	layerPath := filepath.Join(outDir, lDiffID.Algorithm().String(), lDiffID.Encoded())
-	defer layer.ReleaseAndLog(s.lss, l)
 
 	if _, err = os.Stat(layerPath); err == nil {
 		// This is should not happen. If the layer path was already created, we should have returned early.

@@ -6,7 +6,7 @@ ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 
 # XX_VERSION specifies the version of the xx utility to use.
 # It must be a valid tag in the docker.io/tonistiigi/xx image repository.
-ARG XX_VERSION=1.9.0
+ARG XX_VERSION=1.10.0
 
 # DOCKERCLI_VERSION is the version of the CLI to install in the dev-container.
 # renovate: datasource=github-tags depName=docker/cli versioning=semver
@@ -143,7 +143,7 @@ WORKDIR /usr/src/containerd
 # It is used to build containerd binaries, and used for the integration tests.
 # The distributed docker .deb and .rpm packages depend on a separate (containerd.io)
 # package, which may be a different version than specified here.
-ARG CONTAINERD_VERSION=v2.4.1
+ARG CONTAINERD_VERSION=v2.4.2
 ADD https://github.com/containerd/containerd.git?ref=${CONTAINERD_VERSION}&keep-git-dir=1 .
 
 FROM base AS containerd-build
@@ -202,7 +202,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
      && /build/gotestsum --version
 
 FROM base AS shfmt
-ARG SHFMT_VERSION=v3.8.0
+ARG SHFMT_VERSION=v3.14.1
 ADD https://github.com/mvdan/sh.git?ref=${SHFMT_VERSION}&keep-git-dir=1 /go/src/mvdan.cc/sh
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
@@ -325,7 +325,10 @@ FROM tini-${TARGETOS} AS tini
 # rootlesskit
 FROM base AS rootlesskit-src
 WORKDIR /usr/src/rootlesskit
-ARG ROOTLESSKIT_VERSION=v3.2.0
+
+# ROOTLESSKIT_VERSION is the version of rootlesskit to install in the dev-container.
+# renovate: datasource=github-tags depName=rootless-containers/rootlesskit
+ARG ROOTLESSKIT_VERSION=v3.3.0
 ADD https://github.com/rootless-containers/rootlesskit.git?ref=${ROOTLESSKIT_VERSION}&keep-git-dir=1 .
 
 FROM base AS rootlesskit-build

@@ -293,16 +293,14 @@ func setupDockerForwardingPolicy() (bool, error) {
 		"target":        "ACCEPT",
 	}
 	if err := connection.sysConfObj.Call(dbusInterface+".config.addPolicy", 0, dockerFwdPolicy, policy).Err; err != nil {
+		if firewalldErrorCode(err) == "NAME_CONFLICT" {
+			log.G(context.TODO()).Debugf("Firewalld: %s policy already exists", dockerFwdPolicy)
+			return false, nil
+		}
 		var derr dbus.Error
-		if errors.As(err, &derr) {
-			if derr.Name == dbusInterface+".Exception" && strings.HasPrefix(err.Error(), "NAME_CONFLICT") {
-				log.G(context.TODO()).Debugf("Firewalld: %s policy already exists", dockerFwdPolicy)
-				return false, nil
-			}
-			if derr.Name == dbus.ErrMsgUnknownMethod.Name {
-				log.G(context.TODO()).Debugf("Firewalld: addPolicy %s: unknown method", dockerFwdPolicy)
-				return false, nil
-			}
+		if errors.As(err, &derr) && derr.Name == dbus.ErrMsgUnknownMethod.Name {
+			log.G(context.TODO()).Debugf("Firewalld: addPolicy %s: unknown method", dockerFwdPolicy)
+			return false, nil
 		}
 		return false, err
 	}
@@ -311,29 +309,24 @@ func setupDockerForwardingPolicy() (bool, error) {
 }
 
 // AddInterfaceFirewalld adds the interface to the trusted zone. It is a
-// no-op if firewalld is not running.
+// no-op if firewalld is not running, or if the interface is already bound
+// to another zone.
 func AddInterfaceFirewalld(intf string) error {
 	if !UsingFirewalld() {
-		return nil
-	}
-
-	var intfs []string
-	// Check if interface is already added to the zone
-	if err := connection.sysObj.Call(dbusInterface+".zone.getInterfaces", 0, dockerZone).Store(&intfs); err != nil {
-		return err
-	}
-	// Return if interface is already part of the zone
-	if contains(intfs, intf) {
-		log.G(context.TODO()).Infof("Firewalld: interface %s already part of %s zone, returning", intf, dockerZone)
 		return nil
 	}
 
 	log.G(context.TODO()).Debugf("Firewalld: adding %s interface to %s zone", intf, dockerZone)
 	// Runtime
 	if err := connection.sysObj.Call(dbusInterface+".zone.addInterface", 0, dockerZone, intf).Err; err != nil {
-		var derr dbus.Error
-		if errors.As(err, &derr) && derr.Name == dbusInterface+".Exception" && strings.HasPrefix(err.Error(), "ZONE_ALREADY_SET:") {
+		switch firewalldErrorCode(err) {
+		case "ZONE_ALREADY_SET":
 			log.G(context.TODO()).Infof("Firewalld: interface %s already part of %s zone, returning", intf, dockerZone)
+			return nil
+		case "ZONE_CONFLICT":
+			// The interface has been bound to another zone outside the daemon.
+			// Respect that, rather than failing to set up the network.
+			log.G(context.TODO()).WithError(err).Infof("Firewalld: not adding interface %s to %s zone", intf, dockerZone)
 			return nil
 		}
 		return err
@@ -348,22 +341,29 @@ func DelInterfaceFirewalld(intf string) error {
 		return nil
 	}
 
-	var intfs []string
-	// Check if interface is part of the zone
-	if err := connection.sysObj.Call(dbusInterface+".zone.getInterfaces", 0, dockerZone).Store(&intfs); err != nil {
-		return err
-	}
-	// Remove interface if it exists
-	if !contains(intfs, intf) {
-		return &interfaceNotFound{fmt.Errorf("firewalld: interface %q not found in %s zone", intf, dockerZone)}
-	}
-
 	log.G(context.TODO()).Debugf("Firewalld: removing %s interface from %s zone", intf, dockerZone)
 	// Runtime
 	if err := connection.sysObj.Call(dbusInterface+".zone.removeInterface", 0, dockerZone, intf).Err; err != nil {
+		switch firewalldErrorCode(err) {
+		case "UNKNOWN_INTERFACE", "ZONE_CONFLICT":
+			// The interface is in no zone, or in another zone.
+			return &interfaceNotFound{fmt.Errorf("firewalld: interface %q not found in %s zone: %w", intf, dockerZone, err)}
+		}
 		return err
 	}
 	return nil
+}
+
+// firewalldErrorCode returns the code of an error raised by firewalld, such
+// as "ZONE_CONFLICT", or "" if err is not a firewalld error.
+func firewalldErrorCode(err error) string {
+	var derr dbus.Error
+	if !errors.As(err, &derr) || derr.Name != dbusInterface+".Exception" {
+		return ""
+	}
+	// firewalld formats its errors as "CODE: message", or just "CODE".
+	code, _, _ := strings.Cut(derr.Error(), ":")
+	return code
 }
 
 type interfaceNotFound struct{ error }

@@ -31,6 +31,7 @@ const agentEmails = new Set([
 
 // GitHub accounts that agents commit through.
 const agentLogins = new Set([
+  'claude',
   'copilot',
   'cursoragent',
   'google-labs-jules[bot]',
@@ -38,21 +39,26 @@ const agentLogins = new Set([
 ]);
 
 function isAgent(author) {
+  const name = (author.name ?? '').trim().toLowerCase();
+  const email = (author.email ?? '').trim().toLowerCase();
+
+  // An agent address is an agent whichever account GitHub resolves it to:
+  // noreply@anthropic.com resolves to the "claude" user.
+  if (agentEmails.has(email)) {
+    return true;
+  }
+
   // A co-author resolved to a GitHub account is a person unless the account
-  // is a known agent; the name and address heuristics are only for
-  // unresolved addresses such as noreply@anthropic.com.
+  // is a known agent; the name heuristics are only for unresolved addresses.
   if (author.user) {
     return agentLogins.has(author.user.login.toLowerCase());
   }
-
-  const name = (author.name ?? '').trim().toLowerCase();
-  const email = (author.email ?? '').trim().toLowerCase();
 
   const isModelName = /\d/.test(name) && modelFamilies.some(family =>
     name.startsWith(`${family} `) || name.startsWith(`${family}-`)
   );
 
-  return agentNames.has(name) || isModelName || agentEmails.has(email);
+  return agentNames.has(name) || isModelName;
 }
 
 async function listCommits({ github, context }) {

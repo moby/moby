@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/rootless-containers/rootlesskit/v3/pkg/api"
@@ -16,6 +17,9 @@ type Client interface {
 	HTTPClient() *http.Client
 	PortManager() port.Manager
 	Info(context.Context) (*api.Info, error)
+
+	// Close closes idle connections associated with the client.
+	Close() error
 }
 
 // New creates a client.
@@ -36,6 +40,8 @@ func NewWithHTTPClient(hc *http.Client) Client {
 	}
 }
 
+var _ io.Closer = (*client)(nil)
+
 type client struct {
 	*http.Client
 	// version is always "v1"
@@ -46,6 +52,12 @@ type client struct {
 
 func (c *client) HTTPClient() *http.Client {
 	return c.Client
+}
+
+// Close closes idle connections associated with the client.
+func (c *client) Close() error {
+	c.Client.CloseIdleConnections()
+	return nil
 }
 
 func (c *client) PortManager() port.Manager {

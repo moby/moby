@@ -156,6 +156,9 @@ func Fetch(ctx context.Context, ingester content.Ingester, fetcher Fetcher, desc
 		// into the content store. Error out here otherwise the error sent back is confusing
 		return fmt.Errorf("unable to fetch descriptor (%s) which reports content size of zero: %w", desc.Digest, errdefs.ErrInvalidArgument)
 	}
+	if desc.Size < 0 {
+		return fmt.Errorf("unable to fetch descriptor (%s) which reports negative content size (%d): %w", desc.Digest, desc.Size, errdefs.ErrInvalidArgument)
+	}
 	if ws.Offset == desc.Size {
 		// If writer is already complete, commit and return
 		err := cw.Commit(ctx, desc.Size, desc.Digest)
