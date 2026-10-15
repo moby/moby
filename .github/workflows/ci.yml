@@ -56,7 +56,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build
-        uses: docker/bake-action@018cb6412ab401ebaa809aa5f85966b74628600f # v7.4.0
+        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
         with:
           targets: ${{ matrix.target }}
       -
@@ -83,7 +83,7 @@ jobs:
       -
         name: Create matrix
         id: gen
-        uses: docker/bake-action/subaction/matrix@018cb6412ab401ebaa809aa5f85966b74628600f # v7.4.0
+        uses: docker/bake-action/subaction/matrix@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
         with:
           target: binary-cross
           fields: platforms
@@ -115,7 +115,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build
-        uses: docker/bake-action@018cb6412ab401ebaa809aa5f85966b74628600f # v7.4.0
+        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
         with:
           targets: ${{ matrix.target }}
           set: |
@@ -146,7 +146,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Run
-        uses: docker/bake-action@018cb6412ab401ebaa809aa5f85966b74628600f # v7.4.0
+        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
         with:
           targets: govulncheck
         env:
@@ -174,7 +174,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build dind image
-        uses: docker/bake-action@018cb6412ab401ebaa809aa5f85966b74628600f # v7.4.0
+        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
         with:
           targets: dind
           set: |
