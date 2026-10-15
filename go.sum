@@ -54,8 +54,8 @@ github.com/Masterminds/semver/v3 v3.5.0 h1:kQceYJfbupGfZOKZQg0kou0DgAKhzDg2NZPAw
 github.com/Masterminds/semver/v3 v3.5.0/go.mod h1:4V+yj/TJE1HU9XfppCwVMZq3I84lprf4nC11bSS5beM=
 github.com/Microsoft/go-winio v0.6.4 h1:kJF2pamtYCWXf0xAT8sAkwKC0pMl2HYBrRPHAqyUc+g=
 github.com/Microsoft/go-winio v0.6.4/go.mod h1:1xl5JXG4ze/m74GH6Dc4Mwxfc3VL5siRVQjIAlHH07U=
-github.com/Microsoft/hcsshim v0.15.0-rc.4 h1:aZFX4LH0S20Lgjq0wG61StIClj7im4yzrxIClkaR8Z8=
-github.com/Microsoft/hcsshim v0.15.0-rc.4/go.mod h1:BA9CBztgu4h/6Jsvo1O1M4qjWw09PoYpaEYgexPE578=
+github.com/Microsoft/hcsshim v0.15.0 h1:AWiHGf0+9f7cDcfhuU3zXORCAPmIOWzTYfHhcrMcx3U=
+github.com/Microsoft/hcsshim v0.15.0/go.mod h1:eStXUkML1Fmkgmwr6XHbYkBC1j7p2FA8ZtA9dyRMbts=
 github.com/ProtonMail/go-crypto v1.4.1 h1:9RfcZHqEQUvP8RzecWEUafnZVtEvrBVL9BiF67IQOfM=
 github.com/ProtonMail/go-crypto v1.4.1/go.mod h1:e1OaTyu5SYVrO9gKOEhTc+5UcXtTUa+P3uLudwcgPqo=
 github.com/RackSec/srslog v0.0.0-20180709174129-a4725f04ec91 h1:vX+gnvBc56EbWYrmlhYbFYRaeikAke1GL84N4BEYOFE=
@@ -335,8 +335,8 @@ github.com/google/certificate-transparency-go v1.3.3 h1:hq/rSxztSkXN2tx/3jQqF6Xc
 github.com/google/certificate-transparency-go v1.3.3/go.mod h1:iR17ZgSaXRzSa5qvjFl8TnVD5h8ky2JMVio+dzoKMgA=
 github.com/google/go-cmp v0.7.0 h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=
 github.com/google/go-cmp v0.7.0/go.mod h1:pXiqmnSA92OHEEa9HXL2W4E7lf9JzCmGVUdgjX3N/iU=
-github.com/google/go-containerregistry v0.21.7 h1:/vPFuVXDjtFREsVArW+0h1CIl5urnOhzei4X2DMW9IU=
-github.com/google/go-containerregistry v0.21.7/go.mod h1:kjSbt7/zMsKLWfnHrIvKvhXHUw91jbe9DNjPPJ32gXE=
+github.com/google/go-containerregistry v0.22.0 h1:eGbCiPeYxAH/7WLLq6zTBALP0tUIFsoyRauhxXDJ53I=
+github.com/google/go-containerregistry v0.22.0/go.mod h1:bJR35SK8XgisYmhg/FMQ/5RK0S/XrOAqLBV5/LR2XE0=
 github.com/google/go-github v17.0.0+incompatible/go.mod h1:zLgOLi98H3fifZn+44m+umXrS52loVEgC2AApnigrVQ=
 github.com/google/go-querystring v1.0.0/go.mod h1:odCYkC5MyYFN7vkCjXpyrEuKhc/BUO6wN/zVPAxq5ck=
 github.com/google/pprof v0.0.0-20260402051712-545e8a4df936 h1:EwtI+Al+DeppwYX2oXJCETMO23COyaKGP6fHVpkpWpg=

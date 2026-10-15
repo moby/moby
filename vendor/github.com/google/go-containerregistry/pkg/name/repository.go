@@ -72,7 +72,7 @@ func (r Repository) Scope(action string) string {
 }
 
 func checkRepository(repository string) error {
-	return checkElement("repository", repository, repositoryChars, 2, 255)
+	return checkElement("repository", repository, repositoryChars, 1, 255)
 }
 
 // NewRepository returns a new Repository representing the given name, according to the given strictness.

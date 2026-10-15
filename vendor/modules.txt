@@ -113,8 +113,8 @@ github.com/Microsoft/go-winio/pkg/fs
 github.com/Microsoft/go-winio/pkg/guid
 github.com/Microsoft/go-winio/pkg/security
 github.com/Microsoft/go-winio/vhd
-# github.com/Microsoft/hcsshim v0.15.0-rc.4
-## explicit; go 1.26.3
+# github.com/Microsoft/hcsshim v0.15.0
+## explicit; go 1.26.8
 github.com/Microsoft/hcsshim
 github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1/options
 github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1/stats
@@ -917,7 +917,7 @@ github.com/google/go-cmp/cmp/internal/diff
 github.com/google/go-cmp/cmp/internal/flags
 github.com/google/go-cmp/cmp/internal/function
 github.com/google/go-cmp/cmp/internal/value
-# github.com/google/go-containerregistry v0.21.7
+# github.com/google/go-containerregistry v0.22.0
 ## explicit; go 1.25.0
 github.com/google/go-containerregistry/pkg/name
 # github.com/google/s2a-go v0.1.9
