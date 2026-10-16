@@ -76,9 +76,9 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 
 	ep.ifName = containerIfName
 
-	// Set the container interface and its peer MTU to 1450 to allow
-	// for 50 bytes vxlan encap (inner eth header(14) + outer IP(20) +
-	// outer UDP(8) + vxlan header(8))
+	// Set the container interface and its peer MTU to the network MTU minus
+	// the VXLAN encapsulation overhead (50 bytes on an IPv4 transport, 70 on
+	// IPv6 where the outer IP header is 40 bytes).
 	mtu := n.maxMTU()
 
 	veth, err := nlh.LinkByName(overlayIfName)
