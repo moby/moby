@@ -19,7 +19,10 @@ import (
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/v2/daemon/config"
+	"github.com/moby/moby/v2/daemon/internal/cgrouputil"
 	"github.com/moby/moby/v2/daemon/internal/filters"
+	"github.com/moby/moby/v2/daemon/internal/peercred"
 	"github.com/moby/moby/v2/daemon/internal/runconfig"
 	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/daemon/internal/versions"
@@ -777,9 +780,8 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		hostConfig.PidsLimit = nil
 	}
 
-	if versions.LessThan(version, "1.56") {
-		// Ignore Umask because it was added in API v1.56.
-		hostConfig.Umask = nil
+	if err := enforceCgroupParentFromClient(ctx, hostConfig, c.backend); err != nil {
+		return err
 	}
 
 	ccr, err := c.backend.ContainerCreate(ctx, backend.ContainerCreateConfig{
@@ -801,6 +803,63 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	}
 	ccr.Warnings = append(ccr.Warnings, warnings...)
 	return httputils.WriteJSON(w, http.StatusCreated, ccr)
+}
+
+// enforceCgroupParentFromClient overrides HostConfig.CgroupParent with the
+// cgroup of the client process when the daemon is configured with
+// --cgroup-parent-from-client. This is useful on shared HPC systems (e.g.,
+// Slurm) where the daemon should place containers under the caller's cgroup
+// without requiring users to pass --cgroup-parent on every create.
+//
+// The client PID is obtained from SO_PEERCRED on the Unix socket (see
+// daemon/internal/peercred). When the option is enabled the function is
+// fail-closed: missing peer credentials (e.g. TCP, which has no SO_PEERCRED),
+// PID-owner mismatch, unreadable cgroup, or empty/root cgroup all return an
+// error and the container creation is rejected. This avoids silently placing
+// the container under the daemon's cgroup and breaking isolation.
+// Systemd scope paths (e.g. Slurm's slurmstepd.scope) require the cgroupfs
+// driver (--exec-opt native.cgroupdriver=cgroupfs): with the systemd driver
+// the parent must be a "xxx.slice" and scopes are rejected fail-closed with
+// an actionable error; with cgroupfs the scope path is used as-is via mkdir.
+// TODO: consider exposing this as an Extension point (see #53365) so the
+// cgroup decision and SO_PEERCRED propagation can be pluggable.
+func enforceCgroupParentFromClient(ctx context.Context, hostConfig *container.HostConfig, backend Backend) error {
+	type cfgProvider interface {
+		Config() config.Config
+	}
+	p, ok := backend.(cfgProvider)
+	if !ok {
+		return nil
+	}
+	cfg := p.Config()
+	if !cfg.CgroupParentFromClient {
+		return nil
+	}
+	cred, ok := peercred.FromContext(ctx)
+	if !ok || cred == nil {
+		return errdefs.InvalidParameter(errors.New("cgroup-parent-from-client is enabled but no peer credentials available (is the request via Unix socket?)"))
+	}
+	cgroupPath, err := cgrouputil.GetClientCgroup(cred.PID)
+	if err != nil {
+		return errdefs.System(fmt.Errorf("failed to get client cgroup for PID %d: %w", cred.PID, err))
+	}
+	if err := cgrouputil.VerifyPIDOwner(cred.PID, cred.UID); err != nil {
+		return errdefs.InvalidParameter(fmt.Errorf("cgroup-parent-from-client: refusing creation: %w", err))
+	}
+	if cgroupPath == "" || cgroupPath == "/" {
+		return errdefs.InvalidParameter(fmt.Errorf("client cgroup is empty or root (%q), refusing container creation", cgroupPath))
+	}
+	if err := cgrouputil.ValidateScopeForDriver(cgroupPath, config.UsingSystemd(&cfg)); err != nil {
+		return errdefs.InvalidParameter(err)
+	}
+	if cgrouputil.IsScopePath(cgroupPath) {
+		log.G(ctx).WithFields(log.Fields{"clientPID": cred.PID, "clientCgroup": cgroupPath}).Debug("allowing scope parent with cgroupfs driver for cgroup-parent-from-client")
+	}
+	if hostConfig.CgroupParent != cgroupPath {
+		log.G(ctx).WithFields(log.Fields{"clientPID": cred.PID, "clientCgroup": cgroupPath, "previous": hostConfig.CgroupParent}).Debug("enforcing cgroup parent from client")
+		hostConfig.CgroupParent = cgroupPath
+	}
+	return nil
 }
 
 // handleVolumeDriverBC handles the use of the container-wide "VolumeDriver"
