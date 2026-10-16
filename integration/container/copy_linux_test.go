@@ -13,7 +13,9 @@ import (
 	"github.com/moby/moby/v2/integration/internal/build"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/internal/testutil"
+	"github.com/moby/moby/v2/internal/testutil/daemon"
 	"github.com/moby/moby/v2/internal/testutil/fakecontext"
+	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
 )
@@ -111,6 +113,57 @@ func TestCopyWithNestedBindMountedSocket(t *testing.T) {
 
 	_, err = apiClient.CopyToContainer(ctx, cid, client.CopyToContainerOptions{
 		DestinationPath: "/mountpoint/",
+		Content:         bytes.NewReader(nil),
+	})
+	assert.NilError(t, err)
+}
+
+// TestCopyWithReadOnlyBindMountedSocket is a regression test for docker cp
+// on a container with a read-only bind mount whose source is on a nosuid,nodev
+// filesystem, such as an X11 socket shared with
+// -v /tmp/.X11-unix/X0:/tmp/.X11-unix/X0:ro on a host where /tmp is a tmpfs.
+func TestCopyWithReadOnlyBindMountedSocket(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.IsRemoteDaemon(), "cannot start daemon on remote test run")
+	skip.If(t, testEnv.IsNonRootClient, "requires root and executing on the same host as the daemon")
+	ctx := setupTest(t)
+
+	// Use testutil.TempDir so the rootless daemon can access the bind-mount
+	// source: t.TempDir() creates a 0700 parent that the fake-root user
+	// cannot stat.
+	srcDir := testutil.TempDir(t)
+	assert.NilError(t, unix.Mount("tmpfs", srcDir, "tmpfs", unix.MS_NOSUID|unix.MS_NODEV, "mode=755"))
+	t.Cleanup(func() { _ = unix.Unmount(srcDir, unix.MNT_DETACH) })
+
+	l, err := net.Listen("unix", filepath.Join(srcDir, "X0"))
+	assert.NilError(t, err)
+	defer l.Close()
+
+	// The daemon is started after the tmpfs is mounted, so that a rootless
+	// daemon inherits it into its user namespace, with its flags locked.
+	d := daemon.New(t)
+	defer d.Cleanup(t)
+	d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false")
+	defer d.Stop(t)
+	apiClient := d.NewClientT(t)
+
+	cid := container.Create(ctx, t, apiClient,
+		container.WithMount(mounttypes.Mount{
+			Type:     mounttypes.TypeBind,
+			Source:   filepath.Join(srcDir, "X0"),
+			Target:   "/tmp/.X11-unix/X0",
+			ReadOnly: true,
+		}),
+	)
+
+	res, err := apiClient.CopyFromContainer(ctx, cid, client.CopyFromContainerOptions{SourcePath: "/etc/hostname"})
+	assert.NilError(t, err)
+	defer res.Content.Close()
+	_, err = io.Copy(io.Discard, res.Content)
+	assert.NilError(t, err)
+
+	_, err = apiClient.CopyToContainer(ctx, cid, client.CopyToContainerOptions{
+		DestinationPath: "/tmp/",
 		Content:         bytes.NewReader(nil),
 	})
 	assert.NilError(t, err)
