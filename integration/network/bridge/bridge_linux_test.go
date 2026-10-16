@@ -598,7 +598,9 @@ func TestEndpointWithCustomIfname(t *testing.T) {
 // because of one its published port being already in use doesn't end up
 // triggering the restart loop.
 //
-// Regression test for: https://github.com/moby/moby/issues/49501
+// Regression tests for:
+// - https://github.com/moby/moby/issues/49501
+// - https://github.com/moby/moby/issues/53928
 func TestPublishedPortAlreadyInUse(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
@@ -623,6 +625,22 @@ func TestPublishedPortAlreadyInUse(t *testing.T) {
 	inspect, err := apiClient.ContainerInspect(ctx, ctr2, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(inspect.Container.State.Status, containertypes.StateCreated))
+	assert.Assert(t, inspect.Container.NetworkSettings.Networks["bridge"] != nil)
+
+	_, err = apiClient.ContainerStop(ctx, ctr1, client.ContainerStopOptions{})
+	assert.NilError(t, err)
+
+	_, err = apiClient.ContainerStart(ctx, ctr2, client.ContainerStartOptions{})
+	assert.NilError(t, err)
+	inspect, err = apiClient.ContainerInspect(ctx, ctr2, client.ContainerInspectOptions{})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(inspect.Container.State.Status, containertypes.StateRunning))
+	assert.Assert(t, inspect.Container.NetworkSettings.Networks["bridge"] != nil)
+	assert.Assert(t, inspect.Container.NetworkSettings.Networks["bridge"].IPAddress.IsValid())
+	assert.DeepEqual(t, inspect.Container.NetworkSettings.Ports[mappedPort], []networktypes.PortBinding{{
+		HostIP:   netip.IPv4Unspecified(),
+		HostPort: "8000",
+	}}, cmpopts.EquateComparable(netip.Addr{}))
 }
 
 // TestAllPortMappingsAreReturned check that dual-stack ports mapped through
