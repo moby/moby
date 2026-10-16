@@ -30,12 +30,6 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-var (
-	networkOnce sync.Once
-	networkMu   sync.Mutex
-	vniTbl      = make(map[uint32]string)
-)
-
 type networkTable map[string]*network
 
 type subnet struct {
@@ -250,10 +244,6 @@ func (d *driver) DeleteNetwork(nid string) error {
 }
 
 func (n *network) joinSandbox(s *subnet, incJoinCount bool) error {
-	// If there is a race between two go routines here only one will win
-	// the other will wait.
-	networkOnce.Do(populateVNITbl)
-
 	var initialized bool
 
 	if !n.sboxInit {
@@ -368,13 +358,16 @@ func (n *network) releaseEncryptionRefs() {
 	clear(n.fdbCnt)
 }
 
-func populateVNITbl() {
-	filepath.WalkDir(filepath.Dir(osl.GenerateKey("walk")),
+func (d *driver) populateVNITbl() {
+	vniTbl := make(map[uint32]string)
+	filepath.WalkDir(d.netnsDir,
 		// NOTE(cpuguy83): The linter picked up on the fact that this walk function was not using this error argument
 		// That seems wrong... however I'm not familiar with this code or if that error matters
 		func(path string, _ os.DirEntry, _ error) error {
 			_, fname := filepath.Split(path)
 
+			// Skip namespaces which are not network sandboxes: see
+			// sandboxKey.
 			if len(strings.Split(fname, "-")) <= 1 {
 				return nil
 			}
@@ -412,6 +405,10 @@ func populateVNITbl() {
 
 			return nil
 		})
+
+	d.mu.Lock()
+	d.vniTbl = vniTbl
+	d.mu.Unlock()
 }
 
 func (n *network) generateVxlanName(s *subnet) string {
@@ -442,9 +439,9 @@ func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error 
 	// populated in the once init. If a hit is found then
 	// it must a stale namespace from previous
 	// life. Destroy it completely and reclaim resourced.
-	networkMu.Lock()
-	path, ok := vniTbl[s.vni]
-	networkMu.Unlock()
+	n.driver.mu.Lock()
+	path, ok := n.driver.vniTbl[s.vni]
+	n.driver.mu.Unlock()
 
 	if ok {
 		deleteVxlanByVNI(path, s.vni)
@@ -453,9 +450,9 @@ func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error 
 		}
 		os.Remove(path)
 
-		networkMu.Lock()
-		delete(vniTbl, s.vni)
-		networkMu.Unlock()
+		n.driver.mu.Lock()
+		delete(n.driver.vniTbl, s.vni)
+		n.driver.mu.Unlock()
 	}
 
 	// create a bridge and vxlan device for this subnet and move it to the sandbox
@@ -575,10 +572,12 @@ func (n *network) initSubnetSandbox(s *subnet) error {
 }
 
 func (n *network) cleanupStaleSandboxes() {
-	filepath.WalkDir(filepath.Dir(osl.GenerateKey("walk")),
+	filepath.WalkDir(n.driver.netnsDir,
 		func(path string, _ os.DirEntry, _ error) error {
 			_, fname := filepath.Split(path)
 
+			// Skip namespaces which are not network sandboxes, and
+			// find the network a sandbox belongs to: see sandboxKey.
 			pList := strings.Split(fname, "-")
 			if len(pList) <= 1 {
 				return nil
@@ -596,13 +595,13 @@ func (n *network) cleanupStaleSandboxes() {
 				// it in vniTbl so that we don't
 				// inadvertently destroy the sandbox
 				// created in this life.
-				networkMu.Lock()
-				for vni, tblPath := range vniTbl {
+				n.driver.mu.Lock()
+				for vni, tblPath := range n.driver.vniTbl {
 					if tblPath == path {
-						delete(vniTbl, vni)
+						delete(n.driver.vniTbl, vni)
 					}
 				}
-				networkMu.Unlock()
+				n.driver.mu.Unlock()
 			}
 
 			return nil
@@ -610,13 +609,21 @@ func (n *network) cleanupStaleSandboxes() {
 }
 
 func (n *network) initSandbox() error {
+	if n.driver.netnsDir == "" {
+		return errors.New("no netns directory is configured")
+	}
+
+	// If there is a race between two go routines here only one will win
+	// the other will wait.
+	n.driver.networkOnce.Do(n.driver.populateVNITbl)
+
 	n.initEpoch++
 
 	// If there are any stale sandboxes related to this network
 	// from previous daemon life clean it up here
 	n.cleanupStaleSandboxes()
 
-	key := osl.GenerateKey(fmt.Sprintf("%d-", n.initEpoch) + n.id)
+	key := sandboxKey(n.driver.netnsDir, n.initEpoch, n.id)
 	sbox, err := osl.NewSandbox(key, true, false)
 	if err != nil {
 		return fmt.Errorf("could not get network sandbox: %v", err)
@@ -627,6 +634,22 @@ func (n *network) initSandbox() error {
 	n.fdbCnt = countmap.Map[hashable.IPMAC]{}
 
 	return nil
+}
+
+// sandboxKey returns the key of the network sandbox for network nid created
+// in the given epoch: the path of its network namespace, named
+// "<epoch>-<nid>" truncated to 12 characters.
+//
+// netnsDir may also hold network namespaces which the driver did not
+// create: the daemon gives the driver the controller's netns directory,
+// where the controller names the namespaces of its sandboxes after their
+// IDs, without a "-". So populateVNITbl and cleanupStaleSandboxes take only
+// the namespaces with a "-" in their names to be network sandboxes, and
+// cleanupStaleSandboxes takes the part of the name after the "-", a prefix
+// of the network's ID, to find the stale sandboxes of a network.
+func sandboxKey(netnsDir string, epoch int, nid string) string {
+	name := fmt.Sprintf("%d-%s", epoch, nid)
+	return filepath.Join(netnsDir, name[:min(len(name), 12)])
 }
 
 // lockNetwork returns the network object for nid, locked for exclusive access.
