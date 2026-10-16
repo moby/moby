@@ -53,7 +53,7 @@ func TestContainerDelete(t *testing.T) {
 			errMsg: "container is restarting: stop the container before removing or force remove",
 			initContainer: func() *container.Container {
 				c := newContainerWithState(&container.State{Running: true, StartedAt: time.Now()})
-				c.State.SetRestarting(&container.ExitStatus{})
+				c.State.Transition(container.Transition{To: containertypes.StateRestarting})
 				return c
 			},
 		},
