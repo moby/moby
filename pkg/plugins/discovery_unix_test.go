@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestLocalSocket(t *testing.T) {
@@ -161,4 +162,17 @@ func TestScanNotPlugins(t *testing.T) {
 	if names[0] != "not-a-plugin" {
 		t.Fatalf("expected plugin named `not-a-plugin`, got: %s", names[0])
 	}
+}
+
+func TestSpecsPathsRootless(t *testing.T) {
+	tmpdir := t.TempDir()
+	t.Setenv("ROOTLESSKIT_STATE_DIR", filepath.Join(tmpdir, "rootlesskit"))
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tmpdir, "config"))
+	t.Setenv("HOME", filepath.Join(tmpdir, "home"))
+
+	expected := []string{
+		filepath.Join(tmpdir, "config", "docker", "plugins"),
+		filepath.Join(tmpdir, "home", ".local", "lib", "docker", "plugins"),
+	}
+	assert.Check(t, is.DeepEqual(SpecsPaths(), expected))
 }

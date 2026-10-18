@@ -10,7 +10,7 @@ import (
 )
 
 func rootlessConfigPluginsPath() string {
-	if configHome, err := homedir.GetConfigHome(); err != nil {
+	if configHome, err := homedir.GetConfigHome(); err == nil {
 		return filepath.Join(configHome, "docker/plugins")
 	}
 	return "/etc/docker/plugins"
