@@ -23,6 +23,22 @@ func rootlessLibPluginsPath() string {
 	return "/usr/lib/docker/plugins"
 }
 
+func rootlessSocketsPath() string {
+	if runtimeDir, err := homedir.GetRuntimeDir(); err == nil {
+		return filepath.Join(runtimeDir, "docker/plugins")
+	}
+	return defaultSocketsPath
+}
+
+// socketsPath is the non-Windows implementation of the path in which to look
+// for plugin sockets.
+func socketsPath() string {
+	if os.Getenv("ROOTLESSKIT_STATE_DIR") != "" {
+		return rootlessSocketsPath()
+	}
+	return defaultSocketsPath
+}
+
 // specsPaths is the non-Windows implementation of [SpecsPaths].
 func specsPaths() []string {
 	// TODO(thaJeztah): switch back to daemon/internal/rootless.RunningWithRootlessKit if this package moves internal to the daemon.

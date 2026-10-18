@@ -176,3 +176,23 @@ func TestSpecsPathsRootless(t *testing.T) {
 	}
 	assert.Check(t, is.DeepEqual(SpecsPaths(), expected))
 }
+
+func TestScanRootless(t *testing.T) {
+	tmpdir := t.TempDir()
+	t.Setenv("ROOTLESSKIT_STATE_DIR", filepath.Join(tmpdir, "rootlesskit"))
+	t.Setenv("XDG_RUNTIME_DIR", filepath.Join(tmpdir, "runtime"))
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tmpdir, "config"))
+	t.Setenv("HOME", filepath.Join(tmpdir, "home"))
+
+	socketsPath := filepath.Join(tmpdir, "runtime", "docker", "plugins")
+	assert.NilError(t, os.MkdirAll(socketsPath, 0o755))
+
+	l, err := net.Listen("unix", filepath.Join(socketsPath, "echo.sock"))
+	assert.NilError(t, err)
+	defer l.Close()
+
+	r := NewLocalRegistry()
+	names, err := r.Scan()
+	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(names, []string{"echo"}))
+}
