@@ -84,8 +84,11 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 	//
 	// TODO(thaJeztah): we should have a more visible, more canonical location for this.
 	if opts.params.HostConfig != nil && opts.params.HostConfig.RestartPolicy.Name == "" {
-		// Set the default restart-policy ("none") if no restart-policy was set.
-		opts.params.HostConfig.RestartPolicy.Name = containertypes.RestartPolicyDisabled
+		// Apply daemon's default restart policy if no restart-policy was set.
+		opts.params.HostConfig.RestartPolicy = daemonCfg.DefaultRestartPolicy
+		if opts.params.HostConfig.RestartPolicy.Name == "" {
+			opts.params.HostConfig.RestartPolicy.Name = containertypes.RestartPolicyDisabled
+		}
 	}
 
 	warnings, err := daemon.verifyContainerSettings(daemonCfg, opts.params.HostConfig, opts.params.Config, false)

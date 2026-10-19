@@ -14,6 +14,7 @@ import (
 	"dario.cat/mergo"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamutils"
 	"github.com/moby/moby/v2/daemon/pkg/opts"
 	"github.com/moby/moby/v2/daemon/pkg/registry"
@@ -1012,4 +1013,141 @@ func TestSanitize(t *testing.T) {
 	assert.Check(t, is.DeepEqual(cfg.ExtensionConfig[0].Config, map[string]any{
 		"secret": extensionSecret,
 	}))
+}
+
+func TestDefaultRestartPolicy(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		config         string
+		expectedPolicy containertypes.RestartPolicy
+		expectedErr    string
+	}{
+		{
+			name:   "default restart policy not set",
+			config: `{}`,
+			expectedPolicy: containertypes.RestartPolicy{
+				Name: containertypes.RestartPolicyDisabled,
+			},
+		},
+		{
+			name: "default restart policy set to always",
+			config: `{
+				"default-restart-policy": {
+					"Name": "always"
+				}
+			}`,
+			expectedPolicy: containertypes.RestartPolicy{
+				Name: containertypes.RestartPolicyAlways,
+			},
+		},
+		{
+			name: "default restart policy set to on-failure",
+			config: `{
+				"default-restart-policy": {
+					"Name": "on-failure",
+					"MaximumRetryCount": 5
+				}
+			}`,
+			expectedPolicy: containertypes.RestartPolicy{
+				Name:              containertypes.RestartPolicyOnFailure,
+				MaximumRetryCount: 5,
+			},
+		},
+		{
+			name: "invalid restart policy",
+			config: `{
+				"default-restart-policy": {
+					"Name": "invalid-policy"
+				}
+			}`,
+			expectedErr: "invalid default-restart-policy",
+		},
+		{
+			name: "on-failure with negative retry count",
+			config: `{
+				"default-restart-policy": {
+					"Name": "on-failure",
+					"MaximumRetryCount": -1
+				}
+			}`,
+			expectedErr: "invalid default-restart-policy",
+		},
+		{
+			name: "always with retry count",
+			config: `{
+				"default-restart-policy": {
+					"Name": "always",
+					"MaximumRetryCount": 5
+				}
+			}`,
+			expectedErr: "invalid default-restart-policy",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			configFile := makeConfigFile(t, tc.config)
+			flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+
+			base, err := New()
+			assert.NilError(t, err)
+			cfg, err := MergeDaemonConfigurations(base, flags, configFile)
+			if tc.expectedErr != "" {
+				// MergeDaemonConfigurations validates the merged configuration.
+				assert.Check(t, is.ErrorContains(err, tc.expectedErr))
+			} else {
+				assert.NilError(t, err)
+				err = Validate(cfg)
+				assert.NilError(t, err)
+				assert.Check(t, is.DeepEqual(cfg.DefaultRestartPolicy, tc.expectedPolicy))
+			}
+		})
+	}
+}
+
+func TestEnforceDefaultRestartPolicy(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name              string
+		config            string
+		expectEnforcement bool
+	}{
+		{
+			name:              "enforcement not set",
+			config:            `{}`,
+			expectEnforcement: false,
+		},
+		{
+			name: "enforcement disabled",
+			config: `{
+				"enforce-default-restart-policy": false
+			}`,
+			expectEnforcement: false,
+		},
+		{
+			name: "enforcement enabled",
+			config: `{
+				"enforce-default-restart-policy": true
+			}`,
+			expectEnforcement: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			configFile := makeConfigFile(t, tc.config)
+			flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+
+			base, err := New()
+			assert.NilError(t, err)
+			cfg, err := MergeDaemonConfigurations(base, flags, configFile)
+			assert.NilError(t, err)
+			err = Validate(cfg)
+			assert.NilError(t, err)
+			assert.Check(t, is.Equal(cfg.EnforceDefaultRestartPolicy, tc.expectEnforcement))
+		})
+	}
 }
