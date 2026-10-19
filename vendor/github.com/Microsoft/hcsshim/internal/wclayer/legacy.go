@@ -194,16 +194,30 @@ func (r *legacyLayerReader) reset() {
 
 func findBackupStreamSize(r io.Reader) (int64, error) {
 	br := winio.NewBackupStreamReader(r)
+	var size int64
 	for {
 		hdr, err := br.Next()
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				err = nil
+				// With no inline data, sparse blocks provide the logical size.
+				return size, nil
 			}
 			return 0, err
 		}
-		if hdr.Id == winio.BackupData {
-			return hdr.Size, nil
+		switch hdr.Id {
+		case winio.BackupData:
+			// Non-sparse files and sparse files with inline data carry their
+			// logical size in BackupData.
+			if hdr.Size > 0 || hdr.Attributes&winio.StreamSparseAttributes == 0 {
+				return hdr.Size, nil
+			}
+			// A sparse BackupData stream without inline data is followed by
+			// sparse blocks that describe its logical size.
+		case winio.BackupSparseBlock:
+			// The terminal zero-length block has an offset at logical EOF.
+			if end := hdr.Offset + hdr.Size; end > size {
+				size = end
+			}
 		}
 	}
 }
