@@ -42,6 +42,14 @@ func getUserFromContainerd(ctx context.Context, containerdCli *containerd.Client
 }
 
 func (daemon *Daemon) execSetPlatformOpt(ctx context.Context, daemonCfg *config.Config, ec *container.ExecConfig, p *specs.Process) error {
+	if p.User.Umask == nil {
+		// The runtime defaults the container's init process to 0022 when no
+		// umask is specified. Set that default explicitly for exec processes,
+		// which would otherwise inherit the shim's umask.
+		umask := uint32(0o022)
+		p.User.Umask = &umask
+	}
+
 	if ec.User != "" {
 		var user specs.User
 		var err error

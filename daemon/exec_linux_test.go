@@ -39,6 +39,23 @@ func TestExecSetPlatformOptPreservesUmaskWhenResolvingUser(t *testing.T) {
 	assert.Equal(t, *p.User.Umask, umask)
 }
 
+func TestExecSetPlatformOptDefaultsUmask(t *testing.T) {
+	c := &container.Container{
+		SecurityOptions: container.SecurityOptions{
+			AppArmorProfile: unconfinedAppArmorProfile,
+		},
+		HostConfig: &containertypes.HostConfig{},
+	}
+	ec := &container.ExecConfig{Container: c}
+	p := &specs.Process{}
+	cfg := &configStore{}
+
+	err := (&Daemon{}).execSetPlatformOpt(t.Context(), &cfg.Config, ec, p)
+	assert.NilError(t, err)
+	assert.Assert(t, p.User.Umask != nil)
+	assert.Equal(t, *p.User.Umask, uint32(0o022))
+}
+
 func TestExecSetPlatformOptAppArmor(t *testing.T) {
 	appArmorEnabled := appArmorSupported()
 

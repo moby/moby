@@ -116,3 +116,15 @@ func TestContainerExecWithUmask(t *testing.T) {
 		}
 	}
 }
+
+func TestContainerExecDefaultUmask(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	cID := container.Run(ctx, t, apiClient, container.WithImage("busybox"))
+	result, err := container.Exec(ctx, apiClient, cID, []string{"sh", "-c", "umask"})
+	assert.NilError(t, err)
+	assert.Equal(t, strings.TrimSpace(result.Stdout()), "0022")
+}
