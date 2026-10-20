@@ -16,7 +16,8 @@ For example: missing seccomp or AppArmor profiles, capabilities not dropped, mas
 Image content and build inputs are different.
 Layers, image config (labels, environment, `USER`, entrypoint, `VOLUME`, `EXPOSE`, `HEALTHCHECK`, `ONBUILD`), Dockerfiles, and build contexts are attacker-controlled, even when a trusted client passes them in.
 They can control the workload inside the container.
-They must not make host-side choices the client didn't ask for, such as host paths, mount sources, devices, capabilities, host port bindings, host networking, or `security.insecure`.
+Image directives can have their documented effects, but they must not grant privileges or choose host resources the client didn't allow.
+For example, `VOLUME` can create volumes and copy image files into them, but must not make the daemon modify host paths outside those volumes.
 
 We treat these as untrusted:
 
@@ -32,10 +33,22 @@ We treat these as untrusted:
   Allowed traffic is not a vulnerability, for example between containers on a bridge with inter-container communication enabled.
 - Container logs parsed by logging drivers.
 - API clients restricted by an AuthZ plugin.
+  AuthZ plugins check HTTP API requests, not gRPC calls.
+  They can inspect only JSON request and response bodies.
+  For connection upgrades, plugins check the initial HTTP requests, not the later stream.
+  Plugins must read JSON the same way the daemon does.
+  They cannot reliably filter streamed or partly buffered response bodies.
+  Bypassing checks that Moby is supposed to enforce is still in scope.
+  See the [AuthZ architecture and limitations](https://docs.docker.com/engine/extend/plugins_authorization/#basic-architecture).
 - Swarm nodes and network peers without valid join tokens or certificates.
-- Rootless API clients and containers: gaining more privileges than the daemon's unprivileged user has, such as host root, is in scope.
+- Processes inside rootless containers must stay isolated.
+  Escaping to the daemon's host user is in scope, even without gaining host root.
 - Containers with user-namespace remapping (`--userns-remap`): escaping to an unmapped host user, such as root, is in scope.
 - Local unprivileged host users: they must not traverse or read the data root (`/var/lib/docker`), `/run/docker`, or container filesystems, run programs from them, or connect to sockets they have no permission for.
+
+Under [Microsoft's security servicing criteria](https://www.microsoft.com/en-us/msrc/windows-security-servicing-criteria), process-isolated Windows Server containers are not a security boundary against hostile tenants; Hyper-V isolated containers are covered by the virtual machine boundary.
+Normal Windows security boundaries still apply to unprivileged container users, including protection against elevation to administrator.
+Bugs in Moby's own Windows code, such as path handling in `docker cp` or layer extraction, or permissions on the API named pipe, are in scope.
 
 ## Components
 
@@ -66,9 +79,10 @@ Out of scope:
 - Attacks that need malicious or compromised plugins.
   Managed and legacy plugins, AuthZ plugins, logging, volume, and network drivers, and NRI plugins are trusted.
 - Attacks that need host root, or write access to `daemon.json`, the data root, daemon binaries, or other files writable only by the daemon's user.
-- Tests and test helpers, development tooling, contributed utilities (except rootless scripts), and documentation.
+- Tests and test helpers, development tooling, and contributed utilities (except rootless scripts).
 - Deprecated components, except the classic builder.
-- Windows-only issues.
+- Bugs in the Windows kernel or Hyper-V.
+  Report these to Microsoft; bugs caused by how Moby uses Windows isolation are still in scope.
 - Expected effects of settings documented as insecure, such as `--insecure-registry`, TCP API access without TLS, `--privileged`, `--security-opt seccomp=unconfined`, or Docker socket mounts.
   Bypassing the restrictions that remain is still in scope: disabling seccomp doesn't disable mount isolation, capability restrictions, or AppArmor.
 
@@ -80,14 +94,18 @@ A bug is a vulnerability only when one of the untrusted inputs above can use it 
 - gain privileges beyond those it was given,
 - access the host or other containers without permission,
 - leak credentials or other secrets,
-- crash, hang, or exhaust the daemon.
+- crash the daemon, or cause hangs or resource exhaustion that seriously disrupt its ability to serve requests.
+
 
 Everything else is a regular bug.
+Documentation describes supported behavior, limits, and security expectations.
+Most documentation mistakes are regular bugs, but report incorrect security advice privately if you can show a security impact.
 Report regular bugs in public issues as described in `CONTRIBUTING.md`, and report privately when in doubt.
 
 Don't report these as vulnerabilities:
 
 - Findings limited to unit tests, direct calls to internal functions, or unreachable code.
+- Denial-of-service reports based only on recovered request-handler panics that don't affect the daemon's ability to serve requests.
 - Weaker isolation from privileges the client requested, such as host namespaces or `CAP_SYS_ADMIN`.
 - Containers without resource limits using up host CPU, memory, disk, or PIDs; setting limits is up to the client.
   Not applying requested limits is in scope.
