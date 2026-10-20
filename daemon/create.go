@@ -22,13 +22,13 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/metrics"
 	"github.com/moby/moby/v2/daemon/internal/multierror"
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
+	"github.com/moby/moby/v2/daemon/internal/platform"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/sys/user"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/selinux/go-selinux"
-	"github.com/tonistiigi/go-archvariant"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -99,7 +99,7 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 			return containertypes.CreateResponse{}, err
 		}
 		if img != nil {
-			p := maximumSpec()
+			p := platform.MaximumSpec()
 			imgPlat := ocispec.Platform{
 				OS:           img.OS,
 				Architecture: img.Architecture,
@@ -395,13 +395,4 @@ func (daemon *Daemon) validateNetworkingConfig(nwConfig *networktypes.Networking
 	}
 
 	return nil
-}
-
-// maximumSpec returns the distribution platform with maximum compatibility for the current node.
-func maximumSpec() ocispec.Platform {
-	p := platforms.DefaultSpec()
-	if p.Architecture == "amd64" {
-		p.Variant = archvariant.AMD64Variant()
-	}
-	return p
 }
