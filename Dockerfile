@@ -170,7 +170,7 @@ RUN --mount=from=containerd-src,src=/usr/src/containerd,rw \
 
   set -x
   xx-go --wrap
-  CC="$(xx-info)-gcc" CGO_ENABLED=$cgo_enabled make $make_flags binaries
+  CC="$(xx-info)-gcc" CGO_ENABLED=$cgo_enabled make $make_flags BUILDTAGS=grpcnotrace binaries
   xx-verify $verify_flags bin/containerd
   xx-verify $verify_flags bin/containerd-shim-runc-v2
   xx-verify $verify_flags bin/ctr
