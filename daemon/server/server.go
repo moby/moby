@@ -46,10 +46,15 @@ func (s *Server) UseMiddleware(m middleware.Middleware) {
 	s.middlewares = append(s.middlewares, m)
 }
 
-func (s *Server) makeHTTPHandler(route router.Route) http.HandlerFunc {
+func (s *Server) makeHTTPHandler(route router.Route) http.Handler {
 	handler := route.Handler()
 	operation := route.Method() + " " + route.Path()
 	return otelhttp.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Fill in the pattern that was used to match this request.
+		// This is filled in by the standard library when using http.ServeMux
+		// but is not filled in by gorilla/mux.
+		r.Pattern = route.Path()
+
 		// Define the context that we'll pass around to share info
 		// like the docker-request-id.
 		//
@@ -117,7 +122,7 @@ func (s *Server) makeHTTPHandler(route router.Route) http.HandlerFunc {
 				}).Errorf("Handler for %s %s returned error", route.Method(), route.Path())
 			}
 		}
-	}), operation).ServeHTTP
+	}), operation)
 }
 
 // CreateMux returns a new mux with all the routers registered.
