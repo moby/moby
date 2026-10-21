@@ -3,6 +3,11 @@
 This document defines the security scope and untrusted inputs of Moby, the open-source container engine.
 Its daemon, `dockerd`, usually runs as root, manages containers through containerd and runc, and exposes the Docker Engine REST API.
 
+Engine API access grants the daemon user's privileges, so unrestricted API clients, host root, Swarm managers, and installed plugins are trusted.
+Container processes, image content and build inputs, registries, network traffic, AuthZ-restricted clients, Swarm workers beyond their own tasks, and unprivileged host users are untrusted.
+A bug is a vulnerability when one of these can use it to escape or weaken isolation, gain privileges, reach the host or other containers, leak secrets, or seriously disrupt the daemon.
+Bugs in containerd, runc, and the kernel go upstream, unless Moby's use of them causes the issue.
+
 ## Assets
 
 - Host: filesystem, processes, devices, network, and availability.
