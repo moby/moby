@@ -88,7 +88,11 @@ if [ -z "$DOCKER_DEBUG" ]; then
 	LDFLAGS='-w'
 fi
 
-BUILDFLAGS=(${BUILDFLAGS} -tags "netgo osusergo static_build nri_no_wasm $DOCKER_BUILDTAGS")
+# grpcnotrace avoids importing golang.org/x/net/trace, which in turn enables
+# dead code elimination, which can reduce binary size when tracing is not needed.
+#
+# see https://github.com/grpc/grpc-go/blob/v1.83.2/trace_notrace.go#L23-L25
+BUILDFLAGS=(${BUILDFLAGS} -tags "grpcnotrace netgo osusergo static_build nri_no_wasm $DOCKER_BUILDTAGS")
 LDFLAGS_STATIC="-extldflags -static"
 
 if [ "$(uname -s)" = 'FreeBSD' ]; then

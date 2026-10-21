@@ -170,7 +170,7 @@ RUN --mount=from=containerd-src,src=/usr/src/containerd,rw \
 
   set -x
   xx-go --wrap
-  CC="$(xx-info)-gcc" CGO_ENABLED=$cgo_enabled make $make_flags binaries
+  CC="$(xx-info)-gcc" CGO_ENABLED=$cgo_enabled make $make_flags BUILDTAGS=grpcnotrace binaries
   xx-verify $verify_flags bin/containerd
   xx-verify $verify_flags bin/containerd-shim-runc-v2
   xx-verify $verify_flags bin/ctr
@@ -350,7 +350,7 @@ RUN --mount=from=rootlesskit-src,src=/usr/src/rootlesskit,rw \
   if [ "$DOCKER_STATIC" = "1" ]; then
       set -x
       export CGO_ENABLED=0
-      xx-go build -o /build/rootlesskit ./cmd/rootlesskit
+      xx-go build -tags=urfave_cli_no_docs  -o /build/rootlesskit ./cmd/rootlesskit
       xx-verify --static /build/rootlesskit
   else
       set -x
