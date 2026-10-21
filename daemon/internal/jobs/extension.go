@@ -1,0 +1,188 @@
+package jobs
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"sync"
+
+	"github.com/containerd/log"
+	"github.com/moby/extensions"
+	servicev0 "github.com/moby/extensions/extpoints/service/v0"
+	containernamegeneratorv0 "github.com/moby/moby/v2/extpoints/containernamegenerator/v0"
+	jobsv0 "github.com/moby/moby/v2/extpoints/jobs/api/v0"
+	runtimev0 "github.com/moby/moby/v2/extpoints/runtime/v0"
+	storagekvv0 "github.com/moby/moby/v2/extpoints/storage/kv/v0"
+)
+
+// ExtensionID identifies the builtin jobs extension.
+const ExtensionID = "org.mobyproject.jobs.v1"
+
+// storageNamespace partitions this extension's records from other cooperating
+// extensions in the storage point; v0 namespaces are not an authorization
+// boundary. Drop the constant once the framework derives namespaces from
+// host-resolved extension identity.
+const storageNamespace = ExtensionID
+
+// Extension is the builtin jobs extension. It provides the Jobs point and
+// offers it for publication on the daemon socket; the container runtime
+// point it depends on supplies the backend that runs job containers, the
+// storage point persists its jobs and runs, and the container name-generator
+// point names unnamed job registrations.
+//
+// The extension host initializes during daemon construction, before the
+// runtime can serve container operations, so activation waits out the
+// runtime's readiness gate in the background. API calls arriving before
+// activation completes are answered with Unavailable.
+type Extension struct {
+	ready func(context.Context) error
+
+	mu               sync.Mutex
+	manager          *Manager
+	cancelActivation context.CancelFunc
+}
+
+// NewExtension builds the jobs extension. ready reports when the provider of
+// the runtime point can serve container operations; activation waits for it
+// in the background. It is injected by the daemon until the framework offers
+// a general readiness mechanism.
+func NewExtension(ready func(context.Context) error) *Extension {
+	return &Extension{ready: ready}
+}
+
+// Declaration describes the extension to the host.
+func (e *Extension) Declaration() extensions.Declaration {
+	return extensions.Declaration{
+		ID: ExtensionID,
+		Providers: []extensions.Provider{
+			jobsv0.Point.Provide(&service{ext: e}),
+			servicev0.Offer(jobsv0.Point),
+		},
+		Dependencies: []extensions.Dependency{
+			runtimev0.Point.Dependency(),
+			storagekvv0.Point.Dependency(),
+			containernamegeneratorv0.Point.Dependency(),
+		},
+		Init:     e.init,
+		Shutdown: e.shutdownManager,
+	}
+}
+
+// init resolves the runtime and storage dependencies, builds the manager —
+// a storage backend that cannot list or read records fails daemon startup
+// loudly rather than surfacing later as a mysteriously empty API, while
+// individually damaged records are quarantined — and finishes activation in
+// the background: container operations only work once the runtime reports
+// ready, which happens after the host (and this init) runs.
+func (e *Extension) init(ctx context.Context, _ extensions.Config, resolver extensions.Resolver) error {
+	backend, err := runtimev0.Point.Single(resolver)
+	if err != nil {
+		return fmt.Errorf("resolving the container runtime point: %w", err)
+	}
+	kv, err := storagekvv0.GetKV(resolver, storageNamespace)
+	if err != nil {
+		return fmt.Errorf("resolving the storage point: %w", err)
+	}
+	manager, err := e.buildManager(ctx, kv, backend, nameGenerator(resolver))
+	if err != nil {
+		return err
+	}
+	// The manager outlives the init call, so its lifetime cannot be tied to
+	// the startup context's cancellation; shutdownManager cancels the
+	// readiness wait instead, releasing the goroutine if the runtime never
+	// becomes ready.
+	activateCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	e.mu.Lock()
+	e.cancelActivation = cancel
+	e.mu.Unlock()
+	go func() {
+		if err := e.ready(activateCtx); err != nil {
+			// Cancelled means shutdownManager released the wait: an orderly
+			// stop, not a failure worth alarming about.
+			if activateCtx.Err() == nil {
+				log.G(activateCtx).WithError(err).Error("jobs: the container runtime never became ready; the Jobs API stays unavailable")
+			}
+			return
+		}
+		if err := e.activate(activateCtx, manager); err != nil && activateCtx.Err() == nil {
+			log.G(activateCtx).WithError(err).Error("jobs: activation failed; the Jobs API stays unavailable")
+		}
+	}()
+	return nil
+}
+
+// buildManager loads the store from the extension's storage namespace and
+// builds the manager driving backend. The store is pure record I/O and needs
+// no running container backend.
+func (e *Extension) buildManager(ctx context.Context, kv KV, backend Backend, generateName NameGenerator) (*Manager, error) {
+	store, err := NewStore(ctx, kv)
+	if err != nil {
+		return nil, err
+	}
+	return NewManager(store, backend, generateName), nil
+}
+
+// nameGenerator names unnamed job registrations through the container
+// name-generator point, the same source the daemon draws container names
+// from — fitting, as job names become components of run container names.
+// Resolution happens per call: the point's provider is fixed at host
+// construction, which precedes every registration.
+func nameGenerator(resolver extensions.Resolver) NameGenerator {
+	return func(ctx context.Context, retry int64) (string, error) {
+		// ContainerID and Image stay empty: a job has no container at
+		// registration time.
+		reply, err := containernamegeneratorv0.GenerateContainerName(ctx, resolver, &containernamegeneratorv0.GenerateContainerNameRequest{Retry: retry})
+		if reply == nil {
+			return "", err
+		}
+		if err != nil {
+			// A name alongside an error is the built-in fallback covering a
+			// failed replacement provider; report it like the daemon does.
+			log.G(ctx).WithError(err).Warn("jobs: name generator extension failed; using built-in fallback")
+		}
+		return reply.Name, nil
+	}
+}
+
+// activate reconciles the manager's runs, starts the scheduler, and opens
+// the API for business. It runs exactly once, when the runtime is ready; a
+// second activation is a programming error and is rejected rather than
+// silently leaking the previous manager. The mutex is held across the whole
+// activation: it is a one-shot startup step, and API calls landing during it
+// wait instead of racing it.
+func (e *Extension) activate(ctx context.Context, manager *Manager) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.manager != nil {
+		return errors.New("the jobs extension is already active")
+	}
+	// A shutdown racing activation cancels the context before releasing the
+	// mutex: checking under the same mutex means a manager never starts
+	// after the extension was shut down.
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	// Order matters: reconciliation resolves runs orphaned by an unclean
+	// stop from the containers' actual state, so triggers re-arm from a
+	// truthful picture.
+	manager.Restore(ctx)
+	manager.Start(ctx)
+	e.manager = manager
+	return nil
+}
+
+// shutdownManager stops the active manager; a never-activated extension has
+// only its readiness wait to release.
+func (e *Extension) shutdownManager(ctx context.Context) error {
+	e.mu.Lock()
+	if e.cancelActivation != nil {
+		e.cancelActivation()
+	}
+	manager := e.manager
+	e.manager = nil
+	e.mu.Unlock()
+	if manager == nil {
+		return nil
+	}
+	return manager.Shutdown(ctx)
+}
