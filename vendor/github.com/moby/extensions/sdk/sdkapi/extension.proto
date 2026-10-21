@@ -9,8 +9,19 @@ package moby.extension.runtime.v1;
 
 option go_package = "github.com/moby/extensions/sdk/sdkapi/protogen";
 
+// Extension is served by every out-of-process extension.
+//
+// The generator command names the gRPC service fully qualified because, unlike
+// a point, there is no id to take the proto package from. Both halves are wire
+// identifiers: extensions built against them are separate binaries, possibly
+// built from an older tree, so neither may change without a new version.
 service Extension {
+  // Describe returns the extension's declaration.
   rpc Describe(DescribeRequest) returns (DescribeResponse);
+  // Initialize runs the extension's Init. The daemon calls it after connecting
+  // every extension, in dependency order, so that by the time an extension
+  // initializes its dependencies are already initialized and reachable over the
+  // callback channel. An Init error is returned as the RPC status.
   rpc Initialize(InitializeRequest) returns (InitializeResponse);
 }
 
