@@ -3,6 +3,36 @@
 This document defines the security scope and untrusted inputs of Moby, the open-source container engine.
 Its daemon, `dockerd`, usually runs as root, manages containers through containerd and runc, and exposes the Docker Engine REST API.
 
+## Assets
+
+- Host: filesystem, processes, devices, network, and availability.
+- Daemon control plane: the API socket or named pipe, TCP API endpoints, and the containerd socket.
+  - Container storage: the data root, container filesystems, volumes, and build cache.
+  - Image integrity: content must match its digests.
+  - Registry credentials.
+- Other containers.
+- Swarm cluster state, secrets, and configs.
+
+## Actors
+
+Trusted, because they already have the privileges an attack would give them:
+
+- Host root and the daemon's user.
+- Unrestricted API clients, including local users in the `docker` group.
+- Swarm managers.
+- Installed plugins and drivers, within the privileges granted at install time.
+
+Untrusted:
+
+- Remote hosts on the network, excluding Swarm cluster members.
+- AuthZ-restricted API clients.
+- Container processes, including rootless containers and Swarm workloads.
+- Image and build input authors.
+- Registries, including mirrors and insecure registries.
+  A registry is trusted only with the credentials given for it, and can send them to the token server it names.
+- Swarm workers: trusted with their own tasks, secrets, and configs, but not with the rest of the cluster.
+- Local unprivileged host users.
+
 ## Trust boundaries and untrusted input
 
 Engine API access grants the daemon user's privileges: root by default, or an unprivileged user in rootless mode.
@@ -26,6 +56,7 @@ We treat these as untrusted:
 - Container and image files the daemon reads, such as `/etc/passwd` and `/etc/group` when resolving `USER`, `--user`, `--group-add`, and `--chown`.
 - Images and registries: manifests, configs, layer tarballs, and registry HTTP responses from `docker pull`, and image tarballs for `docker load`.
   Layer extraction that writes outside its target is in scope, and so is copying image content into `VOLUME` volumes.
+  Accepting content that doesn't match its digest is in scope.
 - Build inputs: Dockerfiles, build contexts, remote Git and URL contexts, `ADD` URLs, and BuildKit frontends.
   Escaping a build container or writing outside the build target is in scope.
 - Traffic from containers and remote hosts: the embedded DNS resolver, userland proxy, and iptables and nftables rules for isolation and port publishing.
@@ -40,7 +71,8 @@ We treat these as untrusted:
   They cannot reliably filter streamed or partly buffered response bodies.
   Bypassing checks that Moby is supposed to enforce is still in scope.
   See the [AuthZ architecture and limitations](https://docs.docker.com/engine/extend/plugins_authorization/#basic-architecture).
-- Swarm nodes and network peers without valid join tokens or certificates.
+- Swarm nodes without valid join tokens or certificates.
+- Swarm workers: reading secrets or configs of tasks not assigned to them, or gaining manager privileges, is in scope.
 - Processes inside rootless containers must stay isolated.
   Escaping to the daemon's host user is in scope, even without gaining host root.
 - Containers with user-namespace remapping (`--userns-remap`): escaping to an unmapped host user, such as root, is in scope.
@@ -78,7 +110,7 @@ Out of scope:
   Moby is responsible only for issues caused by its OCI specs or use of these components.
 - Attacks that need malicious or compromised plugins.
   Managed and legacy plugins, AuthZ plugins, logging, volume, and network drivers, and NRI plugins are trusted.
-- Attacks that need host root, or write access to `daemon.json`, the data root, daemon binaries, or other files writable only by the daemon's user.
+- Attacks that need host root, a Swarm manager, or write access to `daemon.json`, the data root, daemon binaries, or other files writable only by the daemon's user.
 - Tests and test helpers, development tooling, and contributed utilities (except rootless scripts).
 - Deprecated components, except the classic builder.
 - Bugs in the Windows kernel or Hyper-V.
