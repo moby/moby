@@ -206,3 +206,82 @@ func TestContainerInspectWithRaw(t *testing.T) {
 		})
 	}
 }
+
+// TestInspectAPIContainerResponse verifies that the raw inspect response
+// contains the expected top-level fields when using an old API version.
+func TestInspectAPIContainerResponse(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	ctrID := container.Run(ctx, t, apiClient, container.WithCmd("true"))
+
+	oldClient := request.NewAPIClient(t, client.WithAPIVersion("1.24"))
+	inspect, err := oldClient.ContainerInspect(ctx, ctrID, client.ContainerInspectOptions{})
+	assert.NilError(t, err)
+
+	var rawInspect map[string]any
+	err = json.Unmarshal(inspect.Raw, &rawInspect)
+	assert.NilError(t, err)
+
+	for _, key := range []string{
+		"Id", "State", "Created", "Path", "Args", "Config", "Image", "NetworkSettings",
+		"ResolvConfPath", "HostnamePath", "HostsPath", "LogPath", "Name", "Driver",
+		"MountLabel", "ProcessLabel", "GraphDriver", "Mounts",
+	} {
+		_, ok := rawInspect[key]
+		assert.Check(t, ok, "%s does not exist in response", key)
+	}
+
+	// Issue #6830: type not properly converted to JSON/back
+	assert.Check(t, is.Equal(rawInspect["Path"], "true"), "Path should be the string \"true\", not a boolean")
+}
+
+// TestInspectAPIContainerVolumeDriver verifies that the container-wide
+// VolumeDriver is returned as part of HostConfig, and not as part of Config.
+func TestInspectAPIContainerVolumeDriver(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	ctrID := container.Create(ctx, t, apiClient, func(c *container.TestContainerConfig) {
+		c.HostConfig.VolumeDriver = "local"
+	})
+
+	oldClient := request.NewAPIClient(t, client.WithAPIVersion("1.25"))
+	inspect, err := oldClient.ContainerInspect(ctx, ctrID, client.ContainerInspectOptions{})
+	assert.NilError(t, err)
+
+	var rawInspect struct {
+		Config     map[string]any
+		HostConfig map[string]any
+	}
+	err = json.Unmarshal(inspect.Raw, &rawInspect)
+	assert.NilError(t, err)
+
+	assert.Assert(t, rawInspect.Config != nil, "Unable to find 'Config'")
+	_, ok := rawInspect.Config["VolumeDriver"]
+	assert.Check(t, !ok, "API version 1.25 expected to not include VolumeDriver in 'Config'")
+
+	assert.Assert(t, rawInspect.HostConfig != nil, "Unable to find 'HostConfig'")
+	assert.Check(t, is.Equal(rawInspect.HostConfig["VolumeDriver"], "local"), "API version 1.25 expected to include VolumeDriver in 'HostConfig'")
+}
+
+// TestInspectAPIBridgeNetworkSettings verifies that a container attached to
+// the default bridge network reports its endpoint settings; see
+//
+// - https://github.com/moby/moby/issues/17131
+// - https://github.com/moby/moby/issues/17139
+// - https://github.com/moby/moby/issues/17173
+func TestInspectAPIBridgeNetworkSettings(t *testing.T) {
+	// Windows doesn't have any bridge network settings
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	ctrID := container.Run(ctx, t, apiClient)
+
+	inspect := container.Inspect(ctx, t, apiClient, ctrID)
+	bridge := inspect.NetworkSettings.Networks["bridge"]
+	assert.Assert(t, bridge != nil)
+	assert.Check(t, bridge.IPAddress.IsValid())
+}
