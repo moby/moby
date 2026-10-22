@@ -8,6 +8,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/extensionstorage/bbolt"
 
 	containernamegeneratorpb "github.com/moby/moby/v2/extpoints/containernamegenerator/v0/protogen"
+	containerstatepb "github.com/moby/moby/v2/extpoints/containerstate/v0/protogen"
 	daemonconfigpb "github.com/moby/moby/v2/extpoints/daemonconfig/v0/protogen"
 	servicenamegeneratorpb "github.com/moby/moby/v2/extpoints/servicenamegenerator/v0/protogen"
 	storagepb "github.com/moby/moby/v2/extpoints/storage/kv/v0/protogen"
@@ -27,6 +28,7 @@ func (daemon *Daemon) daemonExtensions() []extensions.Extension {
 	cfg := daemon.Config()
 	return []extensions.Extension{
 		extensionconfig.New(&cfg),
+		newMonolithExtension(daemon),
 	}
 }
 
@@ -50,5 +52,6 @@ func dependencyProviders() []serverpoint.Registration {
 	return []serverpoint.Registration{
 		storagepb.ServerPoint,
 		daemonconfigpb.ServerPoint,
+		containerstatepb.ServerPoint,
 	}
 }
