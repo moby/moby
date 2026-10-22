@@ -9,6 +9,7 @@ package org.mobyproject.extension.example.greeter.v0;
 
 option go_package = "github.com/moby/extensions/example/greeter/v0/protogen";
 
+// Greeter is the example service.
 service Greeter {
   rpc Greet(HelloRequest) returns (HelloReply);
 }
