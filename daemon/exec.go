@@ -191,7 +191,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 	defer func() {
 		if retErr != nil {
 			ec.Lock()
-			ec.Container.ExecCommands.Delete(ec.ID)
+			daemon.unregisterExecCommand(ec.Container, ec)
 			ec.Running = false
 			if ec.ExitCode == nil {
 				// default to `126` (`EACCES`) if we fail to start
