@@ -433,6 +433,11 @@ func (daemon *Daemon) allocateNetwork(ctx context.Context, cfg *config.Config, c
 	for netName, epConf := range networks {
 		cleanOperationalData(epConf)
 		if err := daemon.connectToNetwork(ctx, cfg, ctr, netName, epConf); err != nil {
+			// connectToNetwork removes the network from NetworkSettings when
+			// connecting fails. During container start, however, this entry is
+			// the saved configuration needed to retry the connection on the next
+			// start.
+			ctr.NetworkSettings.Networks[netName] = epConf
 			return err
 		}
 	}
