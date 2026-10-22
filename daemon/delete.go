@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
@@ -36,7 +37,10 @@ func (daemon *Daemon) containerRm(cfg *config.Config, name string, opts *backend
 	}
 
 	// Container state RemovalInProgress should be used to avoid races.
-	if inProgress := ctr.State.SetRemovalInProgress(); inProgress {
+	ctr.Lock()
+	_, err = ctr.State.Transition(container.Transition{To: containertypes.StateRemoving})
+	ctr.Unlock()
+	if err != nil {
 		// TODO(thaJeztah): Consider waiting for an in-progress removal instead of returning a conflict.
 		// Concurrent removal is not itself a conflicting operation, and using Conflict makes it
 		// indistinguishable from actual state conflicts, such as attempting to remove a running
@@ -125,7 +129,10 @@ func (daemon *Daemon) cleanupContainer(ctr *container.Container, config backend.
 
 	// Mark container dead. We don't want anybody to be restarting it.
 	ctr.Lock()
-	ctr.State.Dead = true
+	if _, err := ctr.State.Transition(container.Transition{To: containertypes.StateDead}); err != nil {
+		ctr.Unlock()
+		return err
+	}
 
 	// Copy RWLayer for releasing and clear the reference while holding the container lock.
 	rwLayer := ctr.RWLayer
