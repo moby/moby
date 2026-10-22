@@ -70,7 +70,7 @@ func (n *network) filterDirectAccess(updater func(nftables.Obj), fam nftables.Fa
 	ifNames := strings.Join(n.config.TrustedHostInterfaces, ", ")
 	updater(nftables.Rule{
 		Chain: rawPreroutingChain,
-		Group: rawPreroutingPortsRuleGroup,
+		Group: rawPreroutingDirectAccessRuleGroup,
 		Rule: []string{
 			string(fam), "daddr", epIP.String(),
 			"iifname != {", n.config.IfName, ",", ifNames, `} counter drop comment "DROP DIRECT ACCESS"`,
