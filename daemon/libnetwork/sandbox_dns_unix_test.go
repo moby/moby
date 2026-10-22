@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/resolvconf"
+	"github.com/moby/moby/v2/internal/testutil/libnetworkutils"
 	"github.com/moby/moby/v2/internal/testutil/netnsutils"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
@@ -27,7 +28,7 @@ func getResolvConfOptions(t *testing.T, rcPath string) []string {
 }
 
 func TestDNSOptions(t *testing.T) {
-	c, err := New(t.Context())
+	c, err := New(t.Context(), libnetworkutils.OptionTempNetnsDir(t))
 	assert.NilError(t, err)
 
 	sb, err := c.NewSandbox(t.Context(), "cnt1", OptionWriteResolvConf(filepath.Join(t.TempDir(), "resolv.conf")))
@@ -155,7 +156,7 @@ func dirNames(t *testing.T, dir string) []string {
 func TestDNSRebuildAfterUpgradeWithStaleHash(t *testing.T) {
 	ctx := t.Context()
 	tmpDir := t.TempDir()
-	c, err := New(ctx)
+	c, err := New(ctx, libnetworkutils.OptionTempNetnsDir(t))
 	assert.NilError(t, err)
 
 	hostResolvConfPath := filepath.Join(tmpDir, "host-resolv.conf")

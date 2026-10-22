@@ -116,9 +116,9 @@ func (sb *Sandbox) ContainerID() string {
 // Key returns the sandbox's key.
 func (sb *Sandbox) Key() string {
 	if sb.config.useDefaultSandBox {
-		return osl.GenerateKey("default")
+		return sb.controller.sandboxKey("default")
 	}
-	return osl.GenerateKey(sb.id)
+	return sb.controller.sandboxKey(sb.id)
 }
 
 // Labels returns the sandbox's labels.
