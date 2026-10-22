@@ -1164,6 +1164,25 @@ func nopWaitFunc(time.Duration) error {
 	return nil
 }
 
+// containerdDropInDir is the directory, relative to the directory of the
+// daemon configuration file, with configuration files for managed and embedded
+// containerd.
+const containerdDropInDir = "containerd.d"
+
+// containerdConfigDropInDir returns the absolute path of the directory with
+// configuration files for managed and embedded containerd, or an empty string
+// if the daemon has no configuration file.
+func (cli *daemonCLI) containerdConfigDropInDir() (string, error) {
+	if *cli.configFile == "" {
+		return "", nil
+	}
+	configDir, err := filepath.Abs(filepath.Dir(*cli.configFile))
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(configDir, containerdDropInDir), nil
+}
+
 func (cli *daemonCLI) initializeContainerd(ctx context.Context) (func(time.Duration) error, error) {
 	systemContainerdAddr, ok, err := systemContainerdRunning(honorXDG)
 	if err != nil {
@@ -1181,6 +1200,13 @@ func (cli *daemonCLI) initializeContainerd(ctx context.Context) (func(time.Durat
 		return nil, err
 	}
 	opts := supervisorOpts(cli.Config)
+	dropInDir, err := cli.containerdConfigDropInDir()
+	if err != nil {
+		return nil, err
+	}
+	if dropInDir != "" {
+		opts = append(opts, supervisor.WithConfigDropInDir(dropInDir))
+	}
 	r, err := supervisor.New(rootDir, filepath.Join(cli.Config.ExecRoot, "containerd"), opts...)
 	if err != nil {
 		return nil, err

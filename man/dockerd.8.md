@@ -201,7 +201,15 @@ Bridge networks will accept packets with this firewall mark/mask.
   */etc/docker/daemon.json*.
 
 **--containerd**=""
-  Path to containerd socket.
+  Path to containerd socket. If not set, and no system containerd is running,
+  the daemon starts and manages its own containerd. The managed containerd
+  imports containerd configuration files (*\*.toml*) from the *containerd.d*
+  directory next to the daemon configuration file (by default
+  */etc/docker/containerd.d*). These files cannot override the *root*, *state*,
+  and *grpc.address* settings of the managed containerd.
+  Drop-in files must not contain non-empty *imports* lists.
+  With the *embedded-containerd* feature, only the *plugins*,
+  *disabled_plugins*, and *required_plugins* settings of these files apply.
 
 **--data-root**=""
   Path to the directory used to store persisted Docker data such as
