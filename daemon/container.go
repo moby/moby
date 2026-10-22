@@ -221,6 +221,17 @@ func (daemon *Daemon) verifyContainerSettings(daemonCfg *configStore, hostConfig
 		return warnings, err
 	}
 
+	// Enforce default restart policy if configured. Updates that don't set a
+	// restart policy leave the current one unchanged, so there's nothing to
+	// enforce for them.
+	if daemonCfg.EnforceDefaultRestartPolicy && hostConfig != nil &&
+		!(update && hostConfig.RestartPolicy.Name == "") &&
+		!hostConfig.RestartPolicy.IsSame(&daemonCfg.DefaultRestartPolicy) {
+		return warnings, errors.Errorf(
+			"restart policy override not allowed: daemon enforces default restart policy %q",
+			daemonCfg.DefaultRestartPolicy.Name)
+	}
+
 	// Now do platform-specific verification
 	warns, err = verifyPlatformContainerSettings(daemon, daemonCfg, hostConfig, config, update)
 	warnings = append(warnings, warns...)
