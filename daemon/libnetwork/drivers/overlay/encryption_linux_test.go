@@ -137,7 +137,7 @@ func TestProgramMangleLifecycle(t *testing.T) {
 	const vniA, vniB = 4096, 4097
 
 	// First encrypted network on the node: the marking rule is programmed
-	// when the subnet sandbox is set up, ...
+	// when the subnet is set up in the network sandbox, ...
 	assert.NilError(t, d.programMangle(vniA, true))
 	// ... and the mark-stripping rule when the first peer is discovered.
 	assert.NilError(t, d.programMangleMarkSpoofProtection(true))
