@@ -220,6 +220,8 @@ func TestAddPortMappings(t *testing.T) {
 		enableProxy  bool
 		hairpin      bool
 		busyPortIPv4 int
+		proxyErrPort uint16
+		firewallErr  bool
 		newPDC       func() nat.PortDriverClient
 		hostAddrs    []string
 		noProxy6To4  bool
@@ -282,6 +284,30 @@ func TestAddPortMappings(t *testing.T) {
 			enableProxy:  true,
 			busyPortIPv4: 8080,
 			expErr:       "failed to bind host port 0.0.0.0:8080/tcp: address already in use",
+		},
+		{
+			name:     "firewall failure after installing port rules",
+			epAddrV4: ctrIP4,
+			epAddrV6: ctrIP6,
+			cfg: []portmapperapi.PortBindingReq{
+				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 22, HostPort: 2222}},
+				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80, HostPort: 8080}},
+			},
+			enableProxy: true,
+			firewallErr: true,
+			expErr:      "firewall failed",
+		},
+		{
+			name:     "proxy failure after installing all port rules",
+			epAddrV4: ctrIP4,
+			epAddrV6: ctrIP6,
+			cfg: []portmapperapi.PortBindingReq{
+				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 22, HostPort: 2222}},
+				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80, HostPort: 8080}},
+			},
+			enableProxy:  true,
+			proxyErrPort: 80,
+			expErr:       "failed to start userland proxy for port mapping 0.0.0.0:8080:172.19.0.2:80/tcp: proxy failed",
 		},
 		{
 			name:        "ipv4 mapped container address with specific host port",
@@ -717,6 +743,9 @@ func TestAddPortMappings(t *testing.T) {
 			// Mock the startProxy function used by the code under test.
 			proxies := map[proxyCall]bool{} // proxy -> is not stopped
 			startProxy = func(pb types.PortBinding, _ string, listenSock *os.File) (stop func() error, retErr error) {
+				if pb.Port == tc.proxyErrPort {
+					return nil, errors.New("proxy failed")
+				}
 				if tc.busyPortIPv4 > 0 && tc.busyPortIPv4 == int(pb.HostPort) && pb.HostIP.To4() != nil {
 					return nil, errors.New("busy port")
 				}
@@ -792,7 +821,11 @@ func TestAddPortMappings(t *testing.T) {
 			fwn, err := n.newFirewallerNetwork(t.Context())
 			assert.NilError(t, err)
 			assert.Check(t, fwn != nil, "no firewaller network")
-			n.firewallerNetwork = fwn
+			fwCalls := &portMappingFirewaller{Network: fwn}
+			if tc.firewallErr {
+				fwCalls.addPortsErr = errors.New("firewall failed")
+			}
+			n.firewallerNetwork = fwCalls
 
 			expChildIP := func(hostIP net.IP) net.IP {
 				if pdc == nil {
@@ -833,9 +866,27 @@ func TestAddPortMappings(t *testing.T) {
 			pbs, err := n.addPortMappings(ctx, ep, tc.cfg, tc.defHostIP, pbm, pbm)
 			if tc.expErr != "" {
 				assert.ErrorContains(t, err, tc.expErr)
+				assert.Check(t, is.Len(fwn.(*firewaller.StubFirewallerNetwork).Ports, 0))
+				for proxy, running := range proxies {
+					assert.Check(t, !running, "proxy still running: %v", proxy)
+				}
+				if tc.proxyErrPort != 0 || tc.firewallErr {
+					// Retry the same bindings to check all host ports were released.
+					tc.proxyErrPort = 0
+					fwCalls.addPortsErr = nil
+					clear(proxies)
+					pbs, err = n.addPortMappings(ctx, ep, tc.cfg, tc.defHostIP, pbm, pbm)
+					assert.NilError(t, err)
+					assert.Check(t, n.releasePorts(&bridgeEndpoint{portMapping: pbs}))
+				}
 				return
 			}
 			assert.NilError(t, err)
+			expAddPortsCalls := 0
+			if len(pbs) > 0 {
+				expAddPortsCalls = 1
+			}
+			assert.Check(t, is.Equal(fwCalls.addPortsCalls, expAddPortsCalls))
 			for _, expLog := range tc.expLogs {
 				assert.Check(t, is.Contains(sb.String(), expLog))
 			}
@@ -846,7 +897,7 @@ func TestAddPortMappings(t *testing.T) {
 			assert.Check(t, fw.IPv4)
 			assert.Check(t, fw.IPv6)
 
-			fnw := n.firewallerNetwork.(*firewaller.StubFirewallerNetwork)
+			fnw := fwn.(*firewaller.StubFirewallerNetwork)
 			assert.Check(t, !fnw.Internal)
 			assert.Check(t, !fnw.ICC)
 			assert.Check(t, !fnw.Masquerade)
@@ -922,6 +973,20 @@ func TestAddPortMappings(t *testing.T) {
 			}
 		})
 	}
+}
+
+type portMappingFirewaller struct {
+	firewaller.Network
+	addPortsCalls int
+	addPortsErr   error
+}
+
+func (fw *portMappingFirewaller) AddPorts(ctx context.Context, pbs []types.PortBinding) error {
+	fw.addPortsCalls++
+	if err := fw.Network.AddPorts(ctx, pbs); err != nil {
+		return err
+	}
+	return fw.addPortsErr
 }
 
 // Type for tracking calls to StartProxy.
