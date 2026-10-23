@@ -374,7 +374,7 @@ func makeMountRRO(dest string) error {
 }
 
 func (daemon *Daemon) checkContainerFSHostAccess(ctr *container.Container) error {
-	if !daemon.UsesSnapshotter() || (ctr.Driver != "blockfile" && ctr.Driver != "devmapper") {
+	if !ctr.IsRunning() || !daemon.UsesSnapshotter() || (ctr.Driver != "blockfile" && ctr.Driver != "devmapper") {
 		return nil
 	}
 
@@ -407,7 +407,7 @@ func containerFSHostAccessError(snapshotter, runtimeName, shim string, opts any)
 
 	// VM runtimes may mount the block device inside the guest instead.
 	return errdefs.InvalidParameter(fmt.Errorf(
-		"docker cp is not supported with snapshotter %q and runtime %q: the daemon may not have access to the container filesystem",
+		"docker cp is not supported for a running container with snapshotter %q and runtime %q: the daemon may not have access to the container filesystem",
 		snapshotter, runtimeName,
 	))
 }

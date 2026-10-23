@@ -11,6 +11,7 @@ import (
 	"github.com/containerd/containerd/v2/plugins"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/v2/daemon/config"
+	"github.com/moby/moby/v2/daemon/container"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 )
@@ -145,4 +146,10 @@ func TestCreateIfNotExists(t *testing.T) {
 		err = createIfNotExists(root, "dir", false)
 		assert.NilError(t, err, "Should not fail if already exists as a directory")
 	})
+}
+
+func TestContainerFSHostAccessStopped(t *testing.T) {
+	daemon := &Daemon{usesSnapshotter: true}
+	ctr := &container.Container{State: &container.State{}, Driver: "blockfile"}
+	assert.NilError(t, daemon.checkContainerFSHostAccess(ctr))
 }
