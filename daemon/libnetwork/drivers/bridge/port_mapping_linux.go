@@ -10,7 +10,6 @@ import (
 	"slices"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/v2/daemon/libnetwork/drvregistry"
 	"github.com/moby/moby/v2/daemon/libnetwork/netutils"
 	"github.com/moby/moby/v2/daemon/libnetwork/portallocator"
 	"github.com/moby/moby/v2/daemon/libnetwork/portmapper"
@@ -59,7 +58,7 @@ func (n *bridgeNetwork) addPortMappings(
 	bindings := make([]portmapperapi.PortBinding, 0, len(cfg)*2)
 	defer func() {
 		if retErr != nil {
-			if err := n.unmapPBs(ctx, bindings); err != nil {
+			if err := n.unmapPorts(ctx, bindings); err != nil {
 				log.G(ctx).WithFields(log.Fields{
 					"bindings": bindings,
 					"error":    err,
@@ -89,9 +88,18 @@ func (n *bridgeNetwork) addPortMappings(
 			continue
 		}
 
-		newB, err := n.mapPorts(ctx, pms, toBind)
+		mapper := c.Mapper
+		pm, err := pms.Get(mapper)
 		if err != nil {
 			return nil, err
+		}
+		newB, err := pm.MapPorts(ctx, toBind)
+		if err != nil {
+			return nil, err
+		}
+		for i := range newB {
+			// Record the mapper so rollback and release use the same port mapper.
+			newB[i].Mapper = mapper
 		}
 		bindings = append(bindings, newB...)
 
@@ -99,45 +107,14 @@ func (n *bridgeNetwork) addPortMappings(
 		toBind = toBind[:0]
 	}
 
-	return bindings, nil
-}
-
-// mapPorts calls the port mapper used to map the ports in reqs, applies the firewall rules requested by that portmapper,
-// and starts userland proxies if needed. It returns an error if it fails on any of these steps, and rolls back any
-// changes it made. Caller must ensure that reqs is non-empty and all requests have the same Mapper set.
-func (n *bridgeNetwork) mapPorts(ctx context.Context, pms *drvregistry.PortMappers, reqs []portmapperapi.PortBindingReq) (_ []portmapperapi.PortBinding, retErr error) {
-	mapper := reqs[0].Mapper
-	pm, err := pms.Get(mapper)
-	if err != nil {
-		return nil, err
+	if len(bindings) == 0 {
+		return bindings, nil
 	}
 
-	bindings, err := pm.MapPorts(ctx, reqs)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if retErr != nil {
-			if err := pm.UnmapPorts(ctx, bindings); err != nil {
-				log.G(ctx).WithFields(log.Fields{
-					"bindings": bindings,
-					"error":    err,
-					"origErr":  retErr,
-				}).Warn("Failed to unmap port bindings after error")
-			}
-			return
-		}
-	}()
-
-	for i := range bindings {
-		// Make sure that Mapper is correctly set such that UnmapPorts call the right portmapper.
-		bindings[i].Mapper = mapper
-	}
-
+	// Apply all port rules together, so nftables only rewrites the affected chains
+	// once per address family, rather than once for each group of bindings.
 	fwPorts := collectFirewallPorts(bindings)
-	if err := n.firewallerNetwork.AddPorts(ctx, fwPorts); err != nil {
-		return nil, err
-	}
+	// AddPorts can fail after installing rules for one address family.
 	defer func() {
 		if retErr != nil {
 			if err := n.firewallerNetwork.DelPorts(ctx, fwPorts); err != nil {
@@ -149,23 +126,11 @@ func (n *bridgeNetwork) mapPorts(ctx context.Context, pms *drvregistry.PortMappe
 			}
 		}
 	}()
+	if err := n.firewallerNetwork.AddPorts(ctx, fwPorts); err != nil {
+		return nil, err
+	}
 
-	// Start userland proxy processes.
-	defer func() {
-		if retErr != nil {
-			for _, pb := range bindings {
-				if pb.StopProxy == nil {
-					continue
-				}
-				if err := pb.StopProxy(); err != nil {
-					log.G(ctx).WithFields(log.Fields{
-						"binding": pb.PortBinding,
-						"error":   err,
-					}).Warnf("failed to stop userland proxy for port mapping")
-				}
-			}
-		}
-	}()
+	// Start userland proxies only after all firewall rules have been installed.
 	if n.driver.config.EnableProxy {
 		for i, pb := range bindings {
 			if pb.BoundSocket == nil || pb.RootlesskitUnsupported || pb.StopProxy != nil {
@@ -426,6 +391,16 @@ func (n *bridgeNetwork) releasePorts(ep *bridgeEndpoint) error {
 }
 
 func (n *bridgeNetwork) unmapPBs(ctx context.Context, bindings []portmapperapi.PortBinding) error {
+	err := n.unmapPorts(ctx, bindings)
+	if fwErr := n.firewallerNetwork.DelPorts(ctx, collectFirewallPorts(bindings)); fwErr != nil {
+		return fwErr
+	}
+	return err
+}
+
+// unmapPorts releases port mapper resources and stops proxies without changing
+// firewall rules, which may not have been installed yet during rollback.
+func (n *bridgeNetwork) unmapPorts(ctx context.Context, bindings []portmapperapi.PortBinding) error {
 	pms := n.portMappers()
 
 	var errs []error
@@ -444,10 +419,6 @@ func (n *bridgeNetwork) unmapPBs(ctx context.Context, bindings []portmapperapi.P
 				errs = append(errs, fmt.Errorf("unmapping port binding %s: failed to stop userland proxy: %w", b.PortBinding, err))
 			}
 		}
-	}
-
-	if err := n.firewallerNetwork.DelPorts(ctx, collectFirewallPorts(bindings)); err != nil {
-		return err
 	}
 
 	return errors.Join(errs...)
