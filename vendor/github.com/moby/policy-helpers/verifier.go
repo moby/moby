@@ -52,6 +52,9 @@ func (v *Verifier) VerifyArtifact(ctx context.Context, dgst digest.Digest, bundl
 	for _, o := range opt {
 		o(opts)
 	}
+	if opts.TlogThreshold != nil && *opts.TlogThreshold < 0 {
+		return nil, errors.New("transparency log threshold must not be negative")
+	}
 
 	anyCert, err := anyCerificateIdentity()
 	if err != nil {
@@ -78,7 +81,23 @@ func (v *Verifier) VerifyArtifact(ctx context.Context, dgst digest.Digest, bundl
 		return nil, errors.Wrap(err, "getting trusted root")
 	}
 
-	gv, err := verify.NewVerifier(trustedRoot, verify.WithSignedCertificateTimestamps(1), verify.WithTransparencyLog(1), verify.WithObserverTimestamps(1))
+	verifierOpts := []verify.VerifierOption{
+		verify.WithSignedCertificateTimestamps(1),
+		verify.WithObserverTimestamps(1),
+	}
+	// Sigstore thresholds count distinct logs, not individual entries.
+	logIDs := make(map[string]struct{})
+	for _, entry := range b.GetVerificationMaterial().GetTlogEntries() {
+		logIDs[string(entry.GetLogId().GetKeyId())] = struct{}{}
+	}
+	tlogThreshold := len(logIDs)
+	if opts.TlogThreshold != nil {
+		tlogThreshold = *opts.TlogThreshold
+	}
+	if tlogThreshold > 0 {
+		verifierOpts = append(verifierOpts, verify.WithTransparencyLog(tlogThreshold))
+	}
+	gv, err := verify.NewVerifier(trustedRoot, verifierOpts...)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating verifier")
 	}
@@ -368,6 +387,7 @@ func anyCerificateIdentity() (verify.PolicyOption, error) {
 
 type ArtifactVerifyOpts struct {
 	SLSANotRequired bool
+	TlogThreshold   *int
 }
 
 type ArtifactVerifyOpt func(*ArtifactVerifyOpts)
@@ -375,6 +395,15 @@ type ArtifactVerifyOpt func(*ArtifactVerifyOpts)
 func WithSLSANotRequired() ArtifactVerifyOpt {
 	return func(o *ArtifactVerifyOpts) {
 		o.SLSANotRequired = true
+	}
+}
+
+// WithTlogThreshold sets the minimum number of verified transparency logs.
+// By default, all distinct logs in the bundle are required. Explicit zero skips
+// log verification and returns no log timestamps, so a TSA timestamp is required.
+func WithTlogThreshold(threshold int) ArtifactVerifyOpt {
+	return func(o *ArtifactVerifyOpts) {
+		o.TlogThreshold = &threshold
 	}
 }
 
