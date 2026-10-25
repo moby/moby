@@ -156,15 +156,24 @@ func (daemon *Daemon) Containers(ctx context.Context, config *backend.ContainerL
 			filter.idx++
 
 			g.Go(func() error {
+				if err := ctx.Err(); err != nil {
+					return err
+				}
 				// refresh the container image info (in case the image changed in
 				// the repository)
 				newC := daemon.refreshImage(ctx, currentContainer)
 
 				// get the image size (calculation is slow)
 				if filter.Size {
+					if err := ctx.Err(); err != nil {
+						return err
+					}
 					var err error
 					newC.SizeRw, newC.SizeRootFs, err = daemon.imageService.GetContainerLayerSize(ctx, newC.ID)
 					if err != nil {
+						if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) || ctx.Err() != nil {
+							return ctx.Err()
+						}
 						// Don't fail the whole listing because the size of a
 						// single container can't be determined.
 						log.G(ctx).WithFields(log.Fields{

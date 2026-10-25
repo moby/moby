@@ -481,11 +481,21 @@ func (d *Driver) getDiffPath(id string) string {
 	return path.Join(dir, diffDirName)
 }
 
+// DiffSizeContext calculates the changes between the specified id
+// and its parent and returns the size in bytes of the changes
+// relative to its base filesystem directory, respecting context cancellation.
+func (d *Driver) DiffSizeContext(ctx context.Context, id, parent string) (int64, error) {
+	if !d.isParent(id, parent) {
+		return graphdriver.DiffSize(ctx, d.naiveDiff, id, parent)
+	}
+	return directory.Size(ctx, d.getDiffPath(id))
+}
+
 // DiffSize calculates the changes between the specified id
 // and its parent and returns the size in bytes of the changes
 // relative to its base filesystem directory.
 func (d *Driver) DiffSize(id, parent string) (int64, error) {
-	return d.naiveDiff.DiffSize(id, parent)
+	return d.DiffSizeContext(context.TODO(), id, parent)
 }
 
 // Diff produces an archive of the changes between the specified

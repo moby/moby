@@ -601,10 +601,13 @@ func (d *Driver) ApplyDiff(id, parent string, diff io.Reader) (int64, error) {
 	return size, nil
 }
 
-// DiffSize calculates the changes between the specified layer
+// DiffSizeContext calculates the changes between the specified layer
 // and its parent and returns the size in bytes of the changes
-// relative to its base filesystem directory.
-func (d *Driver) DiffSize(id, parent string) (int64, error) {
+// relative to its base filesystem directory, respecting context cancellation.
+func (d *Driver) DiffSizeContext(ctx context.Context, id, parent string) (int64, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
 	rPId, err := d.resolveID(parent)
 	if err != nil {
 		return 0, err
@@ -615,13 +618,28 @@ func (d *Driver) DiffSize(id, parent string) (int64, error) {
 		return 0, err
 	}
 
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+
 	layerFs, err := d.Get(id, "")
 	if err != nil {
 		return 0, err
 	}
 	defer d.Put(id)
 
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+
 	return archive.ChangesSize(layerFs, changes), nil
+}
+
+// DiffSize calculates the changes between the specified layer
+// and its parent and returns the size in bytes of the changes
+// relative to its base filesystem directory.
+func (d *Driver) DiffSize(id, parent string) (int64, error) {
+	return d.DiffSizeContext(context.TODO(), id, parent)
 }
 
 // GetMetadata returns custom driver information.

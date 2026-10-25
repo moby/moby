@@ -88,6 +88,19 @@ type DiffDriver interface {
 	DiffSize(id, parent string) (size int64, err error)
 }
 
+// DiffSizeContextDriver is the interface for graph drivers that support context cancellation during diff size calculation.
+type DiffSizeContextDriver interface {
+	DiffSizeContext(ctx context.Context, id, parent string) (size int64, err error)
+}
+
+// DiffSize calculates the diff size between id and parent using ctx if supported by the driver.
+func DiffSize(ctx context.Context, driver DiffDriver, id, parent string) (int64, error) {
+	if cd, ok := driver.(DiffSizeContextDriver); ok {
+		return cd.DiffSizeContext(ctx, id, parent)
+	}
+	return driver.DiffSize(id, parent)
+}
+
 // Driver is the interface for layered/snapshot file system drivers.
 type Driver interface {
 	ProtoDriver

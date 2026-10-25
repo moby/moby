@@ -315,13 +315,13 @@ func (s *snapshotter) Mounts(ctx context.Context, key string) (snapshot.Mountabl
 					return nil, nil, err
 				}
 				return []mount.Mount{{
-						Source:  rootfs,
-						Type:    "bind",
-						Options: []string{"rbind"},
-					}}, func() error {
-						_, err := s.opt.LayerStore.ReleaseRWLayer(rwlayer)
-						return err
-					}, nil
+					Source:  rootfs,
+					Type:    "bind",
+					Options: []string{"rbind"},
+				}}, func() error {
+					_, err := s.opt.LayerStore.ReleaseRWLayer(rwlayer)
+					return err
+				}, nil
 			},
 		}, nil
 	}
@@ -336,12 +336,12 @@ func (s *snapshotter) Mounts(ctx context.Context, key string) (snapshot.Mountabl
 				return nil, nil, err
 			}
 			return []mount.Mount{{
-					Source:  rootfs,
-					Type:    "bind",
-					Options: []string{"rbind"},
-				}}, func() error {
-					return s.opt.GraphDriver.Put(id)
-				}, nil
+				Source:  rootfs,
+				Type:    "bind",
+				Options: []string{"rbind"},
+			}}, func() error {
+				return s.opt.GraphDriver.Put(id)
+			}, nil
 		},
 	}, nil
 }
@@ -483,7 +483,7 @@ func (s *snapshotter) Usage(ctx context.Context, key string) (us snapshots.Usage
 		}
 	}
 
-	diffSize, err := s.opt.GraphDriver.DiffSize(id, parent)
+	diffSize, err := graphdriver.DiffSize(ctx, s.opt.GraphDriver, id, parent)
 	if err != nil {
 		return usage, err
 	}
