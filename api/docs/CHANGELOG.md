@@ -15,6 +15,13 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 ## v1.57 API changes
 
+* Containers without `HostConfig.Umask` now use the umask `0022` for exec
+  processes and healthchecks, the same as for the container's entrypoint.
+  Previously, these processes could inherit the umask of the containerd shim.
+  The umask is applied when the container starts, so this also applies to
+  existing containers. This change is not versioned, and applies to all API
+  versions.
+
 ## v1.56 API changes
 
 * `GET /containers/json` now supports an `annotation` filter to filter
