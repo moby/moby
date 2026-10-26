@@ -1,3 +1,13 @@
+# Release (2026-10-21)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.28.6
+  * **Bug Fix**: Enforce event stream header key value length limit instead of truncating
+  * **Bug Fix**: Retain the value in a list with the zero value when encountering a null entry on a dense list. This matches how legacy code-generated JSON deserializers behaved.
+
 # Release (2026-10-09)
 
 ## General Highlights
