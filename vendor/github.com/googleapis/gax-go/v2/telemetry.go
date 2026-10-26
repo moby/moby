@@ -35,6 +35,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -42,7 +43,9 @@ import (
 	"github.com/googleapis/gax-go/v2/callctx"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	otelcodes "go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -122,15 +125,20 @@ const (
 	ClientVersion = "client_version"
 	// ClientArtifact is the library name. E.g. "cloud.google.com/go/storage".
 	ClientArtifact = "client_artifact"
+	// ClientRepo is the source repository for the client library. E.g. "googleapis/google-cloud-go".
+	ClientRepo = "client_repo"
 	// RPCSystem is the RPC system type. E.g. "grpc" or "http".
 	RPCSystem = "rpc_system"
 	// URLDomain is the nominal service domain. E.g. "storage.googleapis.com".
 	URLDomain = "url_domain"
 
 	// Constants for telemetry attribute keys.
-	keyGCPClientService = "gcp.client.service"
-	keyRPCSystemName    = "rpc.system.name"
-	keyURLDomain        = "url.domain"
+	keyGCPClientArtifact = "gcp.client.artifact"
+	keyGCPClientRepo     = "gcp.client.repo"
+	keyGCPClientService  = "gcp.client.service"
+	keyGCPClientVersion  = "gcp.client.version"
+	keyRPCSystemName     = "rpc.system.name"
+	keyURLDomain         = "url.domain"
 
 	// SchemaURL specifies the OpenTelemetry schema version.
 	schemaURL = "https://opentelemetry.io/schemas/1.39.0"
@@ -189,8 +197,36 @@ func (a attrOpt) Resolve(opts *telemetryOptions) {
 	opts.attributes = a.attrs
 }
 
+func (a attrOpt) ResolveTracing(opts *tracingOptions) {
+	if opts != nil {
+		opts.attributes = a.attrs
+	}
+}
+
+func (a attrOpt) ResolveLogging(opts *loggingOptions) {
+	if opts == nil || len(a.attrs) == 0 {
+		return
+	}
+	if opts.attributes == nil {
+		opts.attributes = make(map[string]string, len(a.attrs))
+	}
+	for k, v := range a.attrs {
+		opts.attributes[k] = v
+	}
+}
+
 // WithTelemetryAttributes specifies the static attributes attachments.
 func WithTelemetryAttributes(attr map[string]string) TelemetryOption {
+	return &attrOpt{attrs: attr}
+}
+
+// WithTracingAttributes specifies the static attributes attachments for tracing.
+func WithTracingAttributes(attr map[string]string) TracingOption {
+	return &attrOpt{attrs: attr}
+}
+
+// WithLoggingAttributes specifies the static attributes attachments for logging.
+func WithLoggingAttributes(attr map[string]string) LoggingOption {
 	return &attrOpt{attrs: attr}
 }
 
@@ -440,6 +476,12 @@ func ExtractTelemetryErrorInfo(ctx context.Context, err error) TelemetryErrorInf
 
 // recordMetric records a duration measurement for the configured metric.
 func recordMetric(ctx context.Context, settings CallSettings, d time.Duration, err error) {
+	errInfo := ExtractTelemetryErrorInfo(ctx, err)
+	recordMetricWithInfo(ctx, settings, d, &errInfo)
+}
+
+// recordMetricWithInfo records a duration measurement using pre-extracted error info.
+func recordMetricWithInfo(ctx context.Context, settings CallSettings, d time.Duration, errInfo *TelemetryErrorInfo) {
 	if settings.clientMetrics == nil || settings.clientMetrics.durationHistogram() == nil {
 		return
 	}
@@ -451,8 +493,6 @@ func recordMetric(ctx context.Context, settings CallSettings, d time.Duration, e
 	// Pre-allocate to avoid repeated appends (5 is the max number of dynamic attributes added here)
 	attrs := make([]attribute.KeyValue, 0, len(settings.clientMetrics.attributes())+5)
 	attrs = append(attrs, settings.clientMetrics.attributes()...)
-
-	errInfo := ExtractTelemetryErrorInfo(ctx, err)
 
 	if td := ExtractTransportTelemetry(ctx); td != nil {
 		if td.ServerAddress() != "" {
@@ -480,4 +520,380 @@ func recordMetric(ctx context.Context, settings CallSettings, d time.Duration, e
 	}
 
 	settings.clientMetrics.durationHistogram().Record(recordCtx, d.Seconds(), metric.WithAttributes(attrs...))
+}
+
+// startSpan starts a client request span if ClientTracing and its tracer are configured.
+func startSpan(ctx context.Context, ct *ClientTracing) (context.Context, trace.Span) {
+	if ct == nil {
+		return ctx, nil
+	}
+	tracer := ct.tracer()
+	if tracer == nil {
+		return ctx, nil
+	}
+	spanName := resolveSpanName(ctx)
+	staticAttrs := ct.attributes()
+	attrs := make([]attribute.KeyValue, 0, len(staticAttrs)+1)
+	attrs = append(attrs, staticAttrs...)
+	if urlTemplate, ok := callctx.TelemetryFromContext(ctx, "url_template"); ok && urlTemplate != "" {
+		if sanitized := sanitizeURLTemplate(urlTemplate); sanitized != "" {
+			attrs = append(attrs, attribute.String("url.template", sanitized))
+		}
+	}
+	return tracer.Start(
+		ctx,
+		spanName,
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(attrs...),
+	)
+}
+
+// endSpan records terminal status, diagnostic error details, and ends the client span.
+func endSpan(ctx context.Context, span trace.Span, errInfo *TelemetryErrorInfo, err error) {
+	if span == nil {
+		return
+	}
+	defer span.End()
+
+	if errInfo == nil {
+		info := ExtractTelemetryErrorInfo(ctx, err)
+		errInfo = &info
+	}
+
+	attrs := make([]attribute.KeyValue, 0, 3+len(errInfo.Metadata))
+
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(otelcodes.Error, errInfo.StatusCode)
+		attrs = append(attrs,
+			attribute.String("error.type", errInfo.ErrorType),
+			attribute.String("rpc.response.status_code", errInfo.StatusCode),
+		)
+		if errInfo.Domain != "" {
+			attrs = append(attrs, attribute.String("gcp.errors.domain", errInfo.Domain))
+		}
+		for k, v := range errInfo.Metadata {
+			attrs = append(attrs, attribute.String("gcp.errors.metadata."+k, v))
+		}
+	} else {
+		span.SetStatus(otelcodes.Ok, "")
+		attrs = append(attrs, attribute.String("rpc.response.status_code", "OK"))
+	}
+
+	if len(attrs) > 0 {
+		span.SetAttributes(attrs...)
+	}
+}
+
+// ClientTracing contains the pre-allocated OpenTelemetry tracer and attributes
+// for a specific generated Google Cloud client library.
+// There should be exactly one ClientTracing instance instantiated per generated client.
+type ClientTracing struct {
+	get func() clientTracingData
+}
+
+type clientTracingData struct {
+	tracer trace.Tracer
+	attr   []attribute.KeyValue
+}
+
+type tracingOptions struct {
+	provider   trace.TracerProvider
+	attributes map[string]string
+}
+
+// TracingOption is an option to configure a ClientTracing instance.
+// TracingOption works by modifying relevant fields of tracingOptions.
+type TracingOption interface {
+	// ResolveTracing applies the option by modifying opts.
+	ResolveTracing(opts *tracingOptions)
+}
+
+type tracerProviderOpt struct {
+	p trace.TracerProvider
+}
+
+func (p tracerProviderOpt) ResolveTracing(opts *tracingOptions) {
+	if opts != nil {
+		opts.provider = p.p
+	}
+}
+
+// WithTracerProvider specifies the trace.TracerProvider to use for client request tracing.
+func WithTracerProvider(p trace.TracerProvider) TracingOption {
+	return &tracerProviderOpt{p: p}
+}
+
+func (config *tracingOptions) tracerProvider() trace.TracerProvider {
+	if config != nil && config.provider != nil {
+		return config.provider
+	}
+	// Fall back to global tracer provider to prevent silent no-op bug!
+	return otel.GetTracerProvider()
+}
+
+// NewClientTracing initializes and returns a new ClientTracing instance.
+// It is intended to be called once per generated client during initialization.
+func NewClientTracing(opts ...TracingOption) *ClientTracing {
+	var config tracingOptions
+	for _, opt := range opts {
+		if opt != nil {
+			opt.ResolveTracing(&config)
+		}
+	}
+
+	return &ClientTracing{
+		get: sync.OnceValue(func() clientTracingData {
+			provider := config.tracerProvider()
+
+			var tracerOpts []trace.TracerOption
+			if val, ok := config.attributes[ClientVersion]; ok {
+				tracerOpts = append(tracerOpts, trace.WithInstrumentationVersion(val))
+			}
+			tracerOpts = append(tracerOpts, trace.WithSchemaURL(schemaURL))
+
+			tracer := provider.Tracer(config.attributes[ClientArtifact], tracerOpts...)
+
+			var attr []attribute.KeyValue
+			for _, m := range [...]struct{ attrKey, otelKey string }{
+				{URLDomain, keyURLDomain},
+				{RPCSystem, keyRPCSystemName},
+				{ClientService, keyGCPClientService},
+			} {
+				if val, ok := config.attributes[m.attrKey]; ok {
+					attr = append(attr, attribute.String(m.otelKey, val))
+				}
+			}
+			attr = attr[:len(attr):len(attr)]
+
+			return clientTracingData{
+				tracer: tracer,
+				attr:   attr,
+			}
+		}),
+	}
+}
+
+func (ct *ClientTracing) tracer() trace.Tracer {
+	if ct == nil || ct.get == nil {
+		return nil
+	}
+	return ct.get().tracer
+}
+
+func (ct *ClientTracing) attributes() []attribute.KeyValue {
+	if ct == nil || ct.get == nil {
+		return nil
+	}
+	return ct.get().attr
+}
+
+// formatServiceMethod formats a protobuf RPC name (such as
+// "google.cloud.secretmanager.v1.SecretManagerService/GetSecret")
+// into a span name formatted as "Service.Method" (such as "SecretManager.GetSecret").
+// If the input does not contain a slash separator, it returns the input unchanged.
+func formatServiceMethod(rpcMethod string) string {
+	slashIdx := strings.LastIndex(rpcMethod, "/")
+	if slashIdx == -1 {
+		return rpcMethod
+	}
+
+	service := rpcMethod[:slashIdx]
+	if dotIdx := strings.LastIndex(service, "."); dotIdx != -1 {
+		service = service[dotIdx+1:]
+	}
+	if trimmed := strings.TrimSuffix(service, "Service"); trimmed != "" {
+		service = trimmed
+	}
+
+	method := rpcMethod[slashIdx+1:]
+	if service == "" || method == "" {
+		return rpcMethod
+	}
+
+	return service + "." + method
+}
+
+func resolveSpanName(ctx context.Context) string {
+	if clientMethod, ok := callctx.TelemetryFromContext(ctx, "client_method"); ok && clientMethod != "" {
+		return clientMethod
+	}
+	if rpcMethod, ok := callctx.TelemetryFromContext(ctx, "rpc_method"); ok && rpcMethod != "" {
+		return formatServiceMethod(rpcMethod)
+	}
+	httpMethod, okHTTP := callctx.TelemetryFromContext(ctx, "http_method")
+	urlTemplate, okURL := callctx.TelemetryFromContext(ctx, "url_template")
+	if okHTTP && httpMethod != "" && okURL && urlTemplate != "" {
+		if sanitized := sanitizeURLTemplate(urlTemplate); sanitized != "" {
+			return httpMethod + " " + sanitized
+		}
+	}
+	return "gcp.client.request"
+}
+
+// sanitizeURLTemplate removes query parameters and URL fragments from a raw URL template,
+// ensuring only the path template is retained.
+func sanitizeURLTemplate(rawURL string) string {
+	if idx := strings.IndexAny(rawURL, "?#"); idx != -1 {
+		return rawURL[:idx]
+	}
+	return rawURL
+}
+
+// ClientLogging contains the pre-allocated slog.Logger and static attributes
+// for a specific generated Google Cloud client library.
+// There should be exactly one ClientLogging instance instantiated per generated client.
+type ClientLogging struct {
+	get func() clientLoggingData
+}
+
+type clientLoggingData struct {
+	logger *slog.Logger
+	attr   []slog.Attr
+}
+
+type loggingOptions struct {
+	logger     *slog.Logger
+	attributes map[string]string
+}
+
+// LoggingOption is an option to configure a ClientLogging instance.
+// LoggingOption works by modifying relevant fields of loggingOptions.
+type LoggingOption interface {
+	// ResolveLogging applies the option by modifying opts.
+	ResolveLogging(opts *loggingOptions)
+}
+
+type loggerProviderOpt struct {
+	logger *slog.Logger
+}
+
+func (p loggerProviderOpt) ResolveLogging(opts *loggingOptions) {
+	if opts != nil {
+		opts.logger = p.logger
+	}
+}
+
+// WithLoggerProvider specifies the slog.Logger to use for client request logging.
+func WithLoggerProvider(logger *slog.Logger) LoggingOption {
+	return &loggerProviderOpt{logger: logger}
+}
+
+func (config *loggingOptions) loggerProvider() *slog.Logger {
+	if config != nil && config.logger != nil {
+		return config.logger
+	}
+	// Fall back to default slog logger to prevent silent no-op bug!
+	return slog.Default()
+}
+
+// NewClientLogging initializes and returns a new ClientLogging instance.
+// It is intended to be called once per generated client during initialization.
+func NewClientLogging(opts ...LoggingOption) *ClientLogging {
+	var config loggingOptions
+	for _, opt := range opts {
+		if opt != nil {
+			opt.ResolveLogging(&config)
+		}
+	}
+
+	var attr []slog.Attr
+	for _, m := range [...]struct{ attrKey, slogKey string }{
+		{ClientArtifact, keyGCPClientArtifact},
+		{ClientRepo, keyGCPClientRepo},
+		{ClientService, keyGCPClientService},
+		{ClientVersion, keyGCPClientVersion},
+		{RPCSystem, keyRPCSystemName},
+		{URLDomain, keyURLDomain},
+	} {
+		if val, ok := config.attributes[m.attrKey]; ok {
+			attr = append(attr, slog.String(m.slogKey, val))
+		}
+	}
+	attr = attr[:len(attr):len(attr)]
+	customLogger := config.logger
+
+	return &ClientLogging{
+		get: sync.OnceValue(func() clientLoggingData {
+			logger := customLogger
+			if logger == nil {
+				logger = slog.Default()
+			}
+
+			return clientLoggingData{
+				logger: logger,
+				attr:   attr,
+			}
+		}),
+	}
+}
+
+func (cl *ClientLogging) logger() *slog.Logger {
+	if cl == nil || cl.get == nil {
+		return nil
+	}
+	return cl.get().logger
+}
+
+func (cl *ClientLogging) attributes() []slog.Attr {
+	if cl == nil || cl.get == nil {
+		return nil
+	}
+	return cl.get().attr
+}
+
+// recordActionableLog emits a structured warning log strictly upon terminal failure.
+func recordActionableLog(ctx context.Context, cl *ClientLogging, errInfo *TelemetryErrorInfo, retries int, err error) {
+	if cl == nil || err == nil {
+		return
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	logger := cl.logger()
+	if logger == nil || !logger.Enabled(ctx, slog.LevelWarn) {
+		return
+	}
+
+	if errInfo == nil {
+		info := ExtractTelemetryErrorInfo(ctx, err)
+		errInfo = &info
+	}
+
+	attrs := append([]slog.Attr(nil), cl.attributes()...)
+
+	if rpcMethod, ok := callctx.TelemetryFromContext(ctx, "rpc_method"); ok && rpcMethod != "" {
+		attrs = append(attrs, slog.String("rpc.method", rpcMethod))
+	}
+	if urlTemplate, ok := callctx.TelemetryFromContext(ctx, "url_template"); ok && urlTemplate != "" {
+		if sanitized := sanitizeURLTemplate(urlTemplate); sanitized != "" {
+			attrs = append(attrs, slog.String("url.template", sanitized))
+		}
+	}
+	if td := ExtractTransportTelemetry(ctx); td != nil {
+		if td.ServerAddress() != "" {
+			attrs = append(attrs, slog.String("server.address", td.ServerAddress()))
+		}
+		if td.ServerPort() != 0 {
+			attrs = append(attrs, slog.Int("server.port", td.ServerPort()))
+		}
+	}
+	if errInfo.ErrorType != "" {
+		attrs = append(attrs, slog.String("error.type", errInfo.ErrorType))
+	}
+	if errInfo.StatusCode != "" {
+		attrs = append(attrs, slog.String("rpc.response.status_code", errInfo.StatusCode))
+	}
+	attrs = append(attrs,
+		slog.String("error.message", err.Error()),
+		slog.Int("resend_count", retries),
+	)
+	if errInfo.Domain != "" {
+		attrs = append(attrs, slog.String("gcp.errors.domain", errInfo.Domain))
+	}
+	for k, v := range errInfo.Metadata {
+		attrs = append(attrs, slog.String("gcp.errors.metadata."+k, v))
+	}
+
+	logger.LogAttrs(ctx, slog.LevelWarn, "gcp.client.request", attrs...)
 }
