@@ -7,6 +7,7 @@ import (
 	"net"
 	"testing"
 
+	"github.com/Microsoft/hcsshim"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
@@ -65,6 +66,29 @@ func TestNAT(t *testing.T) {
 func TestTransparent(t *testing.T) {
 	t.Skip("Test does not work on CI and was never running to begin with")
 	testNetwork("transparent", t)
+}
+
+func TestFindContainerNamespaceID(t *testing.T) {
+	endpoints := []hcsshim.HNSEndpoint{
+		{
+			Namespace:        &hcsshim.Namespace{ID: "unrelated"},
+			SharedContainers: []string{"other-container"},
+		},
+		{
+			SharedContainers: []string{"container"},
+		},
+		{
+			Namespace:        &hcsshim.Namespace{},
+			SharedContainers: []string{"container"},
+		},
+		{
+			Namespace:        &hcsshim.Namespace{ID: "namespace"},
+			SharedContainers: []string{"container"},
+		},
+	}
+
+	assert.Equal(t, findContainerNamespaceID(endpoints, "container"), "namespace")
+	assert.Equal(t, findContainerNamespaceID(endpoints, "missing"), "")
 }
 
 type testEndpoint struct {

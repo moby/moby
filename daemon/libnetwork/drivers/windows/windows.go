@@ -14,6 +14,7 @@ package windows
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -23,6 +24,7 @@ import (
 	"sync"
 
 	"github.com/Microsoft/hcsshim"
+	"github.com/Microsoft/hcsshim/hcn"
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/libnetwork/datastore"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
@@ -104,9 +106,10 @@ type hnsNetwork struct {
 }
 
 type driver struct {
-	name     string
-	networks map[string]*hnsNetwork
-	store    *datastore.Store
+	name                string
+	networks            map[string]*hnsNetwork
+	containerNamespaces map[string]string
+	store               *datastore.Store
 	sync.Mutex
 }
 
@@ -179,9 +182,10 @@ func IsAdoptableNetworkType(networkType string) bool {
 
 func newDriver(networkType string, store *datastore.Store) (*driver, error) {
 	d := &driver{
-		name:     networkType,
-		store:    store,
-		networks: map[string]*hnsNetwork{},
+		name:                networkType,
+		store:               store,
+		networks:            map[string]*hnsNetwork{},
+		containerNamespaces: map[string]string{},
 	}
 	err := d.initStore()
 	if err != nil {
@@ -912,6 +916,23 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 	endpoint.sandboxID = sboxKey
 
 	err = hcsshim.HotAttachEndpoint(endpoint.sandboxID, endpoint.profileID)
+	if err == hcsshim.ErrPlatformNotSupported {
+		namespaceID, namespaceErr := d.containerNamespaceID(endpoint.sandboxID)
+		if namespaceErr != nil {
+			return namespaceErr
+		}
+
+		if err = hcn.AddNamespaceEndpoint(namespaceID, endpoint.profileID); err != nil {
+			return err
+		}
+		namespace, err := hcn.GetNamespaceByID(namespaceID)
+		if err != nil {
+			return errors.Join(err, hcn.RemoveNamespaceEndpoint(namespaceID, endpoint.profileID))
+		}
+		if err = namespace.Sync(); err != nil {
+			return errors.Join(err, hcn.RemoveNamespaceEndpoint(namespaceID, endpoint.profileID))
+		}
+	}
 	if err != nil {
 		// If container doesn't exists in hcs, do not throw error for hot add/remove
 		if err != hcsshim.ErrComputeSystemDoesNotExist {
@@ -921,6 +942,40 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 
 	jinfo.DisableGatewayService()
 	return nil
+}
+
+// containerNamespaceID returns the HCN namespace for a container. The cache
+// preserves the namespace after the container's last endpoint is detached.
+func (d *driver) containerNamespaceID(containerID string) (string, error) {
+	d.Lock()
+	namespaceID := d.containerNamespaces[containerID]
+	d.Unlock()
+	if namespaceID != "" {
+		return namespaceID, nil
+	}
+
+	endpoints, err := hcsshim.HNSListEndpointRequest()
+	if err != nil {
+		return "", err
+	}
+	namespaceID = findContainerNamespaceID(endpoints, containerID)
+	if namespaceID == "" {
+		return "", fmt.Errorf("failed to find network namespace for container %s", containerID)
+	}
+
+	d.Lock()
+	d.containerNamespaces[containerID] = namespaceID
+	d.Unlock()
+	return namespaceID, nil
+}
+
+func findContainerNamespaceID(endpoints []hcsshim.HNSEndpoint, containerID string) string {
+	for _, endpoint := range endpoints {
+		if endpoint.Namespace != nil && endpoint.Namespace.ID != "" && slices.Contains(endpoint.SharedContainers, containerID) {
+			return endpoint.Namespace.ID
+		}
+	}
+	return ""
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
@@ -937,6 +992,31 @@ func (d *driver) Leave(nid, eid string) error {
 	}
 
 	err = hcsshim.HotDetachEndpoint(endpoint.sandboxID, endpoint.profileID)
+	if err == hcsshim.ErrPlatformNotSupported {
+		hnsEndpoint, getErr := hcsshim.GetHNSEndpointByID(endpoint.profileID)
+		if getErr != nil {
+			return getErr
+		}
+		if hnsEndpoint.Namespace == nil || hnsEndpoint.Namespace.ID == "" {
+			return err
+		}
+
+		namespaceID := hnsEndpoint.Namespace.ID
+		if err = hcn.RemoveNamespaceEndpoint(namespaceID, endpoint.profileID); err != nil {
+			return err
+		}
+		namespace, err := hcn.GetNamespaceByID(namespaceID)
+		if err != nil {
+			return err
+		}
+		if err = namespace.Sync(); err != nil {
+			return err
+		}
+
+		d.Lock()
+		d.containerNamespaces[endpoint.sandboxID] = namespaceID
+		d.Unlock()
+	}
 	if err != nil {
 		// If container doesn't exists in hcs, do not throw error for hot add/remove
 		if err != hcsshim.ErrComputeSystemDoesNotExist {
