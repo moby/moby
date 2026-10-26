@@ -4231,238 +4231,239 @@ var File_google_logging_v2_logging_config_proto protoreflect.FileDescriptor
 
 const file_google_logging_v2_logging_config_proto_rawDesc = "" +
 	"\n" +
-	"&google/logging/v2/logging_config.proto\x12\x11google.logging.v2\x1a\x1cgoogle/api/annotations.proto\x1a\x17google/api/client.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x19google/api/resource.proto\x1a#google/longrunning/operations.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xaa\x01\n" +
-	"\vIndexConfig\x12\"\n" +
+	"&google/logging/v2/logging_config.proto\x12\x11google.logging.v2\x1a\x1cgoogle/api/annotations.proto\x1a\x17google/api/client.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x19google/api/resource.proto\x1a#google/longrunning/operations.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xad\x01\n" +
+	"\vIndexConfig\x12#\n" +
 	"\n" +
-	"field_path\x18\x01 \x01(\tB\x03\xe0A\x02R\tfieldPath\x125\n" +
-	"\x04type\x18\x02 \x01(\x0e2\x1c.google.logging.v2.IndexTypeB\x03\xe0A\x02R\x04type\x12@\n" +
-	"\vcreate_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\n" +
-	"createTime\"\xe7\x06\n" +
-	"\tLogBucket\x12\x17\n" +
-	"\x04name\x18\x01 \x01(\tB\x03\xe0A\x03R\x04name\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription\x12@\n" +
-	"\vcreate_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\n" +
-	"createTime\x12@\n" +
-	"\vupdate_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\n" +
+	"field_path\x18\x01 \x01(\tB\x04\xe2A\x01\x02R\tfieldPath\x126\n" +
+	"\x04type\x18\x02 \x01(\x0e2\x1c.google.logging.v2.IndexTypeB\x04\xe2A\x01\x02R\x04type\x12A\n" +
+	"\vcreate_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampB\x04\xe2A\x01\x03R\n" +
+	"createTime\"\xeb\x06\n" +
+	"\tLogBucket\x12\x18\n" +
+	"\x04name\x18\x01 \x01(\tB\x04\xe2A\x01\x03R\x04name\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12A\n" +
+	"\vcreate_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampB\x04\xe2A\x01\x03R\n" +
+	"createTime\x12A\n" +
+	"\vupdate_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampB\x04\xe2A\x01\x03R\n" +
 	"updateTime\x12%\n" +
 	"\x0eretention_days\x18\v \x01(\x05R\rretentionDays\x12\x16\n" +
-	"\x06locked\x18\t \x01(\bR\x06locked\x12O\n" +
-	"\x0flifecycle_state\x18\f \x01(\x0e2!.google.logging.v2.LifecycleStateB\x03\xe0A\x03R\x0elifecycleState\x12+\n" +
+	"\x06locked\x18\t \x01(\bR\x06locked\x12P\n" +
+	"\x0flifecycle_state\x18\f \x01(\x0e2!.google.logging.v2.LifecycleStateB\x04\xe2A\x01\x03R\x0elifecycleState\x12+\n" +
 	"\x11analytics_enabled\x18\x0e \x01(\bR\x10analyticsEnabled\x12+\n" +
 	"\x11restricted_fields\x18\x0f \x03(\tR\x10restrictedFields\x12C\n" +
 	"\rindex_configs\x18\x11 \x03(\v2\x1e.google.logging.v2.IndexConfigR\findexConfigs\x12D\n" +
 	"\rcmek_settings\x18\x13 \x01(\v2\x1f.google.logging.v2.CmekSettingsR\fcmekSettings:\xa5\x02\xeaA\xa1\x02\n" +
-	" logging.googleapis.com/LogBucket\x128projects/{project}/locations/{location}/buckets/{bucket}\x12Borganizations/{organization}/locations/{location}/buckets/{bucket}\x126folders/{folder}/locations/{location}/buckets/{bucket}\x12GbillingAccounts/{billing_account}/locations/{location}/buckets/{bucket}\"\xb5\x04\n" +
+	" logging.googleapis.com/LogBucket\x128projects/{project}/locations/{location}/buckets/{bucket}\x12Borganizations/{organization}/locations/{location}/buckets/{bucket}\x126folders/{folder}/locations/{location}/buckets/{bucket}\x12GbillingAccounts/{billing_account}/locations/{location}/buckets/{bucket}\"\xb7\x04\n" +
 	"\aLogView\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription\x12@\n" +
-	"\vcreate_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\n" +
-	"createTime\x12@\n" +
-	"\vupdate_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12A\n" +
+	"\vcreate_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampB\x04\xe2A\x01\x03R\n" +
+	"createTime\x12A\n" +
+	"\vupdate_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampB\x04\xe2A\x01\x03R\n" +
 	"updateTime\x12\x16\n" +
 	"\x06filter\x18\a \x01(\tR\x06filter:\xd7\x02\xeaA\xd3\x02\n" +
-	"\x1elogging.googleapis.com/LogView\x12Eprojects/{project}/locations/{location}/buckets/{bucket}/views/{view}\x12Oorganizations/{organization}/locations/{location}/buckets/{bucket}/views/{view}\x12Cfolders/{folder}/locations/{location}/buckets/{bucket}/views/{view}\x12TbillingAccounts/{billing_account}/locations/{location}/buckets/{bucket}/views/{view}\"\xa2\a\n" +
-	"\aLogSink\x12\x17\n" +
-	"\x04name\x18\x01 \x01(\tB\x03\xe0A\x02R\x04name\x12+\n" +
-	"\vdestination\x18\x03 \x01(\tB\t\xe0A\x02\xfaA\x03\n" +
-	"\x01*R\vdestination\x12\x1b\n" +
-	"\x06filter\x18\x05 \x01(\tB\x03\xe0A\x01R\x06filter\x12%\n" +
-	"\vdescription\x18\x12 \x01(\tB\x03\xe0A\x01R\vdescription\x12\x1f\n" +
-	"\bdisabled\x18\x13 \x01(\bB\x03\xe0A\x01R\bdisabled\x12D\n" +
+	"\x1elogging.googleapis.com/LogView\x12Eprojects/{project}/locations/{location}/buckets/{bucket}/views/{view}\x12Oorganizations/{organization}/locations/{location}/buckets/{bucket}/views/{view}\x12Cfolders/{folder}/locations/{location}/buckets/{bucket}/views/{view}\x12TbillingAccounts/{billing_account}/locations/{location}/buckets/{bucket}/views/{view}\"\xad\a\n" +
+	"\aLogSink\x12\x18\n" +
+	"\x04name\x18\x01 \x01(\tB\x04\xe2A\x01\x02R\x04name\x12,\n" +
+	"\vdestination\x18\x03 \x01(\tB\n" +
+	"\xe2A\x01\x02\xfaA\x03\n" +
+	"\x01*R\vdestination\x12\x1c\n" +
+	"\x06filter\x18\x05 \x01(\tB\x04\xe2A\x01\x01R\x06filter\x12&\n" +
+	"\vdescription\x18\x12 \x01(\tB\x04\xe2A\x01\x01R\vdescription\x12 \n" +
+	"\bdisabled\x18\x13 \x01(\bB\x04\xe2A\x01\x01R\bdisabled\x12E\n" +
 	"\n" +
-	"exclusions\x18\x10 \x03(\v2\x1f.google.logging.v2.LogExclusionB\x03\xe0A\x01R\n" +
+	"exclusions\x18\x10 \x03(\v2\x1f.google.logging.v2.LogExclusionB\x04\xe2A\x01\x01R\n" +
 	"exclusions\x12`\n" +
-	"\x15output_version_format\x18\x06 \x01(\x0e2(.google.logging.v2.LogSink.VersionFormatB\x02\x18\x01R\x13outputVersionFormat\x12,\n" +
-	"\x0fwriter_identity\x18\b \x01(\tB\x03\xe0A\x03R\x0ewriterIdentity\x12.\n" +
-	"\x10include_children\x18\t \x01(\bB\x03\xe0A\x01R\x0fincludeChildren\x12T\n" +
-	"\x10bigquery_options\x18\f \x01(\v2\".google.logging.v2.BigQueryOptionsB\x03\xe0A\x01H\x00R\x0fbigqueryOptions\x12@\n" +
-	"\vcreate_time\x18\r \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\n" +
-	"createTime\x12@\n" +
-	"\vupdate_time\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\n" +
+	"\x15output_version_format\x18\x06 \x01(\x0e2(.google.logging.v2.LogSink.VersionFormatB\x02\x18\x01R\x13outputVersionFormat\x12-\n" +
+	"\x0fwriter_identity\x18\b \x01(\tB\x04\xe2A\x01\x03R\x0ewriterIdentity\x12/\n" +
+	"\x10include_children\x18\t \x01(\bB\x04\xe2A\x01\x01R\x0fincludeChildren\x12U\n" +
+	"\x10bigquery_options\x18\f \x01(\v2\".google.logging.v2.BigQueryOptionsB\x04\xe2A\x01\x01H\x00R\x0fbigqueryOptions\x12A\n" +
+	"\vcreate_time\x18\r \x01(\v2\x1a.google.protobuf.TimestampB\x04\xe2A\x01\x03R\n" +
+	"createTime\x12A\n" +
+	"\vupdate_time\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampB\x04\xe2A\x01\x03R\n" +
 	"updateTime\"?\n" +
 	"\rVersionFormat\x12\x1e\n" +
 	"\x1aVERSION_FORMAT_UNSPECIFIED\x10\x00\x12\x06\n" +
 	"\x02V2\x10\x01\x12\x06\n" +
 	"\x02V1\x10\x02:\xbf\x01\xeaA\xbb\x01\n" +
 	"\x1elogging.googleapis.com/LogSink\x12\x1fprojects/{project}/sinks/{sink}\x12)organizations/{organization}/sinks/{sink}\x12\x1dfolders/{folder}/sinks/{sink}\x12.billingAccounts/{billing_account}/sinks/{sink}B\t\n" +
-	"\aoptions\"5\n" +
-	"\x0fBigQueryDataset\x12\"\n" +
+	"\aoptions\"6\n" +
+	"\x0fBigQueryDataset\x12#\n" +
 	"\n" +
-	"dataset_id\x18\x01 \x01(\tB\x03\xe0A\x03R\tdatasetId\"\xf5\x04\n" +
+	"dataset_id\x18\x01 \x01(\tB\x04\xe2A\x01\x03R\tdatasetId\"\xf7\x04\n" +
 	"\x04Link\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
-	"\vdescription\x18\x02 \x01(\tR\vdescription\x12@\n" +
-	"\vcreate_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\n" +
-	"createTime\x12O\n" +
-	"\x0flifecycle_state\x18\x04 \x01(\x0e2!.google.logging.v2.LifecycleStateB\x03\xe0A\x03R\x0elifecycleState\x12M\n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12A\n" +
+	"\vcreate_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampB\x04\xe2A\x01\x03R\n" +
+	"createTime\x12P\n" +
+	"\x0flifecycle_state\x18\x04 \x01(\x0e2!.google.logging.v2.LifecycleStateB\x04\xe2A\x01\x03R\x0elifecycleState\x12M\n" +
 	"\x10bigquery_dataset\x18\x05 \x01(\v2\".google.logging.v2.BigQueryDatasetR\x0fbigqueryDataset:\xd4\x02\xeaA\xd0\x02\n" +
-	"\x1blogging.googleapis.com/Link\x12Eprojects/{project}/locations/{location}/buckets/{bucket}/links/{link}\x12Oorganizations/{organization}/locations/{location}/buckets/{bucket}/links/{link}\x12Cfolders/{folder}/locations/{location}/buckets/{bucket}/links/{link}\x12TbillingAccounts/{billing_account}/locations/{location}/buckets/{bucket}/links/{link}\"\x9e\x01\n" +
-	"\x0fBigQueryOptions\x129\n" +
-	"\x16use_partitioned_tables\x18\x01 \x01(\bB\x03\xe0A\x01R\x14usePartitionedTables\x12P\n" +
-	"\"uses_timestamp_column_partitioning\x18\x03 \x01(\bB\x03\xe0A\x03R\x1fusesTimestampColumnPartitioning\"\x9c\x01\n" +
-	"\x12ListBucketsRequest\x12@\n" +
-	"\x06parent\x18\x01 \x01(\tB(\xe0A\x02\xfaA\"\x12 logging.googleapis.com/LogBucketR\x06parent\x12\"\n" +
+	"\x1blogging.googleapis.com/Link\x12Eprojects/{project}/locations/{location}/buckets/{bucket}/links/{link}\x12Oorganizations/{organization}/locations/{location}/buckets/{bucket}/links/{link}\x12Cfolders/{folder}/locations/{location}/buckets/{bucket}/links/{link}\x12TbillingAccounts/{billing_account}/locations/{location}/buckets/{bucket}/links/{link}\"\xa0\x01\n" +
+	"\x0fBigQueryOptions\x12:\n" +
+	"\x16use_partitioned_tables\x18\x01 \x01(\bB\x04\xe2A\x01\x01R\x14usePartitionedTables\x12Q\n" +
+	"\"uses_timestamp_column_partitioning\x18\x03 \x01(\bB\x04\xe2A\x01\x03R\x1fusesTimestampColumnPartitioning\"\x9f\x01\n" +
+	"\x12ListBucketsRequest\x12A\n" +
+	"\x06parent\x18\x01 \x01(\tB)\xe2A\x01\x02\xfaA\"\x12 logging.googleapis.com/LogBucketR\x06parent\x12#\n" +
 	"\n" +
-	"page_token\x18\x02 \x01(\tB\x03\xe0A\x01R\tpageToken\x12 \n" +
-	"\tpage_size\x18\x03 \x01(\x05B\x03\xe0A\x01R\bpageSize\"u\n" +
+	"page_token\x18\x02 \x01(\tB\x04\xe2A\x01\x01R\tpageToken\x12!\n" +
+	"\tpage_size\x18\x03 \x01(\x05B\x04\xe2A\x01\x01R\bpageSize\"u\n" +
 	"\x13ListBucketsResponse\x126\n" +
 	"\abuckets\x18\x01 \x03(\v2\x1c.google.logging.v2.LogBucketR\abuckets\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xb4\x01\n" +
-	"\x13CreateBucketRequest\x12@\n" +
-	"\x06parent\x18\x01 \x01(\tB(\xe0A\x02\xfaA\"\x12 logging.googleapis.com/LogBucketR\x06parent\x12 \n" +
-	"\tbucket_id\x18\x02 \x01(\tB\x03\xe0A\x02R\bbucketId\x129\n" +
-	"\x06bucket\x18\x03 \x01(\v2\x1c.google.logging.v2.LogBucketB\x03\xe0A\x02R\x06bucket\"\xd0\x01\n" +
-	"\x13UpdateBucketRequest\x12<\n" +
-	"\x04name\x18\x01 \x01(\tB(\xe0A\x02\xfaA\"\n" +
-	" logging.googleapis.com/LogBucketR\x04name\x129\n" +
-	"\x06bucket\x18\x02 \x01(\v2\x1c.google.logging.v2.LogBucketB\x03\xe0A\x02R\x06bucket\x12@\n" +
-	"\vupdate_mask\x18\x04 \x01(\v2\x1a.google.protobuf.FieldMaskB\x03\xe0A\x02R\n" +
-	"updateMask\"P\n" +
-	"\x10GetBucketRequest\x12<\n" +
-	"\x04name\x18\x01 \x01(\tB(\xe0A\x02\xfaA\"\n" +
-	" logging.googleapis.com/LogBucketR\x04name\"S\n" +
-	"\x13DeleteBucketRequest\x12<\n" +
-	"\x04name\x18\x01 \x01(\tB(\xe0A\x02\xfaA\"\n" +
-	" logging.googleapis.com/LogBucketR\x04name\"U\n" +
-	"\x15UndeleteBucketRequest\x12<\n" +
-	"\x04name\x18\x01 \x01(\tB(\xe0A\x02\xfaA\"\n" +
-	" logging.googleapis.com/LogBucketR\x04name\"u\n" +
-	"\x10ListViewsRequest\x12\x1b\n" +
-	"\x06parent\x18\x01 \x01(\tB\x03\xe0A\x02R\x06parent\x12\"\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xb7\x01\n" +
+	"\x13CreateBucketRequest\x12A\n" +
+	"\x06parent\x18\x01 \x01(\tB)\xe2A\x01\x02\xfaA\"\x12 logging.googleapis.com/LogBucketR\x06parent\x12!\n" +
+	"\tbucket_id\x18\x02 \x01(\tB\x04\xe2A\x01\x02R\bbucketId\x12:\n" +
+	"\x06bucket\x18\x03 \x01(\v2\x1c.google.logging.v2.LogBucketB\x04\xe2A\x01\x02R\x06bucket\"\xd3\x01\n" +
+	"\x13UpdateBucketRequest\x12=\n" +
+	"\x04name\x18\x01 \x01(\tB)\xe2A\x01\x02\xfaA\"\n" +
+	" logging.googleapis.com/LogBucketR\x04name\x12:\n" +
+	"\x06bucket\x18\x02 \x01(\v2\x1c.google.logging.v2.LogBucketB\x04\xe2A\x01\x02R\x06bucket\x12A\n" +
+	"\vupdate_mask\x18\x04 \x01(\v2\x1a.google.protobuf.FieldMaskB\x04\xe2A\x01\x02R\n" +
+	"updateMask\"Q\n" +
+	"\x10GetBucketRequest\x12=\n" +
+	"\x04name\x18\x01 \x01(\tB)\xe2A\x01\x02\xfaA\"\n" +
+	" logging.googleapis.com/LogBucketR\x04name\"T\n" +
+	"\x13DeleteBucketRequest\x12=\n" +
+	"\x04name\x18\x01 \x01(\tB)\xe2A\x01\x02\xfaA\"\n" +
+	" logging.googleapis.com/LogBucketR\x04name\"V\n" +
+	"\x15UndeleteBucketRequest\x12=\n" +
+	"\x04name\x18\x01 \x01(\tB)\xe2A\x01\x02\xfaA\"\n" +
+	" logging.googleapis.com/LogBucketR\x04name\"x\n" +
+	"\x10ListViewsRequest\x12\x1c\n" +
+	"\x06parent\x18\x01 \x01(\tB\x04\xe2A\x01\x02R\x06parent\x12#\n" +
 	"\n" +
-	"page_token\x18\x02 \x01(\tB\x03\xe0A\x01R\tpageToken\x12 \n" +
-	"\tpage_size\x18\x03 \x01(\x05B\x03\xe0A\x01R\bpageSize\"m\n" +
+	"page_token\x18\x02 \x01(\tB\x04\xe2A\x01\x01R\tpageToken\x12!\n" +
+	"\tpage_size\x18\x03 \x01(\x05B\x04\xe2A\x01\x01R\bpageSize\"m\n" +
 	"\x11ListViewsResponse\x120\n" +
 	"\x05views\x18\x01 \x03(\v2\x1a.google.logging.v2.LogViewR\x05views\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\x83\x01\n" +
-	"\x11CreateViewRequest\x12\x1b\n" +
-	"\x06parent\x18\x01 \x01(\tB\x03\xe0A\x02R\x06parent\x12\x1c\n" +
-	"\aview_id\x18\x02 \x01(\tB\x03\xe0A\x02R\x06viewId\x123\n" +
-	"\x04view\x18\x03 \x01(\v2\x1a.google.logging.v2.LogViewB\x03\xe0A\x02R\x04view\"\xa3\x01\n" +
-	"\x11UpdateViewRequest\x12\x17\n" +
-	"\x04name\x18\x01 \x01(\tB\x03\xe0A\x02R\x04name\x123\n" +
-	"\x04view\x18\x02 \x01(\v2\x1a.google.logging.v2.LogViewB\x03\xe0A\x02R\x04view\x12@\n" +
-	"\vupdate_mask\x18\x04 \x01(\v2\x1a.google.protobuf.FieldMaskB\x03\xe0A\x01R\n" +
-	"updateMask\"L\n" +
-	"\x0eGetViewRequest\x12:\n" +
-	"\x04name\x18\x01 \x01(\tB&\xe0A\x02\xfaA \n" +
-	"\x1elogging.googleapis.com/LogViewR\x04name\"O\n" +
-	"\x11DeleteViewRequest\x12:\n" +
-	"\x04name\x18\x01 \x01(\tB&\xe0A\x02\xfaA \n" +
-	"\x1elogging.googleapis.com/LogViewR\x04name\"\x98\x01\n" +
-	"\x10ListSinksRequest\x12>\n" +
-	"\x06parent\x18\x01 \x01(\tB&\xe0A\x02\xfaA \x12\x1elogging.googleapis.com/LogSinkR\x06parent\x12\"\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\x86\x01\n" +
+	"\x11CreateViewRequest\x12\x1c\n" +
+	"\x06parent\x18\x01 \x01(\tB\x04\xe2A\x01\x02R\x06parent\x12\x1d\n" +
+	"\aview_id\x18\x02 \x01(\tB\x04\xe2A\x01\x02R\x06viewId\x124\n" +
+	"\x04view\x18\x03 \x01(\v2\x1a.google.logging.v2.LogViewB\x04\xe2A\x01\x02R\x04view\"\xa6\x01\n" +
+	"\x11UpdateViewRequest\x12\x18\n" +
+	"\x04name\x18\x01 \x01(\tB\x04\xe2A\x01\x02R\x04name\x124\n" +
+	"\x04view\x18\x02 \x01(\v2\x1a.google.logging.v2.LogViewB\x04\xe2A\x01\x02R\x04view\x12A\n" +
+	"\vupdate_mask\x18\x04 \x01(\v2\x1a.google.protobuf.FieldMaskB\x04\xe2A\x01\x01R\n" +
+	"updateMask\"M\n" +
+	"\x0eGetViewRequest\x12;\n" +
+	"\x04name\x18\x01 \x01(\tB'\xe2A\x01\x02\xfaA \n" +
+	"\x1elogging.googleapis.com/LogViewR\x04name\"P\n" +
+	"\x11DeleteViewRequest\x12;\n" +
+	"\x04name\x18\x01 \x01(\tB'\xe2A\x01\x02\xfaA \n" +
+	"\x1elogging.googleapis.com/LogViewR\x04name\"\x9b\x01\n" +
+	"\x10ListSinksRequest\x12?\n" +
+	"\x06parent\x18\x01 \x01(\tB'\xe2A\x01\x02\xfaA \x12\x1elogging.googleapis.com/LogSinkR\x06parent\x12#\n" +
 	"\n" +
-	"page_token\x18\x02 \x01(\tB\x03\xe0A\x01R\tpageToken\x12 \n" +
-	"\tpage_size\x18\x03 \x01(\x05B\x03\xe0A\x01R\bpageSize\"m\n" +
+	"page_token\x18\x02 \x01(\tB\x04\xe2A\x01\x01R\tpageToken\x12!\n" +
+	"\tpage_size\x18\x03 \x01(\x05B\x04\xe2A\x01\x01R\bpageSize\"m\n" +
 	"\x11ListSinksResponse\x120\n" +
 	"\x05sinks\x18\x01 \x03(\v2\x1a.google.logging.v2.LogSinkR\x05sinks\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"U\n" +
-	"\x0eGetSinkRequest\x12C\n" +
-	"\tsink_name\x18\x01 \x01(\tB&\xe0A\x02\xfaA \n" +
-	"\x1elogging.googleapis.com/LogSinkR\bsinkName\"\xc3\x01\n" +
-	"\x11CreateSinkRequest\x12>\n" +
-	"\x06parent\x18\x01 \x01(\tB&\xe0A\x02\xfaA \x12\x1elogging.googleapis.com/LogSinkR\x06parent\x123\n" +
-	"\x04sink\x18\x02 \x01(\v2\x1a.google.logging.v2.LogSinkB\x03\xe0A\x02R\x04sink\x129\n" +
-	"\x16unique_writer_identity\x18\x03 \x01(\bB\x03\xe0A\x01R\x14uniqueWriterIdentity\"\x8a\x02\n" +
-	"\x11UpdateSinkRequest\x12C\n" +
-	"\tsink_name\x18\x01 \x01(\tB&\xe0A\x02\xfaA \n" +
-	"\x1elogging.googleapis.com/LogSinkR\bsinkName\x123\n" +
-	"\x04sink\x18\x02 \x01(\v2\x1a.google.logging.v2.LogSinkB\x03\xe0A\x02R\x04sink\x129\n" +
-	"\x16unique_writer_identity\x18\x03 \x01(\bB\x03\xe0A\x01R\x14uniqueWriterIdentity\x12@\n" +
-	"\vupdate_mask\x18\x04 \x01(\v2\x1a.google.protobuf.FieldMaskB\x03\xe0A\x01R\n" +
-	"updateMask\"X\n" +
-	"\x11DeleteSinkRequest\x12C\n" +
-	"\tsink_name\x18\x01 \x01(\tB&\xe0A\x02\xfaA \n" +
-	"\x1elogging.googleapis.com/LogSinkR\bsinkName\"\xa0\x01\n" +
-	"\x11CreateLinkRequest\x12;\n" +
-	"\x06parent\x18\x01 \x01(\tB#\xe0A\x02\xfaA\x1d\x12\x1blogging.googleapis.com/LinkR\x06parent\x120\n" +
-	"\x04link\x18\x02 \x01(\v2\x17.google.logging.v2.LinkB\x03\xe0A\x02R\x04link\x12\x1c\n" +
-	"\alink_id\x18\x03 \x01(\tB\x03\xe0A\x02R\x06linkId\"L\n" +
-	"\x11DeleteLinkRequest\x127\n" +
-	"\x04name\x18\x01 \x01(\tB#\xe0A\x02\xfaA\x1d\n" +
-	"\x1blogging.googleapis.com/LinkR\x04name\"\x95\x01\n" +
-	"\x10ListLinksRequest\x12;\n" +
-	"\x06parent\x18\x01 \x01(\tB#\xe0A\x02\xfaA\x1d\x12\x1blogging.googleapis.com/LinkR\x06parent\x12\"\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"V\n" +
+	"\x0eGetSinkRequest\x12D\n" +
+	"\tsink_name\x18\x01 \x01(\tB'\xe2A\x01\x02\xfaA \n" +
+	"\x1elogging.googleapis.com/LogSinkR\bsinkName\"\xc6\x01\n" +
+	"\x11CreateSinkRequest\x12?\n" +
+	"\x06parent\x18\x01 \x01(\tB'\xe2A\x01\x02\xfaA \x12\x1elogging.googleapis.com/LogSinkR\x06parent\x124\n" +
+	"\x04sink\x18\x02 \x01(\v2\x1a.google.logging.v2.LogSinkB\x04\xe2A\x01\x02R\x04sink\x12:\n" +
+	"\x16unique_writer_identity\x18\x03 \x01(\bB\x04\xe2A\x01\x01R\x14uniqueWriterIdentity\"\x8e\x02\n" +
+	"\x11UpdateSinkRequest\x12D\n" +
+	"\tsink_name\x18\x01 \x01(\tB'\xe2A\x01\x02\xfaA \n" +
+	"\x1elogging.googleapis.com/LogSinkR\bsinkName\x124\n" +
+	"\x04sink\x18\x02 \x01(\v2\x1a.google.logging.v2.LogSinkB\x04\xe2A\x01\x02R\x04sink\x12:\n" +
+	"\x16unique_writer_identity\x18\x03 \x01(\bB\x04\xe2A\x01\x01R\x14uniqueWriterIdentity\x12A\n" +
+	"\vupdate_mask\x18\x04 \x01(\v2\x1a.google.protobuf.FieldMaskB\x04\xe2A\x01\x01R\n" +
+	"updateMask\"Y\n" +
+	"\x11DeleteSinkRequest\x12D\n" +
+	"\tsink_name\x18\x01 \x01(\tB'\xe2A\x01\x02\xfaA \n" +
+	"\x1elogging.googleapis.com/LogSinkR\bsinkName\"\xa3\x01\n" +
+	"\x11CreateLinkRequest\x12<\n" +
+	"\x06parent\x18\x01 \x01(\tB$\xe2A\x01\x02\xfaA\x1d\x12\x1blogging.googleapis.com/LinkR\x06parent\x121\n" +
+	"\x04link\x18\x02 \x01(\v2\x17.google.logging.v2.LinkB\x04\xe2A\x01\x02R\x04link\x12\x1d\n" +
+	"\alink_id\x18\x03 \x01(\tB\x04\xe2A\x01\x02R\x06linkId\"M\n" +
+	"\x11DeleteLinkRequest\x128\n" +
+	"\x04name\x18\x01 \x01(\tB$\xe2A\x01\x02\xfaA\x1d\n" +
+	"\x1blogging.googleapis.com/LinkR\x04name\"\x98\x01\n" +
+	"\x10ListLinksRequest\x12<\n" +
+	"\x06parent\x18\x01 \x01(\tB$\xe2A\x01\x02\xfaA\x1d\x12\x1blogging.googleapis.com/LinkR\x06parent\x12#\n" +
 	"\n" +
-	"page_token\x18\x02 \x01(\tB\x03\xe0A\x01R\tpageToken\x12 \n" +
-	"\tpage_size\x18\x03 \x01(\x05B\x03\xe0A\x01R\bpageSize\"j\n" +
+	"page_token\x18\x02 \x01(\tB\x04\xe2A\x01\x01R\tpageToken\x12!\n" +
+	"\tpage_size\x18\x03 \x01(\x05B\x04\xe2A\x01\x01R\bpageSize\"j\n" +
 	"\x11ListLinksResponse\x12-\n" +
 	"\x05links\x18\x01 \x03(\v2\x17.google.logging.v2.LinkR\x05links\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"I\n" +
-	"\x0eGetLinkRequest\x127\n" +
-	"\x04name\x18\x01 \x01(\tB#\xe0A\x02\xfaA\x1d\n" +
-	"\x1blogging.googleapis.com/LinkR\x04name\"\xff\x03\n" +
-	"\fLogExclusion\x12\x17\n" +
-	"\x04name\x18\x01 \x01(\tB\x03\xe0A\x02R\x04name\x12%\n" +
-	"\vdescription\x18\x02 \x01(\tB\x03\xe0A\x01R\vdescription\x12\x1b\n" +
-	"\x06filter\x18\x03 \x01(\tB\x03\xe0A\x02R\x06filter\x12\x1f\n" +
-	"\bdisabled\x18\x04 \x01(\bB\x03\xe0A\x01R\bdisabled\x12@\n" +
-	"\vcreate_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\n" +
-	"createTime\x12@\n" +
-	"\vupdate_time\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"J\n" +
+	"\x0eGetLinkRequest\x128\n" +
+	"\x04name\x18\x01 \x01(\tB$\xe2A\x01\x02\xfaA\x1d\n" +
+	"\x1blogging.googleapis.com/LinkR\x04name\"\x85\x04\n" +
+	"\fLogExclusion\x12\x18\n" +
+	"\x04name\x18\x01 \x01(\tB\x04\xe2A\x01\x02R\x04name\x12&\n" +
+	"\vdescription\x18\x02 \x01(\tB\x04\xe2A\x01\x01R\vdescription\x12\x1c\n" +
+	"\x06filter\x18\x03 \x01(\tB\x04\xe2A\x01\x02R\x06filter\x12 \n" +
+	"\bdisabled\x18\x04 \x01(\bB\x04\xe2A\x01\x01R\bdisabled\x12A\n" +
+	"\vcreate_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampB\x04\xe2A\x01\x03R\n" +
+	"createTime\x12A\n" +
+	"\vupdate_time\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampB\x04\xe2A\x01\x03R\n" +
 	"updateTime:\xec\x01\xeaA\xe8\x01\n" +
-	"#logging.googleapis.com/LogExclusion\x12)projects/{project}/exclusions/{exclusion}\x123organizations/{organization}/exclusions/{exclusion}\x12'folders/{folder}/exclusions/{exclusion}\x128billingAccounts/{billing_account}/exclusions/{exclusion}\"\xa2\x01\n" +
-	"\x15ListExclusionsRequest\x12C\n" +
-	"\x06parent\x18\x01 \x01(\tB+\xe0A\x02\xfaA%\x12#logging.googleapis.com/LogExclusionR\x06parent\x12\"\n" +
+	"#logging.googleapis.com/LogExclusion\x12)projects/{project}/exclusions/{exclusion}\x123organizations/{organization}/exclusions/{exclusion}\x12'folders/{folder}/exclusions/{exclusion}\x128billingAccounts/{billing_account}/exclusions/{exclusion}\"\xa5\x01\n" +
+	"\x15ListExclusionsRequest\x12D\n" +
+	"\x06parent\x18\x01 \x01(\tB,\xe2A\x01\x02\xfaA%\x12#logging.googleapis.com/LogExclusionR\x06parent\x12#\n" +
 	"\n" +
-	"page_token\x18\x02 \x01(\tB\x03\xe0A\x01R\tpageToken\x12 \n" +
-	"\tpage_size\x18\x03 \x01(\x05B\x03\xe0A\x01R\bpageSize\"\x81\x01\n" +
+	"page_token\x18\x02 \x01(\tB\x04\xe2A\x01\x01R\tpageToken\x12!\n" +
+	"\tpage_size\x18\x03 \x01(\x05B\x04\xe2A\x01\x01R\bpageSize\"\x81\x01\n" +
 	"\x16ListExclusionsResponse\x12?\n" +
 	"\n" +
 	"exclusions\x18\x01 \x03(\v2\x1f.google.logging.v2.LogExclusionR\n" +
 	"exclusions\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"V\n" +
-	"\x13GetExclusionRequest\x12?\n" +
-	"\x04name\x18\x01 \x01(\tB+\xe0A\x02\xfaA%\n" +
-	"#logging.googleapis.com/LogExclusionR\x04name\"\xa1\x01\n" +
-	"\x16CreateExclusionRequest\x12C\n" +
-	"\x06parent\x18\x01 \x01(\tB+\xe0A\x02\xfaA%\x12#logging.googleapis.com/LogExclusionR\x06parent\x12B\n" +
-	"\texclusion\x18\x02 \x01(\v2\x1f.google.logging.v2.LogExclusionB\x03\xe0A\x02R\texclusion\"\xdf\x01\n" +
-	"\x16UpdateExclusionRequest\x12?\n" +
-	"\x04name\x18\x01 \x01(\tB+\xe0A\x02\xfaA%\n" +
-	"#logging.googleapis.com/LogExclusionR\x04name\x12B\n" +
-	"\texclusion\x18\x02 \x01(\v2\x1f.google.logging.v2.LogExclusionB\x03\xe0A\x02R\texclusion\x12@\n" +
-	"\vupdate_mask\x18\x03 \x01(\v2\x1a.google.protobuf.FieldMaskB\x03\xe0A\x02R\n" +
-	"updateMask\"Y\n" +
-	"\x16DeleteExclusionRequest\x12?\n" +
-	"\x04name\x18\x01 \x01(\tB+\xe0A\x02\xfaA%\n" +
-	"#logging.googleapis.com/LogExclusionR\x04name\"Y\n" +
-	"\x16GetCmekSettingsRequest\x12?\n" +
-	"\x04name\x18\x01 \x01(\tB+\xe0A\x02\xfaA%\n" +
-	"#logging.googleapis.com/CmekSettingsR\x04name\"\xc1\x01\n" +
-	"\x19UpdateCmekSettingsRequest\x12\x17\n" +
-	"\x04name\x18\x01 \x01(\tB\x03\xe0A\x02R\x04name\x12I\n" +
-	"\rcmek_settings\x18\x02 \x01(\v2\x1f.google.logging.v2.CmekSettingsB\x03\xe0A\x02R\fcmekSettings\x12@\n" +
-	"\vupdate_mask\x18\x03 \x01(\v2\x1a.google.protobuf.FieldMaskB\x03\xe0A\x01R\n" +
-	"updateMask\"\xf4\x02\n" +
-	"\fCmekSettings\x12\x17\n" +
-	"\x04name\x18\x01 \x01(\tB\x03\xe0A\x03R\x04name\x12 \n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"W\n" +
+	"\x13GetExclusionRequest\x12@\n" +
+	"\x04name\x18\x01 \x01(\tB,\xe2A\x01\x02\xfaA%\n" +
+	"#logging.googleapis.com/LogExclusionR\x04name\"\xa3\x01\n" +
+	"\x16CreateExclusionRequest\x12D\n" +
+	"\x06parent\x18\x01 \x01(\tB,\xe2A\x01\x02\xfaA%\x12#logging.googleapis.com/LogExclusionR\x06parent\x12C\n" +
+	"\texclusion\x18\x02 \x01(\v2\x1f.google.logging.v2.LogExclusionB\x04\xe2A\x01\x02R\texclusion\"\xe2\x01\n" +
+	"\x16UpdateExclusionRequest\x12@\n" +
+	"\x04name\x18\x01 \x01(\tB,\xe2A\x01\x02\xfaA%\n" +
+	"#logging.googleapis.com/LogExclusionR\x04name\x12C\n" +
+	"\texclusion\x18\x02 \x01(\v2\x1f.google.logging.v2.LogExclusionB\x04\xe2A\x01\x02R\texclusion\x12A\n" +
+	"\vupdate_mask\x18\x03 \x01(\v2\x1a.google.protobuf.FieldMaskB\x04\xe2A\x01\x02R\n" +
+	"updateMask\"Z\n" +
+	"\x16DeleteExclusionRequest\x12@\n" +
+	"\x04name\x18\x01 \x01(\tB,\xe2A\x01\x02\xfaA%\n" +
+	"#logging.googleapis.com/LogExclusionR\x04name\"Z\n" +
+	"\x16GetCmekSettingsRequest\x12@\n" +
+	"\x04name\x18\x01 \x01(\tB,\xe2A\x01\x02\xfaA%\n" +
+	"#logging.googleapis.com/CmekSettingsR\x04name\"\xc4\x01\n" +
+	"\x19UpdateCmekSettingsRequest\x12\x18\n" +
+	"\x04name\x18\x01 \x01(\tB\x04\xe2A\x01\x02R\x04name\x12J\n" +
+	"\rcmek_settings\x18\x02 \x01(\v2\x1f.google.logging.v2.CmekSettingsB\x04\xe2A\x01\x02R\fcmekSettings\x12A\n" +
+	"\vupdate_mask\x18\x03 \x01(\v2\x1a.google.protobuf.FieldMaskB\x04\xe2A\x01\x01R\n" +
+	"updateMask\"\xf6\x02\n" +
+	"\fCmekSettings\x12\x18\n" +
+	"\x04name\x18\x01 \x01(\tB\x04\xe2A\x01\x03R\x04name\x12 \n" +
 	"\fkms_key_name\x18\x02 \x01(\tR\n" +
 	"kmsKeyName\x12/\n" +
-	"\x14kms_key_version_name\x18\x04 \x01(\tR\x11kmsKeyVersionName\x121\n" +
-	"\x12service_account_id\x18\x03 \x01(\tB\x03\xe0A\x03R\x10serviceAccountId:\xc4\x01\xeaA\xc0\x01\n" +
-	"#logging.googleapis.com/CmekSettings\x12\x1fprojects/{project}/cmekSettings\x12)organizations/{organization}/cmekSettings\x12\x1dfolders/{folder}/cmekSettings\x12.billingAccounts/{billing_account}/cmekSettings\"Q\n" +
-	"\x12GetSettingsRequest\x12;\n" +
-	"\x04name\x18\x01 \x01(\tB'\xe0A\x02\xfaA!\n" +
-	"\x1flogging.googleapis.com/SettingsR\x04name\"\xb0\x01\n" +
-	"\x15UpdateSettingsRequest\x12\x17\n" +
-	"\x04name\x18\x01 \x01(\tB\x03\xe0A\x02R\x04name\x12<\n" +
-	"\bsettings\x18\x02 \x01(\v2\x1b.google.logging.v2.SettingsB\x03\xe0A\x02R\bsettings\x12@\n" +
-	"\vupdate_mask\x18\x03 \x01(\v2\x1a.google.protobuf.FieldMaskB\x03\xe0A\x01R\n" +
-	"updateMask\"\x9e\x03\n" +
-	"\bSettings\x12\x17\n" +
-	"\x04name\x18\x01 \x01(\tB\x03\xe0A\x03R\x04name\x12%\n" +
-	"\fkms_key_name\x18\x02 \x01(\tB\x03\xe0A\x01R\n" +
-	"kmsKeyName\x128\n" +
-	"\x16kms_service_account_id\x18\x03 \x01(\tB\x03\xe0A\x03R\x13kmsServiceAccountId\x12.\n" +
-	"\x10storage_location\x18\x04 \x01(\tB\x03\xe0A\x01R\x0fstorageLocation\x125\n" +
-	"\x14disable_default_sink\x18\x05 \x01(\bB\x03\xe0A\x01R\x12disableDefaultSink:\xb0\x01\xeaA\xac\x01\n" +
-	"\x1flogging.googleapis.com/Settings\x12\x1bprojects/{project}/settings\x12%organizations/{organization}/settings\x12\x19folders/{folder}/settings\x12*billingAccounts/{billing_account}/settings\"t\n" +
-	"\x15CopyLogEntriesRequest\x12\x17\n" +
-	"\x04name\x18\x01 \x01(\tB\x03\xe0A\x02R\x04name\x12\x1b\n" +
-	"\x06filter\x18\x03 \x01(\tB\x03\xe0A\x01R\x06filter\x12%\n" +
-	"\vdestination\x18\x04 \x01(\tB\x03\xe0A\x02R\vdestination\"\x83\x03\n" +
+	"\x14kms_key_version_name\x18\x04 \x01(\tR\x11kmsKeyVersionName\x122\n" +
+	"\x12service_account_id\x18\x03 \x01(\tB\x04\xe2A\x01\x03R\x10serviceAccountId:\xc4\x01\xeaA\xc0\x01\n" +
+	"#logging.googleapis.com/CmekSettings\x12\x1fprojects/{project}/cmekSettings\x12)organizations/{organization}/cmekSettings\x12\x1dfolders/{folder}/cmekSettings\x12.billingAccounts/{billing_account}/cmekSettings\"R\n" +
+	"\x12GetSettingsRequest\x12<\n" +
+	"\x04name\x18\x01 \x01(\tB(\xe2A\x01\x02\xfaA!\n" +
+	"\x1flogging.googleapis.com/SettingsR\x04name\"\xb3\x01\n" +
+	"\x15UpdateSettingsRequest\x12\x18\n" +
+	"\x04name\x18\x01 \x01(\tB\x04\xe2A\x01\x02R\x04name\x12=\n" +
+	"\bsettings\x18\x02 \x01(\v2\x1b.google.logging.v2.SettingsB\x04\xe2A\x01\x02R\bsettings\x12A\n" +
+	"\vupdate_mask\x18\x03 \x01(\v2\x1a.google.protobuf.FieldMaskB\x04\xe2A\x01\x01R\n" +
+	"updateMask\"\xa3\x03\n" +
+	"\bSettings\x12\x18\n" +
+	"\x04name\x18\x01 \x01(\tB\x04\xe2A\x01\x03R\x04name\x12&\n" +
+	"\fkms_key_name\x18\x02 \x01(\tB\x04\xe2A\x01\x01R\n" +
+	"kmsKeyName\x129\n" +
+	"\x16kms_service_account_id\x18\x03 \x01(\tB\x04\xe2A\x01\x03R\x13kmsServiceAccountId\x12/\n" +
+	"\x10storage_location\x18\x04 \x01(\tB\x04\xe2A\x01\x01R\x0fstorageLocation\x126\n" +
+	"\x14disable_default_sink\x18\x05 \x01(\bB\x04\xe2A\x01\x01R\x12disableDefaultSink:\xb0\x01\xeaA\xac\x01\n" +
+	"\x1flogging.googleapis.com/Settings\x12\x1bprojects/{project}/settings\x12%organizations/{organization}/settings\x12\x19folders/{folder}/settings\x12*billingAccounts/{billing_account}/settings\"w\n" +
+	"\x15CopyLogEntriesRequest\x12\x18\n" +
+	"\x04name\x18\x01 \x01(\tB\x04\xe2A\x01\x02R\x04name\x12\x1c\n" +
+	"\x06filter\x18\x03 \x01(\tB\x04\xe2A\x01\x01R\x06filter\x12&\n" +
+	"\vdestination\x18\x04 \x01(\tB\x04\xe2A\x01\x02R\vdestination\"\x83\x03\n" +
 	"\x16CopyLogEntriesMetadata\x129\n" +
 	"\n" +
 	"start_time\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +

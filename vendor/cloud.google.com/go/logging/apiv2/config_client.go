@@ -869,6 +869,101 @@ func NewConfigClient(ctx context.Context, opts ...option.ClientOption) (*ConfigC
 		client.CallOptions.GetOperation = append(client.CallOptions.GetOperation, gax.WithClientMetrics(metrics))
 		client.CallOptions.ListOperations = append(client.CallOptions.ListOperations, gax.WithClientMetrics(metrics))
 	}
+	if gax.IsFeatureEnabled("TRACING") {
+		tracing := gax.NewClientTracing(
+			gax.WithTracingAttributes(map[string]string{
+				gax.ClientService:  "logging",
+				gax.ClientVersion:  getVersionClient(),
+				gax.ClientArtifact: "cloud.google.com/go/logging/apiv2",
+				gax.RPCSystem:      "grpc",
+				gax.URLDomain:      "logging.googleapis.com",
+			}),
+		)
+
+		client.CallOptions.ListBuckets = append(client.CallOptions.ListBuckets, gax.WithClientTracing(tracing))
+		client.CallOptions.GetBucket = append(client.CallOptions.GetBucket, gax.WithClientTracing(tracing))
+		client.CallOptions.CreateBucketAsync = append(client.CallOptions.CreateBucketAsync, gax.WithClientTracing(tracing))
+		client.CallOptions.UpdateBucketAsync = append(client.CallOptions.UpdateBucketAsync, gax.WithClientTracing(tracing))
+		client.CallOptions.CreateBucket = append(client.CallOptions.CreateBucket, gax.WithClientTracing(tracing))
+		client.CallOptions.UpdateBucket = append(client.CallOptions.UpdateBucket, gax.WithClientTracing(tracing))
+		client.CallOptions.DeleteBucket = append(client.CallOptions.DeleteBucket, gax.WithClientTracing(tracing))
+		client.CallOptions.UndeleteBucket = append(client.CallOptions.UndeleteBucket, gax.WithClientTracing(tracing))
+		client.CallOptions.ListViews = append(client.CallOptions.ListViews, gax.WithClientTracing(tracing))
+		client.CallOptions.GetView = append(client.CallOptions.GetView, gax.WithClientTracing(tracing))
+		client.CallOptions.CreateView = append(client.CallOptions.CreateView, gax.WithClientTracing(tracing))
+		client.CallOptions.UpdateView = append(client.CallOptions.UpdateView, gax.WithClientTracing(tracing))
+		client.CallOptions.DeleteView = append(client.CallOptions.DeleteView, gax.WithClientTracing(tracing))
+		client.CallOptions.ListSinks = append(client.CallOptions.ListSinks, gax.WithClientTracing(tracing))
+		client.CallOptions.GetSink = append(client.CallOptions.GetSink, gax.WithClientTracing(tracing))
+		client.CallOptions.CreateSink = append(client.CallOptions.CreateSink, gax.WithClientTracing(tracing))
+		client.CallOptions.UpdateSink = append(client.CallOptions.UpdateSink, gax.WithClientTracing(tracing))
+		client.CallOptions.DeleteSink = append(client.CallOptions.DeleteSink, gax.WithClientTracing(tracing))
+		client.CallOptions.CreateLink = append(client.CallOptions.CreateLink, gax.WithClientTracing(tracing))
+		client.CallOptions.DeleteLink = append(client.CallOptions.DeleteLink, gax.WithClientTracing(tracing))
+		client.CallOptions.ListLinks = append(client.CallOptions.ListLinks, gax.WithClientTracing(tracing))
+		client.CallOptions.GetLink = append(client.CallOptions.GetLink, gax.WithClientTracing(tracing))
+		client.CallOptions.ListExclusions = append(client.CallOptions.ListExclusions, gax.WithClientTracing(tracing))
+		client.CallOptions.GetExclusion = append(client.CallOptions.GetExclusion, gax.WithClientTracing(tracing))
+		client.CallOptions.CreateExclusion = append(client.CallOptions.CreateExclusion, gax.WithClientTracing(tracing))
+		client.CallOptions.UpdateExclusion = append(client.CallOptions.UpdateExclusion, gax.WithClientTracing(tracing))
+		client.CallOptions.DeleteExclusion = append(client.CallOptions.DeleteExclusion, gax.WithClientTracing(tracing))
+		client.CallOptions.GetCmekSettings = append(client.CallOptions.GetCmekSettings, gax.WithClientTracing(tracing))
+		client.CallOptions.UpdateCmekSettings = append(client.CallOptions.UpdateCmekSettings, gax.WithClientTracing(tracing))
+		client.CallOptions.GetSettings = append(client.CallOptions.GetSettings, gax.WithClientTracing(tracing))
+		client.CallOptions.UpdateSettings = append(client.CallOptions.UpdateSettings, gax.WithClientTracing(tracing))
+		client.CallOptions.CopyLogEntries = append(client.CallOptions.CopyLogEntries, gax.WithClientTracing(tracing))
+		client.CallOptions.CancelOperation = append(client.CallOptions.CancelOperation, gax.WithClientTracing(tracing))
+		client.CallOptions.GetOperation = append(client.CallOptions.GetOperation, gax.WithClientTracing(tracing))
+		client.CallOptions.ListOperations = append(client.CallOptions.ListOperations, gax.WithClientTracing(tracing))
+	}
+	if gax.IsFeatureEnabled("LOGGING") {
+		logging := gax.NewClientLogging(
+			gax.WithLoggerProvider(c.logger),
+			gax.WithLoggingAttributes(map[string]string{
+				gax.ClientService:  "logging",
+				gax.ClientVersion:  getVersionClient(),
+				gax.ClientArtifact: "cloud.google.com/go/logging/apiv2",
+				gax.RPCSystem:      "grpc",
+				gax.URLDomain:      "logging.googleapis.com",
+			}),
+		)
+
+		client.CallOptions.ListBuckets = append(client.CallOptions.ListBuckets, gax.WithClientLogging(logging))
+		client.CallOptions.GetBucket = append(client.CallOptions.GetBucket, gax.WithClientLogging(logging))
+		client.CallOptions.CreateBucketAsync = append(client.CallOptions.CreateBucketAsync, gax.WithClientLogging(logging))
+		client.CallOptions.UpdateBucketAsync = append(client.CallOptions.UpdateBucketAsync, gax.WithClientLogging(logging))
+		client.CallOptions.CreateBucket = append(client.CallOptions.CreateBucket, gax.WithClientLogging(logging))
+		client.CallOptions.UpdateBucket = append(client.CallOptions.UpdateBucket, gax.WithClientLogging(logging))
+		client.CallOptions.DeleteBucket = append(client.CallOptions.DeleteBucket, gax.WithClientLogging(logging))
+		client.CallOptions.UndeleteBucket = append(client.CallOptions.UndeleteBucket, gax.WithClientLogging(logging))
+		client.CallOptions.ListViews = append(client.CallOptions.ListViews, gax.WithClientLogging(logging))
+		client.CallOptions.GetView = append(client.CallOptions.GetView, gax.WithClientLogging(logging))
+		client.CallOptions.CreateView = append(client.CallOptions.CreateView, gax.WithClientLogging(logging))
+		client.CallOptions.UpdateView = append(client.CallOptions.UpdateView, gax.WithClientLogging(logging))
+		client.CallOptions.DeleteView = append(client.CallOptions.DeleteView, gax.WithClientLogging(logging))
+		client.CallOptions.ListSinks = append(client.CallOptions.ListSinks, gax.WithClientLogging(logging))
+		client.CallOptions.GetSink = append(client.CallOptions.GetSink, gax.WithClientLogging(logging))
+		client.CallOptions.CreateSink = append(client.CallOptions.CreateSink, gax.WithClientLogging(logging))
+		client.CallOptions.UpdateSink = append(client.CallOptions.UpdateSink, gax.WithClientLogging(logging))
+		client.CallOptions.DeleteSink = append(client.CallOptions.DeleteSink, gax.WithClientLogging(logging))
+		client.CallOptions.CreateLink = append(client.CallOptions.CreateLink, gax.WithClientLogging(logging))
+		client.CallOptions.DeleteLink = append(client.CallOptions.DeleteLink, gax.WithClientLogging(logging))
+		client.CallOptions.ListLinks = append(client.CallOptions.ListLinks, gax.WithClientLogging(logging))
+		client.CallOptions.GetLink = append(client.CallOptions.GetLink, gax.WithClientLogging(logging))
+		client.CallOptions.ListExclusions = append(client.CallOptions.ListExclusions, gax.WithClientLogging(logging))
+		client.CallOptions.GetExclusion = append(client.CallOptions.GetExclusion, gax.WithClientLogging(logging))
+		client.CallOptions.CreateExclusion = append(client.CallOptions.CreateExclusion, gax.WithClientLogging(logging))
+		client.CallOptions.UpdateExclusion = append(client.CallOptions.UpdateExclusion, gax.WithClientLogging(logging))
+		client.CallOptions.DeleteExclusion = append(client.CallOptions.DeleteExclusion, gax.WithClientLogging(logging))
+		client.CallOptions.GetCmekSettings = append(client.CallOptions.GetCmekSettings, gax.WithClientLogging(logging))
+		client.CallOptions.UpdateCmekSettings = append(client.CallOptions.UpdateCmekSettings, gax.WithClientLogging(logging))
+		client.CallOptions.GetSettings = append(client.CallOptions.GetSettings, gax.WithClientLogging(logging))
+		client.CallOptions.UpdateSettings = append(client.CallOptions.UpdateSettings, gax.WithClientLogging(logging))
+		client.CallOptions.CopyLogEntries = append(client.CallOptions.CopyLogEntries, gax.WithClientLogging(logging))
+		client.CallOptions.CancelOperation = append(client.CallOptions.CancelOperation, gax.WithClientLogging(logging))
+		client.CallOptions.GetOperation = append(client.CallOptions.GetOperation, gax.WithClientLogging(logging))
+		client.CallOptions.ListOperations = append(client.CallOptions.ListOperations, gax.WithClientLogging(logging))
+	}
 
 	client.internalClient = c
 
@@ -1010,6 +1105,101 @@ func NewConfigRESTClient(ctx context.Context, opts ...option.ClientOption) (*Con
 		callOpts.GetOperation = append(callOpts.GetOperation, gax.WithClientMetrics(metrics))
 		callOpts.ListOperations = append(callOpts.ListOperations, gax.WithClientMetrics(metrics))
 	}
+	if gax.IsFeatureEnabled("TRACING") {
+		tracing := gax.NewClientTracing(
+			gax.WithTracingAttributes(map[string]string{
+				gax.ClientService:  "logging",
+				gax.ClientVersion:  getVersionClient(),
+				gax.ClientArtifact: "cloud.google.com/go/logging/apiv2",
+				gax.RPCSystem:      "http",
+				gax.URLDomain:      "logging.googleapis.com",
+			}),
+		)
+
+		callOpts.ListBuckets = append(callOpts.ListBuckets, gax.WithClientTracing(tracing))
+		callOpts.GetBucket = append(callOpts.GetBucket, gax.WithClientTracing(tracing))
+		callOpts.CreateBucketAsync = append(callOpts.CreateBucketAsync, gax.WithClientTracing(tracing))
+		callOpts.UpdateBucketAsync = append(callOpts.UpdateBucketAsync, gax.WithClientTracing(tracing))
+		callOpts.CreateBucket = append(callOpts.CreateBucket, gax.WithClientTracing(tracing))
+		callOpts.UpdateBucket = append(callOpts.UpdateBucket, gax.WithClientTracing(tracing))
+		callOpts.DeleteBucket = append(callOpts.DeleteBucket, gax.WithClientTracing(tracing))
+		callOpts.UndeleteBucket = append(callOpts.UndeleteBucket, gax.WithClientTracing(tracing))
+		callOpts.ListViews = append(callOpts.ListViews, gax.WithClientTracing(tracing))
+		callOpts.GetView = append(callOpts.GetView, gax.WithClientTracing(tracing))
+		callOpts.CreateView = append(callOpts.CreateView, gax.WithClientTracing(tracing))
+		callOpts.UpdateView = append(callOpts.UpdateView, gax.WithClientTracing(tracing))
+		callOpts.DeleteView = append(callOpts.DeleteView, gax.WithClientTracing(tracing))
+		callOpts.ListSinks = append(callOpts.ListSinks, gax.WithClientTracing(tracing))
+		callOpts.GetSink = append(callOpts.GetSink, gax.WithClientTracing(tracing))
+		callOpts.CreateSink = append(callOpts.CreateSink, gax.WithClientTracing(tracing))
+		callOpts.UpdateSink = append(callOpts.UpdateSink, gax.WithClientTracing(tracing))
+		callOpts.DeleteSink = append(callOpts.DeleteSink, gax.WithClientTracing(tracing))
+		callOpts.CreateLink = append(callOpts.CreateLink, gax.WithClientTracing(tracing))
+		callOpts.DeleteLink = append(callOpts.DeleteLink, gax.WithClientTracing(tracing))
+		callOpts.ListLinks = append(callOpts.ListLinks, gax.WithClientTracing(tracing))
+		callOpts.GetLink = append(callOpts.GetLink, gax.WithClientTracing(tracing))
+		callOpts.ListExclusions = append(callOpts.ListExclusions, gax.WithClientTracing(tracing))
+		callOpts.GetExclusion = append(callOpts.GetExclusion, gax.WithClientTracing(tracing))
+		callOpts.CreateExclusion = append(callOpts.CreateExclusion, gax.WithClientTracing(tracing))
+		callOpts.UpdateExclusion = append(callOpts.UpdateExclusion, gax.WithClientTracing(tracing))
+		callOpts.DeleteExclusion = append(callOpts.DeleteExclusion, gax.WithClientTracing(tracing))
+		callOpts.GetCmekSettings = append(callOpts.GetCmekSettings, gax.WithClientTracing(tracing))
+		callOpts.UpdateCmekSettings = append(callOpts.UpdateCmekSettings, gax.WithClientTracing(tracing))
+		callOpts.GetSettings = append(callOpts.GetSettings, gax.WithClientTracing(tracing))
+		callOpts.UpdateSettings = append(callOpts.UpdateSettings, gax.WithClientTracing(tracing))
+		callOpts.CopyLogEntries = append(callOpts.CopyLogEntries, gax.WithClientTracing(tracing))
+		callOpts.CancelOperation = append(callOpts.CancelOperation, gax.WithClientTracing(tracing))
+		callOpts.GetOperation = append(callOpts.GetOperation, gax.WithClientTracing(tracing))
+		callOpts.ListOperations = append(callOpts.ListOperations, gax.WithClientTracing(tracing))
+	}
+	if gax.IsFeatureEnabled("LOGGING") {
+		logging := gax.NewClientLogging(
+			gax.WithLoggerProvider(c.logger),
+			gax.WithLoggingAttributes(map[string]string{
+				gax.ClientService:  "logging",
+				gax.ClientVersion:  getVersionClient(),
+				gax.ClientArtifact: "cloud.google.com/go/logging/apiv2",
+				gax.RPCSystem:      "http",
+				gax.URLDomain:      "logging.googleapis.com",
+			}),
+		)
+
+		callOpts.ListBuckets = append(callOpts.ListBuckets, gax.WithClientLogging(logging))
+		callOpts.GetBucket = append(callOpts.GetBucket, gax.WithClientLogging(logging))
+		callOpts.CreateBucketAsync = append(callOpts.CreateBucketAsync, gax.WithClientLogging(logging))
+		callOpts.UpdateBucketAsync = append(callOpts.UpdateBucketAsync, gax.WithClientLogging(logging))
+		callOpts.CreateBucket = append(callOpts.CreateBucket, gax.WithClientLogging(logging))
+		callOpts.UpdateBucket = append(callOpts.UpdateBucket, gax.WithClientLogging(logging))
+		callOpts.DeleteBucket = append(callOpts.DeleteBucket, gax.WithClientLogging(logging))
+		callOpts.UndeleteBucket = append(callOpts.UndeleteBucket, gax.WithClientLogging(logging))
+		callOpts.ListViews = append(callOpts.ListViews, gax.WithClientLogging(logging))
+		callOpts.GetView = append(callOpts.GetView, gax.WithClientLogging(logging))
+		callOpts.CreateView = append(callOpts.CreateView, gax.WithClientLogging(logging))
+		callOpts.UpdateView = append(callOpts.UpdateView, gax.WithClientLogging(logging))
+		callOpts.DeleteView = append(callOpts.DeleteView, gax.WithClientLogging(logging))
+		callOpts.ListSinks = append(callOpts.ListSinks, gax.WithClientLogging(logging))
+		callOpts.GetSink = append(callOpts.GetSink, gax.WithClientLogging(logging))
+		callOpts.CreateSink = append(callOpts.CreateSink, gax.WithClientLogging(logging))
+		callOpts.UpdateSink = append(callOpts.UpdateSink, gax.WithClientLogging(logging))
+		callOpts.DeleteSink = append(callOpts.DeleteSink, gax.WithClientLogging(logging))
+		callOpts.CreateLink = append(callOpts.CreateLink, gax.WithClientLogging(logging))
+		callOpts.DeleteLink = append(callOpts.DeleteLink, gax.WithClientLogging(logging))
+		callOpts.ListLinks = append(callOpts.ListLinks, gax.WithClientLogging(logging))
+		callOpts.GetLink = append(callOpts.GetLink, gax.WithClientLogging(logging))
+		callOpts.ListExclusions = append(callOpts.ListExclusions, gax.WithClientLogging(logging))
+		callOpts.GetExclusion = append(callOpts.GetExclusion, gax.WithClientLogging(logging))
+		callOpts.CreateExclusion = append(callOpts.CreateExclusion, gax.WithClientLogging(logging))
+		callOpts.UpdateExclusion = append(callOpts.UpdateExclusion, gax.WithClientLogging(logging))
+		callOpts.DeleteExclusion = append(callOpts.DeleteExclusion, gax.WithClientLogging(logging))
+		callOpts.GetCmekSettings = append(callOpts.GetCmekSettings, gax.WithClientLogging(logging))
+		callOpts.UpdateCmekSettings = append(callOpts.UpdateCmekSettings, gax.WithClientLogging(logging))
+		callOpts.GetSettings = append(callOpts.GetSettings, gax.WithClientLogging(logging))
+		callOpts.UpdateSettings = append(callOpts.UpdateSettings, gax.WithClientLogging(logging))
+		callOpts.CopyLogEntries = append(callOpts.CopyLogEntries, gax.WithClientLogging(logging))
+		callOpts.CancelOperation = append(callOpts.CancelOperation, gax.WithClientLogging(logging))
+		callOpts.GetOperation = append(callOpts.GetOperation, gax.WithClientLogging(logging))
+		callOpts.ListOperations = append(callOpts.ListOperations, gax.WithClientLogging(logging))
+	}
 
 	lroOpts := []option.ClientOption{
 		option.WithHTTPClient(httpClient),
@@ -1066,9 +1256,6 @@ func (c *configGRPCClient) ListBuckets(ctx context.Context, req *loggingpb.ListB
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetParent()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/ListBuckets")
 	}
@@ -1118,9 +1305,6 @@ func (c *configGRPCClient) GetBucket(ctx context.Context, req *loggingpb.GetBuck
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/GetBucket")
 	}
@@ -1142,9 +1326,6 @@ func (c *configGRPCClient) CreateBucketAsync(ctx context.Context, req *loggingpb
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetParent()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/CreateBucketAsync")
 	}
@@ -1172,9 +1353,6 @@ func (c *configGRPCClient) UpdateBucketAsync(ctx context.Context, req *loggingpb
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/UpdateBucketAsync")
 	}
@@ -1202,9 +1380,6 @@ func (c *configGRPCClient) CreateBucket(ctx context.Context, req *loggingpb.Crea
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetParent()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/CreateBucket")
 	}
@@ -1226,9 +1401,6 @@ func (c *configGRPCClient) UpdateBucket(ctx context.Context, req *loggingpb.Upda
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/UpdateBucket")
 	}
@@ -1250,9 +1422,6 @@ func (c *configGRPCClient) DeleteBucket(ctx context.Context, req *loggingpb.Dele
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/DeleteBucket")
 	}
@@ -1270,9 +1439,6 @@ func (c *configGRPCClient) UndeleteBucket(ctx context.Context, req *loggingpb.Un
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/UndeleteBucket")
 	}
@@ -1339,9 +1505,6 @@ func (c *configGRPCClient) GetView(ctx context.Context, req *loggingpb.GetViewRe
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/GetView")
 	}
@@ -1405,9 +1568,6 @@ func (c *configGRPCClient) DeleteView(ctx context.Context, req *loggingpb.Delete
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/DeleteView")
 	}
@@ -1425,9 +1585,6 @@ func (c *configGRPCClient) ListSinks(ctx context.Context, req *loggingpb.ListSin
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetParent()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/ListSinks")
 	}
@@ -1477,9 +1634,6 @@ func (c *configGRPCClient) GetSink(ctx context.Context, req *loggingpb.GetSinkRe
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetSinkName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/GetSink")
 	}
@@ -1501,9 +1655,6 @@ func (c *configGRPCClient) CreateSink(ctx context.Context, req *loggingpb.Create
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetParent()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/CreateSink")
 	}
@@ -1525,9 +1676,6 @@ func (c *configGRPCClient) UpdateSink(ctx context.Context, req *loggingpb.Update
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetSinkName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/UpdateSink")
 	}
@@ -1549,9 +1697,6 @@ func (c *configGRPCClient) DeleteSink(ctx context.Context, req *loggingpb.Delete
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetSinkName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/DeleteSink")
 	}
@@ -1569,9 +1714,6 @@ func (c *configGRPCClient) CreateLink(ctx context.Context, req *loggingpb.Create
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetParent()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/CreateLink")
 	}
@@ -1599,9 +1741,6 @@ func (c *configGRPCClient) DeleteLink(ctx context.Context, req *loggingpb.Delete
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/DeleteLink")
 	}
@@ -1629,9 +1768,6 @@ func (c *configGRPCClient) ListLinks(ctx context.Context, req *loggingpb.ListLin
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetParent()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/ListLinks")
 	}
@@ -1681,9 +1817,6 @@ func (c *configGRPCClient) GetLink(ctx context.Context, req *loggingpb.GetLinkRe
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/GetLink")
 	}
@@ -1705,9 +1838,6 @@ func (c *configGRPCClient) ListExclusions(ctx context.Context, req *loggingpb.Li
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetParent()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/ListExclusions")
 	}
@@ -1757,9 +1887,6 @@ func (c *configGRPCClient) GetExclusion(ctx context.Context, req *loggingpb.GetE
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/GetExclusion")
 	}
@@ -1781,9 +1908,6 @@ func (c *configGRPCClient) CreateExclusion(ctx context.Context, req *loggingpb.C
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetParent()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/CreateExclusion")
 	}
@@ -1805,9 +1929,6 @@ func (c *configGRPCClient) UpdateExclusion(ctx context.Context, req *loggingpb.U
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/UpdateExclusion")
 	}
@@ -1829,9 +1950,6 @@ func (c *configGRPCClient) DeleteExclusion(ctx context.Context, req *loggingpb.D
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/DeleteExclusion")
 	}
@@ -1849,9 +1967,6 @@ func (c *configGRPCClient) GetCmekSettings(ctx context.Context, req *loggingpb.G
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/GetCmekSettings")
 	}
@@ -1894,9 +2009,6 @@ func (c *configGRPCClient) GetSettings(ctx context.Context, req *loggingpb.GetSe
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/GetSettings")
 	}
@@ -2142,9 +2254,6 @@ func (c *configRESTClient) GetBucket(ctx context.Context, req *loggingpb.GetBuck
 	hds = append(c.xGoogHeaders, hds...)
 	hds = append(hds, "Content-Type", "application/json")
 	headers := gax.BuildHeaders(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/GetBucket")
 		ctx = callctx.WithTelemetryContext(ctx, "url_template", "/v2/{name=*/*/locations/*/buckets/*}")
@@ -2209,9 +2318,6 @@ func (c *configRESTClient) CreateBucketAsync(ctx context.Context, req *loggingpb
 	hds = append(c.xGoogHeaders, hds...)
 	hds = append(hds, "Content-Type", "application/json")
 	headers := gax.BuildHeaders(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetParent()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/CreateBucketAsync")
 		ctx = callctx.WithTelemetryContext(ctx, "url_template", "/v2/{parent=*/*/locations/*}/buckets:createAsync")
@@ -2292,9 +2398,6 @@ func (c *configRESTClient) UpdateBucketAsync(ctx context.Context, req *loggingpb
 	hds = append(c.xGoogHeaders, hds...)
 	hds = append(hds, "Content-Type", "application/json")
 	headers := gax.BuildHeaders(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/UpdateBucketAsync")
 		ctx = callctx.WithTelemetryContext(ctx, "url_template", "/v2/{name=*/*/locations/*/buckets/*}:updateAsync")
@@ -2365,9 +2468,6 @@ func (c *configRESTClient) CreateBucket(ctx context.Context, req *loggingpb.Crea
 	hds = append(c.xGoogHeaders, hds...)
 	hds = append(hds, "Content-Type", "application/json")
 	headers := gax.BuildHeaders(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetParent()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/CreateBucket")
 		ctx = callctx.WithTelemetryContext(ctx, "url_template", "/v2/{parent=*/*/locations/*}/buckets")
@@ -2441,9 +2541,6 @@ func (c *configRESTClient) UpdateBucket(ctx context.Context, req *loggingpb.Upda
 	hds = append(c.xGoogHeaders, hds...)
 	hds = append(hds, "Content-Type", "application/json")
 	headers := gax.BuildHeaders(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/UpdateBucket")
 		ctx = callctx.WithTelemetryContext(ctx, "url_template", "/v2/{name=*/*/locations/*/buckets/*}")
@@ -2502,9 +2599,6 @@ func (c *configRESTClient) DeleteBucket(ctx context.Context, req *loggingpb.Dele
 	hds = append(c.xGoogHeaders, hds...)
 	hds = append(hds, "Content-Type", "application/json")
 	headers := gax.BuildHeaders(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/DeleteBucket")
 		ctx = callctx.WithTelemetryContext(ctx, "url_template", "/v2/{name=*/*/locations/*/buckets/*}")
@@ -2551,9 +2645,6 @@ func (c *configRESTClient) UndeleteBucket(ctx context.Context, req *loggingpb.Un
 	hds = append(c.xGoogHeaders, hds...)
 	hds = append(hds, "Content-Type", "application/json")
 	headers := gax.BuildHeaders(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/UndeleteBucket")
 		ctx = callctx.WithTelemetryContext(ctx, "url_template", "/v2/{name=*/*/locations/*/buckets/*}:undelete")
@@ -2671,9 +2762,6 @@ func (c *configRESTClient) GetView(ctx context.Context, req *loggingpb.GetViewRe
 	hds = append(c.xGoogHeaders, hds...)
 	hds = append(hds, "Content-Type", "application/json")
 	headers := gax.BuildHeaders(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/GetView")
 		ctx = callctx.WithTelemetryContext(ctx, "url_template", "/v2/{name=*/*/locations/*/buckets/*/views/*}")
@@ -2866,9 +2954,6 @@ func (c *configRESTClient) DeleteView(ctx context.Context, req *loggingpb.Delete
 	hds = append(c.xGoogHeaders, hds...)
 	hds = append(hds, "Content-Type", "application/json")
 	headers := gax.BuildHeaders(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/DeleteView")
 		ctx = callctx.WithTelemetryContext(ctx, "url_template", "/v2/{name=*/*/locations/*/buckets/*/views/*}")
@@ -2986,9 +3071,6 @@ func (c *configRESTClient) GetSink(ctx context.Context, req *loggingpb.GetSinkRe
 	hds = append(c.xGoogHeaders, hds...)
 	hds = append(hds, "Content-Type", "application/json")
 	headers := gax.BuildHeaders(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetSinkName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/GetSink")
 		ctx = callctx.WithTelemetryContext(ctx, "url_template", "/v2/{sink_name=*/*/sinks/*}")
@@ -3056,9 +3138,6 @@ func (c *configRESTClient) CreateSink(ctx context.Context, req *loggingpb.Create
 	hds = append(c.xGoogHeaders, hds...)
 	hds = append(hds, "Content-Type", "application/json")
 	headers := gax.BuildHeaders(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetParent()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/CreateSink")
 		ctx = callctx.WithTelemetryContext(ctx, "url_template", "/v2/{parent=*/*}/sinks")
@@ -3134,9 +3213,6 @@ func (c *configRESTClient) UpdateSink(ctx context.Context, req *loggingpb.Update
 	hds = append(c.xGoogHeaders, hds...)
 	hds = append(hds, "Content-Type", "application/json")
 	headers := gax.BuildHeaders(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetSinkName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/UpdateSink")
 		ctx = callctx.WithTelemetryContext(ctx, "url_template", "/v2/{sink_name=*/*/sinks/*}")
@@ -3192,9 +3268,6 @@ func (c *configRESTClient) DeleteSink(ctx context.Context, req *loggingpb.Delete
 	hds = append(c.xGoogHeaders, hds...)
 	hds = append(hds, "Content-Type", "application/json")
 	headers := gax.BuildHeaders(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetSinkName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/DeleteSink")
 		ctx = callctx.WithTelemetryContext(ctx, "url_template", "/v2/{sink_name=*/*/sinks/*}")
@@ -3244,9 +3317,6 @@ func (c *configRESTClient) CreateLink(ctx context.Context, req *loggingpb.Create
 	hds = append(c.xGoogHeaders, hds...)
 	hds = append(hds, "Content-Type", "application/json")
 	headers := gax.BuildHeaders(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetParent()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/CreateLink")
 		ctx = callctx.WithTelemetryContext(ctx, "url_template", "/v2/{parent=*/*/locations/*/buckets/*}/links")
@@ -3309,9 +3379,6 @@ func (c *configRESTClient) DeleteLink(ctx context.Context, req *loggingpb.Delete
 	hds = append(c.xGoogHeaders, hds...)
 	hds = append(hds, "Content-Type", "application/json")
 	headers := gax.BuildHeaders(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/DeleteLink")
 		ctx = callctx.WithTelemetryContext(ctx, "url_template", "/v2/{name=*/*/locations/*/buckets/*/links/*}")
@@ -3451,9 +3518,6 @@ func (c *configRESTClient) GetLink(ctx context.Context, req *loggingpb.GetLinkRe
 	hds = append(c.xGoogHeaders, hds...)
 	hds = append(hds, "Content-Type", "application/json")
 	headers := gax.BuildHeaders(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/GetLink")
 		ctx = callctx.WithTelemetryContext(ctx, "url_template", "/v2/{name=*/*/locations/*/buckets/*/links/*}")
@@ -3586,9 +3650,6 @@ func (c *configRESTClient) GetExclusion(ctx context.Context, req *loggingpb.GetE
 	hds = append(c.xGoogHeaders, hds...)
 	hds = append(hds, "Content-Type", "application/json")
 	headers := gax.BuildHeaders(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/GetExclusion")
 		ctx = callctx.WithTelemetryContext(ctx, "url_template", "/v2/{name=*/*/exclusions/*}")
@@ -3652,9 +3713,6 @@ func (c *configRESTClient) CreateExclusion(ctx context.Context, req *loggingpb.C
 	hds = append(c.xGoogHeaders, hds...)
 	hds = append(hds, "Content-Type", "application/json")
 	headers := gax.BuildHeaders(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetParent()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/CreateExclusion")
 		ctx = callctx.WithTelemetryContext(ctx, "url_template", "/v2/{parent=*/*}/exclusions")
@@ -3724,9 +3782,6 @@ func (c *configRESTClient) UpdateExclusion(ctx context.Context, req *loggingpb.U
 	hds = append(c.xGoogHeaders, hds...)
 	hds = append(hds, "Content-Type", "application/json")
 	headers := gax.BuildHeaders(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/UpdateExclusion")
 		ctx = callctx.WithTelemetryContext(ctx, "url_template", "/v2/{name=*/*/exclusions/*}")
@@ -3781,9 +3836,6 @@ func (c *configRESTClient) DeleteExclusion(ctx context.Context, req *loggingpb.D
 	hds = append(c.xGoogHeaders, hds...)
 	hds = append(hds, "Content-Type", "application/json")
 	headers := gax.BuildHeaders(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/DeleteExclusion")
 		ctx = callctx.WithTelemetryContext(ctx, "url_template", "/v2/{name=*/*/exclusions/*}")
@@ -3832,9 +3884,6 @@ func (c *configRESTClient) GetCmekSettings(ctx context.Context, req *loggingpb.G
 	hds = append(c.xGoogHeaders, hds...)
 	hds = append(hds, "Content-Type", "application/json")
 	headers := gax.BuildHeaders(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/GetCmekSettings")
 		ctx = callctx.WithTelemetryContext(ctx, "url_template", "/v2/{name=*/*}/cmekSettings")
@@ -3980,9 +4029,6 @@ func (c *configRESTClient) GetSettings(ctx context.Context, req *loggingpb.GetSe
 	hds = append(c.xGoogHeaders, hds...)
 	hds = append(hds, "Content-Type", "application/json")
 	headers := gax.BuildHeaders(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.ConfigServiceV2/GetSettings")
 		ctx = callctx.WithTelemetryContext(ctx, "url_template", "/v2/{name=*/*}/settings")
