@@ -2,6 +2,7 @@ package containerdexecutor
 
 import (
 	"context"
+	stderrors "errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -196,11 +197,18 @@ func (w *containerdExecutor) Run(ctx context.Context, id string, root executor.M
 	defer namespace.Close()
 	if proxyNS, ok := namespace.(network.ProxyNamespace); ok {
 		meta.Env = executor.ReplaceEnv(meta.Env, proxyNS.ProxyEnv())
-		cleanProxyCA, err := executor.InjectProxyCA(details.rootfsPath, proxyNS.ProxyCACert())
-		if err != nil {
-			return nil, err
+		cleanProxyCA, injectErr := executor.InjectProxyCA(details.rootfsPath, proxyNS.ProxyCACert())
+		if injectErr != nil {
+			return nil, injectErr
 		}
-		defer cleanProxyCA()
+		defer func() {
+			if cleanupErr := cleanProxyCA(); cleanupErr != nil {
+				err = errors.WithStack(stderrors.Join(
+					err,
+					errors.Wrap(cleanupErr, "failed to clean up proxy CA"),
+				))
+			}
+		}()
 	}
 
 	spec, releaseSpec, err := w.createOCISpec(ctx, id, resolvConf, hostsFile, namespace, mounts, meta, details)

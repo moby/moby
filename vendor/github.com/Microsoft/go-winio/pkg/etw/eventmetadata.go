@@ -12,8 +12,6 @@ type inType byte
 
 // Various inType definitions for TraceLogging. These must match the definitions
 // found in TraceLoggingProvider.h in the Windows SDK.
-//
-//nolint:deadcode,varcheck // keep unused constants for potential future use
 const (
 	inTypeNull inType = iota
 	inTypeUnicodeString
@@ -51,8 +49,6 @@ type outType byte
 
 // Various outType definitions for TraceLogging. These must match the
 // definitions found in TraceLoggingProvider.h in the Windows SDK.
-//
-//nolint:deadcode,varcheck // keep unused constants for potential future use
 const (
 	// outTypeDefault indicates that the default formatting for the inType will
 	// be used by the event decoder.

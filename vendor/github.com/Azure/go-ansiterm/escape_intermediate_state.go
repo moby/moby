@@ -1,5 +1,7 @@
 package ansiterm
 
+import "slices"
+
 type escapeIntermediateState struct {
 	baseState
 }
@@ -12,11 +14,11 @@ func (escState escapeIntermediateState) Handle(b byte) (s state, e error) {
 	}
 
 	switch {
-	case sliceContains(intermeds, b):
+	case slices.Contains(intermeds, b):
 		return escState, escState.parser.collectInter()
-	case sliceContains(executors, b):
+	case slices.Contains(executors, b):
 		return escState, escState.parser.execute()
-	case sliceContains(escapeIntermediateToGroundBytes, b):
+	case slices.Contains(escapeIntermediateToGroundBytes, b):
 		return escState.parser.ground, nil
 	}
 

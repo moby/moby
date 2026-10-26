@@ -1,31 +1,28 @@
 package libnetwork
 
 import (
-	"context"
 	"slices"
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/v2/daemon/libnetwork/config"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestEndpointStore(t *testing.T) {
-	configOption := config.OptionDataDir(t.TempDir())
-	c, err := New(context.Background(), configOption)
+	c, err := New(t.Context())
 	assert.NilError(t, err)
 	defer c.Stop()
 
 	// Insert a first endpoint
 	nw := &Network{id: "testNetwork"}
 	ep1 := &Endpoint{network: nw, id: "testEndpoint1"}
-	err = c.storeEndpoint(context.Background(), ep1)
+	err = c.storeEndpoint(t.Context(), ep1)
 	assert.NilError(t, err)
 
 	// Then a second endpoint
 	ep2 := &Endpoint{network: nw, id: "testEndpoint2"}
-	err = c.storeEndpoint(context.Background(), ep2)
+	err = c.storeEndpoint(t.Context(), ep2)
 	assert.NilError(t, err)
 
 	// Check that we can find both endpoints, and that the returned values are
@@ -46,6 +43,6 @@ func TestEndpointStore(t *testing.T) {
 	assert.Check(t, is.Equal(found[0], ep2), "got: %s; expected: %s", found[0].id, ep2.id)
 
 	// Store the second endpoint again
-	err = c.storeEndpoint(context.Background(), ep2)
+	err = c.storeEndpoint(t.Context(), ep2)
 	assert.NilError(t, err)
 }

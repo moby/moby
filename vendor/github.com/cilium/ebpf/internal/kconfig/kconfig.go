@@ -183,8 +183,8 @@ func putValueString(data []byte, typ btf.Type, value string) error {
 
 	// Any Int, which is not bool, of one byte could be used to store char:
 	// https://github.com/torvalds/linux/blob/1a5304fecee5/tools/lib/bpf/libbpf.c#L3637-L3638
-	if contentType.Size != 1 && contentType.Encoding != btf.Bool {
-		return fmt.Errorf("cannot add string value, expected array of btf.Int of size 1, got array of btf.Int of size: %v", contentType.Size)
+	if contentType.Size != 1 || contentType.Encoding == btf.Bool {
+		return fmt.Errorf("cannot add string value, expected array of non-bool btf.Int of size 1, got array of btf.Int with encoding %v and size %v", contentType.Encoding, contentType.Size)
 	}
 
 	if !strings.HasPrefix(value, `"`) || !strings.HasSuffix(value, `"`) {

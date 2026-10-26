@@ -4,6 +4,7 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -89,6 +90,7 @@ type WorkerOpt struct {
 	GarbageCollect   func(context.Context) (gc.Stats, error)
 	ParallelismSem   *semaphore.Weighted
 	MetadataStore    *metadata.Store
+	ContentMetadata  io.Closer
 	MountPoolRoot    string
 	ResourceMonitor  *resources.Monitor
 	CDIManager       *cdidevices.Manager
@@ -251,6 +253,11 @@ func (w *Worker) Close() error {
 	var errs []error
 	if err := w.MetadataStore.Close(); err != nil {
 		errs = append(errs, err)
+	}
+	if w.ContentMetadata != nil {
+		if err := w.ContentMetadata.Close(); err != nil {
+			errs = append(errs, err)
+		}
 	}
 	if w.ProxyProvider != nil {
 		if err := w.ProxyProvider.Close(); err != nil {

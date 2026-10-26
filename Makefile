@@ -85,7 +85,7 @@ DOCKER_ENVS := \
 # to allow `make BIND_DIR=. shell` or `make BIND_DIR= test`
 # (default to no bind mount if DOCKER_HOST is set)
 # note: BINDDIR is supported for backwards-compatibility here
-BIND_DIR := $(if $(BINDDIR),$(BINDDIR),$(if $(DOCKER_HOST),,.))
+BIND_DIR ?= $(if $(BINDDIR),$(BINDDIR),$(if $(DOCKER_HOST),,.))
 
 # DOCKER_MOUNT can be overridden, but use at your own risk!
 ifndef DOCKER_MOUNT

@@ -454,6 +454,49 @@ func NewClient(ctx context.Context, opts ...option.ClientOption) (*Client, error
 		client.CallOptions.GetOperation = append(client.CallOptions.GetOperation, gax.WithClientMetrics(metrics))
 		client.CallOptions.ListOperations = append(client.CallOptions.ListOperations, gax.WithClientMetrics(metrics))
 	}
+	if gax.IsFeatureEnabled("TRACING") {
+		tracing := gax.NewClientTracing(
+			gax.WithTracingAttributes(map[string]string{
+				gax.ClientService:  "logging",
+				gax.ClientVersion:  getVersionClient(),
+				gax.ClientArtifact: "cloud.google.com/go/logging/apiv2",
+				gax.RPCSystem:      "grpc",
+				gax.URLDomain:      "logging.googleapis.com",
+			}),
+		)
+
+		client.CallOptions.DeleteLog = append(client.CallOptions.DeleteLog, gax.WithClientTracing(tracing))
+		client.CallOptions.WriteLogEntries = append(client.CallOptions.WriteLogEntries, gax.WithClientTracing(tracing))
+		client.CallOptions.ListLogEntries = append(client.CallOptions.ListLogEntries, gax.WithClientTracing(tracing))
+		client.CallOptions.ListMonitoredResourceDescriptors = append(client.CallOptions.ListMonitoredResourceDescriptors, gax.WithClientTracing(tracing))
+		client.CallOptions.ListLogs = append(client.CallOptions.ListLogs, gax.WithClientTracing(tracing))
+		client.CallOptions.TailLogEntries = append(client.CallOptions.TailLogEntries, gax.WithClientTracing(tracing))
+		client.CallOptions.CancelOperation = append(client.CallOptions.CancelOperation, gax.WithClientTracing(tracing))
+		client.CallOptions.GetOperation = append(client.CallOptions.GetOperation, gax.WithClientTracing(tracing))
+		client.CallOptions.ListOperations = append(client.CallOptions.ListOperations, gax.WithClientTracing(tracing))
+	}
+	if gax.IsFeatureEnabled("LOGGING") {
+		logging := gax.NewClientLogging(
+			gax.WithLoggerProvider(c.logger),
+			gax.WithLoggingAttributes(map[string]string{
+				gax.ClientService:  "logging",
+				gax.ClientVersion:  getVersionClient(),
+				gax.ClientArtifact: "cloud.google.com/go/logging/apiv2",
+				gax.RPCSystem:      "grpc",
+				gax.URLDomain:      "logging.googleapis.com",
+			}),
+		)
+
+		client.CallOptions.DeleteLog = append(client.CallOptions.DeleteLog, gax.WithClientLogging(logging))
+		client.CallOptions.WriteLogEntries = append(client.CallOptions.WriteLogEntries, gax.WithClientLogging(logging))
+		client.CallOptions.ListLogEntries = append(client.CallOptions.ListLogEntries, gax.WithClientLogging(logging))
+		client.CallOptions.ListMonitoredResourceDescriptors = append(client.CallOptions.ListMonitoredResourceDescriptors, gax.WithClientLogging(logging))
+		client.CallOptions.ListLogs = append(client.CallOptions.ListLogs, gax.WithClientLogging(logging))
+		client.CallOptions.TailLogEntries = append(client.CallOptions.TailLogEntries, gax.WithClientLogging(logging))
+		client.CallOptions.CancelOperation = append(client.CallOptions.CancelOperation, gax.WithClientLogging(logging))
+		client.CallOptions.GetOperation = append(client.CallOptions.GetOperation, gax.WithClientLogging(logging))
+		client.CallOptions.ListOperations = append(client.CallOptions.ListOperations, gax.WithClientLogging(logging))
+	}
 
 	client.internalClient = c
 
@@ -553,6 +596,49 @@ func NewRESTClient(ctx context.Context, opts ...option.ClientOption) (*Client, e
 		callOpts.GetOperation = append(callOpts.GetOperation, gax.WithClientMetrics(metrics))
 		callOpts.ListOperations = append(callOpts.ListOperations, gax.WithClientMetrics(metrics))
 	}
+	if gax.IsFeatureEnabled("TRACING") {
+		tracing := gax.NewClientTracing(
+			gax.WithTracingAttributes(map[string]string{
+				gax.ClientService:  "logging",
+				gax.ClientVersion:  getVersionClient(),
+				gax.ClientArtifact: "cloud.google.com/go/logging/apiv2",
+				gax.RPCSystem:      "http",
+				gax.URLDomain:      "logging.googleapis.com",
+			}),
+		)
+
+		callOpts.DeleteLog = append(callOpts.DeleteLog, gax.WithClientTracing(tracing))
+		callOpts.WriteLogEntries = append(callOpts.WriteLogEntries, gax.WithClientTracing(tracing))
+		callOpts.ListLogEntries = append(callOpts.ListLogEntries, gax.WithClientTracing(tracing))
+		callOpts.ListMonitoredResourceDescriptors = append(callOpts.ListMonitoredResourceDescriptors, gax.WithClientTracing(tracing))
+		callOpts.ListLogs = append(callOpts.ListLogs, gax.WithClientTracing(tracing))
+		callOpts.TailLogEntries = append(callOpts.TailLogEntries, gax.WithClientTracing(tracing))
+		callOpts.CancelOperation = append(callOpts.CancelOperation, gax.WithClientTracing(tracing))
+		callOpts.GetOperation = append(callOpts.GetOperation, gax.WithClientTracing(tracing))
+		callOpts.ListOperations = append(callOpts.ListOperations, gax.WithClientTracing(tracing))
+	}
+	if gax.IsFeatureEnabled("LOGGING") {
+		logging := gax.NewClientLogging(
+			gax.WithLoggerProvider(c.logger),
+			gax.WithLoggingAttributes(map[string]string{
+				gax.ClientService:  "logging",
+				gax.ClientVersion:  getVersionClient(),
+				gax.ClientArtifact: "cloud.google.com/go/logging/apiv2",
+				gax.RPCSystem:      "http",
+				gax.URLDomain:      "logging.googleapis.com",
+			}),
+		)
+
+		callOpts.DeleteLog = append(callOpts.DeleteLog, gax.WithClientLogging(logging))
+		callOpts.WriteLogEntries = append(callOpts.WriteLogEntries, gax.WithClientLogging(logging))
+		callOpts.ListLogEntries = append(callOpts.ListLogEntries, gax.WithClientLogging(logging))
+		callOpts.ListMonitoredResourceDescriptors = append(callOpts.ListMonitoredResourceDescriptors, gax.WithClientLogging(logging))
+		callOpts.ListLogs = append(callOpts.ListLogs, gax.WithClientLogging(logging))
+		callOpts.TailLogEntries = append(callOpts.TailLogEntries, gax.WithClientLogging(logging))
+		callOpts.CancelOperation = append(callOpts.CancelOperation, gax.WithClientLogging(logging))
+		callOpts.GetOperation = append(callOpts.GetOperation, gax.WithClientLogging(logging))
+		callOpts.ListOperations = append(callOpts.ListOperations, gax.WithClientLogging(logging))
+	}
 
 	return &Client{internalClient: c, CallOptions: callOpts}, nil
 }
@@ -599,9 +685,6 @@ func (c *gRPCClient) DeleteLog(ctx context.Context, req *loggingpb.DeleteLogRequ
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetLogName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.LoggingServiceV2/DeleteLog")
 	}
@@ -729,9 +812,6 @@ func (c *gRPCClient) ListLogs(ctx context.Context, req *loggingpb.ListLogsReques
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetParent()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.LoggingServiceV2/ListLogs")
 	}
@@ -905,9 +985,6 @@ func (c *restClient) DeleteLog(ctx context.Context, req *loggingpb.DeleteLogRequ
 	hds = append(c.xGoogHeaders, hds...)
 	hds = append(hds, "Content-Type", "application/json")
 	headers := gax.BuildHeaders(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//logging.googleapis.com/%v", req.GetLogName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.logging.v2.LoggingServiceV2/DeleteLog")
 		ctx = callctx.WithTelemetryContext(ctx, "url_template", "/v2/{log_name=projects/*/logs/*}")

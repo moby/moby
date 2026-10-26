@@ -18,10 +18,11 @@ const _FuncLinkage_name = "staticglobalextern"
 var _FuncLinkage_index = [...]uint8{0, 6, 12, 18}
 
 func (i FuncLinkage) String() string {
-	if i < 0 || i >= FuncLinkage(len(_FuncLinkage_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_FuncLinkage_index)-1 {
 		return "FuncLinkage(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _FuncLinkage_name[_FuncLinkage_index[i]:_FuncLinkage_index[i+1]]
+	return _FuncLinkage_name[_FuncLinkage_index[idx]:_FuncLinkage_index[idx+1]]
 }
 func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
@@ -37,10 +38,11 @@ const _VarLinkage_name = "staticglobalextern"
 var _VarLinkage_index = [...]uint8{0, 6, 12, 18}
 
 func (i VarLinkage) String() string {
-	if i < 0 || i >= VarLinkage(len(_VarLinkage_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_VarLinkage_index)-1 {
 		return "VarLinkage(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _VarLinkage_name[_VarLinkage_index[i]:_VarLinkage_index[i+1]]
+	return _VarLinkage_name[_VarLinkage_index[idx]:_VarLinkage_index[idx+1]]
 }
 func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
@@ -73,8 +75,9 @@ const _btfKind_name = "UnknownIntPointerArrayStructUnionEnumForwardTypedefVolati
 var _btfKind_index = [...]uint8{0, 7, 10, 17, 22, 28, 33, 37, 44, 51, 59, 64, 72, 76, 85, 88, 95, 100, 107, 114, 120}
 
 func (i btfKind) String() string {
-	if i >= btfKind(len(_btfKind_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_btfKind_index)-1 {
 		return "btfKind(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _btfKind_name[_btfKind_index[i]:_btfKind_index[i+1]]
+	return _btfKind_name[_btfKind_index[idx]:_btfKind_index[idx+1]]
 }

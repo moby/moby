@@ -39,12 +39,16 @@ func (c *Cache) reserveV2(ctx context.Context, key string) (string, error) {
 	var cr struct {
 		OK              bool   `json:"ok"`
 		SignedUploadURL string `json:"signed_upload_url"`
+		Message         string `json:"message"`
 	}
 	if err := json.Unmarshal(dt, &cr); err != nil {
 		return "", errors.WithStack(err)
 	}
 
 	if !cr.OK {
+		if cr.Message != "" {
+			return "", errors.Errorf("failed to reserve cache: %s", cr.Message)
+		}
 		return "", errors.New("failed to reserve cache")
 	}
 	return cr.SignedUploadURL, nil
@@ -144,11 +148,15 @@ func (c *Cache) commitV2(ctx context.Context, key string, size int64) error {
 	var cr struct {
 		OK      bool   `json:"ok"`
 		EntryID string `json:"entry_id"`
+		Message string `json:"message"`
 	}
 	if err := json.Unmarshal(dt, &cr); err != nil {
 		return errors.WithStack(err)
 	}
 	if !cr.OK {
+		if cr.Message != "" {
+			return errors.Errorf("failed to commit cache: %s", cr.Message)
+		}
 		return errors.New("failed to commit cache")
 	}
 

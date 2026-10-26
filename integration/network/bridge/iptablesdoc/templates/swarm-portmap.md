@@ -23,7 +23,10 @@ Note that:
    load-balancer sandbox's `docker_gwbridge` gateway endpoint (`172.18.0.2`),
    using the same rules as any other published container port:
    - a DNAT rule in the nat `DOCKER` chain, and
-   - an ACCEPT rule in the filter `DOCKER` chain.
+   - ACCEPT rules in the filter `DOCKER` chain. There are two, because
+     `docker_gwbridge` has inter-container communication disabled: one for
+     packets from outside the network, and one for packets from the network
+     itself that reached the port via one of the host's addresses.
    - So, there's no separate `DOCKER-INGRESS` chain.
 
 And the corresponding nat table:

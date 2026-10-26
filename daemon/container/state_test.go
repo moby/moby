@@ -2,6 +2,7 @@ package container
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -23,7 +24,7 @@ func TestStateRunStop(t *testing.T) {
 
 	// Begin another wait with WaitConditionRemoved. It should complete
 	// within 200 milliseconds.
-	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
 	defer cancel()
 	removalWait := s.Wait(ctx, container.WaitConditionRemoved)
 
@@ -33,7 +34,7 @@ func TestStateRunStop(t *testing.T) {
 		// immediately since the state is now either "created" (on the
 		// first iteration) or "exited" (on the second iteration). It
 		// shouldn't take more than 50 milliseconds.
-		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
 		defer cancel()
 		// Expectx exit code to be i-1 since it should be the exit
 		// code from the previous loop or 0 for the created state.
@@ -44,7 +45,7 @@ func TestStateRunStop(t *testing.T) {
 		// A wait with WaitConditionNextExit should block until the
 		// container has started and exited. It shouldn't take more
 		// than 100 milliseconds.
-		ctx, cancel = context.WithTimeout(context.Background(), 100*time.Millisecond)
+		ctx, cancel = context.WithTimeout(t.Context(), 100*time.Millisecond)
 		defer cancel()
 		initialWait := s.Wait(ctx, container.WaitConditionNextExit)
 
@@ -67,7 +68,7 @@ func TestStateRunStop(t *testing.T) {
 		// Now that it's running, a wait with WaitConditionNotRunning
 		// should block until we stop the container. It shouldn't take
 		// more than 100 milliseconds.
-		ctx, cancel = context.WithTimeout(context.Background(), 100*time.Millisecond)
+		ctx, cancel = context.WithTimeout(t.Context(), 100*time.Millisecond)
 		defer cancel()
 		exitWait := s.Wait(ctx, container.WaitConditionNotRunning)
 
@@ -111,6 +112,42 @@ func TestStateRunStop(t *testing.T) {
 	}
 }
 
+// TestStateSetRemovalErrorConcurrentRead verifies that SetRemovalError and
+// SetRemoved update ErrorMsg under the state lock, so they do not race with
+// readers holding the lock, such as container inspect.
+func TestStateSetRemovalErrorConcurrentRead(t *testing.T) {
+	t.Parallel()
+	s := &State{}
+
+	done := make(chan struct{})
+	readerDone := make(chan struct{})
+	go func() {
+		defer close(readerDone)
+		for {
+			select {
+			case <-done:
+				return
+			default:
+				s.Lock()
+				_ = s.ErrorMsg
+				s.Unlock()
+			}
+		}
+	}()
+
+	removalWait := s.Wait(t.Context(), container.WaitConditionRemoved)
+	s.SetRemovalError(errors.New("removal failed"))
+	status := <-removalWait
+	assert.Check(t, is.Error(status.Err(), "removal failed"))
+
+	s.SetRemoved()
+	status = <-s.Wait(t.Context(), container.WaitConditionRemoved)
+	assert.Check(t, is.Nil(status.Err()))
+
+	close(done)
+	<-readerDone
+}
+
 func TestStateTimeoutWait(t *testing.T) {
 	s := &State{}
 
@@ -119,7 +156,7 @@ func TestStateTimeoutWait(t *testing.T) {
 	s.Unlock()
 
 	// Start a wait with a timeout.
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 	defer cancel()
 	waitC := s.Wait(ctx, container.WaitConditionNotRunning)
 
@@ -144,7 +181,7 @@ func TestStateTimeoutWait(t *testing.T) {
 
 	// Start another wait with a timeout. This one should return
 	// immediately.
-	ctx, cancel = context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel = context.WithTimeout(t.Context(), 100*time.Millisecond)
 	defer cancel()
 	waitC = s.Wait(ctx, container.WaitConditionNotRunning)
 
@@ -171,7 +208,7 @@ func TestStateWaitReturnsExitStatusAfterRestart(t *testing.T) {
 	s.SetRunning(nil, nil, time.Now())
 	s.Unlock()
 
-	waitC := s.Wait(context.Background(), container.WaitConditionNotRunning)
+	waitC := s.Wait(t.Context(), container.WaitConditionNotRunning)
 	want := ExitStatus{ExitCode: 10, ExitedAt: time.Now()}
 
 	s.Lock()

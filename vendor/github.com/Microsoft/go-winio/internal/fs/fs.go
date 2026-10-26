@@ -243,7 +243,7 @@ const (
 // https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfinalpathnamebyhandlew
 func GetFinalPathNameByHandle(h windows.Handle, flags GetFinalPathFlag) (string, error) {
 	b := stringbuffer.NewWString()
-	//TODO: can loop infinitely if Win32 keeps returning the same (or a larger) n?
+	// TODO: can loop infinitely if Win32 keeps returning the same (or a larger) n?
 	for {
 		n, err := windows.GetFinalPathNameByHandle(h, b.Pointer(), b.Cap(), uint32(flags))
 		if err != nil {

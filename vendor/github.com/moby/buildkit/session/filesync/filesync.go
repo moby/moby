@@ -34,10 +34,16 @@ const (
 )
 
 type fsSyncProvider struct {
-	dirs   DirSource
-	p      progressCb
-	doneCh chan error
+	dirs       DirSource
+	filterOpts []FilterOptFunc
+	p          progressCb
+	doneCh     chan error
 }
+
+// FilterOptFunc can adjust the filters sent by the builder for a local directory
+// before it is synced. Changes affect only the current request. The function
+// may be called concurrently for different sync requests.
+type FilterOptFunc func(name string, opt *fsutil.FilterOpt) error
 
 type FileOutputFunc func(map[string]string) (io.WriteCloser, error)
 
@@ -59,10 +65,12 @@ func (dirs StaticDirSource) LookupDir(name string) (fsutil.FS, bool) {
 	return dir, found
 }
 
-// NewFSSyncProvider creates a new provider for sending files from client
-func NewFSSyncProvider(dirs DirSource) session.Attachable {
+// NewFSSyncProvider creates a new provider for sending files from client.
+// filterOpts, when set, are called in order before filtering each sync request.
+func NewFSSyncProvider(dirs DirSource, filterOpts ...FilterOptFunc) session.Attachable {
 	return &fsSyncProvider{
-		dirs: dirs,
+		dirs:       dirs,
+		filterOpts: filterOpts,
 	}
 }
 
@@ -107,11 +115,20 @@ func (sp *fsSyncProvider) handle(method string, stream grpc.ServerStream) (retEr
 	if !ok {
 		return InvalidSessionError{status.Errorf(codes.NotFound, "no access allowed to dir %q", dirName)}
 	}
-	dir, err := fsutil.NewFilterFS(dir, &fsutil.FilterOpt{
+	filterOpt := &fsutil.FilterOpt{
 		ExcludePatterns: excludes,
 		IncludePatterns: includes,
 		FollowPaths:     followPaths,
-	})
+	}
+	for _, fn := range sp.filterOpts {
+		if fn == nil {
+			continue
+		}
+		if err := fn(dirName, filterOpt); err != nil {
+			return err
+		}
+	}
+	dir, err := fsutil.NewFilterFS(dir, filterOpt)
 	if err != nil {
 		return err
 	}

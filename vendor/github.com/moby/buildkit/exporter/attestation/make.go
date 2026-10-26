@@ -13,6 +13,7 @@ import (
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver/result"
+	"github.com/moby/buildkit/util/openfile"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
@@ -20,7 +21,15 @@ import (
 const maxAttestationBytes int64 = 80 << 20
 
 // ReadAll reads the content of an attestation.
-func ReadAll(ctx context.Context, s session.Group, att exporter.Attestation) ([]byte, error) {
+func ReadAll(ctx context.Context, s session.Group, att exporter.Attestation) (_ []byte, retErr error) {
+	// paths below are daemon-side locations, report the attestation path
+	defer func() {
+		var pathErr *os.PathError
+		if errors.As(retErr, &pathErr) {
+			pathErr.Path = att.Path
+		}
+	}()
+
 	var content []byte
 	if att.ContentFunc != nil {
 		data, err := att.ContentFunc(ctx)
@@ -44,7 +53,7 @@ func ReadAll(ctx context.Context, s session.Group, att exporter.Attestation) ([]
 		if err != nil {
 			return nil, err
 		}
-		content, err = readRegularFile(p)
+		content, err = readRegularFile(p, att.Path)
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot read in-toto attestation")
 		}
@@ -57,14 +66,19 @@ func ReadAll(ctx context.Context, s session.Group, att exporter.Attestation) ([]
 	return content, nil
 }
 
-func readRegularFile(p string) ([]byte, error) {
-	f, err := openRegularFile(p)
+func readRegularFile(p, name string) ([]byte, error) {
+	f, err := openfile.Regular(p)
 	if err != nil {
+		// the resolved path is a daemon-side location
+		var pathErr *os.PathError
+		if errors.As(err, &pathErr) {
+			pathErr.Path = name
+		}
 		return nil, err
 	}
 	defer f.Close()
 
-	dt, err := readAllLimited(f, p, maxAttestationBytes)
+	dt, err := readAllLimited(f, name, maxAttestationBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -81,25 +95,6 @@ func readAllLimited(r io.Reader, name string, limit int64) ([]byte, error) {
 		return nil, errors.Errorf("%s exceeds %d bytes", name, limit)
 	}
 	return dt, nil
-}
-
-func openRegularFile(p string) (*os.File, error) {
-	f, err := os.Open(p)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-
-	st, err := f.Stat()
-	if err != nil {
-		f.Close()
-		return nil, errors.WithStack(err)
-	}
-	if !st.Mode().IsRegular() {
-		f.Close()
-		return nil, errors.Errorf("%s is not a regular file", p)
-	}
-
-	return f, nil
 }
 
 // MakeInTotoStatements iterates over all provided result attestations and

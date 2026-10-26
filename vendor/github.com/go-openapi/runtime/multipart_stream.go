@@ -342,6 +342,10 @@ func (s *MultipartFormStream) Drain() error {
 // particular, a net/http server request body may discard a limited amount of
 // unread data to allow connection reuse, so Close is not guaranteed to return
 // immediately. Call Drain when trailing form fields must be collected.
+//
+// Close returns the error reported by the request body, except io.EOF: a
+// net/http server body reports io.EOF once it discards that unread remainder,
+// which tells us the body ended, not that closing it failed.
 func (s *MultipartFormStream) Close() error {
 	if s == nil || s.closed {
 		return nil
@@ -357,7 +361,14 @@ func (s *MultipartFormStream) Close() error {
 		return nil
 	}
 
-	return s.request.Body.Close()
+	// Since go1.27.0, net/http (*body).Close returns io.EOF when it discards
+	// the unread remainder of the request itself. Reaching the end of the body
+	// is not a close failure.
+	if err := s.request.Body.Close(); err != nil && !stderrors.Is(err, io.EOF) {
+		return err
+	}
+
+	return nil
 }
 
 func supportsMultipartFormStream(method string) bool {

@@ -70,11 +70,13 @@ func WriteTar(ctx context.Context, fs FS, w io.Writer) error {
 			if err != nil {
 				return err
 			}
-			if _, err := io.Copy(tw, rc); err != nil {
+			_, err = io.Copy(tw, rc)
+			closeErr := rc.Close()
+			if err != nil {
 				return errors.WithStack(err)
 			}
-			if err := rc.Close(); err != nil {
-				return errors.WithStack(err)
+			if closeErr != nil {
+				return errors.WithStack(closeErr)
 			}
 		}
 		return nil

@@ -12,7 +12,7 @@ on:
   pull_request:
 
 env:
-  GO_VERSION: "1.26.8"
+  GO_VERSION: "1.26.10"
   TEST_REPEAT: "10"
   WINDOWS_BASE_IMAGE: mcr.microsoft.com/windows/servercore
   WINDOWS_BASE_TAG_2025: ltsc2025
@@ -144,7 +144,7 @@ jobs:
           Get-ChildItem -Path ${{ env.BIN_OUT }}
       -
         name: Upload artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: windows-integration-flaky-build
           path: ${{ env.BIN_OUT }}/*
@@ -213,7 +213,7 @@ jobs:
           Write-Output "${{ env.BIN_OUT }}" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       -
         name: Download artifacts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: windows-integration-flaky-build
           path: ${{ env.BIN_OUT }}
@@ -303,7 +303,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: windows-integration-flaky-${{ matrix.containerd }}-reports
           path: bundles/*

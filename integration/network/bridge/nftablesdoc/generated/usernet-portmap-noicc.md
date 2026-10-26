@@ -91,6 +91,7 @@ Most rules are the same as the network with [icc enabled][0]:
     
     	chain filter-forward-in__bridge1 {
     		ct state established,related counter accept
+    		iifname "bridge1" ip daddr 192.0.2.2 tcp dport 80 ct original ip daddr != 192.0.2.2 counter accept
     		iifname "bridge1" counter drop comment "ICC"
     		ip daddr 192.0.2.2 tcp dport 80 counter accept
     		counter drop comment "UNPUBLISHED PORT DROP"
@@ -115,10 +116,14 @@ Most rules are the same as the network with [icc enabled][0]:
 But ...
 
 The `filter-forward-in` chain drops (instead of accepting) packets originating
-from the same network:
+from the same network, except for packets that reach the published port via
+one of the host's addresses. The rule that accepts those comes before the ICC
+rule, and only matches packets that were DNATed, so other containers on the
+network still can't reach the container's own address:
 
     	chain filter-forward-in__bridge1 {
     		ct state established,related counter accept
+    		iifname "bridge1" ip daddr 192.0.2.2 tcp dport 80 ct original ip daddr != 192.0.2.2 counter accept
     		iifname "bridge1" counter drop comment "ICC"
     		ip daddr 192.0.2.2 tcp dport 80 counter accept
     		counter drop comment "UNPUBLISHED PORT DROP"

@@ -95,6 +95,11 @@ type advancedState struct {
 	index     int
 	hashMatch [maxMatchLength + minMatchLength]uint32
 
+	// litBits[i] is the number of bits needed to encode window[index:i]
+	// as literals, where index is the window index at the start of the
+	// current deflateLazy call. Only allocated when d.chain > 100 (level 9).
+	litBits []int32
+
 	// Input hash chains
 	// hashHead[hashValue] contains the largest inputIndex with the specified hash value
 	// If hashHead[hashValue] is within the current window, then
@@ -284,7 +289,9 @@ func (d *compressor) findMatch(pos int, prevHead int, lookahead int) (length, of
 	minIndex := max(pos-windowSize, 0)
 	offset = 0
 
-	if d.chain < 100 {
+	// The gain estimate below needs the tables that deflateLazy only
+	// generates when d.chain > 100, so the conditions must match.
+	if d.chain <= 100 {
 		for i := prevHead; tries > 0; tries-- {
 			if wEnd == win[i+length] {
 				n := matchLen(win[i:i+minMatchLook], wPos)
@@ -312,21 +319,25 @@ func (d *compressor) findMatch(pos int, prevHead int, lookahead int) (length, of
 	}
 
 	// Minimum gain to accept a match.
-	cGain := 4
+	cGain := int32(4)
 
 	// Some like it higher (CSV), some like it lower (JSON)
 	const baseCost = 3
 	// Base is 4 bytes at with an additional cost.
 	// Matches must be better than this.
 
+	s := d.state
+	hashPrev := &s.hashPrev
+	hashOffset := s.hashOffset
+	litBits := s.litBits[pos : pos+minMatchLook+1]
+
 	for i := prevHead; tries > 0; tries-- {
 		if wEnd == win[i+length] {
 			n := matchLen(win[i:i+minMatchLook], wPos)
 			if n > length {
 				// Calculate gain. Estimate
-				newGain := d.h.bitLengthRaw(wPos[:n]) - int(offsetExtraBits[offsetCode(uint32(pos-i))]) - baseCost - int(lengthExtraBits[lengthCodes[(n-3)&255]])
+				newGain := litBits[n] - litBits[0] - int32(offsetExtraBits[offsetCode(uint32(pos-i))]) - baseCost - int32(lengthExtraBits[lengthCodes[(n-3)&255]])
 
-				//fmt.Println("gain:", newGain, "prev:", cGain, "raw:", d.h.bitLengthRaw(wPos[:n]), "this-len:", n, "prev-len:", length)
 				if newGain > cGain {
 					length = n
 					offset = pos - i
@@ -344,7 +355,7 @@ func (d *compressor) findMatch(pos int, prevHead int, lookahead int) (length, of
 			// hashPrev[i & windowMask] has already been overwritten, so stop now.
 			break
 		}
-		i = int(d.state.hashPrev[i&windowMask]) - d.state.hashOffset
+		i = int(hashPrev[i&windowMask]) - hashOffset
 		if i < minIndex {
 			break
 		}
@@ -428,6 +439,20 @@ func (d *compressor) deflateLazy() {
 			tmp[v]++
 		}
 		d.h.generate(tmp[:], 15)
+
+		// Compute the cumulative cost of encoding the window as literals,
+		// so findMatch can look up the cost of any range in constant time.
+		if s.litBits == nil {
+			s.litBits = make([]int32, 2*windowSize+1)
+		}
+		codes := d.h.codes[:256]
+		litBits := s.litBits[s.index : d.windowEnd+1]
+		total := int32(0)
+		litBits[0] = 0
+		for i, v := range d.window[s.index:d.windowEnd] {
+			total += int32(codes[v].len())
+			litBits[i+1] = total
+		}
 	}
 
 	s.maxInsertIndex = d.windowEnd - (minMatchLength - 1)

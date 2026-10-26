@@ -9,7 +9,7 @@ import (
 	"syscall"
 )
 
-//go:generate go run golang.org/x/tools/cmd/stringer@latest -type=Errno -tags=windows -output=errno_string_windows.go
+//go:generate go tool stringer -type=Errno -tags=windows -output=errno_string_windows.go
 
 // Windows specific constants for Unix errnos.
 //
@@ -37,6 +37,7 @@ const (
 	EILSEQ      Errno = 42
 	ENOTSUP     Errno = 129
 	EOPNOTSUPP  Errno = 130
+	EOTHER      Errno = 131
 	ETIMEDOUT   Errno = 138
 	EWOULDBLOCK Errno = 140
 )

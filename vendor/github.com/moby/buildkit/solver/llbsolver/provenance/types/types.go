@@ -208,6 +208,7 @@ func (c ProvenanceConfigSourceSLSA1) Equal(other ProvenanceConfigSourceSLSA1) bo
 type ProvenanceInternalParametersSLSA1 struct {
 	BuildConfig       *BuildConfig `json:"buildConfig,omitempty"`
 	BuilderPlatform   string       `json:"builderPlatform"`
+	TargetPlatform    string       `json:"targetPlatform,omitempty"`
 	DockerfileVersion string       `json:"dockerfileVersion,omitempty"`
 	ProvenanceCustomEnv
 }
@@ -513,6 +514,10 @@ func (p ProvenanceInternalParametersSLSA1) MarshalJSON() ([]byte, error) {
 	}
 	maps.Copy(m, p.ProvenanceCustomEnv)
 	delete(m, "ProvenanceCustomEnv")
+	delete(m, "targetPlatform")
+	if p.TargetPlatform != "" {
+		m["targetPlatform"] = p.TargetPlatform
+	}
 	return json.Marshal(m)
 }
 

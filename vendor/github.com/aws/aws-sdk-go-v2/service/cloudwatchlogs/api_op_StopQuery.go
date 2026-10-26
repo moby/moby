@@ -4,6 +4,8 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -40,6 +42,18 @@ type StopQueryInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *StopQueryInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.StopQueryRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *StopQueryInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.QueryId != nil {
+		s.WriteString(schemas.StopQueryRequest_queryId, *v.QueryId)
+	}
+}
+
 type StopQueryOutput struct {
 
 	// This is true if the query was stopped by the StopQuery operation.
@@ -51,13 +65,31 @@ type StopQueryOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *StopQueryOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.StopQueryResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *StopQueryOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Success != false {
+		s.WriteBool(schemas.StopQueryResponse_success, v.Success)
+	}
+}
+func (v *StopQueryOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.StopQueryResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.StopQueryResponse_success:
+			return d.ReadBool(schemas.StopQueryResponse_success, &v.Success)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationStopQueryMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpStopQuery{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.StopQuery, schemas.StopQueryRequest, schemas.StopQueryResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpStopQuery{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.StopQuery, schemas.StopQueryRequest, schemas.StopQueryResponse), output: &StopQueryOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

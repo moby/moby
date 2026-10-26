@@ -12,6 +12,7 @@ on:
 
 jobs:
   labeler:
+    if: github.repository == 'moby/moby'
     permissions:
       contents: read
       pull-requests: write
@@ -23,3 +24,29 @@ jobs:
         uses: actions/labeler@bf12e9b00b37c5c0ca2b87b79b2daf7891dbda13 # v7.0.0
         with:
           sync-labels: false
+
+  ai-assisted:
+    if: github.repository == 'moby/moby'
+    permissions:
+      pull-requests: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      -
+        name: Label AI-assisted PR
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            // CONTRIBUTING.md asks AI-assisted PRs to end with a
+            // "Created with: <AGENT NAME>" note. Ignore HTML comments so
+            // template text cannot trigger the label.
+            const pr = context.payload.pull_request;
+            const body = (pr.body ?? '').replace(/<!--[\s\S]*?-->/g, '');
+            if (!/^\s*Created with:/im.test(body)) {
+              return;
+            }
+            await github.rest.issues.addLabels({
+              ...context.repo,
+              issue_number: pr.number,
+              labels: ['meta/ai-assisted'],
+            });

@@ -58,7 +58,7 @@ func TestStreamWait_ContextCanceled(t *testing.T) {
 	rc := newBlockingReadCloser()
 	s := internal.NewJSONMessageStream(rc)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() {
 		done <- s.Wait(ctx)

@@ -1,16 +1,16 @@
 package btf
 
 import (
-	"bufio"
 	"debug/elf"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
+	"iter"
+	"maps"
 	"math"
 	"os"
 	"reflect"
-	"sync"
+	"slices"
 
 	"github.com/cilium/ebpf/internal"
 	"github.com/cilium/ebpf/internal/sys"
@@ -29,154 +29,24 @@ var (
 // ID represents the unique ID of a BTF object.
 type ID = sys.BTFID
 
-// immutableTypes is a set of types which musn't be changed.
-type immutableTypes struct {
-	// All types contained by the spec, not including types from the base in
-	// case the spec was parsed from split BTF.
-	types []Type
-
-	// Type IDs indexed by type.
-	typeIDs map[Type]TypeID
-
-	// The ID of the first type in types.
-	firstTypeID TypeID
-
-	// Types indexed by essential name.
-	// Includes all struct flavors and types with the same name.
-	namedTypes map[essentialName][]TypeID
-
-	// Byte order of the types. This affects things like struct member order
-	// when using bitfields.
-	byteOrder binary.ByteOrder
+type elfData struct {
+	sectionSizes  map[string]uint32
+	symbolOffsets map[elfSymbol]uint32
+	fixups        map[Type]bool
 }
 
-func (s *immutableTypes) typeByID(id TypeID) (Type, bool) {
-	if id < s.firstTypeID {
-		return nil, false
-	}
-
-	index := int(id - s.firstTypeID)
-	if index >= len(s.types) {
-		return nil, false
-	}
-
-	return s.types[index], true
-}
-
-// mutableTypes is a set of types which may be changed.
-type mutableTypes struct {
-	imm           immutableTypes
-	mu            sync.RWMutex    // protects copies below
-	copies        map[Type]Type   // map[orig]copy
-	copiedTypeIDs map[Type]TypeID // map[copy]origID
-}
-
-// add a type to the set of mutable types.
-//
-// Copies type and all of its children once. Repeated calls with the same type
-// do not copy again.
-func (mt *mutableTypes) add(typ Type, typeIDs map[Type]TypeID) Type {
-	mt.mu.RLock()
-	cpy, ok := mt.copies[typ]
-	mt.mu.RUnlock()
-
-	if ok {
-		// Fast path: the type has been copied before.
-		return cpy
-	}
-
-	// modifyGraphPreorder copies the type graph node by node, so we can't drop
-	// the lock in between.
-	mt.mu.Lock()
-	defer mt.mu.Unlock()
-
-	return copyType(typ, typeIDs, mt.copies, mt.copiedTypeIDs)
-}
-
-// copy a set of mutable types.
-func (mt *mutableTypes) copy() *mutableTypes {
-	if mt == nil {
-		return nil
-	}
-
-	// Prevent concurrent modification of mt.copiedTypeIDs.
-	mt.mu.RLock()
-	defer mt.mu.RUnlock()
-
-	mtCopy := &mutableTypes{
-		mt.imm,
-		sync.RWMutex{},
-		make(map[Type]Type, len(mt.copies)),
-		make(map[Type]TypeID, len(mt.copiedTypeIDs)),
-	}
-
-	copiesOfCopies := make(map[Type]Type, len(mt.copies))
-	for orig, copy := range mt.copies {
-		// NB: We make a copy of copy, not orig, so that changes to mutable types
-		// are preserved.
-		copyOfCopy := copyType(copy, mt.copiedTypeIDs, copiesOfCopies, mtCopy.copiedTypeIDs)
-		mtCopy.copies[orig] = copyOfCopy
-	}
-
-	return mtCopy
-}
-
-func (mt *mutableTypes) typeID(typ Type) (TypeID, error) {
-	if _, ok := typ.(*Void); ok {
-		// Equality is weird for void, since it is a zero sized type.
-		return 0, nil
-	}
-
-	mt.mu.RLock()
-	defer mt.mu.RUnlock()
-
-	id, ok := mt.copiedTypeIDs[typ]
-	if !ok {
-		return 0, fmt.Errorf("no ID for type %s: %w", typ, ErrNotFound)
-	}
-
-	return id, nil
-}
-
-func (mt *mutableTypes) typeByID(id TypeID) (Type, bool) {
-	immT, ok := mt.imm.typeByID(id)
-	if !ok {
-		return nil, false
-	}
-
-	return mt.add(immT, mt.imm.typeIDs), true
-}
-
-func (mt *mutableTypes) anyTypesByName(name string) ([]Type, error) {
-	immTypes := mt.imm.namedTypes[newEssentialName(name)]
-	if len(immTypes) == 0 {
-		return nil, fmt.Errorf("type name %s: %w", name, ErrNotFound)
-	}
-
-	// Return a copy to prevent changes to namedTypes.
-	result := make([]Type, 0, len(immTypes))
-	for _, id := range immTypes {
-		immT, ok := mt.imm.typeByID(id)
-		if !ok {
-			return nil, fmt.Errorf("no type with ID %d", id)
-		}
-
-		// Match against the full name, not just the essential one
-		// in case the type being looked up is a struct flavor.
-		if immT.TypeName() == name {
-			result = append(result, mt.add(immT, mt.imm.typeIDs))
-		}
-	}
-	return result, nil
+type elfSymbol struct {
+	section string
+	name    string
 }
 
 // Spec allows querying a set of Types and loading the set into the
 // kernel.
 type Spec struct {
-	*mutableTypes
+	*decoder
 
-	// String table from ELF.
-	strings *stringTable
+	// Additional data from ELF, may be nil.
+	elf *elfData
 }
 
 // LoadSpec opens file and calls LoadSpecFromReader on it.
@@ -197,11 +67,12 @@ func LoadSpec(file string) (*Spec, error) {
 func LoadSpecFromReader(rd io.ReaderAt) (*Spec, error) {
 	file, err := internal.NewSafeELFFile(rd)
 	if err != nil {
-		if bo := guessRawBTFByteOrder(rd); bo != nil {
-			return loadRawSpec(io.NewSectionReader(rd, 0, math.MaxInt64), bo, nil)
+		raw, err := io.ReadAll(io.NewSectionReader(rd, 0, math.MaxInt64))
+		if err != nil {
+			return nil, fmt.Errorf("read raw BTF: %w", err)
 		}
 
-		return nil, err
+		return loadRawSpec(raw, nil)
 	}
 
 	return loadSpecFromELF(file)
@@ -237,13 +108,13 @@ func LoadSpecAndExtInfosFromReader(rd io.ReaderAt) (*Spec, *ExtInfos, error) {
 // Some ELF symbols (e.g. in vmlinux) may point to virtual memory that is well
 // beyond this range. Since these symbols cannot be described by BTF info,
 // ignore them here.
-func symbolOffsets(file *internal.SafeELFFile) (map[symbol]uint32, error) {
+func symbolOffsets(file *internal.SafeELFFile) (map[elfSymbol]uint32, error) {
 	symbols, err := file.Symbols()
 	if err != nil {
 		return nil, fmt.Errorf("can't read symbols: %v", err)
 	}
 
-	offsets := make(map[symbol]uint32)
+	offsets := make(map[elfSymbol]uint32)
 	for _, sym := range symbols {
 		if idx := sym.Section; idx >= elf.SHN_LORESERVE && idx <= elf.SHN_HIRESERVE {
 			// Ignore things like SHN_ABS
@@ -260,7 +131,7 @@ func symbolOffsets(file *internal.SafeELFFile) (map[symbol]uint32, error) {
 		}
 
 		secName := file.Sections[sym.Section].Name
-		offsets[symbol{secName, sym.Name}] = uint32(sym.Value)
+		offsets[elfSymbol{secName, sym.Name}] = uint32(sym.Value)
 	}
 
 	return offsets, nil
@@ -298,145 +169,86 @@ func loadSpecFromELF(file *internal.SafeELFFile) (*Spec, error) {
 		return nil, err
 	}
 
-	if btfSection.ReaderAt == nil {
-		return nil, fmt.Errorf("compressed BTF is not supported")
+	rawBTF, err := btfSection.Data()
+	if err != nil {
+		return nil, fmt.Errorf("reading .BTF section: %w", err)
 	}
 
-	spec, err := loadRawSpec(btfSection.ReaderAt, file.ByteOrder, nil)
+	spec, err := loadRawSpec(rawBTF, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	err = fixupDatasec(spec.imm.types, sectionSizes, offsets)
-	if err != nil {
-		return nil, err
+	if spec.decoder.byteOrder != file.ByteOrder {
+		return nil, fmt.Errorf("BTF byte order %s does not match ELF byte order %s", spec.decoder.byteOrder, file.ByteOrder)
+	}
+
+	spec.elf = &elfData{
+		sectionSizes,
+		offsets,
+		make(map[Type]bool),
 	}
 
 	return spec, nil
 }
 
-func loadRawSpec(btf io.ReaderAt, bo binary.ByteOrder, base *Spec) (*Spec, error) {
+func loadRawSpec(btf []byte, base *Spec) (*Spec, error) {
 	var (
+		baseDecoder *decoder
 		baseStrings *stringTable
-		firstTypeID TypeID
 		err         error
 	)
 
 	if base != nil {
-		if base.imm.firstTypeID != 0 {
-			return nil, fmt.Errorf("can't use split BTF as base")
-		}
-
+		baseDecoder = base.decoder
 		baseStrings = base.strings
-
-		firstTypeID, err = base.nextTypeID()
-		if err != nil {
-			return nil, err
-		}
 	}
 
-	types, rawStrings, err := parseBTF(btf, bo, baseStrings, base)
+	header, _, bo, err := parseBTFHeader(btf)
+	if err != nil {
+		return nil, fmt.Errorf("parsing .BTF header: %v", err)
+	}
+
+	if header.HdrLen > uint32(len(btf)) {
+		return nil, fmt.Errorf("BTF header length is out of bounds")
+	}
+	btf = btf[header.HdrLen:]
+
+	if uint64(header.StringOff)+uint64(header.StringLen) > uint64(len(btf)) {
+		return nil, fmt.Errorf("string table is out of bounds")
+	}
+	stringsSection := btf[header.StringOff : header.StringOff+header.StringLen]
+
+	rawStrings, err := newStringTable(stringsSection, baseStrings)
+	if err != nil {
+		return nil, fmt.Errorf("read string section: %w", err)
+	}
+
+	if uint64(header.TypeOff)+uint64(header.TypeLen) > uint64(len(btf)) {
+		return nil, fmt.Errorf("types section is out of bounds")
+	}
+	typesSection := btf[header.TypeOff : header.TypeOff+header.TypeLen]
+
+	decoder, err := newDecoder(typesSection, bo, rawStrings, baseDecoder)
 	if err != nil {
 		return nil, err
 	}
 
-	typeIDs, typesByName := indexTypes(types, firstTypeID)
-
-	return &Spec{
-		&mutableTypes{
-			immutableTypes{
-				types,
-				typeIDs,
-				firstTypeID,
-				typesByName,
-				bo,
-			},
-			sync.RWMutex{},
-			make(map[Type]Type),
-			make(map[Type]TypeID),
-		},
-		rawStrings,
-	}, nil
-}
-
-func indexTypes(types []Type, firstTypeID TypeID) (map[Type]TypeID, map[essentialName][]TypeID) {
-	namedTypes := 0
-	for _, typ := range types {
-		if typ.TypeName() != "" {
-			// Do a pre-pass to figure out how big types by name has to be.
-			// Most types have unique names, so it's OK to ignore essentialName
-			// here.
-			namedTypes++
-		}
-	}
-
-	typeIDs := make(map[Type]TypeID, len(types))
-	typesByName := make(map[essentialName][]TypeID, namedTypes)
-
-	for i, typ := range types {
-		id := firstTypeID + TypeID(i)
-		typeIDs[typ] = id
-
-		if name := newEssentialName(typ.TypeName()); name != "" {
-			typesByName[name] = append(typesByName[name], id)
-		}
-	}
-
-	return typeIDs, typesByName
-}
-
-func guessRawBTFByteOrder(r io.ReaderAt) binary.ByteOrder {
-	buf := new(bufio.Reader)
-	for _, bo := range []binary.ByteOrder{
-		binary.LittleEndian,
-		binary.BigEndian,
-	} {
-		buf.Reset(io.NewSectionReader(r, 0, math.MaxInt64))
-		if _, err := parseBTFHeader(buf, bo); err == nil {
-			return bo
-		}
-	}
-
-	return nil
-}
-
-// parseBTF reads a .BTF section into memory and parses it into a list of
-// raw types and a string table.
-func parseBTF(btf io.ReaderAt, bo binary.ByteOrder, baseStrings *stringTable, base *Spec) ([]Type, *stringTable, error) {
-	buf := internal.NewBufferedSectionReader(btf, 0, math.MaxInt64)
-	header, err := parseBTFHeader(buf, bo)
-	if err != nil {
-		return nil, nil, fmt.Errorf("parsing .BTF header: %v", err)
-	}
-
-	rawStrings, err := readStringTable(io.NewSectionReader(btf, header.stringStart(), int64(header.StringLen)),
-		baseStrings)
-	if err != nil {
-		return nil, nil, fmt.Errorf("can't read type names: %w", err)
-	}
-
-	buf.Reset(io.NewSectionReader(btf, header.typeStart(), int64(header.TypeLen)))
-	types, err := readAndInflateTypes(buf, bo, header.TypeLen, rawStrings, base)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return types, rawStrings, nil
-}
-
-type symbol struct {
-	section string
-	name    string
+	return &Spec{decoder, nil}, nil
 }
 
 // fixupDatasec attempts to patch up missing info in Datasecs and its members by
 // supplementing them with information from the ELF headers and symbol table.
-func fixupDatasec(types []Type, sectionSizes map[string]uint32, offsets map[symbol]uint32) error {
-	for _, typ := range types {
-		ds, ok := typ.(*Datasec)
-		if !ok {
-			continue
+func (elf *elfData) fixupDatasec(typ Type) error {
+	if elf == nil {
+		return nil
+	}
+
+	if ds, ok := typ.(*Datasec); ok {
+		if elf.fixups[ds] {
+			return nil
 		}
+		elf.fixups[ds] = true
 
 		name := ds.Name
 
@@ -459,7 +271,7 @@ func fixupDatasec(types []Type, sectionSizes map[string]uint32, offsets map[symb
 				}
 			}
 
-			continue
+			return nil
 		case ".kconfig":
 			// .kconfig has a size of 0 and has all members' offsets set to 0.
 			// Fix up all offsets and set the Datasec's size.
@@ -472,21 +284,21 @@ func fixupDatasec(types []Type, sectionSizes map[string]uint32, offsets map[symb
 				vsi.Type.(*Var).Linkage = GlobalVar
 			}
 
-			continue
+			return nil
 		}
 
 		if ds.Size != 0 {
-			continue
+			return nil
 		}
 
-		ds.Size, ok = sectionSizes[name]
+		ds.Size, ok = elf.sectionSizes[name]
 		if !ok {
 			return fmt.Errorf("data section %s: missing size", name)
 		}
 
 		for i := range ds.Vars {
 			symName := ds.Vars[i].Type.TypeName()
-			ds.Vars[i].Offset, ok = offsets[symbol{name, symName}]
+			ds.Vars[i].Offset, ok = elf.symbolOffsets[elfSymbol{name, symName}]
 			if !ok {
 				return fmt.Errorf("data section %s: missing offset for symbol %s", name, symName)
 			}
@@ -530,36 +342,29 @@ func fixupDatasecLayout(ds *Datasec) error {
 	return nil
 }
 
-// Copy creates a copy of Spec.
+// Copy a Spec.
+//
+// All contained types are duplicated while preserving any modifications made
+// to them.
 func (s *Spec) Copy() *Spec {
 	if s == nil {
 		return nil
 	}
 
-	return &Spec{
-		s.mutableTypes.copy(),
-		s.strings,
-	}
-}
-
-type sliceWriter []byte
-
-func (sw sliceWriter) Write(p []byte) (int, error) {
-	if len(p) != len(sw) {
-		return 0, errors.New("size doesn't match")
+	cpy := &Spec{
+		s.decoder.Copy(),
+		nil,
 	}
 
-	return copy(sw, p), nil
-}
-
-// nextTypeID returns the next unallocated type ID or an error if there are no
-// more type IDs.
-func (s *Spec) nextTypeID() (TypeID, error) {
-	id := s.imm.firstTypeID + TypeID(len(s.imm.types))
-	if id < s.imm.firstTypeID {
-		return 0, fmt.Errorf("no more type IDs")
+	if s.elf != nil {
+		cpy.elf = &elfData{
+			s.elf.sectionSizes,
+			s.elf.symbolOffsets,
+			maps.Clone(s.elf.fixups),
+		}
 	}
-	return id, nil
+
+	return cpy
 }
 
 // TypeByID returns the BTF Type with the given type ID.
@@ -567,9 +372,13 @@ func (s *Spec) nextTypeID() (TypeID, error) {
 // Returns an error wrapping ErrNotFound if a Type with the given ID
 // does not exist in the Spec.
 func (s *Spec) TypeByID(id TypeID) (Type, error) {
-	typ, ok := s.typeByID(id)
-	if !ok {
-		return nil, fmt.Errorf("look up type with ID %d (first ID is %d): %w", id, s.imm.firstTypeID, ErrNotFound)
+	typ, err := s.decoder.TypeByID(id)
+	if err != nil {
+		return nil, fmt.Errorf("inflate type: %w", err)
+	}
+
+	if err := s.elf.fixupDatasec(typ); err != nil {
+		return nil, err
 	}
 
 	return typ, nil
@@ -579,7 +388,7 @@ func (s *Spec) TypeByID(id TypeID) (Type, error) {
 //
 // Returns an error wrapping [ErrNotFound] if the type isn't part of the Spec.
 func (s *Spec) TypeID(typ Type) (TypeID, error) {
-	return s.mutableTypes.typeID(typ)
+	return s.decoder.TypeID(typ)
 }
 
 // AnyTypesByName returns a list of BTF Types with the given name.
@@ -590,7 +399,25 @@ func (s *Spec) TypeID(typ Type) (TypeID, error) {
 //
 // Returns an error wrapping ErrNotFound if no matching Type exists in the Spec.
 func (s *Spec) AnyTypesByName(name string) ([]Type, error) {
-	return s.mutableTypes.anyTypesByName(name)
+	types, err := s.TypesByName(newEssentialName(name))
+	if err != nil {
+		return nil, err
+	}
+
+	for i := 0; i < len(types); i++ {
+		// Match against the full name, not just the essential one
+		// in case the type being looked up is a struct flavor.
+		if types[i].TypeName() != name {
+			types = slices.Delete(types, i, i+1)
+			continue
+		}
+
+		if err := s.elf.fixupDatasec(types[i]); err != nil {
+			return nil, err
+		}
+	}
+
+	return types, nil
 }
 
 // AnyTypeByName returns a Type with the given name.
@@ -618,15 +445,18 @@ func (s *Spec) AnyTypeByName(name string) (Type, error) {
 //
 // Returns an error wrapping ErrNotFound if no matching Type exists in the Spec.
 // Returns an error wrapping ErrMultipleTypes if multiple candidates are found.
-func (s *Spec) TypeByName(name string, typ interface{}) error {
-	typeInterface := reflect.TypeOf((*Type)(nil)).Elem()
+func (s *Spec) TypeByName(name string, typ any) error {
+	if err := internal.IsNilPointer(typ); err != nil {
+		return fmt.Errorf("type argument: %w", err)
+	}
+
+	typeInterface := reflect.TypeFor[Type]()
 
 	// typ may be **T or *Type
 	typValue := reflect.ValueOf(typ)
-	if typValue.Kind() != reflect.Ptr {
+	if typValue.Kind() != reflect.Pointer {
 		return fmt.Errorf("%T is not a pointer", typ)
 	}
-
 	typPtr := typValue.Elem()
 	if !typPtr.CanSet() {
 		return fmt.Errorf("%T cannot be set", typ)
@@ -635,6 +465,9 @@ func (s *Spec) TypeByName(name string, typ interface{}) error {
 	wanted := typPtr.Type()
 	if wanted == typeInterface {
 		// This is *Type. Unwrap the value's type.
+		if typPtr.IsNil() {
+			return fmt.Errorf("%T points to a nil Type", typ)
+		}
 		wanted = typPtr.Elem().Type()
 	}
 
@@ -669,45 +502,55 @@ func (s *Spec) TypeByName(name string, typ interface{}) error {
 	return nil
 }
 
+// LoadSplitSpec loads split BTF from the given file.
+//
+// Types from base are used to resolve references in the split BTF.
+// The returned Spec only contains types from the split BTF, not from the base.
+func LoadSplitSpec(file string, base *Spec) (*Spec, error) {
+	fh, err := os.Open(file)
+	if err != nil {
+		return nil, err
+	}
+	defer fh.Close()
+
+	return LoadSplitSpecFromReader(fh, base)
+}
+
 // LoadSplitSpecFromReader loads split BTF from a reader.
 //
 // Types from base are used to resolve references in the split BTF.
 // The returned Spec only contains types from the split BTF, not from the base.
 func LoadSplitSpecFromReader(r io.ReaderAt, base *Spec) (*Spec, error) {
-	return loadRawSpec(r, internal.NativeEndian, base)
-}
-
-// TypesIterator iterates over types of a given spec.
-type TypesIterator struct {
-	spec *Spec
-	id   TypeID
-	done bool
-	// The last visited type in the spec.
-	Type Type
-}
-
-// Iterate returns the types iterator.
-func (s *Spec) Iterate() *TypesIterator {
-	return &TypesIterator{spec: s, id: s.imm.firstTypeID}
-}
-
-// Next returns true as long as there are any remaining types.
-func (iter *TypesIterator) Next() bool {
-	if iter.done {
-		return false
+	raw, err := io.ReadAll(io.NewSectionReader(r, 0, math.MaxInt64))
+	if err != nil {
+		return nil, fmt.Errorf("read raw BTF: %w", err)
 	}
 
-	var ok bool
-	iter.Type, ok = iter.spec.typeByID(iter.id)
-	iter.id++
-	iter.done = !ok
-	if !iter.done {
-		// Skip declTags, during unmarshaling declTags become `Tags` fields of other types.
-		// We keep them in the spec to avoid holes in the ID space, but for the purposes of
-		// iteration, they are not useful to the user.
-		if _, ok := iter.Type.(*declTag); ok {
-			return iter.Next()
+	return loadRawSpec(raw, base)
+}
+
+// All iterates over all types.
+func (s *Spec) All() iter.Seq2[Type, error] {
+	return func(yield func(Type, error) bool) {
+		for id := s.firstTypeID; ; id++ {
+			typ, err := s.TypeByID(id)
+			if errors.Is(err, ErrNotFound) {
+				return
+			} else if err != nil {
+				yield(nil, err)
+				return
+			}
+
+			// Skip declTags, during unmarshaling declTags become `Tags` fields of other types.
+			// We keep them in the spec to avoid holes in the ID space, but for the purposes of
+			// iteration, they are not useful to the user.
+			if _, ok := typ.(*declTag); ok {
+				continue
+			}
+
+			if !yield(typ, nil) {
+				return
+			}
 		}
 	}
-	return !iter.done
 }

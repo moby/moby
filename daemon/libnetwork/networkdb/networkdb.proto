@@ -71,7 +71,7 @@ message NodeEvent {
 	// Lamport time using a network lamport clock indicating the
 	// time this event was generated on the node where it was
 	// generated.
-	uint64 l_time = 2 [(gogoproto.customtype) = "github.com/hashicorp/serf/serf.LamportTime", (gogoproto.nullable) = false];
+	uint64 l_time = 2 [(gogoproto.customtype) = "github.com/moby/moby/v2/daemon/libnetwork/internal/lamport.Time", (gogoproto.nullable) = false];
 	// Source node name.
 	string node_name = 3;
 }
@@ -94,7 +94,7 @@ message NetworkEvent {
 	// Lamport time using a network lamport clock indicating the
 	// time this event was generated on the node where it was
 	// generated.
-	uint64 l_time = 2 [(gogoproto.customtype) = "github.com/hashicorp/serf/serf.LamportTime", (gogoproto.nullable) = false];
+	uint64 l_time = 2 [(gogoproto.customtype) = "github.com/moby/moby/v2/daemon/libnetwork/internal/lamport.Time", (gogoproto.nullable) = false];
 	// Source node name.
 	string node_name = 3;
 	// ID of the network for which the event is generated.
@@ -107,7 +107,7 @@ message NetworkEntry {
 	string network_id = 1 [(gogoproto.customname) = "NetworkID"];
 	// Latest lamport time of the network attachment when this
 	// network event was recorded.
-	uint64 l_time = 2 [(gogoproto.customtype) = "github.com/hashicorp/serf/serf.LamportTime", (gogoproto.nullable) = false];
+	uint64 l_time = 2 [(gogoproto.customtype) = "github.com/moby/moby/v2/daemon/libnetwork/internal/lamport.Time", (gogoproto.nullable) = false];
 	// Source node name where this network attachment happened.
 	string node_name = 3 [(gogoproto.customname) = "NodeName"];
 	// Indicates if a leave from this network is in progress.
@@ -117,7 +117,7 @@ message NetworkEntry {
 // NetworkPushpull message payload definition.
 message NetworkPushPull {
 	// Lamport time when this push pull was initiated.
-	uint64 l_time = 1 [(gogoproto.customtype) = "github.com/hashicorp/serf/serf.LamportTime", (gogoproto.nullable) = false];
+	uint64 l_time = 1 [(gogoproto.customtype) = "github.com/moby/moby/v2/daemon/libnetwork/internal/lamport.Time", (gogoproto.nullable) = false];
 	repeated NetworkEntry networks = 2;
 	// Name of the node sending this push pull payload.
 	string node_name = 3 [(gogoproto.customname) = "NodeName"];
@@ -143,7 +143,7 @@ message TableEvent {
 
 	Type type = 1;
 	// Lamport time when this event was generated.
-	uint64 l_time = 2 [(gogoproto.customtype) = "github.com/hashicorp/serf/serf.LamportTime", (gogoproto.nullable) = false];
+	uint64 l_time = 2 [(gogoproto.customtype) = "github.com/moby/moby/v2/daemon/libnetwork/internal/lamport.Time", (gogoproto.nullable) = false];
 	// Node name where this event originated.
 	string node_name = 3;
 	// ID of the network to which this table entry belongs.
@@ -161,7 +161,7 @@ message TableEvent {
 // BulkSync message payload definition.
 message BulkSyncMessage {
 	// Lamport time when this bulk sync was initiated.
-	uint64 l_time = 1 [(gogoproto.customtype) = "github.com/hashicorp/serf/serf.LamportTime", (gogoproto.nullable) = false];
+	uint64 l_time = 1 [(gogoproto.customtype) = "github.com/moby/moby/v2/daemon/libnetwork/internal/lamport.Time", (gogoproto.nullable) = false];
 	// Indicates if this bulksync is a response to a bulk sync
 	// request from a peer node.
 	bool unsolicited = 2;

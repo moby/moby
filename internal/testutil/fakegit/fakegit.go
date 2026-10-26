@@ -44,34 +44,25 @@ func (g *FakeGit) Close() {
 	os.RemoveAll(g.root)
 }
 
-// New create a fake git server that can be used for git related tests
+// New creates a fake git server that can be used for git-related tests.
 func New(c testing.TB, name string, files map[string]string, enforceLocalServer bool) *FakeGit {
 	c.Helper()
 	ctx := fakecontext.New(c, "", fakecontext.WithFiles(files))
-	defer ctx.Close()
-	curdir, err := os.Getwd()
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer os.Chdir(curdir)
+	defer func() { _ = ctx.Close() }()
 
 	if output, err := exec.Command("git", "init", ctx.Dir).CombinedOutput(); err != nil {
 		c.Fatalf("error trying to init repo: %s (%s)", err, output)
 	}
-	err = os.Chdir(ctx.Dir)
-	if err != nil {
-		c.Fatal(err)
-	}
-	if output, err := exec.Command("git", "config", "user.name", "Fake User").CombinedOutput(); err != nil {
+	if output, err := exec.Command("git", "-C", ctx.Dir, "config", "user.name", "Fake User").CombinedOutput(); err != nil {
 		c.Fatalf("error trying to set 'user.name': %s (%s)", err, output)
 	}
-	if output, err := exec.Command("git", "config", "user.email", "fake.user@example.com").CombinedOutput(); err != nil {
+	if output, err := exec.Command("git", "-C", ctx.Dir, "config", "user.email", "fake.user@example.com").CombinedOutput(); err != nil {
 		c.Fatalf("error trying to set 'user.email': %s (%s)", err, output)
 	}
-	if output, err := exec.Command("git", "add", "*").CombinedOutput(); err != nil {
+	if output, err := exec.Command("git", "-C", ctx.Dir, "add", ".").CombinedOutput(); err != nil {
 		c.Fatalf("error trying to add files to repo: %s (%s)", err, output)
 	}
-	if output, err := exec.Command("git", "commit", "-a", "-m", "Initial commit").CombinedOutput(); err != nil {
+	if output, err := exec.Command("git", "-C", ctx.Dir, "commit", "-m", "Initial commit").CombinedOutput(); err != nil {
 		c.Fatalf("error trying to commit to repo: %s (%s)", err, output)
 	}
 
@@ -79,24 +70,14 @@ func New(c testing.TB, name string, files map[string]string, enforceLocalServer 
 	if err != nil {
 		c.Fatal(err)
 	}
+	c.Cleanup(func() { _ = os.RemoveAll(root) })
+
 	repoPath := filepath.Join(root, name+".git")
 	if output, err := exec.Command("git", "clone", "--bare", ctx.Dir, repoPath).CombinedOutput(); err != nil {
-		os.RemoveAll(root)
 		c.Fatalf("error trying to clone --bare: %s (%s)", err, output)
 	}
-	err = os.Chdir(repoPath)
-	if err != nil {
-		os.RemoveAll(root)
-		c.Fatal(err)
-	}
-	if output, err := exec.Command("git", "update-server-info").CombinedOutput(); err != nil {
-		os.RemoveAll(root)
+	if output, err := exec.Command("git", "-C", repoPath, "update-server-info").CombinedOutput(); err != nil {
 		c.Fatalf("error trying to git update-server-info: %s (%s)", err, output)
-	}
-	err = os.Chdir(curdir)
-	if err != nil {
-		os.RemoveAll(root)
-		c.Fatal(err)
 	}
 
 	var server gitServer

@@ -19,10 +19,6 @@ var mockDriverCaps = driverapi.Capability{DataScope: scope.Local}
 
 var md = mockDriver{}
 
-func (m *mockDriver) Type() string {
-	return mockDriverName
-}
-
 func (m *mockDriver) IsBuiltIn() bool {
 	return true
 }

@@ -88,6 +88,21 @@ func (s *state) Cleanup(fn func() error) error {
 	return nil
 }
 
+// cloneUntilRelease borrows the solver's lifetime lock so the state and its
+// dependencies stay alive until the clone has been registered for cleanup.
+func (s *state) cloneUntilRelease(res Result) Result {
+	s.solver.mu.RLock()
+	defer s.solver.mu.RUnlock()
+	if s.solver.actives[s.vtx.Digest()] != s {
+		return nil
+	}
+	clone := res.Clone()
+	s.Cleanup(func() error {
+		return clone.Release(context.TODO())
+	})
+	return clone
+}
+
 func (s *state) ResolverCache() ResolverCache {
 	return s
 }
@@ -238,7 +253,9 @@ func (s *state) setEdge(index Index, targetEdge *edge, targetState *state) {
 
 	if targetState != nil {
 		targetState.addJobs(s, map[*state]struct{}{})
+		targetState.mu.Lock()
 		targetState.releasers = append(targetState.releasers, s.releasers...)
+		targetState.mu.Unlock()
 		s.releasers = nil
 
 		targetState.allPwMu.Lock()
@@ -1054,9 +1071,6 @@ func (s *sharedOp) LoadCache(ctx context.Context, rec *CacheRecord) (Result, fun
 // evaluated, hence "slow" cache.
 func (s *sharedOp) CalcSlowCache(ctx context.Context, index Index, p PreprocessFunc, f ResultBasedCacheFunc, res Result) (dgst digest.Digest, err error) {
 	defer func() {
-		if err != nil {
-			err = WrapSlowCache(err, index, res.Clone())
-		}
 		err = errdefs.WithOp(err, s.st.vtx.Sys(), s.st.vtx.Options().Description)
 		err = errdefs.WrapVertex(err, s.st.origDigest)
 	}()
@@ -1117,6 +1131,10 @@ func (s *sharedOp) CalcSlowCache(ctx context.Context, index Index, p PreprocessF
 		if complete {
 			if err == nil {
 				s.slowCacheRes[index] = key
+			} else if errResult := s.st.cloneUntilRelease(res); errResult != nil {
+				// The error is memoized, so the input is cloned only once and
+				// kept available until the solver state is discarded.
+				err = WrapSlowCache(err, index, errResult)
 			}
 			s.slowCacheErr[index] = err
 		}
@@ -1166,6 +1184,12 @@ func (s *sharedOp) CacheMap(ctx context.Context, index int) (resp *cacheMapResp,
 			}()
 		}
 		res, done, err := op.CacheMap(ctx, s.st, len(s.cacheRes))
+		if err == nil && res == nil {
+			err = errors.New("invalid nil cache map")
+		}
+		if err == nil && len(res.Deps) != len(s.st.vtx.Inputs()) {
+			err = errors.Errorf("invalid cache map: expected dependency count %d, got %d", len(s.st.vtx.Inputs()), len(res.Deps))
+		}
 		complete := true
 		if err != nil {
 			select {
@@ -1270,6 +1294,7 @@ func (s *sharedOp) Exec(ctx context.Context, inputs []Result) (outputs []Result,
 
 				s.execRes = &execRes{execRes: wrapShared(res), execExporters: subExporters}
 			}
+			s.st.cloneErrorRefs(err)
 			s.execErr = err
 		}
 		if s.execRes == nil || err != nil {
@@ -1389,7 +1414,10 @@ func notifyStarted(ctx context.Context, v *client.Vertex, cached bool) func(err 
 
 type SlowCacheError struct {
 	error
-	Index  Index
+	Index Index
+	// Result is owned by the solver state that produced the error. Callers
+	// must not release it and need to Clone it while the job is still active
+	// if they want to keep a reference.
 	Result Result
 }
 
@@ -1410,6 +1438,20 @@ func WrapSlowCache(err error, index Index, res Result) error {
 		return nil
 	}
 	return &SlowCacheError{Index: index, Result: res, error: err}
+}
+
+// cloneErrorRefs retains a cached error's refs until the state is released.
+func (s *state) cloneErrorRefs(err error) {
+	for ; err != nil; err = errors.Unwrap(err) {
+		if re, ok := err.(interface {
+			EachRef(func(Result) error) error
+		}); ok {
+			re.EachRef(func(r Result) error {
+				s.cloneUntilRelease(r)
+				return nil
+			})
+		}
+	}
 }
 
 func releaseError(err error) {

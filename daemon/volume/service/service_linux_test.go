@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -30,7 +29,7 @@ func TestLocalVolumeSize(t *testing.T) {
 	service, cleanup := newTestService(t, ds)
 	defer cleanup()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	v1, err := service.Create(ctx, "test1", volume.DefaultDriverName, opts.WithCreateReference("foo"))
 	assert.NilError(t, err)
 	v2, err := service.Create(ctx, "test2", volume.DefaultDriverName)

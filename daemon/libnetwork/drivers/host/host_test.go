@@ -1,7 +1,6 @@
 package host
 
 import (
-	"context"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -10,11 +9,7 @@ import (
 func TestDriver(t *testing.T) {
 	d := &driver{}
 
-	if d.Type() != NetworkType {
-		t.Fatal("Unexpected network type returned by driver")
-	}
-
-	err := d.CreateNetwork(context.Background(), "first", nil, nil, nil, nil)
+	err := d.CreateNetwork(t.Context(), "first", nil, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -23,7 +18,7 @@ func TestDriver(t *testing.T) {
 		t.Fatal("Unexpected network id stored")
 	}
 
-	err = d.CreateNetwork(context.Background(), "second", nil, nil, nil, nil)
+	err = d.CreateNetwork(t.Context(), "second", nil, nil, nil, nil)
 	if err == nil {
 		t.Fatal("Second network creation should fail on this driver")
 	}

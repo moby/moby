@@ -36,7 +36,7 @@ func TestGenerateUsesReplacementProvider(t *testing.T) {
 		resolvedProvider("org.example.replacement.v1", "replacement", false),
 		resolvedProvider("org.example.builtin.v1", "builtin", true),
 	)
-	name, err := Generate(context.Background(), resolver, testPoint.ID(), func(ctx context.Context, impl any) (string, error) {
+	name, err := Generate(t.Context(), resolver, testPoint.ID(), func(ctx context.Context, impl any) (string, error) {
 		deadline, ok := ctx.Deadline()
 		assert.Assert(t, ok)
 		assert.Assert(t, time.Until(deadline) <= 5*time.Second)
@@ -77,7 +77,7 @@ func TestGenerateFallsBackToBuiltin(t *testing.T) {
 				resolvedProvider("org.example.replacement.v1", "replacement", false),
 				resolvedProvider("org.example.builtin.v1", "builtin", true),
 			)
-			name, err := Generate(context.Background(), resolver, testPoint.ID(), func(ctx context.Context, impl any) (string, error) {
+			name, err := Generate(t.Context(), resolver, testPoint.ID(), func(ctx context.Context, impl any) (string, error) {
 				if impl == "builtin" {
 					_, ok := ctx.Deadline()
 					assert.Assert(t, ok, "the fallback attempt must have its own deadline")
@@ -98,7 +98,7 @@ func TestGenerateDoesNotRetryFailingBuiltin(t *testing.T) {
 	t.Parallel()
 
 	calls := 0
-	name, err := Generate(context.Background(), staticresolver.New(
+	name, err := Generate(t.Context(), staticresolver.New(
 		resolvedProvider("org.example.builtin.v1", "builtin", true),
 	), testPoint.ID(), func(context.Context, any) (string, error) {
 		calls++
@@ -114,7 +114,7 @@ func TestGenerateJoinsReplacementAndBuiltinErrors(t *testing.T) {
 
 	replacementErr := errors.New("replacement failed")
 	builtinErr := errors.New("builtin failed")
-	name, err := Generate(context.Background(), staticresolver.New(
+	name, err := Generate(t.Context(), staticresolver.New(
 		resolvedProvider("org.example.replacement.v1", replacementErr, false),
 		resolvedProvider("org.example.builtin.v1", builtinErr, true),
 	), testPoint.ID(), func(_ context.Context, impl any) (string, error) {
@@ -129,10 +129,10 @@ func TestGenerateRequiresExactlyOneEffectiveProvider(t *testing.T) {
 	t.Parallel()
 
 	invoke := func(context.Context, any) (string, error) { return "name", nil }
-	_, err := Generate(context.Background(), staticresolver.New(), testPoint.ID(), invoke)
+	_, err := Generate(t.Context(), staticresolver.New(), testPoint.ID(), invoke)
 	assert.ErrorContains(t, err, "has no providers")
 
-	_, err = Generate(context.Background(), staticresolver.New(
+	_, err = Generate(t.Context(), staticresolver.New(
 		resolvedProvider("org.example.one.v1", "one", false),
 		resolvedProvider("org.example.two.v1", "two", false),
 	), testPoint.ID(), invoke)
@@ -142,7 +142,7 @@ func TestGenerateRequiresExactlyOneEffectiveProvider(t *testing.T) {
 func TestGeneratePropagatesContextTimeout(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Millisecond)
 	defer cancel()
 	_, err := Generate(ctx, staticresolver.New(
 		resolvedProvider("org.example.slow.v1", "slow", false),

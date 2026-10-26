@@ -2,7 +2,6 @@ package remote
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -234,11 +233,7 @@ func TestGetEmptyCapabilities(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	d := newDriver(plugin, client)
-	if d.Type() != plugin {
-		t.Fatal("Driver type does not match that given")
-	}
-
+	d := newDriver(client)
 	_, err = d.getCapabilities()
 	if err == nil {
 		t.Fatal("There should be error reported when get empty capability")
@@ -268,11 +263,7 @@ func TestGetExtraCapabilities(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	d := newDriver(plugin, client)
-	if d.Type() != plugin {
-		t.Fatal("Driver type does not match that given")
-	}
-
+	d := newDriver(client)
 	c, err := d.getCapabilities()
 	if err != nil {
 		t.Fatal(err)
@@ -304,11 +295,7 @@ func TestGetInvalidCapabilities(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	d := newDriver(plugin, client)
-	if d.Type() != plugin {
-		t.Fatal("Driver type does not match that given")
-	}
-
+	d := newDriver(client)
 	_, err = d.getCapabilities()
 	if err == nil {
 		t.Fatal("There should be error reported when get invalid capability")
@@ -431,11 +418,7 @@ func TestRemoteDriver(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	d := newDriver(plugin, client)
-	if d.Type() != plugin {
-		t.Fatal("Driver type does not match that given")
-	}
-
+	d := newDriver(client)
 	c, err := d.getCapabilities()
 	if err != nil {
 		t.Fatal(err)
@@ -457,14 +440,14 @@ func TestRemoteDriver(t *testing.T) {
 	}
 
 	netID := "dummy-network"
-	err = d.CreateNetwork(context.Background(), netID, map[string]any{}, nil, nil, nil)
+	err = d.CreateNetwork(t.Context(), netID, map[string]any{}, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	endID := "dummy-endpoint"
 	ifInfo := &testEndpoint{}
-	err = d.CreateEndpoint(context.Background(), netID, endID, ifInfo, map[string]any{})
+	err = d.CreateEndpoint(t.Context(), netID, endID, ifInfo, map[string]any{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -477,7 +460,7 @@ func TestRemoteDriver(t *testing.T) {
 	}
 
 	joinOpts := map[string]any{"foo": "fooValue"}
-	err = d.Join(context.Background(), netID, endID, "sandbox-key", ep, nil, joinOpts)
+	err = d.Join(t.Context(), netID, endID, "sandbox-key", ep, nil, joinOpts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -558,9 +541,9 @@ func TestRemoteDriverJoinDstName(t *testing.T) {
 			assert.NilError(t, err)
 			client, err := getPluginClient(p)
 			assert.NilError(t, err)
-			d := newDriver(plugin, client)
+			d := newDriver(client)
 
-			err = d.Join(context.Background(), "dummy-network", "dummy-endpoint", "sandbox-key", ep, nil, map[string]any{})
+			err = d.Join(t.Context(), "dummy-network", "dummy-endpoint", "sandbox-key", ep, nil, map[string]any{})
 			assert.NilError(t, err)
 		})
 	}
@@ -588,8 +571,8 @@ func TestDriverError(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d := newDriver(plugin, client)
-	if err := d.CreateEndpoint(context.Background(), "dummy", "dummy", &testEndpoint{t: t}, map[string]any{}); err == nil {
+	d := newDriver(client)
+	if err := d.CreateEndpoint(t.Context(), "dummy", "dummy", &testEndpoint{t: t}, map[string]any{}); err == nil {
 		t.Fatal("Expected error from driver")
 	}
 }
@@ -625,8 +608,8 @@ func TestMissingValues(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d := newDriver(plugin, client)
-	if err := d.CreateEndpoint(context.Background(), "dummy", "dummy", ep, map[string]any{}); err != nil {
+	d := newDriver(client)
+	if err := d.CreateEndpoint(t.Context(), "dummy", "dummy", ep, map[string]any{}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -694,9 +677,9 @@ func TestRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d := newDriver(plugin, client)
+	d := newDriver(client)
 	ep := &rollbackEndpoint{}
-	if err := d.CreateEndpoint(context.Background(), "dummy", "dummy", ep.Interface(), map[string]any{}); err == nil {
+	if err := d.CreateEndpoint(t.Context(), "dummy", "dummy", ep.Interface(), map[string]any{}); err == nil {
 		t.Fatal("Expected error from driver")
 	}
 	if !rolledback {

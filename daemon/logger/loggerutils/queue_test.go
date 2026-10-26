@@ -13,7 +13,7 @@ func TestQueue(t *testing.T) {
 	q := NewMessageQueue(2)
 	msg := &logger.Message{Line: []byte("hello")}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	err := q.Enqueue(ctx, msg)
 	assert.Check(t, err)
 

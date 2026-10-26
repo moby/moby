@@ -1490,6 +1490,7 @@ type expProxyCfg struct {
 
 func TestGatewaySelection(t *testing.T) {
 	skip.If(t, testEnv.IsRootless, "proxies run in child namespace")
+	skip.If(t, !testEnv.IsKernelModuleLoadable("ipvlan"), "ipvlan kernel module is not loadable")
 
 	ctx := setupTest(t)
 	d := daemon.New(t)

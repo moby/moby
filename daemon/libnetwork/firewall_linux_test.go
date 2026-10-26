@@ -1,7 +1,6 @@
 package libnetwork
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -54,8 +53,7 @@ func TestUserChain(t *testing.T) {
 			defer resetIptables(t)
 
 			c, err := New(
-				context.Background(),
-				config.OptionDataDir(t.TempDir()),
+				t.Context(),
 				config.OptionBridgeConfig(bridge.Configuration{
 					EnableIPTables:  tc.iptables,
 					EnableIP6Tables: tc.iptables,

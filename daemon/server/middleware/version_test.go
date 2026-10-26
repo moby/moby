@@ -81,7 +81,7 @@ func TestVersionMiddlewareVersion(t *testing.T) {
 
 	req, _ := http.NewRequest(http.MethodGet, "/containers/json", http.NoBody)
 	resp := httptest.NewRecorder()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	tests := []struct {
 		reqVersion      string
@@ -131,7 +131,7 @@ func TestVersionMiddlewareWithErrorsReturnsHeaders(t *testing.T) {
 
 	req, _ := http.NewRequest(http.MethodGet, "/containers/json", http.NoBody)
 	resp := httptest.NewRecorder()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	vars := map[string]string{"version": "0.1"}
 	err = h(ctx, resp, req, vars)

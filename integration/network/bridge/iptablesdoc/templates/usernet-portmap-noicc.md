@@ -24,6 +24,11 @@ By comparison with [ICC=true][1]:
   - DOCKER-FORWARD rules 6 and 7 replace the accept rule for outgoing packets.
     - Rule 6, added by `setIcc`, drops any packet sent from the internal network to itself.
     - Rule 7, added by `setupIPTablesInternal` accepts any other outgoing packet.
+  - The first rule in the DOCKER chain, added by `setPerPortHairpinForwarding`,
+    accepts packets from the network to its own published port that arrived via
+    one of the host's addresses, which the ICC rule would otherwise drop. Its
+    `ctorigdst` match limits it to DNATed packets, so other containers on the
+    network still can't reach the container's own address.
 
 [1]: usernet-portmap.md
 

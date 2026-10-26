@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
@@ -337,7 +338,7 @@ func (pd *pushDescriptor) Upload(ctx context.Context, progressOutput progress.Ou
 		case distribution.ErrBlobMounted:
 			progress.Updatef(progressOutput, pd.ID(), "Mounted from %s", err.From.Name())
 
-			err.Descriptor.MediaType = schema2.MediaTypeLayer
+			err.Descriptor.MediaType = c8dimages.MediaTypeDockerSchema2LayerGzip
 
 			pd.pushState.Lock()
 			pd.pushState.remoteLayers[diffID] = err.Descriptor
@@ -432,14 +433,14 @@ func (pd *pushDescriptor) uploadUsingSession(
 	reader = progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, contentReader), progressOutput, pd.layer.Size(), pd.ID(), "Pushing")
 
 	switch m := pd.layer.MediaType(); m {
-	case schema2.MediaTypeUncompressedLayer:
+	case c8dimages.MediaTypeDockerSchema2Layer:
 		compressedReader, compressionDone := compress(reader)
 		defer func(closer io.Closer) {
 			closer.Close()
 			<-compressionDone
 		}(reader)
 		reader = compressedReader
-	case schema2.MediaTypeLayer:
+	case c8dimages.MediaTypeDockerSchema2LayerGzip:
 	default:
 		reader.Close()
 		return distribution.Descriptor{}, xfer.DoNotRetry{Err: fmt.Errorf("unsupported layer media type %s", m)}
@@ -472,7 +473,7 @@ func (pd *pushDescriptor) uploadUsingSession(
 
 	desc := distribution.Descriptor{
 		Digest:    pushDigest,
-		MediaType: schema2.MediaTypeLayer,
+		MediaType: c8dimages.MediaTypeDockerSchema2LayerGzip,
 		Size:      nn,
 	}
 
@@ -546,7 +547,7 @@ attempts:
 					return distribution.Descriptor{}, false, xfer.DoNotRetry{Err: err}
 				}
 			}
-			desc.MediaType = schema2.MediaTypeLayer
+			desc.MediaType = c8dimages.MediaTypeDockerSchema2LayerGzip
 			exists = true
 			break attempts
 		case errors.Is(err, distribution.ErrBlobUnknown):

@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"math/rand/v2"
 	"os"
 	"path"
 	"slices"
 	"strconv"
+	"time"
 
 	obdlabel "github.com/containerd/accelerated-container-image/pkg/label"
 	obdcmd "github.com/containerd/accelerated-container-image/pkg/utils"
@@ -19,6 +21,7 @@ import (
 	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/containerd/containerd/v2/pkg/labels"
 	"github.com/containerd/containerd/v2/plugins/diff/walking"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/compression"
@@ -113,7 +116,7 @@ func computeBlobChain(ctx context.Context, sr *immutableRef, createIfNeeded bool
 					}
 				}()
 
-				compressorFunc, finalize := comp.Type.Compress(ctx, comp)
+				var finalize compression.Finalizer
 
 				var lowerRef *immutableRef
 				switch sr.kind() {
@@ -187,6 +190,10 @@ func computeBlobChain(ctx context.Context, sr *immutableRef, createIfNeeded bool
 				}
 
 				mediaType := comp.Type.MediaType()
+				// A content reference identifies the resumable transaction for this
+				// cache record. Keep it stable so the content store serializes blob
+				// computations from separate callers.
+				ref := sr.ID()
 				if sr.cm.Snapshotter.Name() == "overlaybd" {
 					snStat, err := sr.cm.Snapshotter.Stat(ctx, sr.getSnapshotID())
 					if err != nil {
@@ -201,7 +208,8 @@ func computeBlobChain(ctx context.Context, sr *immutableRef, createIfNeeded bool
 					}
 				}
 				if enableOverlay {
-					computed, ok, err := sr.tryComputeOverlayBlob(ctx, lower, upper, mediaType, sr.ID(), compressorFunc)
+					compressorFunc, attemptFinalize := comp.Type.Compress(ctx, comp)
+					computed, ok, err := sr.tryComputeOverlayBlob(ctx, lower, upper, mediaType, ref, compressorFunc)
 					if !ok || err != nil {
 						if !fallback {
 							if !ok {
@@ -217,6 +225,7 @@ func computeBlobChain(ctx context.Context, sr *immutableRef, createIfNeeded bool
 					}
 					if ok {
 						desc = computed
+						finalize = attemptFinalize
 					}
 				}
 
@@ -224,22 +233,29 @@ func computeBlobChain(ctx context.Context, sr *immutableRef, createIfNeeded bool
 					// These compression types aren't supported by containerd differ. So try to compute diff on buildkit side.
 					// This case can be happen on containerd worker + non-overlayfs snapshotter (e.g. native).
 					// See also: https://github.com/containerd/containerd/issues/4263
-					desc, err = walking.NewWalkingDiff(sr.cm.ContentStore).Compare(ctx, lower, upper,
+					compressorFunc, attemptFinalize := comp.Type.Compress(ctx, comp)
+					desc, err = walking.NewWalkingDiff(openWriterStore{Store: sr.cm.ContentStore}).Compare(ctx, lower, upper,
 						diff.WithMediaType(mediaType),
-						diff.WithReference(sr.ID()),
+						diff.WithReference(ref),
 						diff.WithCompressor(compressorFunc),
 					)
 					if err != nil {
 						bklog.G(ctx).WithError(err).Warnf("failed to compute blob by buildkit differ")
+					} else {
+						finalize = attemptFinalize
 					}
 				}
 
 				if desc.Digest == "" {
-					desc, err = sr.cm.Differ.Compare(ctx, lower, upper,
-						diff.WithMediaType(mediaType),
-						diff.WithReference(sr.ID()),
-						diff.WithCompressor(compressorFunc),
-					)
+					desc, err = compareWithRetry(ctx, sr.cm.Differ, lower, upper, func() []diff.Opt {
+						compressorFunc, attemptFinalize := comp.Type.Compress(ctx, comp)
+						finalize = attemptFinalize
+						return []diff.Opt{
+							diff.WithMediaType(mediaType),
+							diff.WithReference(ref),
+							diff.WithCompressor(compressorFunc),
+						}
+					})
 					if err != nil {
 						return nil, err
 					}
@@ -337,6 +353,7 @@ func (sr *immutableRef) setBlob(ctx context.Context, desc ocispecs.Descriptor) (
 	}
 
 	sr.queueDiffID(diffID)
+	sr.queueLayerIdentity(diffID)
 	sr.queueBlob(desc.Digest)
 	sr.queueMediaType(desc.MediaType)
 	sr.queueBlobSize(desc.Size)
@@ -346,6 +363,18 @@ func (sr *immutableRef) setBlob(ctx context.Context, desc ocispecs.Descriptor) (
 	}
 
 	return nil
+}
+
+// layerIdentity returns the snapshot-sharing identity for this layer.
+func (sr *immutableRef) layerIdentity() digest.Digest {
+	if isLegacyLayerSnapshotID(sr) {
+		return ""
+	}
+	if identity := sr.getLayerIdentity(); identity != "" {
+		return identity
+	}
+	// Records created before layer identities were persisted used the DiffID.
+	return sr.getDiffID()
 }
 
 func (sr *immutableRef) computeChainMetadata(ctx context.Context, filter map[string]struct{}) error {
@@ -359,6 +388,11 @@ func (sr *immutableRef) computeChainMetadata(ctx context.Context, filter map[str
 	if sr.getChainID() != "" {
 		return nil
 	}
+	// Do not make unverified pre-versioning snapshots addressable through a
+	// newly created Layer, Diff, or Merge record.
+	if hasLegacyLayerSnapshotID(sr) {
+		return nil
+	}
 
 	var chainID digest.Digest
 	var blobChainID digest.Digest
@@ -369,7 +403,10 @@ func (sr *immutableRef) computeChainMetadata(ctx context.Context, filter map[str
 			return nil
 		}
 		diffID := sr.getDiffID()
-		chainID = diffID
+		chainID = sr.layerIdentity()
+		if chainID == "" {
+			return nil
+		}
 		blobChainID = imagespecidentity.ChainID([]digest.Digest{sr.getBlob(), diffID})
 	case Layer:
 		if _, ok := filter[sr.ID()]; !ok {
@@ -388,7 +425,11 @@ func (sr *immutableRef) computeChainMetadata(ctx context.Context, filter map[str
 			}
 		}
 		diffID := sr.getDiffID()
-		chainID = imagespecidentity.ChainID([]digest.Digest{chainID, diffID})
+		layerIdentity := sr.layerIdentity()
+		if layerIdentity == "" {
+			return nil
+		}
+		chainID = imagespecidentity.ChainID([]digest.Digest{chainID, layerIdentity})
 		blobID := imagespecidentity.ChainID([]digest.Digest{sr.getBlob(), diffID})
 		blobChainID = imagespecidentity.ChainID([]digest.Digest{blobChainID, blobID})
 	case Merge:
@@ -406,7 +447,11 @@ func (sr *immutableRef) computeChainMetadata(ctx context.Context, filter map[str
 					return nil
 				}
 				diffID := layer.getDiffID()
-				chainID = imagespecidentity.ChainID([]digest.Digest{chainID, diffID})
+				layerIdentity := layer.layerIdentity()
+				if layerIdentity == "" {
+					return nil
+				}
+				chainID = imagespecidentity.ChainID([]digest.Digest{chainID, layerIdentity})
 				blobID := imagespecidentity.ChainID([]digest.Digest{layer.getBlob(), diffID})
 				blobChainID = imagespecidentity.ChainID([]digest.Digest{blobChainID, blobID})
 			}
@@ -415,7 +460,10 @@ func (sr *immutableRef) computeChainMetadata(ctx context.Context, filter map[str
 		if _, ok := filter[sr.ID()]; ok {
 			// this diff is its own blob
 			diffID := sr.getDiffID()
-			chainID = diffID
+			chainID = sr.layerIdentity()
+			if chainID == "" {
+				return nil
+			}
 			blobChainID = imagespecidentity.ChainID([]digest.Digest{sr.getBlob(), diffID})
 		} else {
 			// re-using upper blob
@@ -533,14 +581,25 @@ func commitOverlayBD(ctx context.Context, sr *immutableRef, desc *ocispecs.Descr
 	if err != nil {
 		return errors.Wrapf(err, "failed to overlaybd-commit")
 	}
-	cw, err := sr.cm.ContentStore.Writer(ctx, content.WithRef(sr.ID()))
+	cw, err := content.OpenWriter(ctx, sr.cm.ContentStore, content.WithRef(sr.ID()))
 	if err != nil {
 		return errors.Wrapf(err, "failed to open writer")
+	}
+	defer func() {
+		if cw != nil {
+			if err := cw.Close(); err != nil {
+				bklog.G(ctx).WithError(err).Warnf("failed to close overlaybd writer %q", sr.ID())
+			}
+		}
+	}()
+	if err := cw.Truncate(0); err != nil {
+		return errors.Wrap(err, "failed to truncate writer")
 	}
 	fi, err := os.Open(commitPath)
 	if err != nil {
 		return errors.Wrapf(err, "failed to open overlaybd commit file")
 	}
+	defer fi.Close()
 	sz, err := io.Copy(cw, bufio.NewReader(fi))
 	if err != nil {
 		return errors.Wrapf(err, "failed to do io.Copy()")
@@ -552,6 +611,7 @@ func commitOverlayBD(ctx context.Context, sr *immutableRef, desc *ocispecs.Descr
 		obdlabel.OverlayBDBlobSize:   fmt.Sprintf("%d", sz),
 	}
 	err = cw.Commit(ctx, sz, dgst, content.WithLabels(labels))
+	cw = nil // Commit always closes the writer, including on error.
 	if err != nil {
 		return errors.Wrapf(err, "failed to do cw.Commit")
 	}
@@ -563,4 +623,49 @@ func commitOverlayBD(ctx context.Context, sr *immutableRef, desc *ocispecs.Descr
 		obdlabel.OverlayBDBlobSize:   fmt.Sprintf("%d", desc.Size),
 	}
 	return nil
+}
+
+type openWriterStore struct {
+	content.Store
+}
+
+func (s openWriterStore) Writer(ctx context.Context, opts ...content.WriterOpt) (content.Writer, error) {
+	return content.OpenWriter(ctx, s.Store, opts...)
+}
+
+func compareWithRetry(ctx context.Context, comparer diff.Comparer, lower, upper []mount.Mount, opts func() []diff.Opt) (ocispecs.Descriptor, error) {
+	retry := 16
+	for {
+		desc, err := comparer.Compare(ctx, lower, upper, opts()...)
+		if err == nil || !cerrdefs.IsUnavailable(err) {
+			return desc, err
+		}
+		if context.Cause(ctx) != nil {
+			return ocispecs.Descriptor{}, err
+		}
+
+		// The comparer owns its writer, so retry the whole operation with the
+		// same stable reference using the same lock-wait behavior as
+		// content.OpenWriter.
+		if !waitForRetry(ctx, retry) {
+			// Match content.OpenWriter: preserve the lock error that explains why
+			// the operation could not proceed when cancellation stopped the wait.
+			return ocispecs.Descriptor{}, err
+		}
+		if retry < 2048 {
+			retry <<= 1
+		}
+	}
+}
+
+func waitForRetry(ctx context.Context, retry int) bool {
+	//nolint:gosec // Backoff jitter does not require cryptographic randomness.
+	timer := time.NewTimer(time.Millisecond * time.Duration(rand.IntN(retry)))
+	select {
+	case <-ctx.Done():
+		timer.Stop()
+		return false
+	case <-timer.C:
+		return true
+	}
 }

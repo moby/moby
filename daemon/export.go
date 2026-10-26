@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"runtime"
 
 	"github.com/containerd/log"
 	"github.com/moby/go-archive"
@@ -23,7 +24,7 @@ func (daemon *Daemon) ContainerExport(ctx context.Context, name string, out io.W
 		return err
 	}
 
-	if isWindows && ctr.ImagePlatform.OS == "windows" {
+	if runtime.GOOS == "windows" && ctr.ImagePlatform.OS == "windows" {
 		return errors.New("the daemon on this operating system does not support exporting Windows containers")
 	}
 

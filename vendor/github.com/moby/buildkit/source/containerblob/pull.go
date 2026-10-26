@@ -2,7 +2,6 @@ package containerblob
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,10 +15,13 @@ import (
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/source/containerblob/blobfetch"
 	"github.com/moby/buildkit/source/util/pathutil"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/contentutil"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
+
+const containerBlobCacheKeyVersion = "v1"
 
 type puller struct {
 	src *Source
@@ -38,10 +40,12 @@ func (p *puller) hash() (digest.Digest, error) {
 	}
 
 	dt, err := json.Marshal(struct {
+		Version        string
 		Digest         digest.Digest
 		Filename       string
 		Perm, UID, GID int
 	}{
+		Version:  containerBlobCacheKeyVersion,
 		Digest:   dgst,
 		Filename: p.id.Filename,
 		Perm:     p.id.Perm,
@@ -132,6 +136,9 @@ func (p *puller) Snapshot(ctx context.Context, jobCtx solver.JobContext) (ir cac
 
 	defer func() {
 		if err != nil && newRef != nil {
+			if resetErr := newRef.SetCachePolicyDefault(); resetErr != nil {
+				bklog.G(ctx).Errorf("failed to reset mutable cache policy for blob %s: %v", p.id.Reference.String(), resetErr)
+			}
 			newRef.Release(context.WithoutCancel(ctx))
 		}
 	}()
@@ -179,9 +186,16 @@ func (p *puller) Snapshot(ctx context.Context, jobCtx solver.JobContext) (ir cac
 		}
 	}()
 
-	h := sha256.New()
-	if _, err := io.Copy(io.MultiWriter(f, h), p.rc); err != nil {
+	if err := p.dgst.Validate(); err != nil {
+		return nil, errors.Wrap(err, "invalid blob digest")
+	}
+
+	digester := p.dgst.Algorithm().Digester()
+	if _, err := io.Copy(io.MultiWriter(f, digester.Hash()), p.rc); err != nil {
 		return nil, err
+	}
+	if actual := digester.Digest(); actual != p.dgst {
+		return nil, errors.Errorf("blob digest mismatch: expected %s, got %s", p.dgst, actual)
 	}
 
 	if err := f.Close(); err != nil {

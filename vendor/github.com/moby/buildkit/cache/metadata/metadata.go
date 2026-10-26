@@ -12,6 +12,7 @@ import (
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/db"
 	"github.com/moby/buildkit/util/db/boltutil"
+	"github.com/moby/buildkit/util/db/compaction"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 )
@@ -28,7 +29,7 @@ type Store struct {
 	db db.DB
 }
 
-func NewStore(dbPath string) (*Store, error) {
+func NewStore(dbPath string, policies ...compaction.Config) (*Store, error) {
 	// Check for legacy (v1) cache state.
 	//
 	// Automatic migration was removed in https://github.com/moby/buildkit/pull/6509
@@ -42,8 +43,9 @@ func NewStore(dbPath string) (*Store, error) {
 		}
 	}
 	db, err := boltutil.Open(dbPath, 0600, &bolt.Options{
-		FreelistType: bolt.FreelistMapType,
-	})
+		FreelistType:   bolt.FreelistMapType,
+		NoFreelistSync: true,
+	}, policies...)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to open database file %s", dbPath)
 	}
@@ -395,35 +397,64 @@ func (s *StorageItem) clearIndex(tx *bolt.Tx, index string) error {
 }
 
 func (s *StorageItem) setValue(b *bolt.Bucket, key string, v *Value) error {
-	if v == nil {
-		if old, ok := s.values[key]; ok {
-			if old.Index != "" {
-				s.clearIndex(b.Tx(), old.Index) // ignore error
-			}
+	// Read the previous index from the transaction: another StorageItem handle
+	// or a caller modifying a Value returned by Get may have changed the cache.
+	var old Value
+	if dt := b.Get([]byte(key)); len(dt) > 0 {
+		if err := json.Unmarshal(dt, &old); err != nil {
+			return errors.WithStack(err)
 		}
-		if err := b.Put([]byte(key), nil); err != nil {
-			return err
-		}
-		delete(s.values, key)
-		return nil
 	}
-	dt, err := json.Marshal(v)
-	if err != nil {
-		return errors.WithStack(err)
+	var dt []byte
+	var index string
+	if v != nil {
+		var err error
+		dt, err = json.Marshal(v)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		index = v.Index
 	}
 	if err := b.Put([]byte(key), dt); err != nil {
 		return errors.WithStack(err)
 	}
-	if v.Index != "" {
+	if old.Index != "" && old.Index != index {
+		// Index entries are shared by all values on this record. Remove an old
+		// entry only after its last value stops referencing it.
+		inUse := false
+		if err := b.ForEach(func(_, dt []byte) error {
+			if len(dt) == 0 {
+				return nil
+			}
+			var current Value
+			if err := json.Unmarshal(dt, &current); err != nil {
+				return errors.WithStack(err)
+			}
+			inUse = inUse || current.Index == old.Index
+			return nil
+		}); err != nil {
+			return err
+		}
+		if !inUse {
+			if err := s.clearIndex(b.Tx(), old.Index); err != nil {
+				return err
+			}
+		}
+	}
+	if index != "" {
 		b, err := b.Tx().CreateBucketIfNotExists([]byte(indexBucket))
 		if err != nil {
 			return errors.WithStack(err)
 		}
-		if err := b.Put([]byte(indexKey(v.Index, s.ID())), []byte{}); err != nil {
+		if err := b.Put([]byte(indexKey(index, s.ID())), []byte{}); err != nil {
 			return errors.WithStack(err)
 		}
 	}
-	s.values[key] = v
+	if v == nil {
+		delete(s.values, key)
+	} else {
+		s.values[key] = v
+	}
 	return nil
 }
 

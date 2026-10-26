@@ -32,7 +32,7 @@ func TestGenerateContainerName(t *testing.T) {
 		Impl: provider,
 	})
 
-	reply, err := GenerateContainerName(context.Background(), resolver, &GenerateContainerNameRequest{
+	reply, err := GenerateContainerName(t.Context(), resolver, &GenerateContainerNameRequest{
 		Retry:       3,
 		ContainerID: "container-id",
 		Image:       "image:latest",

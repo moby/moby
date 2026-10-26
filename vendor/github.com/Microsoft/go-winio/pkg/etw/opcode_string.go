@@ -20,8 +20,9 @@ const _Opcode_name = "InfoStartStopDCStartDCStop"
 var _Opcode_index = [...]uint8{0, 4, 9, 13, 20, 26}
 
 func (i Opcode) String() string {
-	if i >= Opcode(len(_Opcode_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_Opcode_index)-1 {
 		return "Opcode(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _Opcode_name[_Opcode_index[i]:_Opcode_index[i+1]]
+	return _Opcode_name[_Opcode_index[idx]:_Opcode_index[idx+1]]
 }

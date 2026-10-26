@@ -28,6 +28,7 @@ const keyMergeParents = "cache.mergeParents"
 const keyLowerDiffParent = "cache.lowerDiffParent"
 const keyUpperDiffParent = "cache.upperDiffParent"
 const keyDiffID = "cache.diffID"
+const keyLayerIdentity = "cache.layerIdentity"
 const keyChainID = "cache.chainID"
 const keyBlobChainID = "cache.blobChainID"
 const keyBlob = "cache.blob"
@@ -243,6 +244,10 @@ func (md *cacheMetadata) queueDiffID(str digest.Digest) error {
 	return md.queueValue(keyDiffID, str, "")
 }
 
+func (md *cacheMetadata) queueLayerIdentity(str digest.Digest) error {
+	return md.queueValue(keyLayerIdentity, str, "")
+}
+
 func (md *cacheMetadata) getMediaType() string {
 	return md.GetString(keyMediaType)
 }
@@ -267,6 +272,10 @@ func (md *cacheMetadata) queueSnapshotID(str string) error {
 
 func (md *cacheMetadata) getDiffID() digest.Digest {
 	return digest.Digest(md.GetString(keyDiffID))
+}
+
+func (md *cacheMetadata) getLayerIdentity() digest.Digest {
+	return digest.Digest(md.GetString(keyLayerIdentity))
 }
 
 func (md *cacheMetadata) queueChainID(str digest.Digest) error {

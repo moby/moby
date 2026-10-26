@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
-	"encoding/binary"
 	"io"
 	"maps"
 	"path/filepath"
@@ -20,6 +19,7 @@ import (
 	"github.com/moby/buildkit/frontend/gateway/client"
 	gwpb "github.com/moby/buildkit/frontend/gateway/pb"
 	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/buildkit/util/archiveutil"
 	"github.com/moby/buildkit/util/gitutil/gitobject"
 	archivecompression "github.com/moby/go-archive/compression"
 	"github.com/pkg/errors"
@@ -133,7 +133,7 @@ func (bc *Client) initContext(ctx context.Context) (*buildContext, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to read downloaded context")
 		}
-		if isArchive(dt) {
+		if archiveutil.IsArchive(dt) {
 			bc := llb.Scratch().File(llb.Copy(*st, filepath.Join("/", filename), "/", &llb.CopyInfo{
 				AttemptUnpack: true,
 			}))
@@ -220,9 +220,7 @@ func archiveMaxTimeFromHTTPArchive(ctx context.Context, bctx *buildContext) (*ti
 	if bctx.contextRef == nil || bctx.httpContextFilename == "" {
 		return nil, nil
 	}
-	dt, err := bctx.contextRef.ReadFile(ctx, client.ReadRequest{
-		Filename: bctx.httpContextFilename,
-	})
+	dt, err := ReadFile(ctx, bctx.contextRef, bctx.httpContextFilename)
 	if err != nil {
 		return nil, err
 	}
@@ -341,26 +339,6 @@ func DetectHTTPContext(ref string) (*llb.State, string, bool) {
 		return &st, filename, true
 	}
 	return nil, "", false
-}
-
-func isArchive(header []byte) bool {
-	for _, m := range [][]byte{
-		{0x42, 0x5A, 0x68},                   // bzip2
-		{0x1F, 0x8B, 0x08},                   // gzip
-		{0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00}, // xz
-		{0x28, 0xB5, 0x2F, 0xFD},             // zstd
-	} {
-		if bytes.HasPrefix(header, m) {
-			return true
-		}
-	}
-	// zstd skippable frames use magic numbers from 0x184D2A50 to 0x184D2A5F
-	if len(header) >= 8 && binary.LittleEndian.Uint32(header[:4])&0xFFFFFFF0 == 0x184D2A50 {
-		return true
-	}
-	r := tar.NewReader(bytes.NewBuffer(header))
-	_, err := r.Next()
-	return err == nil
 }
 
 func scopeToSubDir(c *llb.State, dir string) *llb.State {

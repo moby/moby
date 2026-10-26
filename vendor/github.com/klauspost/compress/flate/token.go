@@ -215,7 +215,11 @@ func mFastLog2(val float32) float32 {
 	ux &= -0x7f800001
 	ux += 127 << 23
 	uval := math.Float32frombits(uint32(ux))
-	log2 += ((-0.34484843)*uval+2.02466578)*uval - 0.67487759
+
+	p := float32(-0.34484843*uval) + 2.02466578
+	q := float32(p*uval) - 0.67487759
+	log2 += q
+
 	return log2
 }
 
@@ -232,7 +236,8 @@ func (t *tokens) EstimatedBits() int {
 		for _, v := range t.litHist[:] {
 			if v > 0 {
 				n := float32(v)
-				shannon += atLeastOne(-mFastLog2(n*invTotal)) * n
+				w := float32(atLeastOne(-mFastLog2(n*invTotal)) * n)
+				shannon += w
 			}
 		}
 		// Just add 15 for EOB
@@ -240,7 +245,8 @@ func (t *tokens) EstimatedBits() int {
 		for i, v := range t.extraHist[1 : literalCount-256] {
 			if v > 0 {
 				n := float32(v)
-				shannon += atLeastOne(-mFastLog2(n*invTotal)) * n
+				w := float32(atLeastOne(-mFastLog2(n*invTotal)) * n)
+				shannon += w
 				bits += int(lengthExtraBits[i&31]) * int(v)
 				nMatches += int(v)
 			}
@@ -251,7 +257,8 @@ func (t *tokens) EstimatedBits() int {
 		for i, v := range t.offHist[:offsetCodeCount] {
 			if v > 0 {
 				n := float32(v)
-				shannon += atLeastOne(-mFastLog2(n*invTotal)) * n
+				w := float32(atLeastOne(-mFastLog2(n*invTotal)) * n)
+				shannon += w
 				bits += int(offsetExtraBits[i&31]) * int(v)
 			}
 		}
@@ -357,9 +364,6 @@ func (t token) literal() uint8 { return uint8(t) }
 func (t token) offset() uint32 { return uint32(t) & offsetMask }
 
 func (t token) length() uint8 { return uint8(t >> lengthShift) }
-
-// Convert length to code.
-func lengthCode(len uint8) uint8 { return lengthCodes[len] }
 
 // Returns the offset code corresponding to a specific offset
 func offsetCode(off uint32) uint32 {

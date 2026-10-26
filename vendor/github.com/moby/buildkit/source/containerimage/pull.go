@@ -7,7 +7,6 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/leases"
 	"github.com/containerd/containerd/v2/core/remotes"
@@ -31,7 +30,6 @@ import (
 	"github.com/moby/buildkit/util/pull"
 	"github.com/moby/buildkit/util/resolver"
 	digest "github.com/opencontainers/go-digest"
-	"github.com/opencontainers/image-spec/identity"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -58,7 +56,6 @@ type puller struct {
 	descHandlers     cache.DescHandlers
 	manifest         *pull.PulledManifests
 	manifestKey      string
-	configKey        string
 	*pull.Puller
 }
 
@@ -181,16 +178,9 @@ func (p *puller) CacheKey(ctx context.Context, jobCtx solver.JobContext, index i
 			return struct{}{}, err
 		}
 		p.manifestKey = k.String()
-
-		dt, err := content.ReadBlob(ctx, p.ContentStore, p.manifest.ConfigDesc)
-		if err != nil {
-			return struct{}{}, err
-		}
-		ck, err := cacheKeyFromConfig(dt, p.layerLimit)
-		if err != nil {
-			return struct{}{}, err
-		}
-		p.configKey = ck.String()
+		// Do not use RootFS DiffIDs from the image config as an alternate
+		// cache key. They are verified only when layers are applied, and a
+		// failed malicious pull must not poison another image source.
 		p.cacheKeyDone = true
 		return struct{}{}, nil
 	})
@@ -203,11 +193,7 @@ func (p *puller) CacheKey(ctx context.Context, jobCtx solver.JobContext, index i
 		cacheOpts[cache.DescHandlerKey(dgst)] = descHandler
 	}
 
-	cacheDone = index > 0
-	if index == 0 || p.configKey == "" {
-		return p.manifestKey, p.manifest.MainManifestDesc.Digest.String(), cacheOpts, cacheDone, nil
-	}
-	return p.configKey, p.manifest.MainManifestDesc.Digest.String(), cacheOpts, cacheDone, nil
+	return p.manifestKey, p.manifest.MainManifestDesc.Digest.String(), cacheOpts, true, nil
 }
 
 func (p *puller) Snapshot(ctx context.Context, jobCtx solver.JobContext) (ir cache.ImmutableRef, err error) {
@@ -295,29 +281,4 @@ func (p *puller) Snapshot(ctx context.Context, jobCtx solver.JobContext) (ir cac
 	}
 
 	return current, nil
-}
-
-// cacheKeyFromConfig returns a stable digest from image config. If image config
-// is a known oci image we will use chainID of layers.
-func cacheKeyFromConfig(dt []byte, layerLimit *int) (digest.Digest, error) {
-	var img ocispecs.Image
-	err := json.Unmarshal(dt, &img)
-	if err != nil {
-		if layerLimit != nil {
-			return "", errors.Wrap(err, "failed to parse image config")
-		}
-		return cachedigest.FromBytes(dt, cachedigest.TypeJSON) // digest of config
-	}
-	if layerLimit != nil {
-		l := *layerLimit
-		if len(img.RootFS.DiffIDs) < l {
-			return "", errors.Errorf("image has %d layers, limit is %d", len(img.RootFS.DiffIDs), l)
-		}
-		img.RootFS.DiffIDs = img.RootFS.DiffIDs[:l]
-	}
-	if img.RootFS.Type != "layers" || len(img.RootFS.DiffIDs) == 0 {
-		return "", nil
-	}
-
-	return identity.ChainID(img.RootFS.DiffIDs), nil
 }

@@ -1,28 +1,27 @@
 package libnetwork
 
 import (
-	"context"
 	"testing"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/config"
+	"github.com/moby/moby/v2/daemon/libnetwork/kvstore/boltdb"
 )
 
-func testLocalBackend(t *testing.T, path, bucket string) {
-	cfgOptions := []config.Option{
-		config.OptionDataDir(path),
-		func(c *config.Config) { c.DatastoreBucket = bucket },
+func testLocalBackend(t *testing.T, path string) {
+	kv, err := boltdb.New(path)
+	if err != nil {
+		t.Fatalf("Error opening datastore: %v", err)
 	}
-
-	testController, err := New(context.Background(), cfgOptions...)
+	testController, err := New(t.Context(), config.WithKVStore(kv))
 	if err != nil {
 		t.Fatalf("Error new controller: %v", err)
 	}
 	defer testController.Stop()
-	nw, err := testController.NewNetwork(context.Background(), "host", "host", "")
+	nw, err := testController.NewNetwork(t.Context(), "host", "host", "")
 	if err != nil {
 		t.Fatalf(`Error creating default "host" network: %v`, err)
 	}
-	ep, err := nw.CreateEndpoint(context.Background(), "newendpoint", []EndpointOption{}...)
+	ep, err := nw.CreateEndpoint(t.Context(), "newendpoint", []EndpointOption{}...)
 	if err != nil {
 		t.Fatalf("Error creating endpoint: %v", err)
 	}
@@ -45,9 +44,15 @@ func testLocalBackend(t *testing.T, path, bucket string) {
 		t.Errorf("Endpoint key should have been created.")
 	}
 	testController.Stop()
+	kv.Close()
 
 	// test restore of local store
-	testController, err = New(context.Background(), cfgOptions...)
+	kv, err = boltdb.New(path)
+	if err != nil {
+		t.Fatalf("Error opening datastore: %v", err)
+	}
+	defer kv.Close()
+	testController, err = New(t.Context(), config.WithKVStore(kv))
 	if err != nil {
 		t.Fatalf("Error creating controller: %v", err)
 	}

@@ -63,8 +63,8 @@ func (iface *lnInterface) init(c *libnetwork.Controller, n *libnetwork.Network) 
 		context.TODO(),
 		id,
 		libnetwork.OptionUseExternalKey(),
-		libnetwork.OptionHostsPath(filepath.Join(iface.provider.Root, id, "hosts")),
-		libnetwork.OptionResolvConfPath(filepath.Join(iface.provider.Root, id, "resolv.conf")),
+		libnetwork.OptionWriteHostsFile(filepath.Join(iface.provider.Root, id, "hosts")),
+		libnetwork.OptionWriteResolvConf(filepath.Join(iface.provider.Root, id, "resolv.conf")),
 	)
 	if err != nil {
 		iface.err = err

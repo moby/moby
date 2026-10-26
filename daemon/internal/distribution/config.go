@@ -6,9 +6,9 @@ import (
 	"io"
 	"runtime"
 
+	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/manifest/schema2"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/v2/daemon/internal/distribution/metadata"
@@ -232,7 +232,7 @@ func (l *storeLayer) Size() int64 {
 
 func (l *storeLayer) MediaType() string {
 	// layer store always returns uncompressed tars
-	return schema2.MediaTypeUncompressedLayer
+	return c8dimages.MediaTypeDockerSchema2Layer
 }
 
 func (l *storeLayer) Release() {

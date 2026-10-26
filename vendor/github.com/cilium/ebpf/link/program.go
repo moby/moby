@@ -1,3 +1,5 @@
+//go:build !windows
+
 package link
 
 import (
@@ -48,12 +50,11 @@ func RawAttachProgram(opts RawAttachProgramOptions) error {
 			return fmt.Errorf("attach program: %w", err)
 		}
 
-		if flags == sys.BPF_F_REPLACE {
-			// Ensure that replacing a program works on old kernels.
+		attr.AttachFlags |= flags
+		if flags&sys.BPF_F_REPLACE != 0 {
 			attr.ReplaceBpfFd = fdOrID
 		} else {
 			attr.RelativeFdOrId = fdOrID
-			attr.AttachFlags |= flags
 		}
 	}
 

@@ -40,7 +40,7 @@ func setupTestStores(t *testing.T) (context.Context, content.Store, *imageStoreW
 		assert.Check(t, db.Close())
 		assert.Check(t, os.RemoveAll(dir))
 	}
-	ctx := namespaces.WithNamespace(context.Background(), t.Name())
+	ctx := namespaces.WithNamespace(t.Context(), t.Name())
 	images := &imageStoreWithLease{Store: imgStore, ns: t.Name(), leases: metadata.NewLeaseManager(mdb)}
 
 	return ctx, cs, images, cleanup

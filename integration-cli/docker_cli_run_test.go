@@ -3985,17 +3985,13 @@ func (s *DockerCLIRunSuite) TestRunCredentialSpecWellFormed(c *testing.T) {
 func (s *DockerCLIRunSuite) TestRunDuplicateMount(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux, NotUserNamespace)
 
-	tmpFile, err := os.CreateTemp("", "touch-me")
-	assert.NilError(c, err)
-	defer tmpFile.Close()
-
 	const data = "touch-me-foo-bar\n"
-	if _, err := tmpFile.WriteString(data); err != nil {
-		c.Fatal(err)
-	}
+	tmpFile := filepath.Join(c.TempDir(), "touch-me")
+	err := os.WriteFile(tmpFile, []byte(data), 0o600)
+	assert.NilError(c, err)
 
-	name := "test"
-	out := cli.DockerCmd(c, "run", "--name", name, "-v", "/tmp:/tmp", "-v", "/tmp:/tmp", "busybox", "sh", "-c", "cat "+tmpFile.Name()+" && ls /").Combined()
+	const name = "test-run-duplicate-mount"
+	out := cli.DockerCmd(c, "run", "--name", name, "-v", "/tmp:/tmp", "-v", "/tmp:/tmp", "busybox", "sh", "-c", "cat "+tmpFile+" && ls /").Combined()
 	assert.Assert(c, !strings.Contains(out, "tmp:"))
 	assert.Assert(c, is.Contains(out, data))
 	out = inspectFieldJSON(c, name, "Config.Volumes")

@@ -749,7 +749,7 @@ func withCommonOptions(daemon *Daemon, daemonCfg *dconfig.Config, c *container.C
 		s.Process.Terminal = c.Config.Tty
 
 		s.Hostname = c.Config.Hostname
-		setLinuxDomainname(c, s)
+		s.Domainname = c.Config.Domainname
 
 		// Add default sysctls that are generally safe and useful; currently we
 		// grant the capabilities to allow these anyway. You can override if
@@ -757,6 +757,12 @@ func withCommonOptions(daemon *Daemon, daemonCfg *dconfig.Config, c *container.C
 		// We do not set network sysctls if network namespace is host, or if we are
 		// joining an existing namespace, only if we create a new net namespace.
 		if c.HostConfig.NetworkMode.IsPrivate() {
+			if s.Linux == nil {
+				s.Linux = &specs.Linux{}
+			}
+			if s.Linux.Sysctl == nil {
+				s.Linux.Sysctl = make(map[string]string)
+			}
 			// We cannot set up ping socket support in a user namespace
 			userNS := daemonCfg.RemappedRoot != "" && c.HostConfig.UsernsMode.IsPrivate()
 			if !userNS && !userns.RunningInUserNS() && sysctlExists("net.ipv4.ping_group_range") {

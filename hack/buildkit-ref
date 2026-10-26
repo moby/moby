@@ -34,9 +34,17 @@ resolve_github_commit_sha() {
 	return 1
 }
 
-# get buildkit version from go.mod
-buildkit_ref=$(go list -mod=mod -u -m -f '{{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}' "$buildkit_pkg")
-buildkit_repo=$(go list -mod=mod -u -m -f '{{if .Replace}}{{.Replace.Path}}{{else}}{{.Path}}{{end}}' "$buildkit_pkg")
+# BUILDKIT_REPO and BUILDKIT_REF may be set to override the values from go.mod.
+if [ -n "${BUILDKIT_REPO:-}" ]; then
+	echo "WARNING: BUILDKIT_REPO is set; overriding BuildKit repository from go.mod with ${BUILDKIT_REPO}" >&2
+fi
+if [ -n "${BUILDKIT_REF:-}" ]; then
+	echo "WARNING: BUILDKIT_REF is set; overriding BuildKit ref from go.mod with ${BUILDKIT_REF}" >&2
+fi
+
+# get BuildKit version and repository from go.mod, unless explicitly overridden.
+buildkit_ref=${BUILDKIT_REF:-$(go list -mod=mod -u -m -f '{{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}' "$buildkit_pkg")}
+buildkit_repo=${BUILDKIT_REPO:-$(go list -mod=mod -u -m -f '{{if .Replace}}{{.Replace.Path}}{{else}}{{.Path}}{{end}}' "$buildkit_pkg")}
 buildkit_repo=${buildkit_repo#github.com/}
 
 if [[ "${buildkit_ref}" == *-*-* ]]; then

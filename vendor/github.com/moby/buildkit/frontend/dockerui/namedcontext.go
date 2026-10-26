@@ -252,10 +252,12 @@ func (nc *NamedContext) load(ctx context.Context, count int) (*llb.State, *docke
 		}
 		var excludes []string
 		if !opt.NoDockerignore {
-			dt, _ := ref.ReadFile(ctx, client.ReadRequest{
-				Filename: DefaultDockerignoreName,
-			}) // error ignored
-
+			// a missing ignore file is not an error, but an oversized one
+			// must not be silently skipped
+			dt, err := ReadFile(ctx, ref, DefaultDockerignoreName)
+			if isFileTooLarge(err) {
+				return nil, nil, err
+			}
 			if len(dt) != 0 {
 				excludes, err = ignorefile.ReadAll(bytes.NewBuffer(dt))
 				if err != nil {

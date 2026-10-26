@@ -62,22 +62,22 @@ func TestPortMappingConfig(t *testing.T) {
 	}
 
 	ipdList4 := getIPv4Data(t)
-	err = d.CreateNetwork(context.Background(), "dummy", netOptions, nil, ipdList4, getIPv6Data(t))
+	err = d.CreateNetwork(t.Context(), "dummy", netOptions, nil, ipdList4, getIPv6Data(t))
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
 	te := newTestEndpoint(ipdList4[0].Pool, 11)
-	err = d.CreateEndpoint(context.Background(), "dummy", "ep1", te.Interface(), nil)
+	err = d.CreateEndpoint(t.Context(), "dummy", "ep1", te.Interface(), nil)
 	if err != nil {
 		t.Fatalf("Failed to create the endpoint: %s", err.Error())
 	}
 
-	if err = d.Join(context.Background(), "dummy", "ep1", "sbox", te, nil, sbOptions); err != nil {
+	if err = d.Join(t.Context(), "dummy", "ep1", "sbox", te, nil, sbOptions); err != nil {
 		t.Fatalf("Failed to join the endpoint: %v", err)
 	}
 
-	if err = d.ProgramExternalConnectivity(context.Background(), "dummy", "ep1", "ep1", ""); err != nil {
+	if err = d.ProgramExternalConnectivity(t.Context(), "dummy", "ep1", "ep1", ""); err != nil {
 		t.Fatalf("Failed to program external connectivity: %v", err)
 	}
 
@@ -106,7 +106,7 @@ func TestPortMappingConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = d.ProgramExternalConnectivity(context.Background(), "dummy", "ep1", "", "")
+	err = d.ProgramExternalConnectivity(t.Context(), "dummy", "ep1", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,22 +146,22 @@ func TestPortMappingV6Config(t *testing.T) {
 
 	ipdList4 := getIPv4Data(t)
 	ipdList6 := getIPv6Data(t)
-	err = d.CreateNetwork(context.Background(), "dummy", netOptions, nil, ipdList4, ipdList6)
+	err = d.CreateNetwork(t.Context(), "dummy", netOptions, nil, ipdList4, ipdList6)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
 	te := newTestEndpoint46(ipdList4[0].Pool, ipdList6[0].Pool, 11)
-	err = d.CreateEndpoint(context.Background(), "dummy", "ep1", te.Interface(), nil)
+	err = d.CreateEndpoint(t.Context(), "dummy", "ep1", te.Interface(), nil)
 	if err != nil {
 		t.Fatalf("Failed to create the endpoint: %s", err.Error())
 	}
 
-	if err = d.Join(context.Background(), "dummy", "ep1", "sbox", te, nil, sbOptions); err != nil {
+	if err = d.Join(t.Context(), "dummy", "ep1", "sbox", te, nil, sbOptions); err != nil {
 		t.Fatalf("Failed to join the endpoint: %v", err)
 	}
 
-	if err = d.ProgramExternalConnectivity(context.Background(), "dummy", "ep1", "ep1", "ep1"); err != nil {
+	if err = d.ProgramExternalConnectivity(t.Context(), "dummy", "ep1", "ep1", "ep1"); err != nil {
 		t.Fatalf("Failed to program external connectivity: %v", err)
 	}
 
@@ -180,7 +180,7 @@ func TestPortMappingV6Config(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = d.ProgramExternalConnectivity(context.Background(), "dummy", "ep1", "", "")
+	err = d.ProgramExternalConnectivity(t.Context(), "dummy", "ep1", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,6 +220,9 @@ func TestAddPortMappings(t *testing.T) {
 		enableProxy  bool
 		hairpin      bool
 		busyPortIPv4 int
+		proxyErrPort uint16
+		firewallErr  bool
+		delPortsErr  error
 		newPDC       func() nat.PortDriverClient
 		hostAddrs    []string
 		noProxy6To4  bool
@@ -282,6 +285,30 @@ func TestAddPortMappings(t *testing.T) {
 			enableProxy:  true,
 			busyPortIPv4: 8080,
 			expErr:       "failed to bind host port 0.0.0.0:8080/tcp: address already in use",
+		},
+		{
+			name:     "firewall failure after installing port rules",
+			epAddrV4: ctrIP4,
+			epAddrV6: ctrIP6,
+			cfg: []portmapperapi.PortBindingReq{
+				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 22, HostPort: 2222}},
+				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80, HostPort: 8080}},
+			},
+			enableProxy: true,
+			firewallErr: true,
+			expErr:      "firewall failed",
+		},
+		{
+			name:     "proxy failure after installing all port rules",
+			epAddrV4: ctrIP4,
+			epAddrV6: ctrIP6,
+			cfg: []portmapperapi.PortBindingReq{
+				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 22, HostPort: 2222}},
+				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80, HostPort: 8080}},
+			},
+			enableProxy:  true,
+			proxyErrPort: 80,
+			expErr:       "failed to start userland proxy for port mapping 0.0.0.0:8080:172.19.0.2:80/tcp: proxy failed",
 		},
 		{
 			name:        "ipv4 mapped container address with specific host port",
@@ -463,6 +490,7 @@ func TestAddPortMappings(t *testing.T) {
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 22, HostPort: 2222}},
 			},
 			enableProxy: true,
+			delPortsErr: errors.New("firewall cleanup failed"),
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 22, HostIP: net.IPv4zero, HostPort: 2222},
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 22, HostIP: net.IPv6zero, HostPort: 2222},
@@ -472,7 +500,8 @@ func TestAddPortMappings(t *testing.T) {
 			expReleaseErr: "unmapping port binding 0.0.0.0:2222:172.19.0.2:22/tcp: failed to stop userland proxy: can't stop now\n" +
 				"unmapping port binding [::]:2222:[fdf8:b88e:bb5c:3483::2]:22/tcp: failed to stop userland proxy: can't stop now\n" +
 				"unmapping port binding 0.0.0.0:8080:172.19.0.2:80/tcp: failed to stop userland proxy: can't stop now\n" +
-				"unmapping port binding [::]:8080:[fdf8:b88e:bb5c:3483::2]:80/tcp: failed to stop userland proxy: can't stop now",
+				"unmapping port binding [::]:8080:[fdf8:b88e:bb5c:3483::2]:80/tcp: failed to stop userland proxy: can't stop now\n" +
+				"firewall cleanup failed",
 		},
 		{
 			name:     "disable nat6",
@@ -717,6 +746,9 @@ func TestAddPortMappings(t *testing.T) {
 			// Mock the startProxy function used by the code under test.
 			proxies := map[proxyCall]bool{} // proxy -> is not stopped
 			startProxy = func(pb types.PortBinding, _ string, listenSock *os.File) (stop func() error, retErr error) {
+				if pb.Port == tc.proxyErrPort {
+					return nil, errors.New("proxy failed")
+				}
 				if tc.busyPortIPv4 > 0 && tc.busyPortIPv4 == int(pb.HostPort) && pb.HostIP.To4() != nil {
 					return nil, errors.New("busy port")
 				}
@@ -789,10 +821,14 @@ func TestAddPortMappings(t *testing.T) {
 				bridge: &bridgeInterface{},
 				driver: driver,
 			}
-			fwn, err := n.newFirewallerNetwork(context.Background())
+			fwn, err := n.newFirewallerNetwork(t.Context())
 			assert.NilError(t, err)
 			assert.Check(t, fwn != nil, "no firewaller network")
-			n.firewallerNetwork = fwn
+			fwCalls := &portMappingFirewaller{Network: fwn, delPortsErr: tc.delPortsErr}
+			if tc.firewallErr {
+				fwCalls.addPortsErr = errors.New("firewall failed")
+			}
+			n.firewallerNetwork = fwCalls
 
 			expChildIP := func(hostIP net.IP) net.IP {
 				if pdc == nil {
@@ -810,7 +846,7 @@ func TestAddPortMappings(t *testing.T) {
 			var sb strings.Builder
 			logger := logrus.New()
 			logger.Out = &sb
-			ctx := log.WithLogger(context.Background(), &log.Entry{Logger: logger})
+			ctx := log.WithLogger(t.Context(), &log.Entry{Logger: logger})
 			t.Cleanup(func() {
 				if t.Failed() {
 					t.Logf("Daemon logs:\n%s", sb.String())
@@ -833,9 +869,27 @@ func TestAddPortMappings(t *testing.T) {
 			pbs, err := n.addPortMappings(ctx, ep, tc.cfg, tc.defHostIP, pbm, pbm)
 			if tc.expErr != "" {
 				assert.ErrorContains(t, err, tc.expErr)
+				assert.Check(t, is.Len(fwn.(*firewaller.StubFirewallerNetwork).Ports, 0))
+				for proxy, running := range proxies {
+					assert.Check(t, !running, "proxy still running: %v", proxy)
+				}
+				if tc.proxyErrPort != 0 || tc.firewallErr {
+					// Retry the same bindings to check all host ports were released.
+					tc.proxyErrPort = 0
+					fwCalls.addPortsErr = nil
+					clear(proxies)
+					pbs, err = n.addPortMappings(ctx, ep, tc.cfg, tc.defHostIP, pbm, pbm)
+					assert.NilError(t, err)
+					assert.Check(t, n.releasePorts(&bridgeEndpoint{portMapping: pbs}))
+				}
 				return
 			}
 			assert.NilError(t, err)
+			expAddPortsCalls := 0
+			if len(pbs) > 0 {
+				expAddPortsCalls = 1
+			}
+			assert.Check(t, is.Equal(fwCalls.addPortsCalls, expAddPortsCalls))
 			for _, expLog := range tc.expLogs {
 				assert.Check(t, is.Contains(sb.String(), expLog))
 			}
@@ -846,7 +900,7 @@ func TestAddPortMappings(t *testing.T) {
 			assert.Check(t, fw.IPv4)
 			assert.Check(t, fw.IPv6)
 
-			fnw := n.firewallerNetwork.(*firewaller.StubFirewallerNetwork)
+			fnw := fwn.(*firewaller.StubFirewallerNetwork)
 			assert.Check(t, !fnw.Internal)
 			assert.Check(t, !fnw.ICC)
 			assert.Check(t, !fnw.Masquerade)
@@ -922,6 +976,28 @@ func TestAddPortMappings(t *testing.T) {
 			}
 		})
 	}
+}
+
+type portMappingFirewaller struct {
+	firewaller.Network
+	addPortsCalls int
+	addPortsErr   error
+	delPortsErr   error
+}
+
+func (fw *portMappingFirewaller) AddPorts(ctx context.Context, pbs []types.PortBinding) error {
+	fw.addPortsCalls++
+	if err := fw.Network.AddPorts(ctx, pbs); err != nil {
+		return err
+	}
+	return fw.addPortsErr
+}
+
+func (fw *portMappingFirewaller) DelPorts(ctx context.Context, pbs []types.PortBinding) error {
+	if err := fw.Network.DelPorts(ctx, pbs); err != nil {
+		return err
+	}
+	return fw.delPortsErr
 }
 
 // Type for tracking calls to StartProxy.

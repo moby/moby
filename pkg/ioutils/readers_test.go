@@ -40,7 +40,7 @@ func (p *perpetualReader) Read(buf []byte) (int, error) {
 }
 
 func TestCancelReadCloser(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 	defer cancel()
 	crc := NewCancelReadCloser(ctx, io.NopCloser(&perpetualReader{}))
 	for {

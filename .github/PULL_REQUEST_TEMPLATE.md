@@ -18,6 +18,12 @@ If the PR relates to an existing issue or PR, mention it at the top:
 
 ## Summary
 
+<!--
+If you used AI tools, disclose which tools you used and roughly how much of the work they did.
+Read and follow the shared AI usage policy: https://github.com/moby/.github/blob/main/AI_POLICY.md
+Review and edit all AI-assisted content before posting; you are responsible for the submission.
+-->
+
 ## Release notes (optional)
 
 <!--

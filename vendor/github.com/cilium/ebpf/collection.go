@@ -4,15 +4,18 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"reflect"
+	"runtime"
+	"slices"
 	"strings"
 
-	"github.com/cilium/ebpf/asm"
 	"github.com/cilium/ebpf/btf"
 	"github.com/cilium/ebpf/internal"
 	"github.com/cilium/ebpf/internal/kallsyms"
 	"github.com/cilium/ebpf/internal/kconfig"
 	"github.com/cilium/ebpf/internal/linux"
+	"github.com/cilium/ebpf/internal/platform"
 	"github.com/cilium/ebpf/internal/sys"
 )
 
@@ -33,6 +36,12 @@ type CollectionOptions struct {
 	// The given Maps are Clone()d before being used in the Collection, so the
 	// caller can Close() them freely when they are no longer needed.
 	MapReplacements map[string]*Map
+
+	// Cache amortises the cost of decoding kernel BTF across multiple
+	// Collection loads. Callers loading more than one Collection should
+	// allocate a Cache via [btf.NewCache] and share it across loads.
+	// If nil, a fresh cache is allocated per load and discarded.
+	Cache *btf.Cache
 }
 
 // CollectionSpec describes a collection.
@@ -61,117 +70,34 @@ func (cs *CollectionSpec) Copy() *CollectionSpec {
 	}
 
 	cpy := CollectionSpec{
-		Maps:      make(map[string]*MapSpec, len(cs.Maps)),
-		Programs:  make(map[string]*ProgramSpec, len(cs.Programs)),
+		Maps:      copyMapOfSpecs(cs.Maps),
+		Programs:  copyMapOfSpecs(cs.Programs),
 		Variables: make(map[string]*VariableSpec, len(cs.Variables)),
 		ByteOrder: cs.ByteOrder,
 		Types:     cs.Types.Copy(),
 	}
 
-	for name, spec := range cs.Maps {
-		cpy.Maps[name] = spec.Copy()
-	}
-
-	for name, spec := range cs.Programs {
-		cpy.Programs[name] = spec.Copy()
-	}
-
 	for name, spec := range cs.Variables {
-		cpy.Variables[name] = spec.copy(&cpy)
+		cpy.Variables[name] = spec.Copy()
+	}
+	if cs.Variables == nil {
+		cpy.Variables = nil
 	}
 
 	return &cpy
 }
 
-// RewriteMaps replaces all references to specific maps.
-//
-// Use this function to use pre-existing maps instead of creating new ones
-// when calling NewCollection. Any named maps are removed from CollectionSpec.Maps.
-//
-// Returns an error if a named map isn't used in at least one program.
-//
-// Deprecated: Pass CollectionOptions.MapReplacements when loading the Collection
-// instead.
-func (cs *CollectionSpec) RewriteMaps(maps map[string]*Map) error {
-	for symbol, m := range maps {
-		// have we seen a program that uses this symbol / map
-		seen := false
-		for progName, progSpec := range cs.Programs {
-			err := progSpec.Instructions.AssociateMap(symbol, m)
-
-			switch {
-			case err == nil:
-				seen = true
-
-			case errors.Is(err, asm.ErrUnreferencedSymbol):
-				// Not all programs need to use the map
-
-			default:
-				return fmt.Errorf("program %s: %w", progName, err)
-			}
-		}
-
-		if !seen {
-			return fmt.Errorf("map %s not referenced by any programs", symbol)
-		}
-
-		// Prevent NewCollection from creating rewritten maps
-		delete(cs.Maps, symbol)
+func copyMapOfSpecs[T interface{ Copy() T }](m map[string]T) map[string]T {
+	if m == nil {
+		return nil
 	}
 
-	return nil
-}
-
-// MissingConstantsError is returned by [CollectionSpec.RewriteConstants].
-type MissingConstantsError struct {
-	// The constants missing from .rodata.
-	Constants []string
-}
-
-func (m *MissingConstantsError) Error() string {
-	return fmt.Sprintf("some constants are missing from .rodata: %s", strings.Join(m.Constants, ", "))
-}
-
-// RewriteConstants replaces the value of multiple constants.
-//
-// The constant must be defined like so in the C program:
-//
-//	volatile const type foobar;
-//	volatile const type foobar = default;
-//
-// Replacement values must be of the same length as the C sizeof(type).
-// If necessary, they are marshalled according to the same rules as
-// map values.
-//
-// From Linux 5.5 the verifier will use constants to eliminate dead code.
-//
-// Returns an error wrapping [MissingConstantsError] if a constant doesn't exist.
-//
-// Deprecated: Use [CollectionSpec.Variables] to interact with constants instead.
-// RewriteConstants is now a wrapper around the VariableSpec API.
-func (cs *CollectionSpec) RewriteConstants(consts map[string]interface{}) error {
-	var missing []string
-	for n, c := range consts {
-		v, ok := cs.Variables[n]
-		if !ok {
-			missing = append(missing, n)
-			continue
-		}
-
-		if !v.Constant() {
-			return fmt.Errorf("variable %s is not a constant", n)
-		}
-
-		if err := v.Set(c); err != nil {
-			return fmt.Errorf("rewriting constant %s: %w", n, err)
-		}
+	cpy := make(map[string]T, len(m))
+	for k, v := range m {
+		cpy[k] = v.Copy()
 	}
 
-	if len(missing) != 0 {
-		return fmt.Errorf("rewrite constants: %w", &MissingConstantsError{Constants: missing})
-	}
-
-	return nil
+	return cpy
 }
 
 // Assign the contents of a CollectionSpec to a struct.
@@ -195,22 +121,22 @@ func (cs *CollectionSpec) RewriteConstants(consts map[string]interface{}) error 
 //
 // Returns an error if any of the eBPF objects can't be found, or
 // if the same Spec is assigned multiple times.
-func (cs *CollectionSpec) Assign(to interface{}) error {
-	getValue := func(typ reflect.Type, name string) (interface{}, error) {
+func (cs *CollectionSpec) Assign(to any) error {
+	getValue := func(typ reflect.Type, name string) (any, error) {
 		switch typ {
-		case reflect.TypeOf((*ProgramSpec)(nil)):
+		case reflect.TypeFor[*ProgramSpec]():
 			if p := cs.Programs[name]; p != nil {
 				return p, nil
 			}
 			return nil, fmt.Errorf("missing program %q", name)
 
-		case reflect.TypeOf((*MapSpec)(nil)):
+		case reflect.TypeFor[*MapSpec]():
 			if m := cs.Maps[name]; m != nil {
 				return m, nil
 			}
 			return nil, fmt.Errorf("missing map %q", name)
 
-		case reflect.TypeOf((*VariableSpec)(nil)):
+		case reflect.TypeFor[*VariableSpec]():
 			if v := cs.Variables[name]; v != nil {
 				return v, nil
 			}
@@ -251,7 +177,7 @@ func (cs *CollectionSpec) Assign(to interface{}) error {
 //
 // Returns an error if any of the fields can't be found, or
 // if the same Map or Program is assigned multiple times.
-func (cs *CollectionSpec) LoadAndAssign(to interface{}, opts *CollectionOptions) error {
+func (cs *CollectionSpec) LoadAndAssign(to any, opts *CollectionOptions) error {
 	loader, err := newCollectionLoader(cs, opts)
 	if err != nil {
 		return err
@@ -263,18 +189,18 @@ func (cs *CollectionSpec) LoadAndAssign(to interface{}, opts *CollectionOptions)
 	assignedProgs := make(map[string]bool)
 	assignedVars := make(map[string]bool)
 
-	getValue := func(typ reflect.Type, name string) (interface{}, error) {
+	getValue := func(typ reflect.Type, name string) (any, error) {
 		switch typ {
 
-		case reflect.TypeOf((*Program)(nil)):
+		case reflect.TypeFor[*Program]():
 			assignedProgs[name] = true
 			return loader.loadProgram(name)
 
-		case reflect.TypeOf((*Map)(nil)):
+		case reflect.TypeFor[*Map]():
 			assignedMaps[name] = true
 			return loader.loadMap(name)
 
-		case reflect.TypeOf((*Variable)(nil)):
+		case reflect.TypeFor[*Variable]():
 			assignedVars[name] = true
 			return loader.loadVariable(name)
 
@@ -285,18 +211,17 @@ func (cs *CollectionSpec) LoadAndAssign(to interface{}, opts *CollectionOptions)
 
 	// Load the Maps and Programs requested by the annotated struct.
 	if err := assignValues(to, getValue); err != nil {
-		return err
+		return fmt.Errorf("assign values: %w", err)
 	}
 
 	// Populate the requested maps. Has a chance of lazy-loading other dependent maps.
 	if err := loader.populateDeferredMaps(); err != nil {
-		return err
+		return fmt.Errorf("populate deferred maps: %w", err)
 	}
 
 	// Evaluate the loader's objects after all (lazy)loading has taken place.
 	for n, m := range loader.maps {
-		switch m.typ {
-		case ProgramArray:
+		if m.typ.canStoreProgram() {
 			// Require all lazy-loaded ProgramArrays to be assigned to the given object.
 			// The kernel empties a ProgramArray once the last user space reference
 			// to it closes, which leads to failed tail calls. Combined with the library
@@ -403,6 +328,7 @@ type collectionLoader struct {
 	maps     map[string]*Map
 	programs map[string]*Program
 	vars     map[string]*Variable
+	types    *btf.Cache
 }
 
 func newCollectionLoader(coll *CollectionSpec, opts *CollectionOptions) (*collectionLoader, error) {
@@ -421,12 +347,18 @@ func newCollectionLoader(coll *CollectionSpec, opts *CollectionOptions) (*collec
 		return nil, fmt.Errorf("populating kallsyms caches: %w", err)
 	}
 
+	cache := opts.Cache
+	if cache == nil {
+		cache = btf.NewCache()
+	}
+
 	return &collectionLoader{
 		coll,
 		opts,
 		make(map[string]*Map),
 		make(map[string]*Program),
 		make(map[string]*Variable),
+		cache,
 	}, nil
 }
 
@@ -434,20 +366,6 @@ func newCollectionLoader(coll *CollectionSpec, opts *CollectionOptions) (*collec
 // during individual program loading. Since we have less context available
 // at those stages, we batch the lookups here instead to avoid redundant work.
 func populateKallsyms(progs map[string]*ProgramSpec) error {
-	// Look up associated kernel modules for all symbols referenced by
-	// ProgramSpec.AttachTo for program types that support attaching to kmods.
-	mods := make(map[string]string)
-	for _, p := range progs {
-		if p.AttachTo != "" && p.targetsKernelModule() {
-			mods[p.AttachTo] = ""
-		}
-	}
-	if len(mods) != 0 {
-		if err := kallsyms.AssignModules(mods); err != nil {
-			return fmt.Errorf("getting modules from kallsyms: %w", err)
-		}
-	}
-
 	// Look up addresses of all kernel symbols referenced by all programs.
 	addrs := make(map[string]uint64)
 	for _, p := range progs {
@@ -515,7 +433,11 @@ func (cl *collectionLoader) loadMap(mapName string) (*Map, error) {
 		return m, nil
 	}
 
-	m, err := newMapWithOptions(mapSpec, cl.opts.Maps)
+	if err := mapSpec.updateDataSection(cl.coll.Variables, mapName); err != nil {
+		return nil, fmt.Errorf("assembling contents of map %s: %w", mapName, err)
+	}
+
+	m, err := newMapWithOptions(mapSpec, cl.opts.Maps, cl.types)
 	if err != nil {
 		return nil, fmt.Errorf("map %s: %w", mapName, err)
 	}
@@ -525,6 +447,7 @@ func (cl *collectionLoader) loadMap(mapName string) (*Map, error) {
 	// that need to be finalized before invoking the verifier.
 	if !mapSpec.Type.canStoreMapOrProgram() {
 		if err := m.finalize(mapSpec); err != nil {
+			_ = m.Close()
 			return nil, fmt.Errorf("finalizing map %s: %w", mapName, err)
 		}
 	}
@@ -577,12 +500,13 @@ func (cl *collectionLoader) loadProgram(progName string) (*Program, error) {
 		}
 	}
 
-	prog, err := newProgramWithOptions(progSpec, cl.opts.Programs)
+	prog, err := newProgramWithOptions(progSpec, cl.opts.Programs, cl.types)
 	if err != nil {
 		return nil, fmt.Errorf("program %s: %w", progName, err)
 	}
 
 	cl.programs[progName] = prog
+
 	return prog, nil
 }
 
@@ -596,19 +520,7 @@ func (cl *collectionLoader) loadVariable(varName string) (*Variable, error) {
 		return nil, fmt.Errorf("unknown variable %s", varName)
 	}
 
-	// Get the key of the VariableSpec's MapSpec in the CollectionSpec.
-	var mapName string
-	for n, ms := range cl.coll.Maps {
-		if ms == varSpec.m {
-			mapName = n
-			break
-		}
-	}
-	if mapName == "" {
-		return nil, fmt.Errorf("variable %s: underlying MapSpec %s was removed from CollectionSpec", varName, varSpec.m.Name)
-	}
-
-	m, err := cl.loadMap(mapName)
+	m, err := cl.loadMap(varSpec.SectionName)
 	if err != nil {
 		return nil, fmt.Errorf("variable %s: %w", varName, err)
 	}
@@ -618,16 +530,21 @@ func (cl *collectionLoader) loadVariable(varName string) (*Variable, error) {
 	// emit a Variable with a nil Memory. This keeps Collection{Spec}.Variables
 	// consistent across systems with different feature sets without breaking
 	// LoadAndAssign.
-	mm, err := m.Memory()
+	var mm *Memory
+	if unsafeMemory {
+		mm, err = m.unsafeMemory()
+	} else {
+		mm, err = m.Memory()
+	}
 	if err != nil && !errors.Is(err, ErrNotSupported) {
-		return nil, fmt.Errorf("variable %s: getting memory for map %s: %w", varName, mapName, err)
+		return nil, fmt.Errorf("variable %s: getting memory for map %s: %w", varName, varSpec.SectionName, err)
 	}
 
 	v, err := newVariable(
-		varSpec.name,
-		varSpec.offset,
-		varSpec.size,
-		varSpec.t,
+		varSpec.Name,
+		varSpec.Offset,
+		varSpec.Size(),
+		varSpec.Type,
 		mm,
 	)
 	if err != nil {
@@ -685,11 +602,109 @@ func (cl *collectionLoader) populateDeferredMaps() error {
 			}
 		}
 
+		if mapSpec.Type == StructOpsMap {
+			// populate StructOps data into `kernVData`
+			if err := cl.populateStructOps(m, mapSpec); err != nil {
+				return err
+			}
+		}
+
 		// Populate and freeze the map if specified.
 		if err := m.finalize(mapSpec); err != nil {
 			return fmt.Errorf("populating map %s: %w", mapName, err)
 		}
 	}
+
+	return nil
+}
+
+// populateStructOps translates the user struct bytes into the kernel value struct
+// layout for a struct_ops map and writes the result back to mapSpec.Contents[0].
+func (cl *collectionLoader) populateStructOps(m *Map, mapSpec *MapSpec) error {
+	userType, ok := btf.As[*btf.Struct](mapSpec.Value)
+	if !ok {
+		return fmt.Errorf("value should be a *Struct")
+	}
+
+	userData, err := mapSpec.dataSection()
+	if err != nil {
+		return fmt.Errorf("getting data section: %w", err)
+	}
+	if len(userData) < int(userType.Size) {
+		return fmt.Errorf("user data too short: have %d, need at least %d", len(userData), userType.Size)
+	}
+
+	vType, _, module, err := structOpsFindTarget(userType, cl.types)
+	if err != nil {
+		return fmt.Errorf("struct_ops value type %q: %w", userType.Name, err)
+	}
+	defer module.Close()
+
+	// Find the inner ops struct embedded in the value struct.
+	kType, kTypeOff, err := structOpsFindInnerType(vType)
+	if err != nil {
+		return err
+	}
+
+	kernVData := make([]byte, int(vType.Size))
+	for _, m := range userType.Members {
+		i := slices.IndexFunc(kType.Members, func(km btf.Member) bool {
+			return km.Name == m.Name
+		})
+
+		// Allow field to not exist in target as long as the source is zero.
+		if i == -1 {
+			mSize, err := btf.Sizeof(m.Type)
+			if err != nil {
+				return fmt.Errorf("sizeof(user.%s): %w", m.Name, err)
+			}
+			srcOff := int(m.Offset.Bytes())
+			if srcOff < 0 || srcOff+mSize > len(userData) {
+				return fmt.Errorf("member %q: userdata is too small", m.Name)
+			}
+
+			// let fail if the field in type user type is missing in type kern type
+			if !structOpsIsMemZeroed(userData[srcOff : srcOff+mSize]) {
+				return fmt.Errorf("%s doesn't exist in %s, but it has non-zero value", m.Name, kType.Name)
+			}
+
+			continue
+		}
+
+		km := kType.Members[i]
+
+		switch btf.UnderlyingType(m.Type).(type) {
+		case *btf.Pointer:
+			// If this is a pointer → resolve struct_ops program.
+			psKey := kType.Name + ":" + m.Name
+			for k, ps := range cl.coll.Programs {
+				if ps.AttachTo == psKey {
+					p, ok := cl.programs[k]
+					if !ok || p == nil {
+						return nil
+					}
+					if err := structOpsPopulateValue(km, kernVData[kTypeOff:], p); err != nil {
+						return err
+					}
+				}
+			}
+
+		default:
+			// Otherwise → memcpy the field contents.
+			if err := structOpsCopyMember(m, km, userData, kernVData[kTypeOff:]); err != nil {
+				return fmt.Errorf("field %s: %w", kType.Name, err)
+			}
+		}
+	}
+
+	// Populate the map explicitly and keep a reference on cl.programs.
+	// This is necessary because we may inline fds into kernVData which
+	// may become invalid if the GC frees them.
+	if err := m.Put(uint32(0), kernVData); err != nil {
+		return err
+	}
+	mapSpec.Contents = nil
+	runtime.KeepAlive(cl.programs)
 
 	return nil
 }
@@ -700,6 +715,10 @@ func resolveKconfig(m *MapSpec) error {
 	ds, ok := m.Value.(*btf.Datasec)
 	if !ok {
 		return errors.New("map value is not a Datasec")
+	}
+
+	if platform.IsWindows {
+		return fmt.Errorf(".kconfig: %w", internal.ErrNotSupportedOnOS)
 	}
 
 	type configInfo struct {
@@ -794,6 +813,13 @@ func resolveKconfig(m *MapSpec) error {
 // Omitting Collection.Close() during application shutdown is an error.
 // See the package documentation for details around Map and Program lifecycle.
 func LoadCollection(file string) (*Collection, error) {
+	if platform.IsWindows {
+		// This mirrors a check in efW.
+		if ext := filepath.Ext(file); ext == ".sys" {
+			return loadCollectionFromNativeImage(file)
+		}
+	}
+
 	spec, err := LoadCollectionSpec(file)
 	if err != nil {
 		return nil, err
@@ -823,31 +849,31 @@ func LoadCollection(file string) (*Collection, error) {
 //
 // Ownership and Close()ing responsibility is transferred to `to`
 // for any successful assigns. On error `to` is left in an undefined state.
-func (coll *Collection) Assign(to interface{}) error {
+func (coll *Collection) Assign(to any) error {
 	assignedMaps := make(map[string]bool)
 	assignedProgs := make(map[string]bool)
 	assignedVars := make(map[string]bool)
 
 	// Assign() only transfers already-loaded Maps and Programs. No extra
 	// loading is done.
-	getValue := func(typ reflect.Type, name string) (interface{}, error) {
+	getValue := func(typ reflect.Type, name string) (any, error) {
 		switch typ {
 
-		case reflect.TypeOf((*Program)(nil)):
+		case reflect.TypeFor[*Program]():
 			if p := coll.Programs[name]; p != nil {
 				assignedProgs[name] = true
 				return p, nil
 			}
 			return nil, fmt.Errorf("missing program %q", name)
 
-		case reflect.TypeOf((*Map)(nil)):
+		case reflect.TypeFor[*Map]():
 			if m := coll.Maps[name]; m != nil {
 				assignedMaps[name] = true
 				return m, nil
 			}
 			return nil, fmt.Errorf("missing map %q", name)
 
-		case reflect.TypeOf((*Variable)(nil)):
+		case reflect.TypeFor[*Variable]():
 			if v := coll.Variables[name]; v != nil {
 				assignedVars[name] = true
 				return v, nil
@@ -860,7 +886,7 @@ func (coll *Collection) Assign(to interface{}) error {
 	}
 
 	if err := assignValues(to, getValue); err != nil {
-		return err
+		return fmt.Errorf("assign values: %w", err)
 	}
 
 	// Finalize ownership transfer
@@ -948,7 +974,7 @@ func ebpfFields(structVal reflect.Value, visited map[reflect.Type]bool) ([]struc
 		// to a struct, attempt to gather its fields as well.
 		var v reflect.Value
 		switch field.Type.Kind() {
-		case reflect.Ptr:
+		case reflect.Pointer:
 			if field.Type.Elem().Kind() != reflect.Struct {
 				continue
 			}
@@ -983,16 +1009,14 @@ func ebpfFields(structVal reflect.Value, visited map[reflect.Type]bool) ([]struc
 //
 // getValue is called for every tagged field of 'to' and must return the value
 // to be assigned to the field with the given typ and name.
-func assignValues(to interface{},
-	getValue func(typ reflect.Type, name string) (interface{}, error)) error {
-
-	toValue := reflect.ValueOf(to)
-	if toValue.Type().Kind() != reflect.Ptr {
-		return fmt.Errorf("%T is not a pointer to struct", to)
+func assignValues(to any, getValue func(typ reflect.Type, name string) (any, error)) error {
+	if err := internal.IsNilPointer(to); err != nil {
+		return err
 	}
 
-	if toValue.IsNil() {
-		return fmt.Errorf("nil pointer to %T", to)
+	toValue := reflect.ValueOf(to)
+	if toValue.Type().Kind() != reflect.Pointer {
+		return fmt.Errorf("%T is not a pointer to struct", to)
 	}
 
 	fields, err := ebpfFields(toValue.Elem(), nil)

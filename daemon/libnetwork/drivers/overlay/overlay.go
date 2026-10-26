@@ -82,10 +82,6 @@ func (d *driver) configure() error {
 	return nil
 }
 
-func (d *driver) Type() string {
-	return NetworkType
-}
-
 func (d *driver) IsBuiltIn() bool {
 	return true
 }

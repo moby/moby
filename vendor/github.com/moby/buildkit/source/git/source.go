@@ -107,8 +107,9 @@ func (gs *Source) Identifier(scheme, ref string, attrs map[string]string, platfo
 				id.KeepGitDir = true
 			}
 		case pb.AttrFullRemoteURL:
-			if !gitutil.IsGitTransport(v) {
-				v = "https://" + v
+			v, err = validateFullRemoteURL(id.Remote, v)
+			if err != nil {
+				return nil, err
 			}
 			id.Remote = v
 		case pb.AttrAuthHeaderSecret:
@@ -1344,7 +1345,7 @@ func (gs *gitSourceHandler) checkout(ctx context.Context, repo *gitRepo, g sessi
 	}
 
 	if gs.src.MTime == "commit" {
-		commitTime, err := getCommitTime(ctx, git, refOrCommit)
+		commitTime, err := getCommitTime(ctx, repo.GitCLI, refOrCommit)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get commit time for %s", urlutil.RedactCredentials(gs.src.Remote))
 		}

@@ -107,7 +107,15 @@ func (g *Group) WrapFetcher(f remotes.Fetcher, ref string) remotes.Fetcher {
 }
 
 func (g *Group) PushHandler(pusher remotes.Pusher, provider content.Provider, ref string) images.HandlerFunc {
-	ph := remotes.PushHandler(pusher, provider)
+	return g.wrapHandler(remotes.PushHandler(pusher, provider), ref)
+}
+
+func (g *Group) FetchHandler(ingester content.Ingester, fetcher remotes.Fetcher, ref string) images.HandlerFunc {
+	// Acquire before opening the writer, which may start a registry upload.
+	return g.wrapHandler(remotes.FetchHandler(ingester, fetcher), ref)
+}
+
+func (g *Group) wrapHandler(h images.HandlerFunc, ref string) images.HandlerFunc {
 	req := g.req(ref)
 	return func(ctx context.Context, desc ocispecs.Descriptor) ([]ocispecs.Descriptor, error) {
 		ctx, release, err := req.acquire(ctx, desc)
@@ -115,7 +123,7 @@ func (g *Group) PushHandler(pusher remotes.Pusher, provider content.Provider, re
 			return nil, err
 		}
 		defer release()
-		return ph(ctx, desc)
+		return h(ctx, desc)
 	}
 }
 
@@ -177,7 +185,7 @@ func (r *readCloser) close() {
 }
 
 func FetchHandler(ingester content.Ingester, fetcher remotes.Fetcher, ref string) images.HandlerFunc {
-	return remotes.FetchHandler(ingester, Default.WrapFetcher(fetcher, ref))
+	return Default.FetchHandler(ingester, fetcher, ref)
 }
 
 func PushHandler(pusher remotes.Pusher, provider content.Provider, ref string) images.HandlerFunc {

@@ -35,7 +35,10 @@ type SourceOp struct {
 var _ solver.Op = &SourceOp{}
 
 func NewSourceOp(vtx solver.Vertex, op *pb.Op_Source, platform *pb.Platform, sm *source.Manager, parallelism *semaphore.Weighted, sessM *session.Manager, w worker.Worker) (*SourceOp, error) {
-	if err := opsutils.Validate(&pb.Op{Op: op}); err != nil {
+	if err := opsutils.Validate(&pb.Op{
+		Inputs: make([]*pb.Input, len(vtx.Inputs())),
+		Op:     op,
+	}); err != nil {
 		return nil, err
 	}
 	return &SourceOp{

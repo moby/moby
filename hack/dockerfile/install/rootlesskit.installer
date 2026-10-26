@@ -1,7 +1,8 @@
 #!/bin/sh
 
-# When updating, also update go.mod and Dockerfile accordingly.
-: "${ROOTLESSKIT_VERSION:=v3.2.0}"
+# When updating, also update Dockerfile accordingly.
+# renovate: datasource=github-tags depName=rootless-containers/rootlesskit
+: "${ROOTLESSKIT_VERSION:=v3.3.0}"
 
 install_rootlesskit() {
 	case "$1" in

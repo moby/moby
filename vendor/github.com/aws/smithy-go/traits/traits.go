@@ -10,6 +10,14 @@ type Sensitive struct{}
 // TraitID identifies the trait.
 func (*Sensitive) TraitID() smithy.ShapeID { return smithy.ShapeID{Namespace: "smithy.api", Name: "sensitive"} }
 
+// Error represents smithy.api#error.
+type Error struct {
+	Type string
+}
+
+// TraitID identifies the trait.
+func (*Error) TraitID() smithy.ShapeID { return smithy.ShapeID{Namespace: "smithy.api", Name: "error"} }
+
 // EventHeader represents smithy.api#eventHeader.
 type EventHeader struct{}
 

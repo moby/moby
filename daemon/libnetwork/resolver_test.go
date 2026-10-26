@@ -5,9 +5,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"net"
-	"syscall"
+	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/containerd/log"
 	"github.com/miekg/dns"
@@ -98,42 +97,16 @@ func checkDNSRRType(t *testing.T, actual, expected uint16) {
 	}
 }
 
-func newDNSHandlerServFailOnce(requests *int) func(w dns.ResponseWriter, r *dns.Msg) {
+func newDNSHandlerServFailOnce(requests *atomic.Int32) func(w dns.ResponseWriter, r *dns.Msg) {
 	return func(w dns.ResponseWriter, r *dns.Msg) {
 		m := new(dns.Msg)
 		m.SetReply(r)
 		m.Compress = false
-		if *requests == 0 {
+		if requests.Add(1) == 1 {
 			m.SetRcode(r, dns.RcodeServerFailure)
 		}
-		*requests = *requests + 1
 		if err := w.WriteMsg(m); err != nil {
 			log.G(context.TODO()).WithError(err).Error("Error writing dns response")
-		}
-	}
-}
-
-func waitForLocalDNSServer(t *testing.T) {
-	retries := 0
-	maxRetries := 10
-
-	for retries < maxRetries {
-		t.Log("Try connecting to DNS server ...")
-		// this test and retry mechanism only works for TCP. With UDP there is no
-		// connection and the test becomes inaccurate leading to unpredictable results
-		tconn, err := net.DialTimeout("tcp", "127.0.0.1:53", 10*time.Second)
-		retries = retries + 1
-		if err != nil {
-			if errors.Is(err, syscall.ECONNREFUSED) {
-				// server is probably initializing
-				continue
-			}
-			// something is wrong: we should stop for analysis
-			t.Fatal(err)
-		}
-		if tconn != nil {
-			tconn.Close()
-			break
 		}
 	}
 }

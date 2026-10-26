@@ -13,6 +13,8 @@ import (
 
 	"github.com/cilium/ebpf/internal"
 	"github.com/cilium/ebpf/internal/linux"
+	"github.com/cilium/ebpf/internal/mountinfo"
+	"github.com/cilium/ebpf/internal/platform"
 	"github.com/cilium/ebpf/internal/unix"
 )
 
@@ -22,7 +24,7 @@ var (
 	ErrInvalidMaxActive = errors.New("can only set maxactive on kretprobes")
 )
 
-//go:generate go run golang.org/x/tools/cmd/stringer@latest -type=ProbeType -linecomment
+//go:generate go tool stringer -type=ProbeType -linecomment
 
 type ProbeType uint8
 
@@ -71,11 +73,11 @@ func RandomGroup(prefix string) (string, error) {
 }
 
 // validIdentifier implements the equivalent of a regex match
-// against "^[a-zA-Z_][0-9a-zA-Z_]*$".
+// against "^[a-zA-Z_][0-9a-zA-Z_-]*$".
 //
-// Trace event groups, names and kernel symbols must adhere to this set
-// of characters. Non-empty, first character must not be a number, all
-// characters must be alphanumeric or underscore.
+// Trace event groups, names and kernel symbols must adhere to this set of
+// characters. Non-empty, first character must not be a number or hyphen, all
+// characters must be alphanumeric, underscore or hyphen.
 func validIdentifier(s string) bool {
 	if len(s) < 1 {
 		return false
@@ -85,7 +87,7 @@ func validIdentifier(s string) bool {
 		case c >= 'a' && c <= 'z':
 		case c >= 'A' && c <= 'Z':
 		case c == '_':
-		case i > 0 && c >= '0' && c <= '9':
+		case i > 0 && (c == '-' || c >= '0' && c <= '9'):
 
 		default:
 			return false
@@ -108,13 +110,29 @@ func sanitizeTracefsPath(path ...string) (string, error) {
 	return p, nil
 }
 
-// getTracefsPath will return a correct path to the tracefs mount point.
-// Since kernel 4.1 tracefs should be mounted by default at /sys/kernel/tracing,
-// but may be also be available at /sys/kernel/debug/tracing if debugfs is mounted.
-// The available tracefs paths will depends on distribution choices.
+// getTracefsPath returns a correct path to the tracefs mount point.
+//
+// The discovery order is:
+//
+//  1. Any tracefs mount listed in /proc/self/mountinfo (kernel 4.1+).
+//     This works regardless of where the mount sits in the filesystem,
+//     so containers that bind-mount tracefs at a non-canonical path are
+//     supported automatically.
+//  2. A debugfs mount with a tracing/ subdirectory, for older systems
+//     where tracefs has not been lifted out of debugfs.
+//  3. As a final fallback, probe the canonical kernel paths
+//     (/sys/kernel/tracing, /sys/kernel/debug/tracing) directly with
+//     statfs. This catches edge cases where /proc/self/mountinfo is
+//     unavailable or doesn't report the mount.
 var getTracefsPath = sync.OnceValues(func() (string, error) {
-	if !internal.OnLinux {
+	if !platform.IsLinux {
 		return "", fmt.Errorf("tracefs: %w", internal.ErrNotSupportedOnOS)
+	}
+
+	if entries, err := mountinfo.Read(); err == nil {
+		if path := findTracefsInEntries(entries); path != "" {
+			return path, nil
+		}
 	}
 
 	for _, p := range []struct {
@@ -133,6 +151,28 @@ var getTracefsPath = sync.OnceValues(func() (string, error) {
 
 	return "", errors.New("neither debugfs nor tracefs are mounted")
 })
+
+// findTracefsInEntries returns the first occurrence of a tracefs in the
+// given entries.
+//
+// Returns an empty string when no usable mount is found.
+func findTracefsInEntries(entries []mountinfo.Entry) string {
+	for _, e := range entries {
+		if e.FSType == "tracefs" && e.Root == "/" {
+			return e.MountPoint
+		}
+	}
+	for _, e := range entries {
+		if e.FSType != "debugfs" || e.Root != "/" {
+			continue
+		}
+		tracing := filepath.Join(e.MountPoint, "tracing")
+		if info, err := os.Stat(tracing); err == nil && info.IsDir() {
+			return tracing
+		}
+	}
+	return ""
+}
 
 // sanitizeIdentifier replaces every invalid character for the tracefs api with an underscore.
 //
@@ -199,6 +239,8 @@ type Event struct {
 	group, name string
 	// event id allocated by the kernel. 0 if the event has already been removed.
 	id uint64
+
+	cleanup runtime.Cleanup
 }
 
 // NewEvent creates a new ephemeral trace event.
@@ -305,14 +347,21 @@ func NewEvent(args ProbeArgs) (*Event, error) {
 		if err := removeEvent(args.Type, event); err != nil {
 			return nil, fmt.Errorf("failed to remove spurious maxactive event: %s", err)
 		}
-		return nil, fmt.Errorf("create trace event with non-default maxactive: %w", internal.ErrNotSupported)
+
+		return nil, &internal.UnsupportedFeatureError{
+			MinimumVersion: internal.Version{4, 12},
+			Name:           "trace event with non-default maxactive",
+		}
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get trace event id: %w", err)
 	}
 
-	evt := &Event{args.Type, args.Group, eventName, tid}
-	runtime.SetFinalizer(evt, (*Event).Close)
+	evt := &Event{typ: args.Type, group: args.Group, name: eventName, id: tid}
+	evt.cleanup = runtime.AddCleanup(evt, func(*byte) {
+		_ = removeEvent(args.Type, fmt.Sprintf("%s/%s", args.Group, eventName))
+	}, nil)
+
 	return evt, nil
 }
 
@@ -325,7 +374,7 @@ func (evt *Event) Close() error {
 	}
 
 	evt.id = 0
-	runtime.SetFinalizer(evt, nil)
+	evt.cleanup.Stop()
 	pe := fmt.Sprintf("%s/%s", evt.group, evt.name)
 	return removeEvent(evt.typ, pe)
 }

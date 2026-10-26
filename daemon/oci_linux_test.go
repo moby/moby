@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"context"
 	"maps"
 	"os"
 	"path/filepath"
@@ -13,7 +12,6 @@ import (
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/libnetwork"
-	nwconfig "github.com/moby/moby/v2/daemon/libnetwork/config"
 	"github.com/moby/moby/v2/daemon/network"
 	daemonoci "github.com/moby/moby/v2/daemon/pkg/oci"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -31,7 +29,7 @@ func setupFakeDaemon(t *testing.T, c *container.Container) *Daemon {
 	err := os.MkdirAll(rootfs, 0o755)
 	assert.NilError(t, err)
 
-	netController, err := libnetwork.New(context.Background(), nwconfig.OptionDataDir(t.TempDir()))
+	netController, err := libnetwork.New(t.Context())
 	assert.NilError(t, err)
 
 	d := &Daemon{
@@ -292,11 +290,13 @@ func TestSysctlOverride(t *testing.T) {
 	}
 	d := setupFakeDaemon(t, c)
 
-	// Ensure that the implicit sysctl is set correctly.
+	// Ensure that the domainname is set, and the sysctl is not.
 	s, err := d.createSpec(ctx, &configStore{}, c, nil)
 	assert.NilError(t, err)
 	assert.Equal(t, s.Hostname, "foobar")
-	assert.Equal(t, s.Linux.Sysctl["kernel.domainname"], c.Config.Domainname)
+	assert.Equal(t, s.Domainname, c.Config.Domainname)
+	_, hasDomainnameSysctl := s.Linux.Sysctl["kernel.domainname"]
+	assert.Check(t, !hasDomainnameSysctl)
 	if sysctlExists("net.ipv4.ip_unprivileged_port_start") {
 		assert.Equal(t, s.Linux.Sysctl["net.ipv4.ip_unprivileged_port_start"], "0")
 	}
@@ -380,7 +380,7 @@ func TestDefaultResources(t *testing.T) {
 	}
 	d := setupFakeDaemon(t, c)
 
-	s, err := d.createSpec(context.Background(), &configStore{}, c, nil)
+	s, err := d.createSpec(t.Context(), &configStore{}, c, nil)
 	assert.NilError(t, err)
 	checkResourcesAreUnset(t, s.Linux.Resources)
 }

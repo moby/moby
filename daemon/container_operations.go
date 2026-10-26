@@ -601,7 +601,7 @@ func normalizeEndpointIPAMConfig(errs []error, cfg *networktypes.EndpointIPAMCon
 		}
 	}
 	for _, addr := range cfg.LinkLocalIPs {
-		if !addr.IsValid() || addr.IsUnspecified() {
+		if !addr.IsLinkLocalUnicast() || addr.Zone() != "" {
 			errs = append(errs, fmt.Errorf("invalid link-local IP address: %s", addr))
 		}
 	}

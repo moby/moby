@@ -4,7 +4,7 @@ package etwlogrus
 
 import (
 	"errors"
-	"sort"
+	"slices"
 
 	"github.com/sirupsen/logrus"
 
@@ -123,7 +123,7 @@ func (h *Hook) Fire(e *logrus.Entry) error {
 			names = append(names, k)
 		}
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	// Reserve extra space for the message and time fields.
 	fields := make([]etw.FieldOpt, 0, len(e.Data)+2)

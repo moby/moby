@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -110,7 +111,7 @@ func TestContainerList(t *testing.T) {
 			}
 
 			// list them and verify correctness
-			containerList, err := d.Containers(context.Background(), &backend.ContainerListOptions{All: true})
+			containerList, err := d.Containers(t.Context(), &backend.ContainerListOptions{All: true})
 			assert.NilError(t, err)
 			assert.Assert(t, is.Len(containerList, num))
 
@@ -129,7 +130,7 @@ func TestContainerList_InvalidFilter(t *testing.T) {
 		containersReplica: db,
 	}
 
-	_, err = d.Containers(context.Background(), &backend.ContainerListOptions{
+	_, err = d.Containers(t.Context(), &backend.ContainerListOptions{
 		Filters: filters.NewArgs(filters.Arg("invalid", "foo")),
 	})
 	assert.Assert(t, is.Error(err, "invalid filter 'invalid'"))
@@ -150,7 +151,7 @@ func TestContainerList_NameFilter(t *testing.T) {
 
 	// moby/moby #37453 - ^ regex not working due to prefix slash
 	// not being stripped
-	containerList, err := d.Containers(context.Background(), &backend.ContainerListOptions{
+	containerList, err := d.Containers(t.Context(), &backend.ContainerListOptions{
 		Filters: filters.NewArgs(filters.Arg("name", "^a")),
 	})
 	assert.NilError(t, err)
@@ -159,7 +160,7 @@ func TestContainerList_NameFilter(t *testing.T) {
 	assert.Assert(t, containerListContainsName(containerList, two.Name))
 
 	// Same as above but with slash prefix should produce the same result
-	containerListWithPrefix, err := d.Containers(context.Background(), &backend.ContainerListOptions{
+	containerListWithPrefix, err := d.Containers(t.Context(), &backend.ContainerListOptions{
 		Filters: filters.NewArgs(filters.Arg("name", "^/a")),
 	})
 	assert.NilError(t, err)
@@ -168,7 +169,7 @@ func TestContainerList_NameFilter(t *testing.T) {
 	assert.Assert(t, containerListContainsName(containerListWithPrefix, two.Name))
 
 	// Same as above but make sure it works for exact names
-	containerList, err = d.Containers(context.Background(), &backend.ContainerListOptions{
+	containerList, err = d.Containers(t.Context(), &backend.ContainerListOptions{
 		Filters: filters.NewArgs(filters.Arg("name", "b1")),
 	})
 	assert.NilError(t, err)
@@ -176,7 +177,7 @@ func TestContainerList_NameFilter(t *testing.T) {
 	assert.Assert(t, containerListContainsName(containerList, three.Name))
 
 	// Same as above but with slash prefix should produce the same result
-	containerListWithPrefix, err = d.Containers(context.Background(), &backend.ContainerListOptions{
+	containerListWithPrefix, err = d.Containers(t.Context(), &backend.ContainerListOptions{
 		Filters: filters.NewArgs(filters.Arg("name", "/b1")),
 	})
 	assert.NilError(t, err)
@@ -234,7 +235,7 @@ func TestContainerList_AnnotationFilter(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			containerList, err := d.Containers(context.Background(), &backend.ContainerListOptions{
+			containerList, err := d.Containers(t.Context(), &backend.ContainerListOptions{
 				All:     true,
 				Filters: filters.NewArgs(tc.filters...),
 			})
@@ -280,7 +281,7 @@ func TestContainerList_LimitFilter(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			containerList, err := d.Containers(context.Background(), &backend.ContainerListOptions{Limit: tc.limit})
+			containerList, err := d.Containers(t.Context(), &backend.ContainerListOptions{Limit: tc.limit})
 			assert.NilError(t, err)
 			expectedListLen := num
 			if tc.limit > 0 {
@@ -288,5 +289,47 @@ func TestContainerList_LimitFilter(t *testing.T) {
 			}
 			assert.Assert(t, is.Len(containerList, expectedListLen))
 		})
+	}
+}
+
+// layerSizeErrImageService fails GetContainerLayerSize for the containers
+// listed in failIDs and reports a fixed size for all others.
+type layerSizeErrImageService struct {
+	ImageService
+	failIDs map[string]struct{}
+}
+
+func (s *layerSizeErrImageService) GetContainerLayerSize(_ context.Context, id string) (int64, int64, error) {
+	if _, ok := s.failIDs[id]; ok {
+		return 0, 0, errors.New("snapshotter.Usage failed: lstat: no such file or directory")
+	}
+	return 10, 20, nil
+}
+
+// A container whose size cannot be computed must not fail the whole listing.
+func TestContainerList_SizeError(t *testing.T) {
+	db, err := container.NewViewDB()
+	assert.NilError(t, err)
+	imgSvc := &layerSizeErrImageService{failIDs: map[string]struct{}{}}
+	d := &Daemon{
+		containersReplica: db,
+		imageService:      imgSvc,
+	}
+
+	setupContainerWithName(t, "ok", d)
+	bad := setupContainerWithName(t, "bad", d)
+	imgSvc.failIDs[bad.ID] = struct{}{}
+
+	list, err := d.Containers(t.Context(), &backend.ContainerListOptions{All: true, Size: true})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(list, 2))
+	for _, c := range list {
+		if c.ID == bad.ID {
+			assert.Check(t, is.Equal(c.SizeRw, int64(-1)))
+			assert.Check(t, is.Equal(c.SizeRootFs, int64(-1)))
+		} else {
+			assert.Check(t, is.Equal(c.SizeRw, int64(10)))
+			assert.Check(t, is.Equal(c.SizeRootFs, int64(20)))
+		}
 	}
 }

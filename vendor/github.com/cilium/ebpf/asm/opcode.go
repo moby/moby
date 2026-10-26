@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-//go:generate go run golang.org/x/tools/cmd/stringer@latest -output opcode_string.go -type=Class
+//go:generate go tool stringer -output opcode_string.go -type=Class
 
 // Class of operations
 //
@@ -71,24 +71,29 @@ func (cls Class) isJumpOrALU() bool {
 //
 // The encoding varies based on a 3-bit Class:
 //
-//	7 6 5 4 3 2 1 0 7 6 5 4 3 2 1 0
-//	           ???           | CLS
+//	7 6 5 4 3 2 1 0 7 6 5 4 3 2 1 0 7 6 5 4 3 2 1 0 7 6 5 4 3 2 1 0
+//	                          ???                            | CLS
 //
 // For ALUClass and ALUCLass32:
 //
-//	7 6 5 4 3 2 1 0 7 6 5 4 3 2 1 0
-//	           OPC         |S| CLS
+//	7 6 5 4 3 2 1 0 7 6 5 4 3 2 1 0 7 6 5 4 3 2 1 0 7 6 5 4 3 2 1 0
+//	             0                 |           OPC         |S| CLS
 //
 // For LdClass, LdXclass, StClass and StXClass:
 //
-//	7 6 5 4 3 2 1 0 7 6 5 4 3 2 1 0
-//	        0      | MDE |SIZ| CLS
+//	7 6 5 4 3 2 1 0 7 6 5 4 3 2 1 0 7 6 5 4 3 2 1 0 7 6 5 4 3 2 1 0
+//	                       0                       | MDE |SIZ| CLS
+//
+// For StXClass where MDE == AtomicMode:
+//
+//	7 6 5 4 3 2 1 0 7 6 5 4 3 2 1 0 7 6 5 4 3 2 1 0 7 6 5 4 3 2 1 0
+//	              0              |    ATOMIC OP    | MDE |SIZ| CLS
 //
 // For JumpClass, Jump32Class:
 //
-//	7 6 5 4 3 2 1 0 7 6 5 4 3 2 1 0
-//	        0      |  OPC  |S| CLS
-type OpCode uint16
+//	7 6 5 4 3 2 1 0 7 6 5 4 3 2 1 0 7 6 5 4 3 2 1 0 7 6 5 4 3 2 1 0
+//	                       0                       |  OPC  |S| CLS
+type OpCode uint32
 
 // InvalidOpCode is returned by setters on OpCode
 const InvalidOpCode OpCode = 0xffff
@@ -136,6 +141,14 @@ func (op OpCode) Size() Size {
 		return InvalidSize
 	}
 	return Size(op & sizeMask)
+}
+
+// AtomicOp returns the type of atomic operation.
+func (op OpCode) AtomicOp() AtomicOp {
+	if op.Class() != StXClass || op.Mode() != AtomicMode {
+		return InvalidAtomic
+	}
+	return AtomicOp(op & atomicMask)
 }
 
 // Source returns the source for branch and ALU operations.
@@ -199,6 +212,13 @@ func (op OpCode) SetSize(size Size) OpCode {
 	return (op & ^sizeMask) | OpCode(size)
 }
 
+func (op OpCode) SetAtomicOp(atomic AtomicOp) OpCode {
+	if op.Class() != StXClass || op.Mode() != AtomicMode || !valid(OpCode(atomic), atomicMask) {
+		return InvalidOpCode
+	}
+	return (op & ^atomicMask) | OpCode(atomic)
+}
+
 // SetSource sets the source on jump and ALU operations.
 //
 // Returns InvalidOpCode if op is of the wrong class.
@@ -246,6 +266,10 @@ func (op OpCode) String() string {
 
 		mode := op.Mode()
 		f.WriteString(strings.TrimSuffix(mode.String(), "Mode"))
+
+		if atomic := op.AtomicOp(); atomic != InvalidAtomic {
+			f.WriteString(strings.TrimSuffix(atomic.String(), "Atomic"))
+		}
 
 		switch op.Size() {
 		case DWord:

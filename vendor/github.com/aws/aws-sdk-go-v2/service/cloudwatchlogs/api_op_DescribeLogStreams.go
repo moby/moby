@@ -5,7 +5,9 @@ package cloudwatchlogs
 import (
 	"context"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -88,6 +90,36 @@ type DescribeLogStreamsInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DescribeLogStreamsInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DescribeLogStreamsRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DescribeLogStreamsInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Descending != nil {
+		s.WriteBool(schemas.DescribeLogStreamsRequest_descending, *v.Descending)
+	}
+	if v.Limit != nil {
+		s.WriteInt32(schemas.DescribeLogStreamsRequest_limit, *v.Limit)
+	}
+	if v.LogGroupIdentifier != nil {
+		s.WriteString(schemas.DescribeLogStreamsRequest_logGroupIdentifier, *v.LogGroupIdentifier)
+	}
+	if v.LogGroupName != nil {
+		s.WriteString(schemas.DescribeLogStreamsRequest_logGroupName, *v.LogGroupName)
+	}
+	if v.LogStreamNamePrefix != nil {
+		s.WriteString(schemas.DescribeLogStreamsRequest_logStreamNamePrefix, *v.LogStreamNamePrefix)
+	}
+	if v.NextToken != nil {
+		s.WriteString(schemas.DescribeLogStreamsRequest_nextToken, *v.NextToken)
+	}
+	if v.OrderBy != "" {
+		s.WriteString(schemas.DescribeLogStreamsRequest_orderBy, string(v.OrderBy))
+	}
+}
+
 type DescribeLogStreamsOutput struct {
 
 	// The log streams.
@@ -102,13 +134,35 @@ type DescribeLogStreamsOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DescribeLogStreamsOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DescribeLogStreamsResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DescribeLogStreamsOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeLogStreams(s, schemas.DescribeLogStreamsResponse_logStreams, v.LogStreams)
+	if v.NextToken != nil {
+		s.WriteString(schemas.DescribeLogStreamsResponse_nextToken, *v.NextToken)
+	}
+}
+func (v *DescribeLogStreamsOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.DescribeLogStreamsResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.DescribeLogStreamsResponse_logStreams:
+			return deserializeLogStreams(d, schemas.DescribeLogStreamsResponse_logStreams, &v.LogStreams)
+		case schemas.DescribeLogStreamsResponse_nextToken:
+			v.NextToken = new(string)
+			return d.ReadString(schemas.DescribeLogStreamsResponse_nextToken, v.NextToken)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationDescribeLogStreamsMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDescribeLogStreams{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DescribeLogStreams, schemas.DescribeLogStreamsRequest, schemas.DescribeLogStreamsResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDescribeLogStreams{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DescribeLogStreams, schemas.DescribeLogStreamsRequest, schemas.DescribeLogStreamsResponse), output: &DescribeLogStreamsOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

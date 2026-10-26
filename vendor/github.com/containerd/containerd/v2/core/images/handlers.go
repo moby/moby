@@ -23,13 +23,25 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/errdefs"
+	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
+)
+
+const (
+	// defaultMaxConcurrency bounds the number of concurrent handler
+	// goroutines when Dispatch is called with a nil limiter.
+	defaultMaxConcurrency = 32
+
+	// maxReferences caps the references in a single Dispatch or Walk.
+	// Duplicate references count toward this limit.
+	maxReferences = 10_000
 )
 
 var (
@@ -46,6 +58,12 @@ var (
 	// ErrEmptyWalk is used when the WalkNotEmpty handlers return no
 	// children (e.g.: they were filtered out).
 	ErrEmptyWalk = errors.New("image might be filtered out")
+)
+
+const (
+	// referrerLabelDigestLen is the number of hex characters from a digest
+	// used in referrer GC labels (e.g., containerd.io/gc.ref.content.referrer.sha256.abc123def456).
+	referrerLabelDigestLen = 12
 )
 
 // Handler handles image manifests
@@ -88,9 +106,26 @@ func Handlers(handlers ...Handler) HandlerFunc {
 //
 // This differs from dispatch in that each sibling resource is considered
 // synchronously.
+//
+// Each call is limited to 10,000 references, including duplicates.
+// Exceeding this limit returns an error wrapping
+// [errdefs.ErrResourceExhausted].
 func Walk(ctx context.Context, handler Handler, descs ...ocispec.Descriptor) error {
-	for _, desc := range descs {
+	w := &walker{}
+	return w.walk(ctx, handler, descs...)
+}
 
+type walker struct {
+	referenceCount int
+}
+
+func (w *walker) walk(ctx context.Context, handler Handler, descs ...ocispec.Descriptor) error {
+	if w.referenceCount+len(descs) > maxReferences {
+		return fmt.Errorf("too many descriptors (limit %d): %w", maxReferences, errdefs.ErrResourceExhausted)
+	}
+	w.referenceCount += len(descs)
+
+	for _, desc := range descs {
 		children, err := handler.Handle(ctx, desc)
 		if err != nil {
 			if errors.Is(err, ErrSkipDesc) {
@@ -100,7 +135,7 @@ func Walk(ctx context.Context, handler Handler, descs ...ocispec.Descriptor) err
 		}
 
 		if len(children) > 0 {
-			if err := Walk(ctx, handler, children...); err != nil {
+			if err := w.walk(ctx, handler, children...); err != nil {
 				return err
 			}
 		}
@@ -146,45 +181,81 @@ func WalkNotEmpty(ctx context.Context, handler Handler, descs ...ocispec.Descrip
 // handler may return `ErrSkipDesc` to signal to the dispatcher to not traverse
 // any children.
 //
-// A concurrency limiter can be passed in to limit the number of concurrent
-// handlers running. When limiter is nil, there is no limit.
+// The limiter bounds concurrent handlers. When limiter is nil,
+// the limit is 32.
 //
 // Typically, this function will be used with `FetchHandler`, often composed
 // with other handlers.
 //
 // If any handler returns an error, the dispatch session will be canceled.
+//
+// Each call is limited to 10,000 references, including duplicates.
+// Exceeding this limit returns an error wrapping
+// [errdefs.ErrResourceExhausted].
 func Dispatch(ctx context.Context, handler Handler, limiter *semaphore.Weighted, descs ...ocispec.Descriptor) error {
-	eg, ctx2 := errgroup.WithContext(ctx)
-	for _, desc := range descs {
-		if limiter != nil {
-			if err := limiter.Acquire(ctx, 1); err != nil {
-				return err
-			}
-		}
-
-		eg.Go(func() error {
-			desc := desc
-
-			children, err := handler.Handle(ctx2, desc)
-			if limiter != nil {
-				limiter.Release(1)
-			}
-			if err != nil {
-				if errors.Is(err, ErrSkipDesc) {
-					return nil // don't traverse the children.
-				}
-				return err
-			}
-
-			if len(children) > 0 {
-				return Dispatch(ctx2, handler, limiter, children...)
-			}
-
-			return nil
-		})
+	if len(descs) == 0 {
+		return nil
+	}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 
-	return eg.Wait()
+	if limiter == nil {
+		limiter = semaphore.NewWeighted(defaultMaxConcurrency)
+	}
+
+	var (
+		mu             sync.Mutex
+		next           []ocispec.Descriptor
+		referenceCount int
+	)
+
+	admit := func(descs []ocispec.Descriptor) error {
+		mu.Lock()
+		defer mu.Unlock()
+		if referenceCount+len(descs) > maxReferences {
+			return fmt.Errorf("too many descriptors (limit %d): %w", maxReferences, errdefs.ErrResourceExhausted)
+		}
+		referenceCount += len(descs)
+		next = append(next, descs...)
+		return nil
+	}
+
+	if err := admit(descs); err != nil {
+		return err
+	}
+
+	for len(next) > 0 {
+		level := next
+		next = nil
+
+		eg, egCtx := errgroup.WithContext(ctx)
+		for _, desc := range level {
+			// Acquire here to bound the number of handler goroutines.
+			if err := limiter.Acquire(egCtx, 1); err != nil {
+				break
+			}
+			eg.Go(func() error {
+				defer limiter.Release(1)
+				children, err := handler.Handle(egCtx, desc)
+				if err != nil {
+					if errors.Is(err, ErrSkipDesc) {
+						return nil // don't traverse the children.
+					}
+					return err
+				}
+				return admit(children)
+			})
+		}
+		if err := eg.Wait(); err != nil {
+			return err
+		}
+		// Acquire can fail on cancellation even if every handler returns nil.
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ChildrenHandler decodes well-known manifest types and returns their children.
@@ -267,7 +338,20 @@ func SetChildrenMappedLabels(manager content.Manager, f HandlerFunc, labelMap fu
 					idx := keys[key]
 					keys[key] = idx + 1
 					if strings.HasSuffix(key, ".sha256.") {
-						key = fmt.Sprintf("%s%s", key, ch.Digest.Hex()[:12])
+						// The digest of a child is not validated until its
+						// content is fetched, but the referrer label derived
+						// here requires a valid, truncatable digest. Skip
+						// malformed digests instead of panicking on them.
+						if err := ch.Digest.Validate(); err != nil {
+							log.G(ctx).WithFields(log.Fields{"digest": ch.Digest, "error": err}).Warn("skipping child with invalid digest for referrer label")
+							continue
+						}
+						encoded := ch.Digest.Encoded()
+						if len(encoded) < referrerLabelDigestLen {
+							log.G(ctx).WithField("digest", ch.Digest).Warn("skipping child with digest too short for referrer label")
+							continue
+						}
+						key += encoded[:referrerLabelDigestLen]
 					} else if idx > 0 || key[len(key)-1] == '.' {
 						key = fmt.Sprintf("%s%d", key, idx)
 					}

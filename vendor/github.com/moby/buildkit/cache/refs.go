@@ -1328,14 +1328,40 @@ func (sr *immutableRef) unlazyLayer(ctx context.Context, dhs DescHandlers, pg pr
 		return errors.New("unlazy requires an applier")
 	}
 
-	if _, ok := leases.FromContext(ctx); !ok {
+	leaseID, hasLease := leases.FromContext(ctx)
+	var leaseDone func(context.Context) error
+	if !hasLease {
 		leaseCtx, done, err := leaseutil.WithLease(ctx, sr.cm.LeaseManager, leaseutil.MakeTemporary)
 		if err != nil {
 			return err
 		}
-		defer done(leaseCtx)
 		ctx = leaseCtx
+		leaseID, _ = leases.FromContext(ctx)
+		leaseDone = done
 	}
+
+	removeActive := false
+	var activeKey string
+	defer func() {
+		ctx := context.WithoutCancel(ctx)
+		if leaseDone != nil {
+			if err := leaseDone(ctx); err != nil {
+				bklog.G(ctx).Warn(errors.Wrap(err, "failed to release extraction lease"))
+			}
+		} else if removeActive && leaseID != "" {
+			if err := sr.cm.LeaseManager.DeleteResource(ctx, leases.Lease{ID: leaseID}, leases.Resource{
+				ID:   activeKey,
+				Type: "snapshots/" + sr.cm.Snapshotter.Name(),
+			}); err != nil && !cerrdefs.IsNotFound(err) {
+				bklog.G(ctx).Warn(errors.Wrapf(err, "failed to delete active snapshot %s from lease %s", activeKey, leaseID))
+			}
+		}
+		if removeActive && sr.cm.GarbageCollect != nil {
+			if _, err := sr.cm.GarbageCollect(ctx); err != nil {
+				bklog.G(ctx).Warn(errors.Wrapf(err, "failed to garbage collect active snapshot %s", activeKey))
+			}
+		}
+	}()
 
 	if sr.GetLayerType() == "windows" {
 		ctx = winlayers.UseWindowsLayerMode(ctx)
@@ -1390,16 +1416,19 @@ func (sr *immutableRef) unlazyLayer(ctx context.Context, dhs DescHandlers, pg pr
 	defer sp.End()
 
 	key := fmt.Sprintf("extract-%s %s", identity.NewID(), sr.getChainID())
+	activeKey = key
 
 	if sr.cm.Snapshotter.Name() == "overlaybd" {
 		err = sr.cm.Snapshotter.Prepare(ctx, key, parentID,
-			snapshots.WithLabels(map[string]string{"containerd.io/snapshot.ref": string(sr.getChainID())}))
+			snapshots.WithLabels(map[string]string{"containerd.io/snapshot.ref": sr.getSnapshotID()}))
 	} else {
 		err = sr.cm.Snapshotter.Prepare(ctx, key, parentID)
 	}
 	if err != nil {
 		return err
 	}
+
+	removeActive = true
 
 	mountable, err := sr.cm.Snapshotter.Mounts(ctx, key)
 	if err != nil {
@@ -1409,10 +1438,14 @@ func (sr *immutableRef) unlazyLayer(ctx context.Context, dhs DescHandlers, pg pr
 	if err != nil {
 		return err
 	}
-	_, err = sr.cm.Applier.Apply(ctx, desc, mounts)
+	applied, err := sr.cm.Applier.Apply(ctx, desc, mounts)
 	if err != nil {
 		unmount()
 		return err
+	}
+	if applied.Digest != sr.getDiffID() {
+		unmount()
+		return errors.Errorf("failed to verify layer %s: expected diffID %s, got %s", desc.Digest, sr.getDiffID(), applied.Digest)
 	}
 
 	if err := unmount(); err != nil {
@@ -1422,6 +1455,8 @@ func (sr *immutableRef) unlazyLayer(ctx context.Context, dhs DescHandlers, pg pr
 		if !errors.Is(err, cerrdefs.ErrAlreadyExists) {
 			return err
 		}
+	} else {
+		removeActive = false
 	}
 	sr.queueBlobOnly(false)
 	sr.queueSize(sizeUnknown)

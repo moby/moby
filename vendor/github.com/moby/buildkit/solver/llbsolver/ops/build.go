@@ -3,8 +3,10 @@ package ops
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"os"
 
+	"github.com/containerd/containerd/v2/defaults"
 	"github.com/containerd/continuity/fs"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/frontend"
@@ -13,12 +15,15 @@ import (
 	"github.com/moby/buildkit/solver/llbsolver/ops/opsutils"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/cachedigest"
+	"github.com/moby/buildkit/util/openfile"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
 
 const buildCacheType = "buildkit.build.v0"
+
+const maxBuildDefinitionSize = defaults.DefaultMaxRecvMsgSize
 
 type BuildOp struct {
 	op *pb.BuildOp
@@ -111,26 +116,30 @@ func (b *BuildOp) Exec(ctx context.Context, job solver.JobContext, inputs []solv
 		fn = override
 	}
 
+	// paths below are daemon-side locations, report the requested filename
+	defer func() {
+		var pathErr *os.PathError
+		if errors.As(retErr, &pathErr) {
+			pathErr.Path = fn
+		}
+	}()
+
 	newfn, err := fs.RootPath(root, fn)
 	if err != nil {
 		return nil, errors.Wrapf(err, "working dir %s points to invalid target", fn)
 	}
 
-	f, err := os.Open(newfn)
+	f, err := openfile.Regular(newfn)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to open %s", newfn)
-	}
-	st, err := f.Stat()
-	if err != nil {
-		f.Close()
-		return nil, errors.WithStack(err)
-	}
-	if !st.Mode().IsRegular() {
-		f.Close()
-		return nil, errors.Errorf("%s is not a regular file", newfn)
+		return nil, err
 	}
 
-	def, err := llb.ReadFrom(f)
+	lr := &io.LimitedReader{R: f, N: int64(maxBuildDefinitionSize) + 1}
+	def, err := llb.ReadFrom(lr)
+	if lr.N == 0 {
+		f.Close()
+		return nil, errors.Errorf("%s exceeds maximum allowed size of %d bytes", fn, maxBuildDefinitionSize)
+	}
 	if err != nil {
 		f.Close()
 		return nil, err

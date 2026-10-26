@@ -4,6 +4,8 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -64,6 +66,21 @@ type PutRetentionPolicyInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutRetentionPolicyInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutRetentionPolicyRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutRetentionPolicyInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.LogGroupName != nil {
+		s.WriteString(schemas.PutRetentionPolicyRequest_logGroupName, *v.LogGroupName)
+	}
+	if v.RetentionInDays != nil {
+		s.WriteInt32(schemas.PutRetentionPolicyRequest_retentionInDays, *v.RetentionInDays)
+	}
+}
+
 type PutRetentionPolicyOutput struct {
 	// Metadata pertaining to the operation's result.
 	ResultMetadata middleware.Metadata
@@ -71,13 +88,26 @@ type PutRetentionPolicyOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutRetentionPolicyOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(nil)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutRetentionPolicyOutput) SerializeMembers(s smithy.ShapeSerializer) {
+}
+func (v *PutRetentionPolicyOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, nil, func(s *smithy.Schema) error {
+		switch s {
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationPutRetentionPolicyMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpPutRetentionPolicy{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutRetentionPolicy, schemas.PutRetentionPolicyRequest, nil)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpPutRetentionPolicy{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutRetentionPolicy, schemas.PutRetentionPolicyRequest, nil), output: &PutRetentionPolicyOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

@@ -14,6 +14,7 @@ import (
 	"github.com/moby/moby/v2/daemon"
 	"github.com/spf13/pflag"
 	"golang.org/x/sys/windows"
+	"golang.org/x/sys/windows/registry"
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/debug"
 	"golang.org/x/sys/windows/svc/eventlog"
@@ -145,7 +146,7 @@ func (h *etwHook) Fire(e *log.Entry) error {
 	return windows.ReportEvent(h.log.Handle, etype, 0, eid, 0, count, 0, &ss[0], nil)
 }
 
-func registerService() error {
+func registerService() (retErr error) {
 	p, err := os.Executable()
 	if err != nil {
 		return err
@@ -176,7 +177,13 @@ func registerService() error {
 	if err != nil {
 		return err
 	}
-	defer s.Close()
+	defer func() {
+		if retErr != nil {
+			// Roll back the service if registration fails after it was created.
+			_ = s.Delete()
+		}
+		_ = s.Close()
+	}()
 
 	err = s.SetRecoveryActions(
 		[]mgr.RecoveryAction{
@@ -193,6 +200,9 @@ func registerService() error {
 	return eventlog.Install(*flServiceName, p, false, eventlog.Info|eventlog.Warning|eventlog.Error)
 }
 
+// unregisterService unregisters the Docker Windows service and removes its
+// event log registration. It succeeds if the service is already absent or
+// already marked for deletion.
 func unregisterService() error {
 	m, err := mgr.Connect()
 	if err != nil {
@@ -201,14 +211,19 @@ func unregisterService() error {
 	defer m.Disconnect()
 
 	s, err := m.OpenService(*flServiceName)
-	if err != nil {
+	switch {
+	case err == nil:
+		defer s.Close()
+
+		if err := s.Delete(); err != nil && !errors.Is(err, windows.ERROR_SERVICE_MARKED_FOR_DELETE) {
+			return err
+		}
+	case errors.Is(err, windows.ERROR_SERVICE_DOES_NOT_EXIST):
+		// Continue to remove a potentially stale event log registration.
+	default:
 		return err
 	}
-	defer s.Close()
-
-	eventlog.Remove(*flServiceName)
-	err = s.Delete()
-	if err != nil {
+	if err := eventlog.Remove(*flServiceName); err != nil && !errors.Is(err, registry.ErrNotExist) {
 		return err
 	}
 	return nil

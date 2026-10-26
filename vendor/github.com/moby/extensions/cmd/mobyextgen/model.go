@@ -6,7 +6,6 @@ package main
 // model
 
 type point struct {
-	pkgName       string // Go package name
 	importPath    string // package import path
 	protoPath     string // module-relative path of the .proto
 	licenseHeader string // SPDX notices from the contract interface's source file
@@ -15,6 +14,7 @@ type point struct {
 	iface         string // Go service interface name
 	isPoint       bool   // whether the contract declares an extensions.Point
 	isSingle      bool   // whether the point was declared with DefineSinglePoint
+	doc           string // documentation on the provider interface
 	methods       []method
 	messages      []message
 }
@@ -25,11 +25,21 @@ func (p point) grpcService() string { return p.id + "." + p.service }
 func (p point) protogenImport() string { return p.importPath + "/protogen" }
 
 type method struct {
+	kind      methodKind
 	name      string // method/rpc name
 	request   string // request message name
 	response  string // response message name
-	bareError bool   // true for `M(ctx, *Req) error`; response is a generated empty message
+	bareError bool   // true only for legacy unary `M(ctx, *Req) error`
+	doc       string // method documentation
 }
+
+type methodKind int
+
+const (
+	methodUnary methodKind = iota
+	methodServerStreaming
+	methodClientStreaming
+)
 
 type message struct {
 	name     string

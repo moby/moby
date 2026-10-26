@@ -286,7 +286,7 @@ func TestSuccessfulDownload(t *testing.T) {
 	}
 	firstDescriptor.diffID = l.DiffID()
 
-	rootFS, releaseFunc, err := ldm.Download(context.Background(), descriptors, progress.ChanOutput(progressChan))
+	rootFS, releaseFunc, err := ldm.Download(t.Context(), descriptors, progress.ChanOutput(progressChan))
 	if err != nil {
 		t.Fatalf("download error: %v", err)
 	}
@@ -333,7 +333,7 @@ func TestCancelledDownload(t *testing.T) {
 		close(progressDone)
 	}()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	go func() {
 		<-time.After(time.Millisecond)
@@ -406,7 +406,7 @@ func TestMaxDownloadAttempts(t *testing.T) {
 			descriptors := downloadDescriptors(&currentDownloads)
 			descriptors[4].(*mockDownloadDescriptor).simulateRetries = tc.simulateRetries
 
-			_, _, err := ldm.Download(context.Background(), descriptors, progress.ChanOutput(progressChan))
+			_, _, err := ldm.Download(t.Context(), descriptors, progress.ChanOutput(progressChan))
 			if tc.expectedErr == "" {
 				assert.NilError(t, err)
 			} else {

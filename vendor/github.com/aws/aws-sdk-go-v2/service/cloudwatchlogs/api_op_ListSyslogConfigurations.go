@@ -4,7 +4,9 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -43,6 +45,27 @@ type ListSyslogConfigurationsInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *ListSyslogConfigurationsInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ListSyslogConfigurationsRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ListSyslogConfigurationsInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.LogGroupIdentifier != nil {
+		s.WriteString(schemas.ListSyslogConfigurationsRequest_logGroupIdentifier, *v.LogGroupIdentifier)
+	}
+	if v.MaxResults != 0 {
+		s.WriteInt32(schemas.ListSyslogConfigurationsRequest_maxResults, v.MaxResults)
+	}
+	if v.NextToken != nil {
+		s.WriteString(schemas.ListSyslogConfigurationsRequest_nextToken, *v.NextToken)
+	}
+	if v.VpcEndpointId != nil {
+		s.WriteString(schemas.ListSyslogConfigurationsRequest_vpcEndpointId, *v.VpcEndpointId)
+	}
+}
+
 type ListSyslogConfigurationsOutput struct {
 
 	// The token for the next set of items to return. The token expires after 24 hours.
@@ -57,13 +80,35 @@ type ListSyslogConfigurationsOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *ListSyslogConfigurationsOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ListSyslogConfigurationsResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ListSyslogConfigurationsOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.NextToken != nil {
+		s.WriteString(schemas.ListSyslogConfigurationsResponse_nextToken, *v.NextToken)
+	}
+	serializeSyslogConfigurations(s, schemas.ListSyslogConfigurationsResponse_syslogConfigurations, v.SyslogConfigurations)
+}
+func (v *ListSyslogConfigurationsOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.ListSyslogConfigurationsResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.ListSyslogConfigurationsResponse_nextToken:
+			v.NextToken = new(string)
+			return d.ReadString(schemas.ListSyslogConfigurationsResponse_nextToken, v.NextToken)
+		case schemas.ListSyslogConfigurationsResponse_syslogConfigurations:
+			return deserializeSyslogConfigurations(d, schemas.ListSyslogConfigurationsResponse_syslogConfigurations, &v.SyslogConfigurations)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationListSyslogConfigurationsMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpListSyslogConfigurations{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.ListSyslogConfigurations, schemas.ListSyslogConfigurationsRequest, schemas.ListSyslogConfigurationsResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpListSyslogConfigurations{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.ListSyslogConfigurations, schemas.ListSyslogConfigurationsRequest, schemas.ListSyslogConfigurationsResponse), output: &ListSyslogConfigurationsOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

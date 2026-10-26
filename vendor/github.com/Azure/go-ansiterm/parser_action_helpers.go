@@ -49,7 +49,7 @@ func getInts(params []string, minCount int, dflt int) []int {
 
 	if len(ints) < minCount {
 		remaining := minCount - len(ints)
-		for i := 0; i < remaining; i++ {
+		for range remaining {
 			ints = append(ints, dflt)
 		}
 	}

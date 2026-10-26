@@ -80,11 +80,18 @@ func fileDescriptor(pt point) (*descriptorpb.FileDescriptorProto, error) {
 
 	svc := &descriptorpb.ServiceDescriptorProto{Name: new(pt.service)}
 	for _, m := range pt.methods {
-		svc.Method = append(svc.Method, &descriptorpb.MethodDescriptorProto{
+		method := &descriptorpb.MethodDescriptorProto{
 			Name:       new(m.name),
 			InputType:  new("." + pt.id + "." + m.request),
 			OutputType: new("." + pt.id + "." + m.response),
-		})
+		}
+		if m.kind == methodClientStreaming {
+			method.ClientStreaming = new(true)
+		}
+		if m.kind == methodServerStreaming {
+			method.ServerStreaming = new(true)
+		}
+		svc.Method = append(svc.Method, method)
 	}
 	fd.Service = []*descriptorpb.ServiceDescriptorProto{svc}
 	return fd, nil

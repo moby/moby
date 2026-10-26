@@ -44,6 +44,15 @@ const (
 	// DefaultValueInDoesNotValidateError ...
 	DefaultValueInDoesNotValidateError = "in operation %q, default value in %s does not validate its schema"
 
+	// DiscriminatorNotDefinedError indicates a schema whose discriminator names a property the
+	// schema does not declare. A discriminator tells subtypes apart by the value of that property,
+	// so an instance has nowhere to carry the value when the property is not declared.
+	DiscriminatorNotDefinedError = "discriminator %q of %q is not defined as a property of that schema"
+
+	// DiscriminatorNotRequiredError indicates a schema whose discriminator property is declared but
+	// left optional. An instance that omits it cannot be resolved to a subtype.
+	DiscriminatorNotRequiredError = "discriminator %q of %q is not in the required property list"
+
 	// DuplicateParamNameError ...
 	DuplicateParamNameError = "duplicate parameter name %q for %q in operation %q"
 
@@ -132,6 +141,17 @@ const (
 
 	// RequiredButNotDefinedError ...
 	RequiredButNotDefinedError = "%q is present in required but not defined as property in definition %q"
+	// RequiredButNotDefinedInSchemaError is the same slip, in a schema a definition holds rather than
+	// in the definition itself.
+	RequiredButNotDefinedInSchemaError = "%q is present in required but not defined as property in schema %q"
+
+	// SecuritySchemeNotDeclaredError indicates a security requirement naming a scheme that
+	// securityDefinitions does not declare.
+	SecuritySchemeNotDeclaredError = "security requirement %q is not declared in securityDefinitions"
+
+	// SecurityScopesNotEmptyError indicates a security requirement listing scopes on a scheme that is
+	// not oauth2. Only an oauth2 requirement carries scopes; every other type must list none.
+	SecurityScopesNotEmptyError = "security requirement %q lists scopes (%s), but the security scheme it names is of type %q: only oauth2 requirements carry scopes"
 
 	// SomeParametersBrokenError indicates that some parameters could not be resolved, which might result in partial checks to be carried on.
 	SomeParametersBrokenError = "some parameters definitions are broken in %q.%s. Cannot carry on full checks on parameters for operation %s"
@@ -168,6 +188,11 @@ const (
 	// RequiredHasDefaultWarning indicates that a required parameter property should not have a default.
 	RequiredHasDefaultWarning = "%s in %s has a default value and is required as parameter"
 
+	// SecurityScopeNotDeclaredWarning flags an oauth2 security requirement asking for a scope that the
+	// scheme does not list in its scopes. Swagger 2.0 does not spell out that the two must agree, so
+	// this is reported as a warning: a specification that names an undeclared scope stays valid.
+	SecurityScopeNotDeclaredWarning = "security requirement %q requires scope %q, which the security scheme does not declare"
+
 	// UnusedDefinitionWarning ...
 	UnusedDefinitionWarning = "definition %q is not used anywhere"
 
@@ -176,6 +201,12 @@ const (
 
 	// UnusedResponseWarning ...
 	UnusedResponseWarning = "response %q is not used anywhere"
+
+	// CollectionFormatIgnoredWarning flags a collectionFormat on a parameter, header or items whose
+	// type is not array. collectionFormat says how to join the members of an array into one value, so
+	// it does nothing anywhere else. It is a warning, not an error: Swagger 2.0 defines the member as
+	// applying when the type is array, and does not forbid writing it elsewhere.
+	CollectionFormatIgnoredWarning = "collectionFormat %q is ignored in %s: it joins the members of an array, and the type is %q"
 
 	// DubiousAbsoluteRefWarning flags a $ref pointing to an absolute local file location that escapes the
 	// spec's base path. Absolute local references are legitimate when they stay beneath the base path
@@ -258,6 +289,10 @@ func invalidPatternMsg(pattern, path string) errors.Error {
 
 func requiredButNotDefinedMsg(path, definition string) errors.Error {
 	return errors.New(errors.CompositeErrorCode, RequiredButNotDefinedError, path, definition)
+}
+
+func requiredButNotDefinedInSchemaMsg(path, schema string) errors.Error {
+	return errors.New(errors.CompositeErrorCode, RequiredButNotDefinedInSchemaError, path, schema)
 }
 
 func pathParamGarbledMsg(path, param string) errors.Error {
@@ -409,6 +444,31 @@ func invalidObjectMsg(path, in string) errors.Error {
 //	func invalidResponseDefinitionAsSchemaMsg(path, method string) errors.Error {
 //		return errors.New(errors.CompositeErrorCode, InvalidResponseDefinitionAsSchemaError, path, method)
 //	}
+
+func collectionFormatIgnoredMsg(collectionFormat, in, typ string) errors.Error {
+	return errors.New(errors.CompositeErrorCode, CollectionFormatIgnoredWarning, collectionFormat, in, typ)
+}
+
+func discriminatorNotDefinedMsg(discriminator, in string) errors.Error {
+	return errors.New(errors.CompositeErrorCode, DiscriminatorNotDefinedError, discriminator, in)
+}
+
+func discriminatorNotRequiredMsg(discriminator, in string) errors.Error {
+	return errors.New(errors.CompositeErrorCode, DiscriminatorNotRequiredError, discriminator, in)
+}
+
+func securitySchemeNotDeclaredMsg(name string) errors.Error {
+	return errors.New(errors.CompositeErrorCode, SecuritySchemeNotDeclaredError, name)
+}
+
+func securityScopesNotEmptyMsg(name, scopes, schemeType string) errors.Error {
+	return errors.New(errors.CompositeErrorCode, SecurityScopesNotEmptyError, name, scopes, schemeType)
+}
+
+func securityScopeNotDeclaredMsg(name, scope string) errors.Error {
+	return errors.New(errors.CompositeErrorCode, SecurityScopeNotDeclaredWarning, name, scope)
+}
+
 func someParametersBrokenMsg(path, method, operationID string) errors.Error {
 	return errors.New(errors.CompositeErrorCode, SomeParametersBrokenError, path, method, operationID)
 }

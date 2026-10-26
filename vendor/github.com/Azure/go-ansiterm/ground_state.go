@@ -1,5 +1,7 @@
 package ansiterm
 
+import "slices"
+
 type groundState struct {
 	baseState
 }
@@ -13,10 +15,10 @@ func (gs groundState) Handle(b byte) (s state, e error) {
 	}
 
 	switch {
-	case sliceContains(printables, b):
+	case slices.Contains(printables, b):
 		return gs, gs.parser.print()
 
-	case sliceContains(executors, b):
+	case slices.Contains(executors, b):
 		return gs, gs.parser.execute()
 	}
 

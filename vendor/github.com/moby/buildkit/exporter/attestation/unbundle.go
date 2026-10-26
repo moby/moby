@@ -15,6 +15,7 @@ import (
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver/result"
+	"github.com/moby/buildkit/util/openfile"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
@@ -116,28 +117,42 @@ func sort(atts []exporter.Attestation) []exporter.Attestation {
 	return result
 }
 
-func unbundle(root string, bundle exporter.Attestation) ([]exporter.Attestation, error) {
+func unbundle(root string, bundle exporter.Attestation) (_ []exporter.Attestation, retErr error) {
+	// paths below are daemon-side locations, report the bundle path
+	defer func() {
+		var pathErr *os.PathError
+		if errors.As(retErr, &pathErr) {
+			pathErr.Path = bundle.Path
+		}
+	}()
+
 	dir, err := fs.RootPath(root, bundle.Path)
 	if err != nil {
 		return nil, err
 	}
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	var unbundled []exporter.Attestation
 	for _, entry := range entries {
+		name := path.Join(bundle.Path, entry.Name())
 		p, err := fs.RootPath(dir, entry.Name())
 		if err != nil {
 			return nil, err
 		}
-		f, err := openRegularFile(p)
+		f, err := openfile.Regular(p)
 		if err != nil {
+			// p is a daemon-side location, report the bundle entry
+			var pathErr *os.PathError
+			if errors.As(err, &pathErr) {
+				pathErr.Path = name
+			}
 			return nil, err
 		}
 		var stmt intoto.Statement
-		stmt, err = decodeStatement(f, p)
+		stmt, err = decodeStatement(f, name)
 		f.Close()
 		if err != nil {
 			return nil, err
@@ -162,7 +177,7 @@ func unbundle(root string, bundle exporter.Attestation) ([]exporter.Attestation,
 		unbundled = append(unbundled, exporter.Attestation{
 			Kind:        gatewaypb.AttestationKind_InToto,
 			Metadata:    bundle.Metadata,
-			Path:        path.Join(bundle.Path, entry.Name()),
+			Path:        name,
 			ContentFunc: func(context.Context) ([]byte, error) { return predicate, nil },
 			InToto: result.InTotoAttestation{
 				PredicateType: stmt.PredicateType,

@@ -10,6 +10,7 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
+	"github.com/moby/moby/v2/daemon/internal/platform"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -53,7 +54,7 @@ func checkImageCompatibility(imageOS, imageOSVersion string) error {
 }
 
 func withDefault(p ocispec.Platform) ocispec.Platform {
-	def := maximumSpec()
+	def := platform.MaximumSpec()
 	if p.OS == "" {
 		p.OS = def.OS
 	}

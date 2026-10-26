@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"runtime"
+	"sync"
 	"time"
 	"unsafe"
 
@@ -101,12 +102,10 @@ func (status ntStatus) Err() error {
 	return rtlNtStatusToDosError(status)
 }
 
-var (
-	// ErrPipeListenerClosed is returned for pipe operations on listeners that have been closed.
-	ErrPipeListenerClosed = net.ErrClosed
-
-	errPipeWriteClosed = errors.New("pipe has been closed for write")
-)
+// ErrPipeListenerClosed is returned for pipe operations on listeners that have been closed.
+//
+// Deprecated: use [net.ErrClosed] instead.
+var ErrPipeListenerClosed = net.ErrClosed
 
 type win32Pipe struct {
 	*win32File
@@ -143,9 +142,10 @@ func (f *win32Pipe) Disconnect() error {
 }
 
 // CloseWrite closes the write side of a message pipe in byte mode.
+// It returns [io.ErrClosedPipe] if the write side is already closed.
 func (f *win32MessageBytePipe) CloseWrite() error {
 	if f.writeClosed {
-		return errPipeWriteClosed
+		return io.ErrClosedPipe
 	}
 	err := f.win32File.Flush()
 	if err != nil {
@@ -160,10 +160,10 @@ func (f *win32MessageBytePipe) CloseWrite() error {
 }
 
 // Write writes bytes to a message pipe in byte mode. Zero-byte writes are ignored, since
-// they are used to implement CloseWrite().
+// they are used to implement CloseWrite. It returns [io.ErrClosedPipe] if the write side is closed.
 func (f *win32MessageBytePipe) Write(b []byte) (int, error) {
 	if f.writeClosed {
-		return 0, errPipeWriteClosed
+		return 0, io.ErrClosedPipe
 	}
 	if len(b) == 0 {
 		return 0, nil
@@ -178,14 +178,15 @@ func (f *win32MessageBytePipe) Read(b []byte) (int, error) {
 		return 0, io.EOF
 	}
 	n, err := f.win32File.Read(b)
-	if err == io.EOF { //nolint:errorlint
+	switch err {
+	case io.EOF: //nolint:errorlint // error is not wrapped.
 		// If this was the result of a zero-byte read, then
 		// it is possible that the read was due to a zero-size
 		// message. Since we are simulating CloseWrite with a
 		// zero-byte message, ensure that all future Read() calls
 		// also return EOF.
 		f.readEOF = true
-	} else if err == windows.ERROR_MORE_DATA { //nolint:errorlint // err is Errno
+	case windows.ERROR_MORE_DATA:
 		// ERROR_MORE_DATA indicates that the pipe's read mode is message mode
 		// and the message still has more bytes. Treat this as a success, since
 		// this package presents all named pipes as byte streams.
@@ -315,8 +316,9 @@ type win32PipeListener struct {
 	path        string
 	config      PipeConfig
 	acceptCh    chan (chan acceptResponse)
-	closeCh     chan int
-	doneCh      chan int
+	closeOnce   sync.Once
+	closeCh     chan struct{} // closed (never sent on) to broadcast listener shutdown
+	doneCh      chan struct{}
 }
 
 func makeServerPipeHandle(path string, sd []byte, c *PipeConfig, first bool) (windows.Handle, error) {
@@ -343,7 +345,7 @@ func makeServerPipeHandle(path string, sd []byte, c *PipeConfig, first bool) (wi
 	// The security descriptor is only needed for the first pipe.
 	if first {
 		if sd != nil {
-			//todo: does `sdb` need to be allocated on the heap, or can go allocate it?
+			// todo: does `sdb` need to be allocated on the heap, or can go allocate it?
 			l := uint32(len(sd))
 			sdb, err := windows.LocalAlloc(0, l)
 			if err != nil {
@@ -444,13 +446,14 @@ func (l *win32PipeListener) makeConnectedServerPipe() (*win32File, error) {
 			p = nil
 		}
 	case <-l.closeCh:
-		// Abort the connect request by closing the handle.
-		p.Close()
+		// Abort the connect request by closing the handle. Listener closure is
+		// authoritative: ConnectNamedPipe may race the handle close and report a
+		// connection or error (e.g. ERROR_NO_DATA) instead of ErrFileClosed, and
+		// that result must not be surfaced or cause listenerRoutine to retry.
+		_ = p.Close()
 		p = nil
-		err = <-ch
-		if err == nil || err == ErrFileClosed { //nolint:errorlint // err is Errno
-			err = ErrPipeListenerClosed
-		}
+		<-ch
+		err = net.ErrClosed
 	}
 	return p, err
 }
@@ -475,7 +478,7 @@ func (l *win32PipeListener) listenerRoutine() {
 				}
 			}
 			responseCh <- acceptResponse{p, err}
-			closed = err == ErrPipeListenerClosed //nolint:errorlint // err is Errno
+			closed = err == net.ErrClosed //nolint:errorlint // err is Errno
 		}
 	}
 	windows.Close(l.firstHandle)
@@ -529,8 +532,8 @@ func ListenPipe(path string, c *PipeConfig) (net.Listener, error) {
 		path:        path,
 		config:      *c,
 		acceptCh:    make(chan (chan acceptResponse)),
-		closeCh:     make(chan int),
-		doneCh:      make(chan int),
+		closeCh:     make(chan struct{}),
+		doneCh:      make(chan struct{}),
 	}
 	go l.listenerRoutine()
 	return l, nil
@@ -567,16 +570,15 @@ func (l *win32PipeListener) Accept() (net.Conn, error) {
 		}
 		return &win32Pipe{win32File: response.f, path: l.path}, nil
 	case <-l.doneCh:
-		return nil, ErrPipeListenerClosed
+		return nil, net.ErrClosed
 	}
 }
 
 func (l *win32PipeListener) Close() error {
-	select {
-	case l.closeCh <- 1:
-		<-l.doneCh
-	case <-l.doneCh:
-	}
+	l.closeOnce.Do(func() {
+		close(l.closeCh)
+	})
+	<-l.doneCh
 	return nil
 }
 

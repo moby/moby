@@ -83,9 +83,10 @@ const errorOverread = 6
 // When the output and literal buffers have compressedBlockOverAlloc (16)
 // bytes of slack past their logical use, the assembly may use extended
 // memory copies that read and write in 16-byte blocks, overrunning the end
-// of a literal run or match by up to 15 bytes. Otherwise it must use the
-// bounds-exact ("safe") copies. This mirrors the analogous, always-dynamic
-// selection in executeSimple below.
+// of a literal run or match by up to 15 bytes; an empty literal run still
+// copies one block, reading and writing the full 16 bytes of slack past
+// its position. Otherwise it must use the bounds-exact ("safe") copies.
+// This mirrors the analogous, always-dynamic selection in executeSimple below.
 //
 // The unsafe copies were disabled in #644 (2022) as a mitigation for a
 // crash, but that crash's root cause — an unguarded bitReader overread that

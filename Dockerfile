@@ -1,16 +1,16 @@
 # syntax=docker/dockerfile:1
 
-ARG GO_VERSION=1.26.8
+ARG GO_VERSION=1.26.10
 ARG BASE_DEBIAN_DISTRO=trixie
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 
 # XX_VERSION specifies the version of the xx utility to use.
 # It must be a valid tag in the docker.io/tonistiigi/xx image repository.
-ARG XX_VERSION=1.9.0
+ARG XX_VERSION=1.10.0
 
 # DOCKERCLI_VERSION is the version of the CLI to install in the dev-container.
 # renovate: datasource=github-tags depName=docker/cli versioning=semver
-ARG DOCKERCLI_VERSION=v29.8.1
+ARG DOCKERCLI_VERSION=v29.9.2
 ARG DOCKERCLI_REPOSITORY="https://github.com/docker/cli.git"
 
 # cli version used for integration-cli tests
@@ -18,10 +18,10 @@ ARG DOCKERCLI_INTEGRATION_REPOSITORY="https://github.com/docker/cli.git"
 ARG DOCKERCLI_INTEGRATION_VERSION=v25.0.5
 
 # BUILDX_VERSION is the version of buildx to install in the dev container.
-ARG BUILDX_VERSION=0.37.1
+ARG BUILDX_VERSION=0.38.1
 
 # COMPOSE_VERSION is the version of compose to install in the dev container.
-ARG COMPOSE_VERSION=v5.5.1
+ARG COMPOSE_VERSION=v5.6.1
 
 ARG SYSTEMD="false"
 ARG FIREWALLD="false"
@@ -29,7 +29,7 @@ ARG DOCKER_STATIC=1
 
 # REGISTRY_VERSION is the version of the registry to use for integration tests.
 # It must be a valid tag in the docker.io/library/registry image repository.
-ARG REGISTRY_VERSION=3.1.1
+ARG REGISTRY_VERSION=3.1.2
 
 # delve is currently only supported on linux/amd64, linux/arm64, and linux/ppc64le;
 # https://github.com/go-delve/delve/blob/v1.26.0/pkg/proc/native/support_sentinel.go#L1
@@ -143,7 +143,7 @@ WORKDIR /usr/src/containerd
 # It is used to build containerd binaries, and used for the integration tests.
 # The distributed docker .deb and .rpm packages depend on a separate (containerd.io)
 # package, which may be a different version than specified here.
-ARG CONTAINERD_VERSION=v2.4.0
+ARG CONTAINERD_VERSION=v2.4.2
 ADD https://github.com/containerd/containerd.git?ref=${CONTAINERD_VERSION}&keep-git-dir=1 .
 
 FROM base AS containerd-build
@@ -170,7 +170,7 @@ RUN --mount=from=containerd-src,src=/usr/src/containerd,rw \
 
   set -x
   xx-go --wrap
-  CC="$(xx-info)-gcc" CGO_ENABLED=$cgo_enabled make $make_flags binaries
+  CC="$(xx-info)-gcc" CGO_ENABLED=$cgo_enabled make $make_flags BUILDTAGS=grpcnotrace binaries
   xx-verify $verify_flags bin/containerd
   xx-verify $verify_flags bin/containerd-shim-runc-v2
   xx-verify $verify_flags bin/ctr
@@ -183,7 +183,7 @@ FROM binary-dummy AS containerd-windows
 FROM containerd-${TARGETOS} AS containerd
 
 FROM base AS golangci_lint
-ARG GOLANGCI_LINT_VERSION=v2.8.0
+ARG GOLANGCI_LINT_VERSION=v2.14.0
 ADD https://github.com/golangci/golangci-lint.git?ref=${GOLANGCI_LINT_VERSION}&keep-git-dir=1 /go/src/github.com/golangci/golangci-lint
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
@@ -202,7 +202,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
      && /build/gotestsum --version
 
 FROM base AS shfmt
-ARG SHFMT_VERSION=v3.8.0
+ARG SHFMT_VERSION=v3.14.1
 ADD https://github.com/mvdan/sh.git?ref=${SHFMT_VERSION}&keep-git-dir=1 /go/src/mvdan.cc/sh
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
@@ -249,7 +249,7 @@ WORKDIR /usr/src/runc
 # This version should usually match the version that is used by the containerd version
 # that is used. If you need to update runc, open a pull request in the containerd
 # project first, and update both after that is merged.
-ARG RUNC_VERSION=v1.5.1
+ARG RUNC_VERSION=v1.5.2
 ADD https://github.com/opencontainers/runc.git?ref=${RUNC_VERSION}&keep-git-dir=1 .
 
 FROM base AS runc-build
@@ -325,7 +325,10 @@ FROM tini-${TARGETOS} AS tini
 # rootlesskit
 FROM base AS rootlesskit-src
 WORKDIR /usr/src/rootlesskit
-ARG ROOTLESSKIT_VERSION=v3.2.0
+
+# ROOTLESSKIT_VERSION is the version of rootlesskit to install in the dev-container.
+# renovate: datasource=github-tags depName=rootless-containers/rootlesskit
+ARG ROOTLESSKIT_VERSION=v3.3.0
 ADD https://github.com/rootless-containers/rootlesskit.git?ref=${ROOTLESSKIT_VERSION}&keep-git-dir=1 .
 
 FROM base AS rootlesskit-build
@@ -347,7 +350,7 @@ RUN --mount=from=rootlesskit-src,src=/usr/src/rootlesskit,rw \
   if [ "$DOCKER_STATIC" = "1" ]; then
       set -x
       export CGO_ENABLED=0
-      xx-go build -o /build/rootlesskit ./cmd/rootlesskit
+      xx-go build -tags=urfave_cli_no_docs  -o /build/rootlesskit ./cmd/rootlesskit
       xx-verify --static /build/rootlesskit
   else
       set -x
