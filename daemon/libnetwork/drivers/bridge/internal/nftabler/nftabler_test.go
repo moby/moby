@@ -178,3 +178,67 @@ func testNftabler(t *testing.T, tn string, config firewaller.Config, netConfig f
 	checkResults("ip", rnWSL2Mirrored(fmt.Sprintf("%s/cleaned,hairpin=%v", tn, config.Hairpin)), config.IPv4)
 	checkResults("ip6", fmt.Sprintf("%s/cleaned,hairpin=%v", tn, config.Hairpin), config.IPv6)
 }
+
+// TestHairpinMultipleHostPorts checks that, with hairpin enabled (no userland proxy),
+// more than one host port can be mapped to the same container port. The per-port
+// "MASQ TO OWN PORT" rule is keyed on container address/port, so the same rule is
+// generated for each host port.
+func TestHairpinMultipleHostPorts(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t, netnsutils.WithSetNsHandles(false))()
+	nftables.Enable()
+	defer nftables.Disable()
+
+	fw, err := NewNftabler(t.Context(), firewaller.Config{IPv4: true, Hairpin: true})
+	assert.NilError(t, err)
+	defer fw.Close()
+
+	nw, err := fw.NewNetwork(t.Context(), firewaller.NetworkConfig{
+		IfName:     "br-dummy",
+		ICC:        true,
+		Masquerade: true,
+		Config4:    firewaller.NetworkConfigFam{Prefix: netip.MustParsePrefix("192.168.0.0/24")},
+	})
+	assert.NilError(t, err)
+
+	epAddr4 := netip.MustParseAddr("192.168.0.2")
+	err = nw.AddEndpoint(t.Context(), epAddr4, netip.Addr{})
+	assert.NilError(t, err)
+
+	makePB := func(hostPort uint16) types.PortBinding {
+		return types.PortBinding{
+			Proto:       types.TCP,
+			IP:          epAddr4.AsSlice(),
+			Port:        80,
+			HostIP:      net.IPv4zero,
+			HostPort:    hostPort,
+			HostPortEnd: hostPort,
+		}
+	}
+	pb8080, pb8081, pb8082 := makePB(8080), makePB(8081), makePB(8082)
+
+	countInChain := func(chain, s string) int {
+		t.Helper()
+		res := icmd.RunCommand("nft", "list", "chain", "ip", dockerTable, chain)
+		assert.NilError(t, res.Error, res.Combined())
+		return strings.Count(res.Combined(), s)
+	}
+	const masqComment = `comment "MASQ TO OWN PORT"`
+	const dnatComment = `comment "DNAT"`
+	postRtChain := chainNatPostRtIn("br-dummy")
+
+	// Two host ports for the same container port, in a single call.
+	err = nw.AddPorts(t.Context(), []types.PortBinding{pb8080, pb8081})
+	assert.NilError(t, err)
+	// Another host port for the same container port, in a separate call.
+	err = nw.AddPorts(t.Context(), []types.PortBinding{pb8082})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(countInChain(postRtChain, masqComment), 1))
+	assert.Check(t, is.Equal(countInChain(natChain, dnatComment), 3))
+
+	// Remove all bindings in a single call, as happens when an endpoint's ports
+	// are released.
+	err = nw.DelPorts(t.Context(), []types.PortBinding{pb8080, pb8081, pb8082})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(countInChain(postRtChain, masqComment), 0))
+	assert.Check(t, is.Equal(countInChain(natChain, dnatComment), 0))
+}

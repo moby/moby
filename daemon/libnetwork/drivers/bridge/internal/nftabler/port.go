@@ -211,6 +211,7 @@ func (n *network) setPerPortHairpinMasq(pbs []types.PortBinding, updater func(nf
 				"dport", strconv.Itoa(int(pb.Port)),
 				`counter masquerade comment "MASQ TO OWN PORT"`,
 			},
+			IgnoreExist: true,
 		})
 	}
 }
