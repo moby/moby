@@ -117,17 +117,13 @@ func TestFUSEOverlayFSDiffSize(t *testing.T) {
 	content := []byte("fuse-overlayfs diff size content")
 	assert.NilError(t, os.WriteFile(filepath.Join(diffPath, "testfile.txt"), content, 0o644))
 
-	size, err := d.DiffSize(upperID, baseID)
+	size, err := d.DiffSize(t.Context(), upperID, baseID)
 	assert.NilError(t, err)
 	assert.Check(t, size == int64(len(content)))
 
-	sizeCtx, err := d.DiffSizeContext(t.Context(), upperID, baseID)
-	assert.NilError(t, err)
-	assert.Check(t, sizeCtx == int64(len(content)))
-
 	canceledCtx, cancel := context.WithCancel(t.Context())
 	cancel()
-	_, err = d.DiffSizeContext(canceledCtx, upperID, baseID)
+	_, err = d.DiffSize(canceledCtx, upperID, baseID)
 	assert.Check(t, is.ErrorIs(err, context.Canceled))
 }
 

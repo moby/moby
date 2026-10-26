@@ -32,9 +32,6 @@ func (i *ImageService) GetContainerLayerSize(ctx context.Context, containerID st
 	// container operating systems.
 	rwlayer, err := i.layerStore.GetRWLayer(containerID)
 	if err != nil {
-		if ctx.Err() != nil {
-			return 0, 0, ctx.Err()
-		}
 		log.G(ctx).Errorf("Failed to compute size of container rootfs %v: %v", containerID, err)
 		return sizeRw, sizeRootfs, nil
 	}
@@ -48,8 +45,8 @@ func (i *ImageService) GetContainerLayerSize(ctx context.Context, containerID st
 		sizeRw, err = rwlayer.Size()
 	}
 	if err != nil {
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) || ctx.Err() != nil {
-			return 0, 0, ctx.Err()
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return 0, 0, err
 		}
 		log.G(ctx).Errorf("Driver %s couldn't return diff size of container %s: %s",
 			i.layerStore.DriverName(), containerID, err)

@@ -105,6 +105,9 @@ func (r byCreatedDescending) Less(i, j int) bool {
 
 // Containers returns the list of containers to show given the user's filtering.
 func (daemon *Daemon) Containers(ctx context.Context, config *backend.ContainerListOptions) ([]containertypes.Summary, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if err := config.Filters.Validate(acceptedPsFilterTags); err != nil {
 		return nil, err
 	}
@@ -140,10 +143,14 @@ func (daemon *Daemon) Containers(ctx context.Context, config *backend.ContainerL
 	resultsMut := sync.Mutex{}
 	results := make([]containertypes.Summary, numContainers)
 
+	parentCtx := ctx
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(numWorkers)
 
 	for i := range containerList {
+		if err := ctx.Err(); err != nil {
+			break
+		}
 		currentContainer := &containerList[i]
 		stop := false
 		switch includeContainerInList(currentContainer, filter) {
@@ -171,8 +178,8 @@ func (daemon *Daemon) Containers(ctx context.Context, config *backend.ContainerL
 					var err error
 					newC.SizeRw, newC.SizeRootFs, err = daemon.imageService.GetContainerLayerSize(ctx, newC.ID)
 					if err != nil {
-						if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) || ctx.Err() != nil {
-							return ctx.Err()
+						if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+							return err
 						}
 						// Don't fail the whole listing because the size of a
 						// single container can't be determined.
@@ -200,6 +207,9 @@ func (daemon *Daemon) Containers(ctx context.Context, config *backend.ContainerL
 	}
 
 	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+	if err := parentCtx.Err(); err != nil {
 		return nil, err
 	}
 
