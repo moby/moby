@@ -24,9 +24,10 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
+            const pr = context.payload.pull_request;
             const files = await github.paginate(
               github.rest.pulls.listFiles,
-              { ...context.repo, pull_number: context.payload.pull_request.number, per_page: 100 },
+              { ...context.repo, pull_number: pr.number, per_page: 100 },
               (res) => res.data.map((f) => f.filename),
             );
             if (files.length === 0) {
@@ -42,8 +43,9 @@ jobs:
 
             const buildkit = anyFile('daemon/internal/builder-next/**', 'vendor/github.com/moby/buildkit/**');
             const classicBuilder = anyFile('daemon/images/*_build*', 'daemon/builder/**');
+            const current = new Set(pr.labels.map((l) => l.name));
 
-            const labels = Object.entries({
+            let labels = Object.entries({
               'module/client': anyFile('client/**'),
               'module/api': anyFile('api/**'),
               'area/daemon': anyFile('daemon/**'),
@@ -82,15 +84,28 @@ jobs:
               'area/ci': files.some((f) => f.startsWith('.github/')),
               'platform/windows': allNonVendorFiles('**/*_windows.go', 'Dockerfile.windows'),
               'impact/changelog': anyFile('api/docs/CHANGELOG.md'),
-            }).filter(([, matched]) => matched).map(([label]) => label);
-
-            if (labels.length > 0) {
-              await github.rest.issues.addLabels({
-                ...context.repo,
-                issue_number: context.payload.pull_request.number,
-                labels,
-              });
+            }).filter(([label, matched]) => matched && !current.has(label)).map(([label]) => label);
+            if (labels.length === 0) {
+              return;
             }
+
+            // Labels are only ever added here, so any removal was deliberate
+            // and must not be undone on the next push.
+            const removed = new Set(await github.paginate(
+              github.rest.issues.listEvents,
+              { ...context.repo, issue_number: pr.number, per_page: 100 },
+              (res) => res.data.filter((e) => e.event === 'unlabeled').map((e) => e.label.name),
+            ));
+            labels = labels.filter((label) => !removed.has(label));
+            if (labels.length === 0) {
+              return;
+            }
+
+            await github.rest.issues.addLabels({
+              ...context.repo,
+              issue_number: pr.number,
+              labels,
+            });
 
   ai-assisted:
     if: github.repository == 'moby/moby'
