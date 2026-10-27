@@ -11,7 +11,8 @@ yamllint -f parsable -c validate/yamllint.yaml openapi.yaml
 
 (
 	cd scripts/swagger-spec
-	go test ./...
+	# The test cache ignores the specifications outside this module.
+	go test -count=1 ./...
 )
 
 if out=$(openapi-spec-validator --schema 3.2 openapi.yaml); then
