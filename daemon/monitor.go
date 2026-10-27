@@ -308,7 +308,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 		defer c.Unlock()
 
 		if !c.State.Paused {
-			c.State.Paused = true
+			c.State.SetPaused(true)
 			daemon.setStateCounter(c)
 			daemon.updateHealthMonitor(c)
 			if err := c.CheckpointTo(context.TODO(), daemon.containersReplica); err != nil {
@@ -322,7 +322,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 		defer c.Unlock()
 
 		if c.State.Paused {
-			c.State.Paused = false
+			c.State.SetPaused(false)
 			daemon.setStateCounter(c)
 			daemon.updateHealthMonitor(c)
 

@@ -310,6 +310,16 @@ func (s *State) SetRestarting(exitStatus *ExitStatus) {
 	s.notifyAndClear(&s.stopWaiters)
 }
 
+// SetPaused sets whether the container is paused, without locking.
+func (s *State) SetPaused(paused bool) {
+	s.Paused = paused
+}
+
+// SetDead marks the container as dead without locking.
+func (s *State) SetDead() {
+	s.Dead = true
+}
+
 // SetError sets the container's error state. This is useful when we want to
 // know the error that occurred when container transits to another state
 // when inspecting it
