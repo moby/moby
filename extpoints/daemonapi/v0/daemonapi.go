@@ -29,7 +29,8 @@ type DaemonAPI interface {
 // daemon socket.
 //
 // The endpoint is a unix socket that only the daemon user can access.
-// The daemon creates it on the first Get call, such as from [NewClient].
+// The daemon creates it on the first Get call, which a [NewClient] client
+// makes when it first connects.
 // Extensions run as the daemon user, so every extension can reach the socket
 // and gets unrestricted Engine API access, whether or not it declares a
 // dependency on this point.
