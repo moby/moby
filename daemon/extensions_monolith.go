@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"github.com/moby/extensions"
+	containerruntimev0 "github.com/moby/moby/v2/extpoints/container/runtime/v0"
 )
 
 // monolithExtensionID identifies the builtin extension that exposes daemon
@@ -23,5 +24,8 @@ const monolithExtensionID = "org.mobyproject.daemon.monolith.v0"
 func newMonolithExtension(d *Daemon) extensions.Extension {
 	return extensions.New(extensions.Declaration{
 		ID: monolithExtensionID,
+		Providers: []extensions.Provider{
+			containerruntimev0.Point.Provide(containerRuntime{d: d}),
+		},
 	})
 }
