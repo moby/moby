@@ -34,8 +34,16 @@ jobs:
               return;
             }
 
-            const { matchesGlob } = require('path');
-            const matches = (f, globs) => globs.some((g) => matchesGlob(f, g));
+            // Only * and ** wildcards are used; include dotfiles and hidden directories.
+            const matches = (f, globs) => globs.some((g) => {
+              const pattern = g.split(/(\*\*\/|\*\*|\*)/).map((part) => {
+                if (part === '**/') return '(?:.*/)?';
+                if (part === '**') return '.*';
+                if (part === '*') return '[^/]*';
+                return RegExp.escape(part);
+              }).join('');
+              return new RegExp(`^${pattern}$`).test(f);
+            });
             const nonVendor = (f) => !f.startsWith('vendor/');
             const anyFile = (...globs) => files.some((f) => matches(f, globs));
             const anyNonVendorFile = (...globs) => files.some((f) => nonVendor(f) && matches(f, globs));
@@ -80,8 +88,7 @@ jobs:
               'area/testing': anyNonVendorFile('integration/**', 'integration-cli/**', 'internal/test*', 'internal/testutil/**'),
               'area/docs': anyNonVendorFile('api/docs/*.yaml', 'docs/**', '**/*.md', 'man/**'),
               'area/dependencies': anyFile('go.mod', 'go.sum', 'vendor/**') && !anyFile('client/**', 'api/**'),
-              // matchesGlob skips dotfiles, such as reusable workflows.
-              'area/ci': files.some((f) => f.startsWith('.github/')),
+              'area/ci': anyFile('.github/**'),
               'platform/windows': allNonVendorFiles('**/*_windows.go', 'Dockerfile.windows'),
               'impact/changelog': anyFile('api/docs/CHANGELOG.md'),
             }).filter(([label, matched]) => matched && !current.has(label)).map(([label]) => label);
