@@ -142,7 +142,7 @@ area/testing:
 area/docs:
   - all:
     - changed-files:
-      - any-glob-to-any-file:
+      - any-glob-to-all-files:
         - 'api/docs/*.yaml'
         - 'docs/**'
         - '**/*.md'
