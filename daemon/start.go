@@ -255,16 +255,17 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 	}
 
 	container.HasBeenManuallyRestarted = false
-	if _, err := container.State.Transition(containerpkg.Transition{
+	change, err := container.State.Transition(containerpkg.Transition{
 		To:        containertypes.StateRunning,
 		Container: ctr,
 		Task:      tsk,
 		StartedAt: startupTime,
-	}); err != nil {
+	})
+	if err != nil {
 		return err
 	}
 	container.HasBeenStartedBefore = true
-	daemon.setStateCounter(container)
+	setStateCounter(container.ID, change.Current.Status)
 
 	daemon.initHealthMonitor(container)
 

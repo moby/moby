@@ -21,14 +21,14 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (daemon *Daemon) setStateCounter(c *container.Container) {
-	switch c.State.State() {
+func setStateCounter(id string, status containertypes.ContainerState) {
+	switch status {
 	case containertypes.StatePaused:
-		metrics.StateCtr.Set(c.ID, "paused")
+		metrics.StateCtr.Set(id, "paused")
 	case containertypes.StateRunning:
-		metrics.StateCtr.Set(c.ID, "running")
+		metrics.StateCtr.Set(id, "running")
 	default:
-		metrics.StateCtr.Set(c.ID, "stopped")
+		metrics.StateCtr.Set(id, "stopped")
 	}
 }
 
@@ -146,7 +146,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 	}
 	defer c.Unlock() // needs to be called before autoRemove
 
-	daemon.setStateCounter(c)
+	setStateCounter(c.ID, c.State.State())
 	checkpointErr := c.CheckpointTo(context.TODO(), daemon.containersReplica)
 
 	daemon.LogContainerEventWithAttributes(c, events.ActionDie, attributes)
@@ -177,7 +177,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 				}); err != nil {
 					log.G(ctx).WithError(err).WithField("container", c.ID).Error("failed to record container exit")
 				}
-				daemon.setStateCounter(c)
+				setStateCounter(c.ID, c.State.State())
 				c.CheckpointTo(context.TODO(), daemon.containersReplica)
 				c.Unlock()
 				defer daemon.autoRemove(&cfg.Config, c)
@@ -300,12 +300,13 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 				}
 				return err
 			}
-			if _, err := c.State.Transition(container.Transition{To: containertypes.StateRunning, Container: ctr, Task: tsk}); err != nil {
+			change, err := c.State.Transition(container.Transition{To: containertypes.StateRunning, Container: ctr, Task: tsk})
+			if err != nil {
 				return err
 			}
 			c.HasBeenManuallyStopped = false
 			c.HasBeenStartedBefore = true
-			daemon.setStateCounter(c)
+			setStateCounter(c.ID, change.Current.Status)
 
 			daemon.initHealthMonitor(c)
 
@@ -321,10 +322,11 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 		defer c.Unlock()
 
 		if !c.State.Paused {
-			if _, err := c.State.Transition(container.Transition{To: containertypes.StatePaused}); err != nil {
+			change, err := c.State.Transition(container.Transition{To: containertypes.StatePaused})
+			if err != nil {
 				return err
 			}
-			daemon.setStateCounter(c)
+			setStateCounter(c.ID, change.Current.Status)
 			daemon.updateHealthMonitor(c)
 			if err := c.CheckpointTo(context.TODO(), daemon.containersReplica); err != nil {
 				return err
@@ -337,10 +339,11 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 		defer c.Unlock()
 
 		if c.State.Paused {
-			if _, err := c.State.Transition(container.Transition{To: containertypes.StateRunning}); err != nil {
+			change, err := c.State.Transition(container.Transition{To: containertypes.StateRunning})
+			if err != nil {
 				return err
 			}
-			daemon.setStateCounter(c)
+			setStateCounter(c.ID, change.Current.Status)
 			daemon.updateHealthMonitor(c)
 
 			if err := c.CheckpointTo(context.TODO(), daemon.containersReplica); err != nil {

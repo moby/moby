@@ -46,10 +46,11 @@ func (daemon *Daemon) containerPause(container *containerpkg.Container) error {
 		return fmt.Errorf("cannot pause container %s: %s", container.ID, err)
 	}
 
-	if _, err := container.State.Transition(containerpkg.Transition{To: containertypes.StatePaused}); err != nil {
+	change, err := container.State.Transition(containerpkg.Transition{To: containertypes.StatePaused})
+	if err != nil {
 		return err
 	}
-	daemon.setStateCounter(container)
+	setStateCounter(container.ID, change.Current.Status)
 	daemon.updateHealthMonitor(container)
 	daemon.LogContainerEvent(container, events.ActionPause)
 

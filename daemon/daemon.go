@@ -436,7 +436,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 				baseLogger.WithError(err).Error("failed to save migrated container config to disk")
 			}
 
-			daemon.setStateCounter(c)
+			setStateCounter(c.ID, c.State.State())
 
 			logger := func(c *container.Container) *log.Entry {
 				return baseLogger.WithFields(log.Fields{
@@ -505,7 +505,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 						if _, err := c.State.Transition(container.Transition{To: containertypes.StateRunning}); err != nil {
 							baseLogger.WithError(err).Error("failed to update paused container state")
 						}
-						daemon.setStateCounter(c)
+						setStateCounter(c.ID, c.State.State())
 						daemon.initHealthMonitor(c)
 						if err := c.CheckpointTo(context.TODO(), daemon.containersReplica); err != nil {
 							baseLogger.WithError(err).Error("failed to update paused container state")

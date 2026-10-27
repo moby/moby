@@ -37,10 +37,11 @@ func (daemon *Daemon) containerUnpause(ctr *container.Container) error {
 		return fmt.Errorf("Cannot unpause container %s: %s", ctr.ID, err)
 	}
 
-	if _, err := ctr.State.Transition(container.Transition{To: containertypes.StateRunning}); err != nil {
+	change, err := ctr.State.Transition(container.Transition{To: containertypes.StateRunning})
+	if err != nil {
 		return err
 	}
-	daemon.setStateCounter(ctr)
+	setStateCounter(ctr.ID, change.Current.Status)
 	daemon.updateHealthMonitor(ctr)
 	daemon.LogContainerEvent(ctr, events.ActionUnPause)
 
