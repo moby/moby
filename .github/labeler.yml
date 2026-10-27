@@ -65,7 +65,7 @@ area/logging:
     - changed-files:
       - any-glob-to-any-file:
         - 'daemon/logger/**'
-        - '**/*log*'
+        - '**/*_logs*'
       - all-globs-to-all-files: '!vendor/**'
 
 area/security:
