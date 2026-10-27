@@ -35,7 +35,7 @@ require (
 	github.com/containerd/fifo v1.1.0
 	github.com/containerd/log v0.2.0
 	github.com/containerd/log/otel v0.1.0
-	github.com/containerd/nri v0.12.3
+	github.com/containerd/nri v0.12.5
 	github.com/containerd/platforms v1.0.0-rc.5
 	github.com/containerd/plugin v1.1.0
 	github.com/containerd/ttrpc v1.2.10
