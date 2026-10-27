@@ -132,14 +132,12 @@ area/rootless:
       - all-globs-to-all-files: '!vendor/**'
 
 area/testing:
-  - all:
-    - changed-files:
-      - any-glob-to-any-file:
-        - 'integration/**'
-        - 'integration-cli/**'
-        - 'internal/test*'
-        - 'internal/testutil/**'
-      - all-globs-to-all-files: '!vendor/**'
+  - changed-files:
+    - any-glob-to-all-files:
+      - 'integration/**'
+      - 'integration-cli/**'
+      - 'internal/test*'
+      - 'internal/testutil/**'
 
 area/docs:
   - all:
