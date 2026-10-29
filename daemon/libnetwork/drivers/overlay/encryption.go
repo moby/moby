@@ -754,7 +754,13 @@ func (n *network) maxMTU() int {
 	if n.mtu != 0 {
 		mtu = n.mtu
 	}
-	mtu -= vxlanEncap
+	// Assume an IPv6 transport if the transport family is not known, as
+	// its larger overhead gives an MTU that fits either family.
+	if v6, err := n.driver.isIPv6Transport(); err == nil && !v6 {
+		mtu -= vxlanEncap
+	} else {
+		mtu -= vxlan6Encap
+	}
 	if n.secure {
 		// In case of encryption account for the
 		// esp packet expansion and padding
