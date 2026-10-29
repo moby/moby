@@ -4,6 +4,7 @@ This document defines the security scope and untrusted inputs of Moby, the open-
 Its daemon, `dockerd`, usually runs as root, manages containers through containerd and runc, and exposes the Docker Engine REST API.
 
 Engine API access, over REST or gRPC, grants the daemon user's privileges, so API clients, host root, Swarm managers, and installed plugins are trusted.
+Bind-mounting `docker.sock` or `containerd.sock` into an untrusted container is unsafe: access to these sockets can grant the corresponding daemon's privileges, even through a read-only bind mount.
 Multi-tenant setups are possible, but API clients aren't isolated from each other; an AuthZ plugin can restrict trusted clients, and only bypassing it is a vulnerability.
 Container processes, image content and build inputs, registries, network traffic, Swarm workers beyond their own tasks, and unprivileged host users are untrusted.
 A bug is a vulnerability when one of these can use it to escape or weaken isolation, gain privileges, reach the host or other containers, leak secrets, or seriously disrupt the daemon.
@@ -79,7 +80,8 @@ It has its own filesystem view and its own mount, PID, network, IPC, and UTS nam
 It gets a reduced capability set, a minimal set of devices, masked and read-only `/proc` and `/sys` paths, and AppArmor or SELinux confinement where enabled.
 It gets the default seccomp profile when the kernel supports seccomp, unless daemon configuration overrides it, including by disabling seccomp.
 It can't see or change host files, processes, devices, or network interfaces beyond what the client gives it.
-Clients can weaken this on purpose, for example by bind-mounting `/`, starting privileged containers, adding capabilities, or sharing host namespaces.
+Clients can weaken this on purpose, for example by bind-mounting host paths, starting privileged containers, adding capabilities, or sharing host namespaces.
+Bind-mounting any host path changes the container’s isolation boundary, even with read-only access; Moby passes the requested mount options to the kernel, which is responsible for enforcing them.
 Isolation weaker than what the client asked for is in scope, even without a working escape.
 Without extra options, that means the applicable defaults above.
 For example: required seccomp or AppArmor profiles missing, capabilities not dropped, masked or read-only paths skipped, a wrong SELinux label, or no-new-privileges dropped.
@@ -144,7 +146,8 @@ Out of scope:
 - [Deprecated components](https://docs.docker.com/engine/deprecated/), except the classic builder.
 - Bugs in the Windows kernel or Hyper-V.
   Report these to Microsoft; bugs caused by how Moby uses Windows isolation are still in scope.
-- Expected effects of settings documented as insecure, such as `--insecure-registry`, TCP API access without TLS, `--privileged`, `--security-opt seccomp=unconfined`, or Docker socket mounts.
+- Expected effects of settings documented as insecure, such as `--insecure-registry`, TCP API access without TLS, `--privileged`, `--security-opt seccomp=unconfined`, or bind-mounting `docker.sock` or `containerd.sock` into a container.
+  Access to these sockets can grant the corresponding daemon's privileges; a read-only bind mount does not make the API read-only.
   Bypassing the restrictions that remain is still in scope: disabling seccomp doesn't disable mount isolation, capability restrictions, or AppArmor.
 
 ## Vulnerabilities and bugs
