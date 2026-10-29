@@ -1,9 +1,15 @@
 package daemon
 
 import (
+	"fmt"
+	"maps"
+	"slices"
+	"strings"
+
 	"github.com/moby/extensions"
 	"github.com/moby/extensions/clientpoint"
 	"github.com/moby/extensions/serverpoint"
+	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/internal/extensionconfig"
 	"github.com/moby/moby/v2/daemon/internal/extensionstorage/bbolt"
 
@@ -21,6 +27,12 @@ var builtinExtensions = []extensions.Extension{
 	bbolt.Extension,
 }
 
+// optionalExtensions lists built-ins that remain inactive until explicitly
+// enabled through extensions.enable.
+func (daemon *Daemon) optionalExtensions() []extensions.Extension {
+	return []extensions.Extension{}
+}
+
 // daemonExtensions declares extensions that need daemon-owned state.
 // Ordinary builtin definitions obtain their bootstrap settings through points.
 func (daemon *Daemon) daemonExtensions() []extensions.Extension {
@@ -28,6 +40,37 @@ func (daemon *Daemon) daemonExtensions() []extensions.Extension {
 	return []extensions.Extension{
 		extensionconfig.New(&cfg),
 	}
+}
+
+// selectBuiltinExtensions applies activation settings to whole extensions.
+// Provider conflicts and required dependencies are validated by the host.
+func selectBuiltinExtensions(cfg config.ExtensionsConfig, defaults, optional []extensions.Extension) ([]extensions.Extension, error) {
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+
+	all := slices.Concat(defaults, optional)
+	enabled := make(map[string]bool, len(all))
+	for _, ext := range optional {
+		enabled[string(ext.Declaration().ID)] = false
+	}
+	for _, ext := range defaults {
+		enabled[string(ext.Declaration().ID)] = true
+	}
+	for _, id := range slices.Concat(cfg.Enable, cfg.Disable) {
+		if _, known := enabled[id]; !known {
+			return nil, fmt.Errorf("extensions: unknown built-in extension %q (available: %s)", id, strings.Join(slices.Sorted(maps.Keys(enabled)), ", "))
+		}
+	}
+	for _, id := range cfg.Enable {
+		enabled[id] = true
+	}
+	for _, id := range cfg.Disable {
+		enabled[id] = false
+	}
+	return slices.DeleteFunc(all, func(ext extensions.Extension) bool {
+		return !enabled[string(ext.Declaration().ID)]
+	}), nil
 }
 
 // clientProviders lists generated client wiring for points that launched

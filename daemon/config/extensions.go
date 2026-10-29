@@ -5,18 +5,40 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/moby/extensions"
 )
 
-// ExtensionsConfig holds extension startup settings.
+// ExtensionsConfig controls extension activation and startup configuration.
 // Changes take effect on the next daemon start.
 type ExtensionsConfig struct {
-	Dirs []string `json:"dirs,omitempty"`
+	Enable  []string `json:"enable,omitempty"`
+	Disable []string `json:"disable,omitempty"`
+	Dirs    []string `json:"dirs,omitempty"`
 	// Configs holds opaque configuration keyed by extension ID.
+	// Configuration alone does not enable an extension.
 	// The entry reaches in-process Init directly or a launched binary through
 	// the startup handshake.
 	Configs ExtensionConfigs `json:"configs,omitempty"`
+}
+
+// Validate checks extension IDs and conflicting activation settings.
+func (c ExtensionsConfig) Validate() error {
+	for _, id := range c.Enable {
+		if err := extensions.ValidateExtensionID(extensions.ExtensionID(id)); err != nil {
+			return fmt.Errorf("extensions.enable: %w", err)
+		}
+		if slices.Contains(c.Disable, id) {
+			return fmt.Errorf("extension %q is listed in both extensions.enable and extensions.disable", id)
+		}
+	}
+	for _, id := range c.Disable {
+		if err := extensions.ValidateExtensionID(extensions.ExtensionID(id)); err != nil {
+			return fmt.Errorf("extensions.disable: %w", err)
+		}
+	}
+	return nil
 }
 
 // ExtensionConfig holds the opaque configuration for one extension.

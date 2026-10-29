@@ -78,10 +78,13 @@ func TestLoadDaemonCliConfigWithExtensions(t *testing.T) {
 		{
 			name: "nested settings",
 			config: `{"extensions": {
+				"enable": ["org.example.optional.v1"],
+				"disable": ["org.example.default.v1"],
 				"dirs": ["/opt/extensions"],
 				"configs": {"org.example.test.v1": {"dirs": "opaque"}}
 			}}`,
 			want: config.ExtensionsConfig{
+				Enable: []string{"org.example.optional.v1"}, Disable: []string{"org.example.default.v1"},
 				Dirs:    []string{"/opt/extensions"},
 				Configs: config.ExtensionConfigs{{ID: "org.example.test.v1", Config: map[string]any{"dirs": "opaque"}}},
 			},
@@ -89,11 +92,30 @@ func TestLoadDaemonCliConfigWithExtensions(t *testing.T) {
 		{
 			name:   "merge different settings",
 			config: `{"extensions": {"configs": {"org.example.test.v1": {"workers": 4}}}}`,
-			flags:  []string{"--extension-dir", "/opt/extensions"},
+			flags:  []string{"--extension-dir", "/opt/extensions", "--extension-enable", "org.example.optional.v1", "--extension-disable", "org.example.default.v1"},
 			want: config.ExtensionsConfig{
+				Enable: []string{"org.example.optional.v1"}, Disable: []string{"org.example.default.v1"},
 				Dirs:    []string{"/opt/extensions"},
 				Configs: config.ExtensionConfigs{{ID: "org.example.test.v1", Config: map[string]any{"workers": float64(4)}}},
 			},
+		},
+		{
+			name: "enable flag conflict", config: `{"extensions": {"enable": []}}`,
+			flags: []string{"--extension-enable", "org.example.optional.v1"}, wantErr: "as a flag and in the configuration file: extensions.enable",
+		},
+		{
+			name: "disable flag conflict", config: `{"extensions": {"disable": []}}`,
+			flags: []string{"--extension-disable", "org.example.default.v1"}, wantErr: "as a flag and in the configuration file: extensions.disable",
+		},
+		{
+			name: "conflicting activation", config: `{"extensions": {"disable": ["org.example.optional.v1"]}}`,
+			flags: []string{"--extension-enable", "org.example.optional.v1"}, wantErr: "listed in both extensions.enable and extensions.disable",
+		},
+		{
+			name: "invalid enable ID", config: `{"extensions": {"enable": ["invalid"]}}`, wantErr: "extensions.enable: invalid extension id",
+		},
+		{
+			name: "invalid disable ID", config: `{"extensions": {"disable": ["invalid"]}}`, wantErr: "extensions.disable: invalid extension id",
 		},
 		{
 			name: "directory flag conflict", config: `{"extensions": {"dirs": []}}`,

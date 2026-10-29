@@ -70,7 +70,7 @@ func TestDaemonConfigurationExtensionConfig(t *testing.T) {
 	})
 }
 
-func TestDaemonConfigurationRejectsDottedExtensionKeys(t *testing.T) {
+func TestDaemonConfigurationRejectsTopLevelExtensionKeys(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []struct {
@@ -81,6 +81,14 @@ func TestDaemonConfigurationRejectsDottedExtensionKeys(t *testing.T) {
 		{
 			name: "activation", key: "extensions.disable",
 			config: `{"extensions.disable": ["org.mobyproject.namesgenerator.legacy.v1"]}`,
+		},
+		{
+			name: "enable flag spelling", key: "extension-enable",
+			config: `{"extension-enable": ["org.example.optional.v1"]}`,
+		},
+		{
+			name: "disable flag spelling", key: "extension-disable",
+			config: `{"extension-disable": ["org.mobyproject.namesgenerator.legacy.v1"]}`,
 		},
 		{
 			name: "configuration", key: "extensions.configs",
@@ -100,9 +108,10 @@ func TestDaemonConfigurationRejectsDottedExtensionKeys(t *testing.T) {
 
 			configFile := makeConfigFile(t, tc.config)
 			cfg := &Config{}
-			var disabled []string
+			var enabled, disabled []string
 			flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
-			flags.Var(opts.NewNamedListOptsRef("extensions.disable", &disabled, nil), "disable-extension", "")
+			flags.Var(opts.NewNamedListOptsRef("extensions.enable", &enabled, nil), "extension-enable", "")
+			flags.Var(opts.NewNamedListOptsRef("extensions.disable", &disabled, nil), "extension-disable", "")
 			for name, flagSet := range map[string]*pflag.FlagSet{"with flags": flags, "without flags": nil} {
 				t.Run(name, func(t *testing.T) {
 					_, err := MergeDaemonConfigurations(cfg, flagSet, configFile)

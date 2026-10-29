@@ -561,9 +561,9 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 	if err := json.Unmarshal(b, &jsonConfig); err != nil {
 		return nil, fmt.Errorf("invalid JSON: %w", err)
 	}
-	// Dotted extension names are internal conflict-checking keys, not JSON fields.
+	// CLI spellings and internal dotted extension keys are not JSON fields.
 	for key := range jsonConfig {
-		if strings.HasPrefix(key, "extensions.") {
+		if strings.HasPrefix(key, "extensions.") || key == "extension-enable" || key == "extension-disable" {
 			return nil, fmt.Errorf("invalid configuration directive %q: use the nested \"extensions\" object", key)
 		}
 	}
@@ -747,6 +747,10 @@ func ValidateMinAPIVersion(ver string) error {
 // such as config.DNS, config.Labels, config.DNSSearch,
 // as well as config.MaxConcurrentDownloads, config.MaxConcurrentUploads and config.MaxDownloadAttempts.
 func Validate(config *Config) error {
+	if err := config.Extensions.Validate(); err != nil {
+		return err
+	}
+
 	if err := validateDaemonLogConfig(config.DaemonLogConfig); err != nil {
 		return err
 	}

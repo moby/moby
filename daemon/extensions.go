@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/containerd/log"
 	"github.com/moby/extensions"
@@ -27,10 +28,14 @@ func (daemon *Daemon) newExtensionHost(ctx context.Context) (*host.Host, error) 
 	if err := os.Chmod(runtimeDir, 0o700); err != nil {
 		return nil, fmt.Errorf("set permissions on extension runtime directory: %w", err)
 	}
+	defaults := slices.Concat(builtinExtensions, daemon.daemonExtensions())
+	exts, err := selectBuiltinExtensions(cfg.Extensions, defaults, daemon.optionalExtensions())
+	if err != nil {
+		return nil, err
+	}
 	return host.New(ctx,
 		host.WithRuntimeDir(runtimeDir),
-		host.WithExtensions(builtinExtensions...),
-		host.WithExtensions(daemon.daemonExtensions()...),
+		host.WithExtensions(exts...),
 		host.WithDirs(extensionDirs(&cfg)...),
 		host.WithClientProviders(clientProviders()...),
 		host.WithProviderPolicy(host.PointPolicyFunc(func(extensions.ExtensionIdentity, extensions.PointID) host.PointPolicyResult {
