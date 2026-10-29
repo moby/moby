@@ -289,6 +289,29 @@ func TestWindowsNetworkLifecycle(t *testing.T) {
 		}, poll.WithTimeout(20*time.Second))
 	}
 
+	// Restart after the disconnect cycles have populated the namespace cache,
+	// then verify the restored endpoint before the next hot-connect.
+	_, err = c.ContainerStop(ctx, id, client.ContainerStopOptions{})
+	assert.NilError(t, err)
+	_, err = c.ContainerStart(ctx, id, client.ContainerStartOptions{})
+	assert.NilError(t, err)
+
+	ctrInfo = container.Inspect(ctx, t, c, id)
+	assert.Check(t, ctrInfo.NetworkSettings.Networks[netName] != nil,
+		"Container not connected to original network after restart")
+	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+		execCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		res, err := container.Exec(execCtx, c, id, []string{"ping", "-n", "1", "-w", "3000", peerIP.String()})
+		if err != nil {
+			return poll.Continue("ping failed after restart: %v", err)
+		}
+		if res.ExitCode != 0 || !strings.Contains(res.Stdout(), "Sent = 1, Received = 1, Lost = 0") {
+			return poll.Continue("network traffic unavailable after restart: %s", res.Stdout())
+		}
+		return poll.Success()
+	}, poll.WithTimeout(20*time.Second))
+
 	secondNetName := "lifecycle-test-secondary"
 	secondNetID := network.CreateNoError(ctx, t, c, secondNetName,
 		network.WithDriver("nat"),
