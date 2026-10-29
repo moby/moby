@@ -168,7 +168,7 @@ Don't report these as vulnerabilities:
 - Denial-of-service reports based only on recovered request-handler panics that don't affect the daemon's ability to serve requests.
 - Weaker isolation from privileges the client requested, such as host namespaces or `CAP_SYS_ADMIN`.
 - Containers without resource limits using up host CPU, memory, disk, or PIDs; setting limits is up to the client.
-  Not applying requested limits is in scope.
+  Failing to enforce a requested resource limit is in scope unless the required host features (for example, relevant cgroup controllers) are unavailable to the daemon.
 - Malicious binaries, vulnerable libraries, or secrets in images; only images that trick the daemon are in scope.
 - Missing isolation between API clients, with or without an AuthZ plugin.
   Images, layers, build cache, volumes, and networks are shared, so an image pulled with one client's credentials is available to all clients.
