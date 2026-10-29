@@ -68,7 +68,8 @@ We treat these as untrusted:
   Allowed traffic is not a vulnerability, for example between containers on a bridge with inter-container communication enabled.
 - Container logs parsed by logging drivers.
 - Swarm nodes without valid join tokens or certificates.
-- Swarm workers: Swarm works on a need-to-know basis, so a worker gets only what its assigned tasks need.
+- Swarm workers: workers receive only the task data they are authorized to access, but are trusted participants in NetworkDB gossip.
+  NetworkDB does not protect against malicious authenticated gossip participants.
   Reading secrets, configs, or task information of other nodes, or gaining manager privileges, is in scope.
   A worker is still a full daemon with a Swarm agent: its Swarm permissions are limited, but the rest of this document applies to it unchanged.
 - Local unprivileged host users: they must not traverse or read the data root (`/var/lib/docker`), `/run/docker`, or container filesystems, run programs from them, or connect to sockets they have no permission for.
