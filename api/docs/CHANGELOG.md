@@ -15,6 +15,9 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 ## v1.57 API changes
 
+* The API specification now uses OpenAPI 3.2.0 instead of Swagger 2.0.
+  A generated Swagger 2.0 version is still available for existing tooling.
+
 ## v1.56 API changes
 
 * `GET /containers/json` now supports an `annotation` filter to filter
