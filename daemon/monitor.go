@@ -120,6 +120,13 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 		"exitCode":     strconv.Itoa(ctrExitStatus.ExitCode),
 		"execDuration": strconv.Itoa(int(execDuration.Seconds())),
 	}
+	if restart || (c.HasBeenManuallyRestarted && !daemonShutdown) {
+		// The container will be restarted, either by the restart policy or
+		// by a manual "container restart" in progress (which doesn't
+		// complete if the daemon is shutting down).
+		attributes["restarting"] = "true"
+	}
+
 	daemon.Cleanup(context.TODO(), c)
 
 	if restart {

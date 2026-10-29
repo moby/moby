@@ -32,7 +32,7 @@ func (daemon *Daemon) ContainerRestart(ctx context.Context, name string, options
 // container. When stopping, wait for the given duration in seconds to
 // gracefully stop, before forcefully terminating the container. If
 // given a negative duration, wait forever for a graceful stop.
-func (daemon *Daemon) containerRestart(ctx context.Context, daemonCfg *configStore, container *container.Container, options backend.ContainerStopOptions) error {
+func (daemon *Daemon) containerRestart(ctx context.Context, daemonCfg *configStore, container *container.Container, options backend.ContainerStopOptions) (retErr error) {
 	// Restarting is expected to be an atomic operation, and cancelling
 	// the request should not cancel the stop -> start sequence.
 	ctx = context.WithoutCancel(ctx)
@@ -59,6 +59,17 @@ func (daemon *Daemon) containerRestart(ctx context.Context, daemonCfg *configSto
 		container.Lock()
 		container.HasBeenManuallyRestarted = true
 		container.Unlock()
+
+		// The flag is only cleared once the container is started again. If
+		// the restart fails, make sure it doesn't linger: otherwise a later,
+		// unrelated exit would be reported as "going to restart".
+		defer func() {
+			if retErr != nil {
+				container.Lock()
+				container.HasBeenManuallyRestarted = false
+				container.Unlock()
+			}
+		}()
 
 		err := daemon.containerStop(ctx, container, options)
 		if err != nil {
