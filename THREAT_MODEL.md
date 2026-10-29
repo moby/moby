@@ -124,7 +124,7 @@ Highest priority:
 
 Lower priority, but still in scope:
 
-- Go client and API types talking to a malicious or compromised daemon.
+- Bugs in the Go client or API types that a malicious daemon or API endpoint can exploit to compromise the calling program or its host.
 - Swarm mode.
 - Plugin installation and privileges: a plugin must not get more privileges than it declared and the user granted.
 
