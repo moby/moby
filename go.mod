@@ -80,7 +80,7 @@ require (
 	github.com/moby/swarmkit/v2 v2.1.3-0.20261016144904-5d8dbdc21997
 	github.com/moby/sys/atomicwriter v0.1.0
 	github.com/moby/sys/mount v0.3.5
-	github.com/moby/sys/mountinfo v0.7.2
+	github.com/moby/sys/mountinfo v0.7.3
 	github.com/moby/sys/reexec v0.1.0
 	github.com/moby/sys/signal v0.7.1
 	github.com/moby/sys/symlink v0.3.0
