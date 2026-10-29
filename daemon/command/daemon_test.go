@@ -67,6 +67,57 @@ func TestLoadDaemonCliConfigWithConflicts(t *testing.T) {
 	assert.Check(t, is.ErrorContains(err, "as a flag and in the configuration file: labels"))
 }
 
+func TestLoadDaemonCliConfigWithExtensions(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		config  string
+		flags   []string
+		want    config.ExtensionsConfig
+		wantErr string
+	}{
+		{
+			name: "nested settings",
+			config: `{"extensions": {
+				"dirs": ["/opt/extensions"],
+				"configs": {"org.example.test.v1": {"dirs": "opaque"}}
+			}}`,
+			want: config.ExtensionsConfig{
+				Dirs:    []string{"/opt/extensions"},
+				Configs: config.ExtensionConfigs{{ID: "org.example.test.v1", Config: map[string]any{"dirs": "opaque"}}},
+			},
+		},
+		{
+			name:   "merge different settings",
+			config: `{"extensions": {"configs": {"org.example.test.v1": {"workers": 4}}}}`,
+			flags:  []string{"--extension-dir", "/opt/extensions"},
+			want: config.ExtensionsConfig{
+				Dirs:    []string{"/opt/extensions"},
+				Configs: config.ExtensionConfigs{{ID: "org.example.test.v1", Config: map[string]any{"workers": float64(4)}}},
+			},
+		},
+		{
+			name: "directory flag conflict", config: `{"extensions": {"dirs": []}}`,
+			flags: []string{"--extension-dir", "/opt/extensions"}, wantErr: "as a flag and in the configuration file: extensions.dirs",
+		},
+		{
+			name: "unknown nested key", config: `{"extensions": {"directories": []}}`, wantErr: "don't match any configuration option: extensions.directories",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tempFile := fs.NewFile(t, "config", fs.WithContent(tc.config))
+			opts := defaultOptions(t, tempFile.Path())
+			assert.NilError(t, opts.flags.Parse(tc.flags))
+			cfg, err := loadDaemonCliConfig(opts)
+			if tc.wantErr != "" {
+				assert.ErrorContains(t, err, tc.wantErr)
+				return
+			}
+			assert.NilError(t, err)
+			assert.DeepEqual(t, cfg.Extensions, tc.want)
+		})
+	}
+}
+
 func TestLoadDaemonCliWithConflictingNodeGenericResources(t *testing.T) {
 	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"node-generic-resources": ["foo=bar", "bar=baz"]}`))
 	configFile := tempFile.Path()

@@ -41,13 +41,13 @@ func (daemon *Daemon) newExtensionHost(ctx context.Context) (*host.Host, error) 
 	)
 }
 
-// extensionConfig converts daemon.json's extension-config entries to host form.
+// extensionConfig converts daemon.json's extensions.configs entries to host form.
 func extensionConfig(cfg *config.Config) map[extensions.ExtensionID]extensions.Config {
-	if len(cfg.ExtensionConfig) == 0 {
+	if len(cfg.Extensions.Configs) == 0 {
 		return nil
 	}
-	out := make(map[extensions.ExtensionID]extensions.Config, len(cfg.ExtensionConfig))
-	for _, extensionConfig := range cfg.ExtensionConfig {
+	out := make(map[extensions.ExtensionID]extensions.Config, len(cfg.Extensions.Configs))
+	for _, extensionConfig := range cfg.Extensions.Configs {
 		out[extensionConfig.ID] = extensionConfig.Config
 	}
 	return out
@@ -57,8 +57,8 @@ func extensionConfig(cfg *config.Config) map[extensions.ExtensionID]extensions.C
 // binaries: the ones configured with --extension-dir, or the default location
 // when none are configured.
 func extensionDirs(cfg *config.Config) []string {
-	if len(cfg.ExtensionDirs) > 0 {
-		return cfg.ExtensionDirs
+	if len(cfg.Extensions.Dirs) > 0 {
+		return cfg.Extensions.Dirs
 	}
 	dir, err := defaultExtensionDir()
 	if err != nil {
