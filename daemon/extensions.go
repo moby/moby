@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/containerd/log"
 	"github.com/moby/extensions"
@@ -27,10 +28,14 @@ func (daemon *Daemon) newExtensionHost(ctx context.Context) (*host.Host, error) 
 	if err := os.Chmod(runtimeDir, 0o700); err != nil {
 		return nil, fmt.Errorf("set permissions on extension runtime directory: %w", err)
 	}
+	defaults := slices.Concat(builtinExtensions, daemon.daemonExtensions())
+	exts, err := selectBuiltinExtensions(cfg.Extensions, defaults, daemon.optionalExtensions())
+	if err != nil {
+		return nil, err
+	}
 	return host.New(ctx,
 		host.WithRuntimeDir(runtimeDir),
-		host.WithExtensions(builtinExtensions...),
-		host.WithExtensions(daemon.daemonExtensions()...),
+		host.WithExtensions(exts...),
 		host.WithDirs(extensionDirs(&cfg)...),
 		host.WithClientProviders(clientProviders()...),
 		host.WithProviderPolicy(host.PointPolicyFunc(func(extensions.ExtensionIdentity, extensions.PointID) host.PointPolicyResult {
@@ -41,13 +46,13 @@ func (daemon *Daemon) newExtensionHost(ctx context.Context) (*host.Host, error) 
 	)
 }
 
-// extensionConfig converts daemon.json's extension-config entries to host form.
+// extensionConfig converts daemon.json's extensions.configs entries to host form.
 func extensionConfig(cfg *config.Config) map[extensions.ExtensionID]extensions.Config {
-	if len(cfg.ExtensionConfig) == 0 {
+	if len(cfg.Extensions.Configs) == 0 {
 		return nil
 	}
-	out := make(map[extensions.ExtensionID]extensions.Config, len(cfg.ExtensionConfig))
-	for _, extensionConfig := range cfg.ExtensionConfig {
+	out := make(map[extensions.ExtensionID]extensions.Config, len(cfg.Extensions.Configs))
+	for _, extensionConfig := range cfg.Extensions.Configs {
 		out[extensionConfig.ID] = extensionConfig.Config
 	}
 	return out
@@ -57,8 +62,8 @@ func extensionConfig(cfg *config.Config) map[extensions.ExtensionID]extensions.C
 // binaries: the ones configured with --extension-dir, or the default location
 // when none are configured.
 func extensionDirs(cfg *config.Config) []string {
-	if len(cfg.ExtensionDirs) > 0 {
-		return cfg.ExtensionDirs
+	if len(cfg.Extensions.Dirs) > 0 {
+		return cfg.Extensions.Dirs
 	}
 	dir, err := defaultExtensionDir()
 	if err != nil {
