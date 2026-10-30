@@ -170,16 +170,49 @@ RUN --mount=from=containerd-src,src=/usr/src/containerd,rw \
 
   set -x
   xx-go --wrap
-  CC="$(xx-info)-gcc" CGO_ENABLED=$cgo_enabled make $make_flags BUILDTAGS=grpcnotrace binaries
-  xx-verify $verify_flags bin/containerd
-  xx-verify $verify_flags bin/containerd-shim-runc-v2
-  xx-verify $verify_flags bin/ctr
+  binaries="bin/containerd bin/ctr"
+  exe_suffix=
+  if [ "$(xx-info os)" = "windows" ]; then
+      exe_suffix=.exe
+  else
+      binaries="$binaries bin/containerd-shim-runc-v2"
+  fi
+  CC="$(xx-info)-gcc" CGO_ENABLED=$cgo_enabled make $make_flags BUILDTAGS=grpcnotrace $binaries
   mkdir /build
-  mv bin/containerd bin/containerd-shim-runc-v2 bin/ctr /build
+  for binary in $binaries; do
+      xx-verify $verify_flags "$binary"
+      mv "$binary" "/build/${binary##*/}$exe_suffix"
+  done
+EOT
+
+FROM base AS runhcs-src
+WORKDIR /usr/src/hcsshim
+# Override the shim version tested with the selected containerd release.
+ARG RUNHCS_REF
+RUN --mount=from=containerd-src,src=/usr/src/containerd,target=/usr/src/containerd <<EOT
+  set -ex
+  if [ -z "$RUNHCS_REF" ]; then
+      RUNHCS_REF=$(cat /usr/src/containerd/script/setup/runhcs-version)
+  fi
+  git init .
+  git remote add origin https://github.com/Microsoft/hcsshim.git
+  git fetch --depth=1 origin "$RUNHCS_REF"
+  git checkout -q FETCH_HEAD
+EOT
+
+FROM base AS runhcs-build
+WORKDIR /usr/src/hcsshim
+ARG TARGETPLATFORM
+RUN --mount=from=runhcs-src,src=/usr/src/hcsshim,rw \
+    --mount=type=cache,target=/root/.cache/go-build,id=runhcs-build-$TARGETPLATFORM <<EOT
+  set -ex
+  CGO_ENABLED=0 xx-go build -mod=vendor -o /build/containerd-shim-runhcs-v1.exe ./cmd/containerd-shim-runhcs-v1
+  xx-verify --static /build/containerd-shim-runhcs-v1.exe
 EOT
 
 FROM containerd-build AS containerd-linux
-FROM binary-dummy AS containerd-windows
+FROM containerd-build AS containerd-windows
+COPY --from=runhcs-build /build/ /build/
 FROM containerd-${TARGETOS} AS containerd
 
 FROM base AS golangci_lint
