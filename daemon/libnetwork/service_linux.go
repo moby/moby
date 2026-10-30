@@ -167,7 +167,9 @@ func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
 
 	// Ensure that kernel tweaks are applied in case this is the first time
 	// we've initialized ip_vs
-	sb.osSbox.ApplyOSTweaks(sb.oslTypes)
+	if err := sb.osSbox.ApplyOSTweaks(sb.oslTypes); err != nil {
+		log.G(context.TODO()).Errorf("Failed to apply performance tuning sysctls to the sandbox: %v", err)
+	}
 }
 
 // Remove loadbalancer backend the load balancing endpoint for this
