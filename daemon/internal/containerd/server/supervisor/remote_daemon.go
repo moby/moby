@@ -15,6 +15,7 @@ import (
 	"github.com/containerd/containerd/v2/pkg/dialer"
 	"github.com/containerd/log"
 	"github.com/moby/buildkit/util/grpcerrors"
+	"github.com/moby/moby/v2/daemon/internal/containerd/server/dropin"
 	"github.com/moby/moby/v2/pkg/pidfile"
 	"github.com/moby/moby/v2/pkg/process"
 	"github.com/pelletier/go-toml/v2"
@@ -29,6 +30,7 @@ const (
 	shutdownTimeout         = 15 * time.Second
 	startupTimeout          = 15 * time.Second
 	configFile              = "containerd.toml"
+	overridesFile           = "containerd-overrides.toml"
 	pidFile                 = "containerd.pid"
 )
 
@@ -40,6 +42,10 @@ type Daemon struct {
 	// file is saved.
 	configFile string
 	stateDir   string
+
+	// dropInDir is an optional directory with containerd configuration files
+	// (*.toml) to import into the generated configuration.
+	dropInDir string
 
 	// daemonPath is the binary to execute, and can be either a basename (to use
 	// a binary installed in the system's $PATH), or the full path to the binary
@@ -151,16 +157,50 @@ func (r *Daemon) Address() string {
 }
 
 func (r *Daemon) getContainerdConfig() (string, error) {
-	f, err := os.OpenFile(r.configFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+	cfg := r.config
+	if r.dropInDir != "" {
+		imports, err := dropin.Files(r.dropInDir)
+		if err != nil {
+			return "", err
+		}
+		// containerd merges imported files over the main configuration file,
+		// in order. Import the settings dockerd depends on after the drop-in
+		// files so that drop-in files cannot override them.
+		// containerd resolves relative imports against the directory of the
+		// main configuration file, so the import must be absolute.
+		overrides, err := filepath.Abs(filepath.Join(r.stateDir, overridesFile))
+		if err != nil {
+			return "", err
+		}
+		if err := writeConfig(overrides, config.Config{
+			Version: r.config.Version,
+			Root:    r.config.Root,
+			State:   r.config.State,
+			GRPC: config.GRPCConfig{ //nolint:staticcheck // Deprecated in config v4, but required for config v3.
+				Address: r.Address(), //nolint:staticcheck // Deprecated in config v4, but required for config v3.
+			},
+		}); err != nil {
+			return "", err
+		}
+		cfg.Imports = append(imports, overrides)
+	}
+	if err := writeConfig(r.configFile, cfg); err != nil {
+		return "", err
+	}
+	return r.configFile, nil
+}
+
+func writeConfig(path string, cfg config.Config) error {
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to open containerd config file (%s)", r.configFile)
+		return errors.Wrapf(err, "failed to open containerd config file (%s)", path)
 	}
 	defer f.Close()
 
-	if err := toml.NewEncoder(f).Encode(r.config); err != nil {
-		return "", errors.Wrapf(err, "failed to write containerd config file (%s)", r.configFile)
+	if err := toml.NewEncoder(f).Encode(cfg); err != nil {
+		return errors.Wrapf(err, "failed to write containerd config file (%s)", path)
 	}
-	return r.configFile, nil
+	return nil
 }
 
 func (r *Daemon) startContainerd() error {
