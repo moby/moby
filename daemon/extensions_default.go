@@ -4,10 +4,12 @@ import (
 	"github.com/moby/extensions"
 	"github.com/moby/extensions/clientpoint"
 	"github.com/moby/extensions/serverpoint"
+	"github.com/moby/moby/v2/daemon/internal/extensionapi"
 	"github.com/moby/moby/v2/daemon/internal/extensionconfig"
 	"github.com/moby/moby/v2/daemon/internal/extensionstorage/bbolt"
 
 	containernamegeneratorpb "github.com/moby/moby/v2/extpoints/containernamegenerator/v0/protogen"
+	daemonapipb "github.com/moby/moby/v2/extpoints/daemonapi/v0/protogen"
 	daemonconfigpb "github.com/moby/moby/v2/extpoints/daemonconfig/v0/protogen"
 	servicenamegeneratorpb "github.com/moby/moby/v2/extpoints/servicenamegenerator/v0/protogen"
 	storagepb "github.com/moby/moby/v2/extpoints/storage/kv/v0/protogen"
@@ -27,6 +29,7 @@ func (daemon *Daemon) daemonExtensions() []extensions.Extension {
 	cfg := daemon.Config()
 	return []extensions.Extension{
 		extensionconfig.New(&cfg),
+		extensionapi.New(daemon.extensionAPIEndpoint),
 	}
 }
 
@@ -50,5 +53,6 @@ func dependencyProviders() []serverpoint.Registration {
 	return []serverpoint.Registration{
 		storagepb.ServerPoint,
 		daemonconfigpb.ServerPoint,
+		daemonapipb.ServerPoint,
 	}
 }
