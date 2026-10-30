@@ -227,7 +227,11 @@ func (s *Store) GetAllDrivers() ([]volume.Driver, error) {
 
 func makePluginAdapter(p plugingetter.CompatPlugin) (*volumeDriverAdapter, error) {
 	if pc, ok := p.(plugingetter.PluginWithV1Client); ok {
-		return &volumeDriverAdapter{name: p.Name(), scopePath: p.ScopedPath, proxy: &volumeDriverProxy{pc.Client()}}, nil
+		client := pc.Client()
+		if client == nil {
+			return nil, fmt.Errorf("volume plugin %q is not initialized: client is nil", p.Name())
+		}
+		return &volumeDriverAdapter{name: p.Name(), scopePath: p.ScopedPath, proxy: &volumeDriverProxy{client}}, nil
 	}
 
 	pa, ok := p.(plugingetter.PluginAddr)
