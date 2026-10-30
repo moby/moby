@@ -249,6 +249,7 @@ WORKDIR /usr/src/runc
 # This version should usually match the version that is used by the containerd version
 # that is used. If you need to update runc, open a pull request in the containerd
 # project first, and update both after that is merged.
+# renovate: datasource=github-tags depName=opencontainers/runc
 ARG RUNC_VERSION=v1.5.2
 ADD https://github.com/opencontainers/runc.git?ref=${RUNC_VERSION}&keep-git-dir=1 .
 
@@ -368,6 +369,7 @@ FROM rootlesskit-${TARGETOS} AS rootlesskit
 
 FROM base AS crun
 # CRUN_VERSION is the version of crun to install in the dev-container.
+# renovate: datasource=github-tags depName=containers/crun
 ARG CRUN_VERSION=1.29.1
 RUN --mount=type=cache,sharing=locked,id=moby-crun-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-crun-aptcache,target=/var/cache/apt \
