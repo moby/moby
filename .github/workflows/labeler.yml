@@ -94,7 +94,7 @@ jobs:
               'area/testing': anyNonVendorFile('integration/**', 'integration-cli/**', 'internal/test*', 'internal/testutil/**'),
               'area/docs': anyNonVendorFile('api/docs/*.yaml', 'docs/**', '**/*.md', 'man/**'),
               'area/dependencies': anyFile('go.mod', 'go.sum', 'vendor/**') && !anyFile('client/**', 'api/**'),
-              'area/ci': anyFile('.github/**'),
+              'area/ci': anyFile('.github/**', 'hack/validate/**', '.golangci.yml'),
               'platform/windows': allNonVendorFiles('**/*_windows.go', 'Dockerfile.windows'),
               'impact/changelog': anyFile('api/docs/CHANGELOG.md'),
             }).filter(([label, matched]) => matched && !current.has(label)).map(([label]) => label);
