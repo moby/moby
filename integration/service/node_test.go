@@ -37,8 +37,9 @@ func TestAPISwarmListNodes(t *testing.T) {
 		d2.NodeID(): {},
 		d3.NodeID(): {},
 	}
+	resultNodeIDs := make(map[string]struct{}, len(result.Items))
 	for _, node := range result.Items {
-		_, ok := nodeIDs[node.ID]
-		assert.Assert(t, ok, "unknown nodeID %v", node.ID)
+		resultNodeIDs[node.ID] = struct{}{}
 	}
+	assert.DeepEqual(t, nodeIDs, resultNodeIDs)
 }
