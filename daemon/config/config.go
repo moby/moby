@@ -14,6 +14,7 @@ import (
 
 	"dario.cat/mergo"
 	"github.com/containerd/log"
+	containertypes "github.com/moby/moby/api/types/container"
 	dopts "github.com/moby/moby/v2/daemon/internal/opts"
 	"github.com/moby/moby/v2/daemon/internal/versions"
 	"github.com/moby/moby/v2/daemon/pkg/opts"
@@ -84,15 +85,16 @@ const (
 // Use this to differentiate these options
 // with others like the ones in TLSOptions.
 var flatOptions = map[string]bool{
-	"cluster-store-opts":   true,
-	"default-network-opts": true,
-	"log-opts":             true,
-	"runtimes":             true,
-	"default-ulimits":      true,
-	"features":             true,
-	"builder":              true,
-	"nri-opts":             true,
-	"extension-config":     true,
+	"cluster-store-opts":     true,
+	"default-network-opts":   true,
+	"log-opts":               true,
+	"runtimes":               true,
+	"default-ulimits":        true,
+	"features":               true,
+	"builder":                true,
+	"nri-opts":               true,
+	"extension-config":       true,
+	"default-restart-policy": true,
 }
 
 // skipValidateOptions contains configuration keys
@@ -103,8 +105,10 @@ var skipValidateOptions = map[string]bool{
 	"builder":  true,
 
 	// Only available in daemon.json, no flags
-	"min-api-version":  true,
-	"extension-config": true,
+	"min-api-version":                true,
+	"extension-config":               true,
+	"default-restart-policy":         true,
+	"enforce-default-restart-policy": true,
 
 	// Deprecated options that are safe to ignore if present.
 	"deprecated-key-path":              true,
@@ -195,6 +199,16 @@ type ContainerDefaults struct {
 	// DefaultStopTimeout is the timeout, in seconds, used for containers that
 	// do not have a container-specific timeout set.
 	DefaultStopTimeout int `json:"default-stop-timeout,omitempty"`
+
+	// DefaultRestartPolicy is the default restart policy for containers that
+	// do not have a container-specific restart policy set. If not specified,
+	// defaults to "no" (RestartPolicyDisabled).
+	DefaultRestartPolicy containertypes.RestartPolicy `json:"default-restart-policy,omitempty"`
+
+	// EnforceDefaultRestartPolicy, when enabled, prevents users from overriding
+	// the default restart policy. Useful for batch scheduling systems (e.g., SLURM)
+	// where restart policies conflict with cgroup lifecycle management.
+	EnforceDefaultRestartPolicy bool `json:"enforce-default-restart-policy,omitempty"`
 }
 
 // CommonConfig defines the configuration of a docker daemon which is
@@ -358,6 +372,10 @@ func New() (*Config, error) {
 			ShutdownTimeout: DefaultShutdownTimeout,
 			ContainerDefaults: ContainerDefaults{
 				DefaultStopTimeout: defaultStopTimeout,
+				DefaultRestartPolicy: containertypes.RestartPolicy{
+					Name: containertypes.RestartPolicyDisabled,
+				},
+				EnforceDefaultRestartPolicy: false,
 			},
 			LogConfig: LogConfig{
 				Type:   DefaultLogDriver,
@@ -780,6 +798,9 @@ func Validate(config *Config) error {
 	}
 	if config.DefaultStopTimeout < 0 {
 		return errors.Errorf("invalid default stop timeout: %d", config.DefaultStopTimeout)
+	}
+	if err := containertypes.ValidateRestartPolicy(config.DefaultRestartPolicy); err != nil {
+		return errors.Wrap(err, "invalid default-restart-policy")
 	}
 	if config.NetworkDiagnosticPort < 0 || config.NetworkDiagnosticPort > 65535 {
 		return errors.Errorf("invalid network-diagnostic-port (%d): value must be between 0 and 65535", config.NetworkDiagnosticPort)

@@ -22,10 +22,12 @@ import (
 	testContainer "github.com/moby/moby/v2/integration/internal/container"
 	net "github.com/moby/moby/v2/integration/internal/network"
 	"github.com/moby/moby/v2/internal/testutil"
+	"github.com/moby/moby/v2/internal/testutil/daemon"
 	"github.com/moby/moby/v2/internal/testutil/request"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/fs"
 	"gotest.tools/v3/skip"
 )
 
@@ -836,4 +838,95 @@ func TestContainerdContainerImageInfo(t *testing.T) {
 		// This field is not set when not using containerd backed storage.
 		assert.Equal(t, ctr.Image, "")
 	}
+}
+
+func TestCreateWithDefaultRestartPolicy(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot start daemon on remote test run")
+
+	ctx := setupTest(t)
+
+	// startDaemon starts a daemon using the given daemon.json content.
+	startDaemon := func(ctx context.Context, t *testing.T, config string) *daemon.Daemon {
+		t.Helper()
+		// WithMode is needed for rootless
+		file := fs.NewFile(t, "test-daemon-restart-policy-config", fs.WithContent(config), fs.WithMode(0o644))
+		d := daemon.New(t)
+		d.StartWithBusybox(ctx, t, "--config-file", file.Path())
+		t.Cleanup(func() { d.Stop(t) })
+		return d
+	}
+
+	t.Run("container inherits daemon default restart policy", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
+
+		d := startDaemon(ctx, t, `{"default-restart-policy": {"Name": "always"}}`)
+		apiClient := d.NewClientT(t)
+
+		cID := testContainer.Run(ctx, t, apiClient, testContainer.WithName("test-default-restart"))
+		defer apiClient.ContainerRemove(ctx, cID, client.ContainerRemoveOptions{Force: true})
+
+		inspect, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(inspect.Container.HostConfig.RestartPolicy.Name, container.RestartPolicyAlways))
+	})
+
+	t.Run("explicit policy overrides default when enforcement disabled", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
+
+		d := startDaemon(ctx, t, `{"default-restart-policy": {"Name": "always"}, "enforce-default-restart-policy": false}`)
+		apiClient := d.NewClientT(t)
+
+		cID := testContainer.Run(ctx, t, apiClient,
+			testContainer.WithName("test-explicit-restart"),
+			func(c *testContainer.TestContainerConfig) {
+				c.HostConfig.RestartPolicy = container.RestartPolicy{
+					Name:              container.RestartPolicyOnFailure,
+					MaximumRetryCount: 5,
+				}
+			},
+		)
+		defer apiClient.ContainerRemove(ctx, cID, client.ContainerRemoveOptions{Force: true})
+
+		inspect, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(inspect.Container.HostConfig.RestartPolicy.Name, container.RestartPolicyOnFailure))
+		assert.Check(t, is.Equal(inspect.Container.HostConfig.RestartPolicy.MaximumRetryCount, 5))
+	})
+
+	t.Run("enforcement prevents restart policy override", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
+
+		d := startDaemon(ctx, t, `{"default-restart-policy": {"Name": "no"}, "enforce-default-restart-policy": true}`)
+		apiClient := d.NewClientT(t)
+
+		_, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+			Config: &container.Config{
+				Image: "busybox",
+				Cmd:   []string{"top"},
+			},
+			HostConfig: &container.HostConfig{
+				RestartPolicy: container.RestartPolicy{
+					Name: container.RestartPolicyAlways,
+				},
+			},
+		})
+		assert.Check(t, is.ErrorContains(err, "restart policy override not allowed"))
+	})
+
+	t.Run("enforcement allows matching restart policy", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
+
+		d := startDaemon(ctx, t, `{"default-restart-policy": {"Name": "no"}, "enforce-default-restart-policy": true}`)
+		apiClient := d.NewClientT(t)
+
+		cID := testContainer.Run(ctx, t, apiClient,
+			testContainer.WithName("test-enforced-matching"),
+			testContainer.WithRestartPolicy(container.RestartPolicyDisabled),
+		)
+		defer apiClient.ContainerRemove(ctx, cID, client.ContainerRemoveOptions{Force: true})
+
+		inspect, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(inspect.Container.HostConfig.RestartPolicy.Name, container.RestartPolicyDisabled))
+	})
 }
