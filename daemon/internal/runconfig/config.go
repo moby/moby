@@ -15,24 +15,18 @@ import (
 // that cannot be done on the client, as only the daemon knows what is valid
 // for the platform.
 func DecodeCreateRequest(src io.Reader, si *sysinfo.SysInfo) (container.CreateRequest, error) {
-	w, err := decodeCreateRequest(src)
-	if err != nil {
-		return container.CreateRequest{}, err
-	}
-	if err := validateCreateRequest(w, si); err != nil {
-		return container.CreateRequest{}, err
-	}
-	return w, nil
-}
-
-// decodeCreateRequest decodes a json encoded [container.CreateRequest] struct
-// and sets some defaults.
-func decodeCreateRequest(src io.Reader) (container.CreateRequest, error) {
 	// TODO(thaJeztah): replace with httputils.ReadJSON ?
 	var w container.CreateRequest
 	if err := loadJSON(src, &w); err != nil {
 		return container.CreateRequest{}, err
 	}
+
+	return NormalizeCreateRequest(w, si)
+}
+
+// NormalizeCreateRequest sets defaults on a decoded [container.CreateRequest]
+// and validates it.
+func NormalizeCreateRequest(w container.CreateRequest, si *sysinfo.SysInfo) (container.CreateRequest, error) {
 	if w.Config == nil {
 		return container.CreateRequest{}, validationError("config cannot be empty in order to create a container")
 	}
@@ -58,6 +52,11 @@ func decodeCreateRequest(src io.Reader) (container.CreateRequest, error) {
 	if w.NetworkingConfig.EndpointsConfig == nil {
 		w.NetworkingConfig.EndpointsConfig = make(map[string]*network.EndpointSettings)
 	}
+
+	if err := validateCreateRequest(w, si); err != nil {
+		return container.CreateRequest{}, err
+	}
+
 	return w, nil
 }
 
