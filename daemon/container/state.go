@@ -49,6 +49,15 @@ type State struct {
 	stopWaiters       []chan<- StateStatus
 	removeOnlyWaiters []chan<- StateStatus
 
+	// deleted is set by SetRemoved, unlike removed, which a failed removal
+	// also sets.
+	deleted bool
+	// lastChange is the last status change, at statusChangedAt;
+	// statusSubscribers receive the next ones. They live in memory only.
+	lastChange        StateChange
+	statusChangedAt   time.Time
+	statusSubscribers []*statusSubscriber
+
 	// The libcontainerd reference fields are unexported to force consumers
 	// to access them through the getter methods with multi-valued returns
 	// so that they can't forget to nil-check: the code won't compile unless
@@ -242,74 +251,6 @@ func (s *State) SetExitCode(ec int) {
 	s.ExitCode = ec
 }
 
-// SetRunning sets the running state along with StartedAt time.
-func (s *State) SetRunning(ctr libcontainerdtypes.Container, tsk libcontainerdtypes.Task, start time.Time) {
-	s.setRunning(ctr, tsk, &start)
-}
-
-// SetRunningExternal sets the running state without setting the `StartedAt` time (used for containers not started by Docker instead of SetRunning).
-func (s *State) SetRunningExternal(ctr libcontainerdtypes.Container, tsk libcontainerdtypes.Task) {
-	s.setRunning(ctr, tsk, nil)
-}
-
-// setRunning sets the state of the container to "running".
-func (s *State) setRunning(ctr libcontainerdtypes.Container, tsk libcontainerdtypes.Task, start *time.Time) {
-	s.ErrorMsg = ""
-	s.Paused = false
-	s.Running = true
-	s.Restarting = false
-	if start != nil {
-		s.Paused = false
-	}
-	s.ExitCode = 0
-	s.ctr = ctr
-	s.task = tsk
-	if tsk != nil {
-		s.Pid = int(tsk.Pid())
-	} else {
-		s.Pid = 0
-	}
-	s.OOMKilled = false
-	if start != nil {
-		s.StartedAt = start.UTC()
-	}
-}
-
-// SetStopped sets the container state to "stopped" without locking.
-func (s *State) SetStopped(exitStatus *ExitStatus) {
-	s.Running = false
-	s.Paused = false
-	s.Restarting = false
-	s.Pid = 0
-	if exitStatus.ExitedAt.IsZero() {
-		s.FinishedAt = time.Now().UTC()
-	} else {
-		s.FinishedAt = exitStatus.ExitedAt
-	}
-	s.ExitCode = exitStatus.ExitCode
-
-	s.notifyAndClear(&s.stopWaiters)
-}
-
-// SetRestarting sets the container state to "restarting" without locking.
-// It also sets the container PID to 0.
-func (s *State) SetRestarting(exitStatus *ExitStatus) {
-	// we should consider the container running when it is restarting because of
-	// all the checks in docker around rm/stop/etc
-	s.Running = true
-	s.Restarting = true
-	s.Paused = false
-	s.Pid = 0
-	finishedAt := exitStatus.ExitedAt
-	if finishedAt.IsZero() {
-		finishedAt = time.Now().UTC()
-	}
-	s.FinishedAt = finishedAt
-	s.ExitCode = exitStatus.ExitCode
-
-	s.notifyAndClear(&s.stopWaiters)
-}
-
 // SetError sets the container's error state. This is useful when we want to
 // know the error that occurred when container transits to another state
 // when inspecting it
@@ -358,23 +299,11 @@ func (s *State) IsRestarting() bool {
 	return s.Restarting
 }
 
-// SetRemovalInProgress sets the container state as being removed.
-// It returns true if the container was already in that state.
-func (s *State) SetRemovalInProgress() bool {
-	s.Lock()
-	defer s.Unlock()
-	if s.RemovalInProgress {
-		return true
-	}
-	s.RemovalInProgress = true
-	return false
-}
-
 // ResetRemovalInProgress makes the RemovalInProgress state to false.
 func (s *State) ResetRemovalInProgress() {
 	s.Lock()
-	s.RemovalInProgress = false
-	s.Unlock()
+	defer s.Unlock()
+	s.change(func() { s.RemovalInProgress = false })
 }
 
 // IsRemovalInProgress returns whether the RemovalInProgress flag is set.
@@ -392,15 +321,27 @@ func (s *State) IsDead() bool {
 	return s.Dead
 }
 
-// SetRemoved assumes this container is already in the "dead" state and notifies all waiters.
+// SetRemoved assumes this container is already in the "dead" state and notifies all waiters
+// and state watchers.
 func (s *State) SetRemoved() {
-	s.SetRemovalError(nil)
+	s.Lock()
+	defer s.Unlock()
+	s.change(func() {
+		s.deleted = true
+		s.setRemovalError(nil)
+	})
 }
 
 // SetRemovalError is to be called in case a container remove failed.
 // It sets an error and notifies all waiters.
 func (s *State) SetRemovalError(err error) {
 	s.Lock()
+	defer s.Unlock()
+	s.setRemovalError(err)
+}
+
+// setRemovalError is SetRemovalError for a caller that holds the state lock.
+func (s *State) setRemovalError(err error) {
 	s.ErrorMsg = ""
 	if err != nil {
 		s.ErrorMsg = err.Error()
@@ -408,7 +349,6 @@ func (s *State) SetRemovalError(err error) {
 	s.removed = true
 	s.notifyAndClear(&s.removeOnlyWaiters)
 	s.notifyAndClear(&s.stopWaiters)
-	s.Unlock()
 }
 
 // Err returns an error if there is one.

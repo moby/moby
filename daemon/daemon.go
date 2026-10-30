@@ -438,7 +438,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 				baseLogger.WithError(err).Error("failed to save migrated container config to disk")
 			}
 
-			daemon.setStateCounter(c)
+			setStateCounter(c.ID, c.State.State())
 
 			logger := func(c *container.Container) *log.Entry {
 				return baseLogger.WithFields(log.Fields{
@@ -504,8 +504,10 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 					default:
 						// running
 						c.Lock()
-						c.State.Paused = false
-						daemon.setStateCounter(c)
+						if _, err := c.State.Transition(container.Transition{To: containertypes.StateRunning}); err != nil {
+							baseLogger.WithError(err).Error("failed to update paused container state")
+						}
+						setStateCounter(c.ID, c.State.State())
 						daemon.initHealthMonitor(c)
 						if err := c.CheckpointTo(context.TODO(), daemon.containersReplica); err != nil {
 							baseLogger.WithError(err).Error("failed to update paused container state")
@@ -529,7 +531,13 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 					} else {
 						ces.ExitCode = 255
 					}
-					c.State.SetStopped(&ces)
+					if _, err := c.State.Transition(container.Transition{
+						To:       containertypes.StateExited,
+						ExitCode: ces.ExitCode,
+						ExitedAt: ces.ExitedAt,
+					}); err != nil {
+						baseLogger.WithError(err).Error("failed to update stopped container state")
+					}
 					daemon.Cleanup(context.TODO(), c)
 					if err := c.CheckpointTo(context.TODO(), daemon.containersReplica); err != nil {
 						baseLogger.WithError(err).Error("failed to update stopped container state")
@@ -601,7 +609,9 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 				// be removed. So we put the container in the "dead"
 				// state and leave further processing up to them.
 				c.State.RemovalInProgress = false
-				c.State.Dead = true
+				if _, err := c.State.Transition(container.Transition{To: containertypes.StateDead}); err != nil {
+					baseLogger.WithError(err).Error("failed to update RemovalInProgress container state")
+				}
 				if err := c.CheckpointTo(context.TODO(), daemon.containersReplica); err != nil {
 					baseLogger.WithError(err).Error("failed to update RemovalInProgress container state")
 				} else {

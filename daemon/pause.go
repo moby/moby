@@ -5,8 +5,9 @@ import (
 	"fmt"
 
 	"github.com/containerd/log"
+	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
-	"github.com/moby/moby/v2/daemon/container"
+	containerpkg "github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/errdefs"
 )
 
@@ -21,7 +22,7 @@ func (daemon *Daemon) ContainerPause(name string) error {
 
 // containerPause pauses the container execution without stopping the process.
 // The execution can be resumed by calling containerUnpause.
-func (daemon *Daemon) containerPause(container *container.Container) error {
+func (daemon *Daemon) containerPause(container *containerpkg.Container) error {
 	container.Lock()
 	defer container.Unlock()
 
@@ -45,8 +46,11 @@ func (daemon *Daemon) containerPause(container *container.Container) error {
 		return fmt.Errorf("cannot pause container %s: %s", container.ID, err)
 	}
 
-	container.State.Paused = true
-	daemon.setStateCounter(container)
+	change, err := container.State.Transition(containerpkg.Transition{To: containertypes.StatePaused})
+	if err != nil {
+		return err
+	}
+	setStateCounter(container.ID, change.Current.Status)
 	daemon.updateHealthMonitor(container)
 	daemon.LogContainerEvent(container, events.ActionPause)
 

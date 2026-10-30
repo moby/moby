@@ -7,8 +7,9 @@ import (
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/containerd/v2/core/containers"
 	"github.com/containerd/log"
+	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
-	"github.com/moby/moby/v2/daemon/container"
+	containerpkg "github.com/moby/moby/v2/daemon/container"
 	mobyc8dstore "github.com/moby/moby/v2/daemon/containerd"
 	"github.com/moby/moby/v2/daemon/internal/libcontainerd"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
@@ -22,7 +23,7 @@ import (
 )
 
 // validateState verifies if the container is in a non-conflicting state.
-func validateState(ctr *container.Container) error {
+func validateState(ctr *containerpkg.Container) error {
 	ctr.Lock()
 	defer ctr.Unlock()
 
@@ -79,7 +80,7 @@ func (daemon *Daemon) ContainerStart(ctx context.Context, name string, checkpoin
 // container needs, such as storage and networking, as well as links
 // between containers. The container is left waiting for a signal to
 // begin running.
-func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore, container *container.Container, checkpoint string, checkpointDir string, resetRestartManager bool) (retErr error) {
+func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore, container *containerpkg.Container, checkpoint string, checkpointDir string, resetRestartManager bool) (retErr error) {
 	ctx, span := otel.Tracer("").Start(ctx, "daemon.containerStart", trace.WithAttributes(append(
 		labelsAsOTelAttributes(container.Config.Labels),
 		attribute.String("container.ID", container.ID),
@@ -254,9 +255,17 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 	}
 
 	container.HasBeenManuallyRestarted = false
-	container.State.SetRunning(ctr, tsk, startupTime)
+	change, err := container.State.Transition(containerpkg.Transition{
+		To:        containertypes.StateRunning,
+		Container: ctr,
+		Task:      tsk,
+		StartedAt: startupTime,
+	})
+	if err != nil {
+		return err
+	}
 	container.HasBeenStartedBefore = true
-	daemon.setStateCounter(container)
+	setStateCounter(container.ID, change.Current.Status)
 
 	daemon.initHealthMonitor(container)
 
@@ -273,7 +282,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 
 // Cleanup releases any network resources allocated to the container along with any rules
 // around how containers are linked together.  It also unmounts the container's root filesystem.
-func (daemon *Daemon) Cleanup(ctx context.Context, container *container.Container) {
+func (daemon *Daemon) Cleanup(ctx context.Context, container *containerpkg.Container) {
 	// Microsoft HCS containers get in a bad state if host resources are
 	// released while the container still exists.
 	if ctr, ok := container.State.C8dContainer(); ok {

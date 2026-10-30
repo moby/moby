@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/containerd/log"
+	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/container"
 )
@@ -36,8 +37,11 @@ func (daemon *Daemon) containerUnpause(ctr *container.Container) error {
 		return fmt.Errorf("Cannot unpause container %s: %s", ctr.ID, err)
 	}
 
-	ctr.State.Paused = false
-	daemon.setStateCounter(ctr)
+	change, err := ctr.State.Transition(container.Transition{To: containertypes.StateRunning})
+	if err != nil {
+		return err
+	}
+	setStateCounter(ctr.ID, change.Current.Status)
 	daemon.updateHealthMonitor(ctr)
 	daemon.LogContainerEvent(ctr, events.ActionUnPause)
 
