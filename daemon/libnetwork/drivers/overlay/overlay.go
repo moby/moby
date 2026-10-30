@@ -21,8 +21,12 @@ const (
 	NetworkType  = "overlay"
 	vethPrefix   = "veth"
 	vethLen      = len(vethPrefix) + 7
-	vxlanEncap   = 50
 	secureOption = "encrypted"
+
+	// VXLAN encapsulation overhead: inner Ethernet header (14) + outer IP
+	// header (20 for IPv4, 40 for IPv6) + UDP header (8) + VXLAN header (8).
+	vxlanEncap  = 50
+	vxlan6Encap = 70
 )
 
 var (
