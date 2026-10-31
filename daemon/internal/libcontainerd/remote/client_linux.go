@@ -50,6 +50,21 @@ func getSpecUser(ociSpec *specs.Spec) (int, int) {
 	return uid, gid
 }
 
+func getIOUser(ociSpec *specs.Spec) (int, int) {
+	if ociSpec.Process == nil {
+		return getSpecUser(ociSpec)
+	}
+
+	for _, ns := range ociSpec.Linux.Namespaces {
+		if ns.Type == specs.UserNamespace {
+			return hostIDFromMap(ociSpec.Process.User.UID, ociSpec.Linux.UIDMappings),
+				hostIDFromMap(ociSpec.Process.User.GID, ociSpec.Linux.GIDMappings)
+		}
+	}
+
+	return 0, 0
+}
+
 // WithBundle creates the bundle for the container
 func WithBundle(bundleDir string, ociSpec *specs.Spec) containerd.NewContainerOpts {
 	return func(ctx context.Context, client *containerd.Client, c *containers.Container) error {
