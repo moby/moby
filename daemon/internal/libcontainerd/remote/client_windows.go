@@ -96,3 +96,8 @@ func getSpecUser(ociSpec *specs.Spec) (int, int) {
 	// TODO: (containerd): Not implemented, but don't error.
 	return 0, 0
 }
+
+func getIOUser(ociSpec *specs.Spec) (int, int) {
+	// Windows does not use the Linux containerd runc I/O ownership options.
+	return 0, 0
+}
