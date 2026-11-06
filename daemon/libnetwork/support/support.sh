@@ -78,7 +78,15 @@ echo "Overlay network configuration"
 for networkID in $(${DOCKER} network ls --no-trunc --filter driver=overlay -q) "ingress_sbox"; do
 	echo "nnn Network ${networkID}"
 	if [ "${networkID}" != "ingress_sbox" ]; then
-		nspath=($(ls ${NSDIR}/*${networkID:0:9}*))
+		# Daemons up to v29.9 keep the network's sandbox in ${NSDIR},
+		# named after a prefix of the network ID; later daemons keep it
+		# in ${NSDIR}/overlay.
+		nspath=()
+		for i in ${NSDIR}/overlay/0-${networkID} ${NSDIR}/*${networkID:0:9}*; do
+			if [ -e "${i}" ]; then
+				nspath+=("${i}")
+			fi
+		done
 		inspect_output=$(${DOCKER} network inspect ${NETINSPECT_VERBOSE_SUPPORT} ${networkID})
 		echo "$inspect_output"
 		check_ip_overlap $inspect_output
