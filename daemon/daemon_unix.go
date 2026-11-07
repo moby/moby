@@ -888,7 +888,13 @@ func configureNetworking(ctx context.Context, controller *libnetwork.Controller,
 		if err = n.Delete(); err != nil {
 			return errors.Wrapf(err, `could not delete the default %q network`, network.NetworkBridge)
 		}
-		if len(conf.NetworkConfig.DefaultAddressPools.Value()) > 0 && !conf.LiveRestoreEnabled {
+		// The bridge driver doesn't delete the default bridge's device when the
+		// network is deleted, and initBridgeDriver would select docker0's existing
+		// address. So, remove docker0 to get a subnet from default-address-pools.
+		// The daemon doesn't create docker0 when it's given a user-managed bridge
+		// (--bridge), so leave docker0 alone in that case. With --bridge=none,
+		// docker0 is removed below instead.
+		if len(conf.NetworkConfig.DefaultAddressPools.Value()) > 0 && !conf.LiveRestoreEnabled && conf.BridgeConfig.Iface == "" {
 			removeDefaultBridgeInterface()
 		}
 	}
