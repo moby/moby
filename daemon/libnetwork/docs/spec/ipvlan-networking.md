@@ -1,22 +1,29 @@
 ipvlan networking surface area
 ==============================
 
-Scope: the ipvlan network driver, as observable from outside the daemon. Every expectation here
-holds on Linux nodes. A row about `POST /networks/create` or `docker network create` holds for a
-network that is not Swarm-scoped.
+Scope: the ipvlan network driver, as observable from outside the daemon.
+Every expectation here holds on Linux nodes.
+A row about `POST /networks/create` or `docker network create`
+holds for a network that is not Swarm-scoped.
 
-This spec is a stub. It holds expectations that belong to the ipvlan driver. They come from reviews
-of the specs' coverage. It is not yet a complete account of the ipvlan driver.
-[README.md](README.md) gives its conventions for tiers, vantage points and dependencies.
-[network-common.md](network-common.md) covers what every network driver must do, including the
-rows for a driver that does not accept an endpoint MAC address.
+This spec is a stub.
+It holds expectations that belong to the ipvlan driver.
+They come from reviews of the specs' coverage.
+It is not yet a complete account of the ipvlan driver.
+[README.md](README.md) gives its conventions
+for tiers, vantage points and dependencies.
+[network-common.md](network-common.md)
+covers what every network driver must do,
+including the rows for a driver that does not accept an endpoint MAC address.
 
 ## Host requirements
 
-The conventions for this section are in [README.md](README.md#host-requirements). The ipvlan driver
-also needs the requirements in [network-common.md](network-common.md#host-requirements). The
-daemon needs Linux 4.2 or later for an ipvlan network. It checks the kernel version, and does not
-probe for ipvlan links. The check guards against defects in the L2 mode of ipvlan before Linux 4.2,
+The conventions for this section are in [README.md](README.md#host-requirements).
+The ipvlan driver also needs the requirements
+in [network-common.md](network-common.md#host-requirements).
+The daemon needs Linux 4.2 or later for an ipvlan network.
+It checks the kernel version, and does not probe for ipvlan links.
+The check guards against defects in the L2 mode of ipvlan before Linux 4.2,
 which a probe cannot detect.
 
 ### Kernel facilities

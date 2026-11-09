@@ -1,30 +1,45 @@
 Bridge networking surface area
 ==============================
 
-Scope: the bridge network driver, and the parts of the daemon's firewall integration that are not
-specific to Swarm. This spec describes them as observable from outside the daemon. Every expectation
-here holds on Linux nodes. A row about `POST /networks/create` or `docker network create` holds for
-a network that is not Swarm-scoped. For a Swarm-scoped network, the node in a row is the node of the
-container that the row names. A row about reaching a published port at an address of the node holds
-on a network whose gateway mode for that address's family is not `routed`, and without
-`com.docker.network.bridge.host_binding_ipv4`, unless the row names them. A row about IPv4 traffic
-through the network's gateway, such as egress, a published port or a default route, holds for a
-network without `com.docker.network.bridge.inhibit_ipv4`, unless the row names it.
-[swarm-networking.md](swarm-networking.md) covers what is specific to Swarm-scoped bridge networks
-([§2.2](swarm-networking.md#22-swarm-scoped-networks)) and to `docker_gwbridge`
-([§8.1](swarm-networking.md#81-gateway-network)).
+Scope: the bridge network driver,
+and the parts of the daemon's firewall integration
+that are not specific to Swarm.
+This spec describes them as observable from outside the daemon.
+Every expectation here holds on Linux nodes.
+A row about `POST /networks/create` or `docker network create`
+holds for a network that is not Swarm-scoped.
+For a Swarm-scoped network,
+the node in a row is the node of the container that the row names.
+A row about reaching a published port at an address of the node
+holds on a network
+whose gateway mode for that address's family is not `routed`,
+and without `com.docker.network.bridge.host_binding_ipv4`,
+unless the row names them.
+A row about IPv4 traffic through the network's gateway,
+such as egress, a published port or a default route,
+holds for a network without `com.docker.network.bridge.inhibit_ipv4`,
+unless the row names it.
+[swarm-networking.md](swarm-networking.md)
+covers what is specific to Swarm-scoped bridge networks
+([§2.2](swarm-networking.md#22-swarm-scoped-networks))
+and to `docker_gwbridge` ([§8.1](swarm-networking.md#81-gateway-network)).
 
-This spec is a stub. It holds expectations that belong to the bridge driver. They come from the
-work on the [Swarm networking surface area](swarm-networking.md) and from reviews of the specs'
-coverage. This spec is not yet a complete account of the bridge driver. [README.md](README.md)
-gives its conventions for tiers, vantage points and dependencies.
-[network-common.md](network-common.md) covers what every network driver must do, such as naming an
-endpoint's interface.
+This spec is a stub.
+It holds expectations that belong to the bridge driver.
+They come from the work on the [Swarm networking surface area](swarm-networking.md)
+and from reviews of the specs' coverage.
+This spec is not yet a complete account of the bridge driver.
+[README.md](README.md) gives its conventions
+for tiers, vantage points and dependencies.
+[network-common.md](network-common.md)
+covers what every network driver must do,
+such as naming an endpoint's interface.
 
 ## Host requirements
 
-The conventions for this section are in [README.md](README.md#host-requirements). IPv6 is not a
-requirement: [§3.6](#36-hosts-without-ipv6) states what holds on a host without it.
+The conventions for this section are in [README.md](README.md#host-requirements).
+IPv6 is not a requirement:
+[§3.6](#36-hosts-without-ipv6) states what holds on a host without it.
 
 ### Kernel facilities
 
@@ -43,7 +58,8 @@ requirement: [§3.6](#36-hosts-without-ipv6) states what holds on a host without
 | `ip6tables`, accepting the same tables, targets and matches | The iptables backend, with the daemon option `ip6tables` true | [§1](#1-firewall-anchors--host-integration), [§3](#3-data-path) | The [§1.4](#14-firewall-backend-and-firewalld) rows about a host without the `ip6tables` command. No row pins the tables, targets and matches for IPv6: the reference rulesets in [§1.5](#15-rule-content) are for IPv4 only. |
 | `nft` | The nftables backend | [§1](#1-firewall-anchors--host-integration), [§3](#3-data-path) | The [§1.4](#14-firewall-backend-and-firewalld) row about a host without the `nft` command |
 
-The daemon does not depend on which implementation of `iptables` and `ip6tables` the host has.
+The daemon does not depend
+on which implementation of `iptables` and `ip6tables` the host has.
 The kernel options that the programs need depend on that implementation:
 
 | Program | Implementation | Kernel options |
@@ -66,42 +82,52 @@ The kernel options that the programs need depend on that implementation:
 
 ## 1. Firewall anchors & host integration
 
-The content of Moby's firewall rules is not an interface. A backend change replaces exactly this
-content. [§1.5](#15-rule-content) pins it at tier C only. Two things are interfaces. They are the
-anchors of this section:
+The content of Moby's firewall rules is not an interface.
+A backend change replaces exactly this content.
+[§1.5](#15-rule-content) pins it at tier C only.
+Two things are interfaces.
+They are the anchors of this section:
 
-1. The `DOCKER-USER` iptables chain. Operators attach rules to it. The documentation names it as
-   the place to put policy that survives daemon restarts. The daemon never deletes or modifies its
-   contents.
-2. The hooks and priorities of the bridge driver's nftables base chains. They decide the evaluation
-   order relative to everything else on the host, such as firewalld, kube-proxy or an operator's
-   own ruleset. A changed priority silently changes who sees a packet first.
+1. The `DOCKER-USER` iptables chain.
+   Operators attach rules to it.
+   The documentation names it as the place to put policy
+   that survives daemon restarts.
+   The daemon never deletes or modifies its contents.
+2. The hooks and priorities of the bridge driver's nftables base chains.
+   They decide the evaluation order relative to everything else on the host,
+   such as firewalld, kube-proxy or an operator's own ruleset.
+   A changed priority silently changes who sees a packet first.
 
-No other name is an anchor. Moby's other iptables chains are not anchors, and no name in nftables
-is an anchor. An operator's rules can reach Moby's nftables chains only if they are programmed into
-Moby's own tables. That is not a supported configuration.
+No other name is an anchor.
+Moby's other iptables chains are not anchors,
+and no name in nftables is an anchor.
+An operator's rules can reach Moby's nftables chains
+only if they are programmed into Moby's own tables.
+That is not a supported configuration.
 
-IPv4 is an enabled IP version while the daemon's `iptables` option is true. IPv6 is an enabled IP
-version while the daemon's `ip6tables` option is true. This applies under either firewall backend,
+IPv4 is an enabled IP version while the daemon's `iptables` option is true.
+IPv6 is an enabled IP version while the daemon's `ip6tables` option is true.
+This applies under either firewall backend,
 and whether or not `ipv6` is set.
 
 ### 1.1 Base-chain priorities
 
-These rows cover the host's network namespace only. The specs do not assert the rules that the
-daemon programs in a container's network namespace
+These rows cover the host's network namespace only.
+The specs do not assert the rules
+that the daemon programs in a container's network namespace
 ([container-dns.md](container-dns.md#deliberately-not-asserted)).
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
 | The nftables backend | For each enabled IP version, the bridge driver's nftables table `docker-bridges` in that version's family has exactly five base chains. They are on the prerouting hook at raw priority (−300) and at dstnat priority (−100), on the output hook at dstnat priority (−100), on the forward hook at filter priority (0), and on the postrouting hook at srcnat priority (100). | C\* | `node` | `none` |
 
-\* These expectations are tier C while the nftables backend is experimental. They become tier B
-when the nftables backend is a supported feature.
+\* These expectations are tier C while the nftables backend is experimental.
+They become tier B when the nftables backend is a supported feature.
 
 ### 1.2 `DOCKER-USER`
 
-`DOCKER-USER` belongs to the iptables backend. The rows in this section hold under the iptables
-backend.
+`DOCKER-USER` belongs to the iptables backend.
+The rows in this section hold under the iptables backend.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -112,24 +138,35 @@ backend.
 
 ### 1.3 Cross-generation cleanup
 
-This section is about a node that runs release *N−1* and is then upgraded to *N*. After the upgrade,
-the node can also use a different firewall backend. A generation is the firewall state that one
-release creates under one firewall backend. A previous generation is such state that a daemon left
-on the node before the current start of the daemon. After the upgrade, the node must not have two
-generations of live rules. The rows in this section hold for each enabled IP version. The built-in
-chains are the chains that iptables itself provides in each table. Examples are the filter table's
-`FORWARD` chain and the nat table's `PREROUTING` chain.
+This section is about a node that runs release *N−1*
+and is then upgraded to *N*.
+After the upgrade, the node can also use a different firewall backend.
+A generation is the firewall state
+that one release creates under one firewall backend.
+A previous generation is such state that a daemon left on the node
+before the current start of the daemon.
+After the upgrade, the node must not have two generations of live rules.
+The rows in this section hold for each enabled IP version.
+The built-in chains are the chains that iptables itself provides in each table.
+Examples are
+the filter table's `FORWARD` chain and the nat table's `PREROUTING` chain.
 
-Cleanup finds the chains and tables of a previous generation by their names. Thus the daemon itself
-needs these names, but they are not an interface for operators. A rename thus needs a cleanup path
-for the old name. Without one, an upgraded node keeps the rules of the previous generation.
+Cleanup finds the chains and tables of a previous generation by their names.
+Thus the daemon itself needs these names,
+but they are not an interface for operators.
+A rename thus needs a cleanup path for the old name.
+Without one, an upgraded node keeps the rules of the previous generation.
 
-In this section, the daemon restores a network, endpoint or port binding when it sets it up again
-during its start. It restores each bridge network that exists at the start. With `live-restore`
-true, it also restores the endpoints and port bindings of the containers that are still running.
+In this section,
+the daemon restores a network, endpoint or port binding
+when it sets it up again during its start.
+It restores each bridge network that exists at the start.
+With `live-restore` true,
+it also restores the endpoints and port bindings of the containers
+that are still running.
 
-A daemon of one release does not show a rename of a previous release's names. The C row that pins
-the names that cleanup needs fails on such a rename.
+A daemon of one release does not show a rename of a previous release's names.
+The C row that pins the names that cleanup needs fails on such a rename.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -144,8 +181,8 @@ the names that cleanup needs fails on such a rename.
 | The filter table's `FORWARD` chain with policy DROP | On the first start after a switch from iptables to nftables, the daemon logs a warning that contains `Network traffic for published ports may be dropped, iptables chain FORWARD has policy DROP.` | C\* | `log` | `none` |
 | | After a switch from iptables to nftables, a DROP rule that an operator placed in `DOCKER-USER` still drops the forwarded traffic that it matches. This includes traffic to published ports. | C\* | `client` | `os` |
 
-\* These expectations are tier C while the nftables backend is experimental. They become tier B
-when the nftables backend is a supported feature.
+\* These expectations are tier C while the nftables backend is experimental.
+They become tier B when the nftables backend is a supported feature.
 
 ### 1.4 Firewall backend and firewalld
 
@@ -167,13 +204,14 @@ when the nftables backend is a supported feature.
 | A daemon with the iptables backend and `ip6tables` true, on a host without the `ip6tables` command | `POST /networks/create` for a bridge network with `EnableIPv6` set responds with a 4xx or 5xx status. The network is not created. | B | `api` | `none` |
 | A daemon with the nftables backend, on a host without the `nft` command | The daemon does not start. The daemon log contains `failed to find nft tool`. See [Host requirements](#host-requirements). | C\* | `log` | `none` |
 
-\* This expectation is tier C while the nftables backend is experimental. It becomes tier B when
-the nftables backend is a supported feature.
+\* This expectation is tier C while the nftables backend is experimental.
+It becomes tier B when the nftables backend is a supported feature.
 
 ### 1.5 Rule content
 
-The rows in this subsection pin the content of the bridge driver's rules, so that a change to it is
-visible in review. A deliberate change to this content is not a breakage.
+The rows in this subsection pin the content of the bridge driver's rules,
+so that a change to it is visible in review.
+A deliberate change to this content is not a breakage.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -203,7 +241,8 @@ visible in review. A deliberate change to this content is not a breakage.
 
 ### 3.1 Isolation
 
-The rows in this subsection hold with `userland-proxy` true and with `userland-proxy` false,
+The rows in this subsection hold
+with `userland-proxy` true and with `userland-proxy` false,
 unless a row names a value.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
@@ -225,7 +264,8 @@ unless a row names a value.
 
 ### 3.2 Port publishing
 
-The rows in this subsection hold with `userland-proxy` true and with `userland-proxy` false,
+The rows in this subsection hold
+with `userland-proxy` true and with `userland-proxy` false,
 unless a row names a value.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
@@ -269,9 +309,12 @@ unless a row names a value.
 
 ### 3.5 Default gateway
 
-[network-common.md §3](network-common.md#3-default-gateway) covers which endpoint gives a container
-its default route, for every network driver. The rows in this subsection hold with `userland-proxy`
-true and with `userland-proxy` false, unless a row names a value.
+[network-common.md §3](network-common.md#3-default-gateway)
+covers which endpoint gives a container its default route,
+for every network driver.
+The rows in this subsection hold
+with `userland-proxy` true and with `userland-proxy` false,
+unless a row names a value.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -279,8 +322,9 @@ true and with `userland-proxy` false, unless a row names a value.
 
 ### 3.6 Hosts without IPv6
 
-These rows hold on a Linux host booted with `ipv6.disable=1`. Such a host has no IPv6 stack, so it
-does not have `/proc/sys/net/ipv6`.
+These rows hold on a Linux host booted with `ipv6.disable=1`.
+Such a host has no IPv6 stack,
+so it does not have `/proc/sys/net/ipv6`.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -304,13 +348,18 @@ does not have `/proc/sys/net/ipv6`.
 ## Deliberately not asserted
 
 - The counters of Moby's own rules.
-- The content of Moby's own chains and tables, and their names, outside the configurations that
-  [§1.5](#15-rule-content) pins. The exceptions are `DOCKER-USER` and the names that
-  [§1.3](#13-cross-generation-cleanup) pins for cleanup. A backend change replaces exactly this
-  content. A B row asserts the packet-level effect of the rules, or an anchor in
-  [§1](#1-firewall-anchors--host-integration), and never the content.
-- Which packet-filtering technology is in use, except where
-  [§1](#1-firewall-anchors--host-integration) pins a backend-specific anchor.
-- Whether an operator's `DOCKER-USER` rules survive a firewalld reload. That is firewalld's
-  behavior. After a reload, the daemon recreates the chain and the jump to it. It does not restore
-  the chain's rules.
+- The content of Moby's own chains and tables, and their names,
+  outside the configurations that [§1.5](#15-rule-content) pins.
+  The exceptions are `DOCKER-USER` and the names
+  that [§1.3](#13-cross-generation-cleanup) pins for cleanup.
+  A backend change replaces exactly this content.
+  A B row asserts the packet-level effect of the rules,
+  or an anchor in [§1](#1-firewall-anchors--host-integration),
+  and never the content.
+- Which packet-filtering technology is in use,
+  except where [§1](#1-firewall-anchors--host-integration)
+  pins a backend-specific anchor.
+- Whether an operator's `DOCKER-USER` rules survive a firewalld reload.
+  That is firewalld's behavior.
+  After a reload, the daemon recreates the chain and the jump to it.
+  It does not restore the chain's rules.
