@@ -22,6 +22,7 @@ import (
 	v2 "github.com/moby/moby/v2/daemon/pkg/plugin/v2"
 	"github.com/moby/moby/v2/daemon/pkg/registry"
 	"github.com/moby/moby/v2/pkg/authorization"
+	"github.com/moby/moby/v2/pkg/sysinfo"
 	"github.com/moby/pubsub"
 	"github.com/moby/sys/atomicwriter"
 	"github.com/opencontainers/go-digest"
@@ -69,6 +70,10 @@ type ManagerConfig struct {
 	ExecRoot           string
 	CreateExecutor     ExecutorCreator
 	AuthzMiddleware    *authorization.Middleware
+
+	// RawSysInfo returns the daemon's system information, used to adjust
+	// the plugin's runtime spec to the host's capabilities. Optional.
+	RawSysInfo func() (*sysinfo.SysInfo, error)
 }
 
 // ExecutorCreator is used in the manager config to pass in an `Executor`
