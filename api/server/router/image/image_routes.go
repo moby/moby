@@ -100,6 +100,8 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 
 		// For a pull it is not an error if no auth was given. Ignore invalid
 		// AuthConfig to increase compatibility with the existing API.
+		//
+		// TODO(thaJeztah): accept empty values but return an error when failing to decode.
 		authConfig, _ := registry.DecodeAuthConfig(r.Header.Get(registry.AuthHeader))
 		progressErr = ir.backend.PullImage(ctx, ref, platform, metaHeaders, authConfig, output)
 	} else { // import
@@ -167,16 +169,11 @@ func (ir *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter
 
 	var authConfig *registry.AuthConfig
 	if authEncoded := r.Header.Get(registry.AuthHeader); authEncoded != "" {
-		// the new format is to handle the authConfig as a header. Ignore invalid
-		// AuthConfig to increase compatibility with the existing API.
+		// Handle the authConfig as a header, but ignore invalid AuthConfig
+		// to increase compatibility with the existing API.
+		//
+		// TODO(thaJeztah): accept empty values but return an error when failing to decode.
 		authConfig, _ = registry.DecodeAuthConfig(authEncoded)
-	} else {
-		// the old format is supported for compatibility if there was no authConfig header
-		var err error
-		authConfig, err = registry.DecodeAuthConfigBody(r.Body)
-		if err != nil {
-			return errors.Wrap(err, "bad parameters and missing X-Registry-Auth")
-		}
 	}
 
 	output := ioutils.NewWriteFlusher(w)
