@@ -16,6 +16,13 @@ func (i *ImageService) Changes(ctx context.Context, ctr *container.Container) ([
 	if rwl == nil {
 		return nil, fmt.Errorf("RWLayer is unexpectedly nil for container %s", ctr.ID)
 	}
+	// Keep the parent view from being garbage collected while it is in use.
+	ctx, release, err := i.withLease(ctx, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create lease for diff: %w", err)
+	}
+	defer release()
+
 	snapshotter := i.client.SnapshotService(ctr.Driver)
 	info, err := snapshotter.Stat(ctx, ctr.ID)
 	if err != nil {
@@ -24,7 +31,10 @@ func (i *ImageService) Changes(ctx context.Context, ctr *container.Container) ([
 
 	id := stringid.GenerateRandomID()
 	parentViewKey := ctr.ID + "-parent-view-" + id
-	imageMounts, _ := snapshotter.View(ctx, parentViewKey, info.Parent)
+	imageMounts, err := snapshotter.View(ctx, parentViewKey, info.Parent)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create parent view: %w", err)
+	}
 
 	defer func() {
 		if err := snapshotter.Remove(ctx, parentViewKey); err != nil {
