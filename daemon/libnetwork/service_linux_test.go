@@ -209,9 +209,8 @@ func TestLoadBalancerSandboxHasNoResolver(t *testing.T) {
 // ports must reach it over IPv4.
 func TestIngressSandboxGatewayNoIPv6(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	c, err := New(t.Context(), config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
+	c, err := New(t.Context(), libnetworkutils.OptionTempNetnsDir(t), config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
 	assert.NilError(t, err)
-	defer c.Stop()
 	assert.NilError(t, c.drvRegistry.RegisterDriver(gatewaylessDriverName, gatewaylessDriver{},
 		driverapi.Capability{DataScope: scope.Global}))
 
