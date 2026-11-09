@@ -18,6 +18,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/jsonstream"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/internal/progress"
@@ -278,7 +279,7 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		if !output.Flushed() {
 			return err
 		}
-		_, err = output.Write(streamformatter.FormatError(err))
+		_, err = output.Write(formatBuildError(err))
 		// don't log broken pipe errors as this is the normal case when a client aborts.
 		if err != nil && !errors.Is(err, syscall.EPIPE) {
 			log.G(ctx).WithError(err).Warn("could not write error response")
@@ -328,6 +329,22 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		_, _ = fmt.Fprintln(streamformatter.NewStdoutWriter(output), imgID)
 	}
 	return nil
+}
+
+// formatBuildError preserves the legacy build error format, where Code represents
+// a container exit code rather than an HTTP status code. Unlike other streaming
+// endpoints, build errors must not automatically include an HTTP status code,
+// because existing clients use this field as the CLI exit status.
+//
+// Also see;
+// https://github.com/moby/moby/blob/docker-v29.9.3/daemon/builder/dockerfile/dispatchers.go#L384-L399
+// https://github.com/moby/moby/commit/e0ef11a4c2c6789e08b61df082b5b9aa70898e7a / https://github.com/moby/moby/pull/16147
+func formatBuildError(err error) []byte {
+	jsonError, ok := errors.AsType[*jsonstream.Error](err)
+	if !ok {
+		jsonError = &jsonstream.Error{Message: err.Error()}
+	}
+	return streamformatter.FormatError(jsonError)
 }
 
 func getAuthConfigs(header http.Header) map[string]registry.AuthConfig {
