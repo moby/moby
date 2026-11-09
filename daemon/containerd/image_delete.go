@@ -205,7 +205,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, options
 func (i *ImageService) deleteImagePlatforms(ctx context.Context, img *c8dimages.Image, imgID image.ID, platformsToDel []ocispec.Platform) ([]imagetypes.DeleteResponse, error) {
 	var accumulatedResponses []imagetypes.DeleteResponse
 	for _, p := range platformsToDel {
-		responses, err := i.deleteImagePlatformByImageID(ctx, img, imgID, &p)
+		responses, err := i.deleteImagePlatformByImageID(ctx, img, imgID, p)
 		if err != nil {
 			return nil, fmt.Errorf("failed to delete platform %s for image %s: %w", platforms.Format(p), imgID.String(), err)
 		}
@@ -214,8 +214,8 @@ func (i *ImageService) deleteImagePlatforms(ctx context.Context, img *c8dimages.
 	return accumulatedResponses, nil
 }
 
-func (i *ImageService) deleteImagePlatformByImageID(ctx context.Context, img *c8dimages.Image, imgID image.ID, platform *ocispec.Platform) ([]imagetypes.DeleteResponse, error) {
-	pm := platforms.OnlyStrict(*platform)
+func (i *ImageService) deleteImagePlatformByImageID(ctx context.Context, img *c8dimages.Image, imgID image.ID, platform ocispec.Platform) ([]imagetypes.DeleteResponse, error) {
+	pm := platforms.OnlyStrict(platform)
 	if img == nil {
 		// Find any image with the same target
 		// We're deleting by digest anyway so it doesn't matter - we just
