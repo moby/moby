@@ -39,7 +39,14 @@ func FromStatusCode(err error, statusCode int) error {
 	}
 	errDef := errhttp.ToNative(statusCode)
 	if cerrdefs.IsUnknown(errDef) {
-		errDef = cerrdefs.ErrUnknown
+		switch {
+		case statusCode >= http.StatusBadRequest && statusCode < http.StatusInternalServerError:
+			errDef = cerrdefs.ErrInvalidArgument
+		case statusCode >= http.StatusInternalServerError && statusCode < 600:
+			errDef = cerrdefs.ErrInternal
+		default:
+			errDef = cerrdefs.ErrUnknown
+		}
 	}
 	return &httpError{
 		err:    err,

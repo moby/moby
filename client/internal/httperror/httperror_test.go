@@ -80,17 +80,17 @@ func TestFromStatusCode(t *testing.T) {
 		{
 			name:       "unknown client status",
 			statusCode: 499,
-			wantError:  cerrdefs.ErrUnknown,
+			wantError:  cerrdefs.ErrInvalidArgument,
 		},
 		{
 			name:       "unknown server status",
 			statusCode: 599,
-			wantError:  cerrdefs.ErrUnknown,
+			wantError:  cerrdefs.ErrInternal,
 		},
 		{
 			name:       "invalid status",
 			statusCode: 600,
-			wantError:  wrapped,
+			wantError:  cerrdefs.ErrUnknown,
 		},
 	}
 
