@@ -96,7 +96,7 @@ jobs:
               'area/docs': anyNonVendorFile('api/docs/*.yaml', 'docs/**', '**/*.md', 'man/**'),
               'area/dependencies': files.every((f) => matches(f, ['go.mod', 'go.sum', 'vendor/**'])),
               'area/ci': anyFile('.github/**', 'hack/validate/**', '.golangci.yml'),
-              'platform/windows': allNonVendorFiles('**/*_windows.go', 'Dockerfile.windows', 'daemon/graphdriver/windows/**'),
+              'platform/windows': allNonVendorFiles('**/*_windows.go', '**/*_windows_test.go', 'Dockerfile.windows', 'daemon/graphdriver/windows/**'),
               'impact/changelog': anyFile('api/docs/CHANGELOG.md'),
             }).filter(([label, matched]) => matched && !current.has(label)).map(([label]) => label);
             if (labels.length === 0) {
