@@ -1,36 +1,33 @@
 Container DNS surface area
 ==========================
 
-Scope: name resolution inside a container on a user-defined network, whatever the network's
-driver. This covers the `/etc/resolv.conf` that the daemon writes for the container and the
-embedded DNS resolver behind it, as observable from outside the daemon.
+Scope: name resolution inside a container on a user-defined network, whatever the network's driver.
+This covers the `/etc/resolv.conf` that the daemon writes for the container and the embedded DNS resolver behind it, as observable from outside the daemon.
 
-This is a stub. It holds expectations that do not depend on any one driver. They come from the
-work on the [Swarm networking surface area](swarm-networking.md) and from reviews of the specs'
-coverage. It is not yet a complete account. Its conventions for tiers, vantage points and
-dependencies are in [README.md](README.md).
+This is a stub.
+It holds expectations that do not depend on any one driver.
+They come from the work on the [Swarm networking surface area](swarm-networking.md) and from reviews of the specs' coverage.
+It is not yet a complete account.
+Its conventions for tiers, vantage points and dependencies are in [README.md](README.md).
 
-A container sends its DNS queries to the embedded DNS resolver, which is a DNS server that the
-daemon runs for the container. The rows state what the embedded resolver answers, and what it
-forwards to upstream nameservers. A name resolves to an address when the embedded resolver answers a
-DNS query for the name with that address. A container has external access when its default route is
-on a network that is not `internal`, and replies to its egress traffic reach it. On a bridge network
-with `com.docker.network.bridge.enable_ip_masquerade` set to `false`, replies can fail to reach it
-([bridge-networking.md §3.3](bridge-networking.md#33-egress)). The host's `resolv.conf` is the
-`/etc/resolv.conf` that the daemon reads, even on a host that runs systemd-resolved.
+A container sends its DNS queries to the embedded DNS resolver, which is a DNS server that the daemon runs for the container.
+The rows state what the embedded resolver answers, and what it forwards to upstream nameservers.
+A name resolves to an address when the embedded resolver answers a DNS query for the name with that address.
+A container has external access when its default route is on a network that is not `internal`, and replies to its egress traffic reach it.
+On a bridge network with `com.docker.network.bridge.enable_ip_masquerade` set to `false`, replies can fail to reach it ([bridge-networking.md §3.3](bridge-networking.md#33-egress)).
+The host's `resolv.conf` is the `/etc/resolv.conf` that the daemon reads, even on a host that runs systemd-resolved.
 
-On Linux nodes, the containers that follow do not use the embedded resolver, and nothing here
-applies to them, other than the rows whose state names the default bridge:
+On Linux nodes, the containers that follow do not use the embedded resolver, and nothing here applies to them, other than the rows whose state names the default bridge:
 
 - A container attached only to the default bridge network.
 - A container that uses the host's network.
 
 ## Host requirements
 
-These requirements hold on Linux nodes. The conventions for this section are in
-[README.md](README.md#host-requirements). The embedded resolver needs NAT rules in the container's
-network namespace under the active firewall backend. It needs them whether or not the daemon's
-`iptables` setting is true.
+These requirements hold on Linux nodes.
+The conventions for this section are in [README.md](README.md#host-requirements).
+The embedded resolver needs NAT rules in the container's network namespace under the active firewall backend.
+It needs them whether or not the daemon's `iptables` setting is true.
 
 ### Kernel facilities
 
@@ -45,8 +42,8 @@ network namespace under the active firewall backend. It needs them whether or no
 | `iptables`, accepting the nat table and the `DNAT` and `SNAT` targets | The iptables backend | Every section | The [§4](#4-port-53-in-the-container) rows about a host without the `iptables` command |
 | `nft` | The nftables backend | Every section | The [bridge-networking.md](bridge-networking.md#14-firewall-backend-and-firewalld) row about a host without the `nft` command |
 
-The daemon does not depend on which implementation of `iptables` the host has. The kernel options
-that the program needs depend on that implementation:
+The daemon does not depend on which implementation of `iptables` the host has.
+The kernel options that the program needs depend on that implementation:
 
 | Program | Implementation | Kernel options |
 | --- | --- | --- |
@@ -84,19 +81,20 @@ This section holds on Linux nodes.
 | A running container that started attached only to the default bridge, and that a later connect attached to a user-defined network | The container's `/etc/resolv.conf` keeps the content that it had after that connect. This holds after later connects and disconnects. | C | `ctr` | `none` |
 | A running container that has had an endpoint on a user-defined network at any time since it started | After the container disconnects from every user-defined network, the embedded resolver continues to answer the container's queries. See [§5](#5-known-divergences--non-goals). | C | `ctr` | `none` |
 
-A container's DNS options are the options that it was created with. If it was created without DNS
-options, they are the daemon's `dns-opts`. The options in effect are the container's DNS options
-when it has any. Otherwise, they are the options in the host's `resolv.conf`. A valid `ndots` is an
-integer of 0 or more. `/etc/resolv.conf` keeps a valid `ndots` above 15 as given, although glibc
-treats any `ndots` above 15 as 15.
+A container's DNS options are the options that it was created with.
+If it was created without DNS options, they are the daemon's `dns-opts`.
+The options in effect are the container's DNS options when it has any.
+Otherwise, they are the options in the host's `resolv.conf`.
+A valid `ndots` is an integer of 0 or more.
+`/etc/resolv.conf` keeps a valid `ndots` above 15 as given, although glibc treats any `ndots` above 15 as 15.
 
 ## 2. Names and answers
 
-In this section, the querying container is the container that sends the DNS query. The embedded
-resolver has records for a name on a network when an endpoint on that network has that name. An
-endpoint's names are its container's name, short ID and hostname, and its network aliases. In
-`<name>.<network>`, `<name>` stands for a name and `<network>` for the name of a network. Both are
-placeholders, not literal text.
+In this section, the querying container is the container that sends the DNS query.
+The embedded resolver has records for a name on a network when an endpoint on that network has that name.
+An endpoint's names are its container's name, short ID and hostname, and its network aliases.
+In `<name>.<network>`, `<name>` stands for a name and `<network>` for the name of a network.
+Both are placeholders, not literal text.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -161,10 +159,11 @@ placeholders, not literal text.
 | A container on a Linux node whose options in effect, per [§1](#1-resolvconf), set `ndots` to 1 or more | A single-label A or AAAA query gets an empty `NOERROR` response when the embedded resolver does not have a record for the name. The embedded resolver does not forward the query upstream. See [§5](#5-known-divergences--non-goals). | C | `ctr` | `none` |
 
 The row for an `ndots` of 1 or more is tier C because the behavior itself is in question.
-[moby/moby#53157](https://github.com/moby/moby/issues/53157) proposes to put container names in a
-domain on the search list. That change would make this behavior unnecessary. An `ndots` of 0, or an
-invalid `ndots`, has the same effect. That effect is a bug for these values. See
-[§5](#5-known-divergences--non-goals).
+[moby/moby#53157](https://github.com/moby/moby/issues/53157) proposes to put container names in a domain on the search list.
+That change would make this behavior unnecessary.
+An `ndots` of 0, or an invalid `ndots`, has the same effect.
+That effect is a bug for these values.
+See [§5](#5-known-divergences--non-goals).
 
 ## 4. Port 53 in the container
 
@@ -192,8 +191,6 @@ This section holds on Linux nodes.
 
 ## Deliberately not asserted
 
-- The comments the daemon writes into `resolv.conf`, such as its header and its record of where
-  `ndots` came from.
+- The comments the daemon writes into `resolv.conf`, such as its header and its record of where `ndots` came from.
 - The ports that the embedded resolver listens on.
-- The firewall rules that the daemon programs in a container's network namespace: whether they
-  exist, their content and names, and the hooks and priorities of their base chains.
+- The firewall rules that the daemon programs in a container's network namespace: whether they exist, their content and names, and the hooks and priorities of their base chains.
