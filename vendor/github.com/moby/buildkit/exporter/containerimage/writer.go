@@ -561,6 +561,9 @@ func (ic *ImageWriter) commitDistributionManifest(ctx context.Context, opts *Ima
 			Size:      int64(len(config)),
 			MediaType: configType,
 		},
+		// layers is a required array in the image manifest schema, so keep it
+		// non-nil for images without layers (e.g. FROM scratch).
+		Layers: make([]ocispecs.Descriptor, 0, len(remote.Descriptors)),
 	}
 
 	labels := map[string]string{

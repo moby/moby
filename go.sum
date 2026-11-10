@@ -469,8 +469,8 @@ github.com/mitchellh/mapstructure v1.5.0 h1:jeMsZIYE/09sWLaz43PL7Gy6RuMjD2eJVyua
 github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
 github.com/mitchellh/reflectwalk v1.0.2 h1:G2LzWKi524PWgd3mLHV8Y5k7s6XUvT0Gef6zxSIeXaQ=
 github.com/mitchellh/reflectwalk v1.0.2/go.mod h1:mSTlrgnPZtwu0c4WaC2kGObEpuNDbx0jmZXqmk4esnw=
-github.com/moby/buildkit v0.35.0-rc1 h1:wgD3pbfSTP03T3Q4IkMRRAHhxbz7177+mavHnwVjUQI=
-github.com/moby/buildkit v0.35.0-rc1/go.mod h1:5L8B0JOdp1dO1ntCpfOYT5vR31kQ1nKIor/b4FwsDVQ=
+github.com/moby/buildkit v0.35.0-rc2 h1:9CpfdC4EYJsgrt/gApawawizsuXBB2RIsghyzoUMQwE=
+github.com/moby/buildkit v0.35.0-rc2/go.mod h1:u0pf761Ud1YPljstyeYz+J33gAy7K/OEBMP5hiB3wAQ=
 github.com/moby/docker-image-spec v1.3.1 h1:jMKff3w6PgbfSa69GfNg+zN/XLhfXJGnEx3Nl2EsFP0=
 github.com/moby/docker-image-spec v1.3.1/go.mod h1:eKmb5VW8vQEh/BAr2yvVNvuiJuY6UIocYsFu/DxxRpo=
 github.com/moby/extensions v0.0.0-20261026144205-2b6b3bd5fa82 h1:T2DOZjfkTNgfBrhJFWJjt/bUEf/jfTRxiMJkPt3XqSY=
