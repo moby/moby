@@ -384,12 +384,12 @@ RUN --mount=from=rootlesskit-src,src=/usr/src/rootlesskit,rw \
   if [ "$DOCKER_STATIC" = "1" ]; then
       set -x
       export CGO_ENABLED=0
-      xx-go build -tags=urfave_cli_no_docs  -o /build/rootlesskit ./cmd/rootlesskit
+      xx-go build -tags=urfave_cli_no_docs -ldflags='-s -w' -o /build/rootlesskit ./cmd/rootlesskit
       xx-verify --static /build/rootlesskit
   else
       set -x
       export CGO_ENABLED=1
-      xx-go build -o /build/rootlesskit -ldflags='-linkmode=external' ./cmd/rootlesskit
+      xx-go build -ldflags='-s -w -linkmode=external' -o /build/rootlesskit ./cmd/rootlesskit
       xx-verify /build/rootlesskit
   fi
 EOT
