@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG GO_VERSION=1.27.3
+ARG GO_VERSION=1.27.4
 
 # GOVULNCHECK_VERSION sets the version of govulncheck to install.
 # renovate: datasource=github-tags depName=golang/vuln
