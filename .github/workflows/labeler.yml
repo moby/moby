@@ -68,6 +68,7 @@ jobs:
               'area/volumes': anyFile('api/types/volume/**', 'daemon/volume/**', 'integration/volume/**'),
               'area/swarm': anyFile('api/types/swarm/**', 'daemon/cluster/**'),
               'area/images': anyFile('api/types/image/**', 'daemon/images/**', 'daemon/internal/image/**', 'integration/image/**'),
+              'area/graphdrivers': anyFile('daemon/graphdriver/**', 'daemon/images/**'),
               'area/plugins': anyFile('api/types/plugin/**', 'daemon/pkg/plugin/**'),
               'area/extensions': anyFile('extpoints/**'),
               'area/logging': anyFile('daemon/logger/**') || anyNonVendorFile('**/*logs*', '**/*logdriver*', '**/*logging*'),
