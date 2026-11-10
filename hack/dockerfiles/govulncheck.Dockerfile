@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 ARG GO_VERSION=1.27.3
-ARG GOVULNCHECK_VERSION=v1.1.4
+ARG GOVULNCHECK_VERSION=v1.9.0
 ARG FORMAT=text
 
 FROM golang:${GO_VERSION}-alpine AS base
@@ -19,7 +19,11 @@ ARG FORMAT
 RUN --mount=type=bind,target=.,rw <<EOT
   set -ex
   mkdir /out
-  govulncheck -format ${FORMAT} ./... | tee /out/govulncheck.out
+  rc=0
+  govulncheck -format ${FORMAT} ./... > /out/govulncheck.out || rc=$?
+  cat /out/govulncheck.out
+  # Exit status 3 means vulnerabilities were found and reported in text mode.
+  [ "$rc" -eq 0 ] || [ "$rc" -eq 3 ]
 EOT
 
 FROM scratch AS output
