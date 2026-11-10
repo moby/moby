@@ -299,7 +299,8 @@ func (m *Manager) fireDue(ctx context.Context, jobID string, gen uint64, schedul
 // occurrence is recorded only after the fire, so a crash in between leaves
 // the occurrence to the restart's catch-up instead of losing it. A fire
 // deferred by the queue policy leaves the occurrence recorded until the
-// deferred fire runs, for the same reason.
+// deferred fire runs, and a fire that failed without recording its run
+// leaves it recorded for the next startup, for the same reason.
 func (m *Manager) fireScheduled(ctx context.Context, jobID string, scheduledAt time.Time) {
 	m.locks.Lock(jobID)
 	defer m.locks.Unlock(jobID)
@@ -335,7 +336,12 @@ func (m *Manager) fireScheduledLocked(ctx context.Context, jobID string, schedul
 		// The job was removed while the fire was in flight; the removal
 		// already disarmed it.
 	default:
+		// The run was not recorded: leave the stored cursor on the
+		// occurrence, its only durable trace, so a restart's catch-up can
+		// recover it instead of losing it silently.
 		log.G(ctx).WithError(err).WithFields(log.Fields{"job": jobID}).Warn("scheduled fire failed")
+
+		return
 	}
 
 	m.persistNextFireLocked(ctx, jobID)

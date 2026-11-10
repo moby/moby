@@ -2,6 +2,8 @@ package jobs
 
 import (
 	"context"
+	"errors"
+	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -374,4 +376,47 @@ func TestSchedulerStartSkipsCatchUpAlreadyFired(t *testing.T) {
 	page, _, _, err := m.store.Runs(job.ID, 10, "")
 	assert.NilError(t, err)
 	assert.Check(t, is.Len(page, 1))
+}
+
+// failCreateKV wraps a KV to make Create fail on demand, standing in for a
+// transiently unavailable storage provider.
+type failCreateKV struct {
+	KV
+	fail atomic.Bool
+}
+
+func (kv *failCreateKV) Create(ctx context.Context, key string, value []byte) error {
+	if kv.fail.Load() {
+		return errors.New("storage offline")
+	}
+	return kv.KV.Create(ctx, key, value)
+}
+
+// TestSchedulerKeepsCursorWhenFireUnrecorded checks that a scheduled fire
+// whose run could not be recorded leaves the job's next-fire time in place:
+// the stored cursor is the occurrence's only durable trace, and advancing it
+// would hide the occurrence from the restart catch-up too.
+func TestSchedulerKeepsCursorWhenFireUnrecorded(t *testing.T) {
+	kv := &failCreateKV{KV: newTestKV(t)}
+	store, err := NewStore(t.Context(), kv)
+	assert.NilError(t, err)
+	m := NewManager(store, newFakeBackend(), testNameGenerator)
+	t.Cleanup(func() { assert.Check(t, m.Shutdown(shutdownCtx(t))) })
+
+	job, _, err := m.Create(t.Context(), "nightly", scheduleSpec(""))
+	assert.NilError(t, err)
+
+	fires, _ := m.sched.takeDue(time.Unix(0, job.NextFireAtNano))
+	assert.Assert(t, is.Len(fires, 1))
+
+	kv.fail.Store(true)
+	m.fireDue(t.Context(), fires[0].jobID, fires[0].gen, fires[0].scheduledAt)
+	kv.fail.Store(false)
+
+	_, err = m.store.LatestRun(job.ID)
+	assert.Check(t, cerrdefs.IsNotFound(err), "the failed fire must not leave a run")
+
+	stored, err := m.store.Job(job.ID)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(stored.NextFireAtNano, job.NextFireAtNano))
 }

@@ -1376,3 +1376,51 @@ func TestManagerQueuedFireKeepsNextFireTime(t *testing.T) {
 	fake.exit(deferred.ContainerID, 0, nil)
 	waitTerminal(t, m, job.ID, deferred.ID)
 }
+
+// TestManagerRequeuedFireKeepsNextFireTime checks that a deferred fire finding
+// the job running again when dispatched — a manual run took the job first —
+// leaves the job's recorded next-fire time in place when it is queued again:
+// the stored cursor is the deferred occurrence's only durable trace, and
+// advancing it would lose the occurrence if the daemon restarted during that
+// newer run.
+func TestManagerRequeuedFireKeepsNextFireTime(t *testing.T) {
+	m, fake := newTestManager(t)
+	job, _, err := m.Create(t.Context(), "nightly", scheduleSpec(jobsv0.ConcurrencyQueue))
+	assert.NilError(t, err)
+	first, err := m.Run(t.Context(), job.ID, false)
+	assert.NilError(t, err)
+
+	fires, _ := m.sched.takeDue(time.Unix(0, job.NextFireAtNano))
+	assert.Assert(t, is.Len(fires, 1))
+	m.fireDue(t.Context(), fires[0].jobID, fires[0].gen, fires[0].scheduledAt)
+
+	// The dispatch of the deferred fire loses the race for the job: it is
+	// still running when the dispatch acquires the lock.
+	m.fireQueued(t.Context(), job.ID)
+
+	m.mu.Lock()
+	_, queued := m.queued[job.ID]
+	m.mu.Unlock()
+	assert.Check(t, queued, "the fire must be deferred again")
+
+	stored, err := m.store.Job(job.ID)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(stored.NextFireAtNano, job.NextFireAtNano))
+
+	fake.exit(first.ContainerID, 0, nil)
+	waitTerminal(t, m, job.ID, first.ID)
+	poll.WaitOn(t, func(poll.LogT) poll.Result {
+		latest, err := m.store.LatestRun(job.ID)
+		if err != nil {
+			return poll.Error(err)
+		}
+		if latest.Iteration == 2 && latest.State == jobsv0.RunStateRunning {
+			return poll.Success()
+		}
+		return poll.Continue("deferred fire not started yet")
+	})
+	second, err := m.store.LatestRun(job.ID)
+	assert.NilError(t, err)
+	fake.exit(second.ContainerID, 0, nil)
+	waitTerminal(t, m, job.ID, second.ID)
+}
