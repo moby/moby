@@ -56,7 +56,7 @@ jobs:
             const areas = {
               'area/builder/buildkit': buildkit,
               'area/builder/classic-builder': classicBuilder,
-              'area/builder': buildkit || classicBuilder,
+              'area/builder': buildkit || classicBuilder || anyFile('daemon/server/router/build/**', 'daemon/config/builder*.go'),
               'area/networking': anyFile(
                 'api/types/network/**',
                 'daemon/network*',
