@@ -420,3 +420,30 @@ func TestSchedulerKeepsCursorWhenFireUnrecorded(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(stored.NextFireAtNano, job.NextFireAtNano))
 }
+
+// TestSchedulerRescheduleRecordsCursorAfterDisconnect checks that the
+// next-fire write of a reschedule is not lost to the request's cancellation:
+// the in-memory schedule has already skipped the replaced occurrence, and a
+// stale stored cursor would replay that occurrence after a restart.
+func TestSchedulerRescheduleRecordsCursorAfterDisconnect(t *testing.T) {
+	m, fake := newTestManager(t)
+	job, _, err := m.Create(t.Context(), "nightly", scheduleSpec(""))
+	assert.NilError(t, err)
+
+	// The client goes away while its reschedule request is in flight; the
+	// fire proceeds regardless, and the cursor write must too.
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	run, err := m.Run(ctx, job.ID, true)
+	assert.NilError(t, err)
+
+	following, armed := m.sched.nextFor(job.ID)
+	assert.Assert(t, armed)
+	stored, err := m.store.Job(job.ID)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(stored.NextFireAtNano, following.UnixNano()))
+
+	fake.exit(run.ContainerID, 0, nil)
+	waitTerminal(t, m, job.ID, run.ID)
+}

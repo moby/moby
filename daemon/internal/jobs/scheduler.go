@@ -362,6 +362,12 @@ func (m *Manager) persistNextFire(ctx context.Context, jobID string) {
 // instead of taking it from the caller, so a delayed write cannot replace a
 // newer one.
 func (m *Manager) persistNextFireLocked(ctx context.Context, jobID string) {
+	// The write must survive its trigger's cancellation: the in-memory
+	// schedule has already moved, and skipping the write would hand a stale
+	// cursor to the next startup's catch-up — replaying, for one, an
+	// occurrence a cancelled reschedule request had replaced.
+	ctx = context.WithoutCancel(ctx)
+
 	var atNano int64
 	if next, armed := m.sched.nextFor(jobID); armed {
 		atNano = next.UnixNano()
