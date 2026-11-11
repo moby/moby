@@ -64,7 +64,7 @@ require (
 	github.com/miekg/dns v1.1.73
 	github.com/mistifyio/go-zfs/v4 v4.0.0
 	github.com/mitchellh/copystructure v1.2.0
-	github.com/moby/buildkit v0.35.0-rc2
+	github.com/moby/buildkit v0.35.0
 	github.com/moby/docker-image-spec v1.3.1
 	github.com/moby/extensions v0.0.0-20261026144205-2b6b3bd5fa82
 	github.com/moby/go-archive v0.3.3
@@ -73,7 +73,7 @@ require (
 	github.com/moby/moby/api v1.56.1
 	github.com/moby/moby/client v0.6.2
 	github.com/moby/patternmatcher v0.6.1
-	github.com/moby/policy-helpers v0.0.0-20261022152518-485a1bec29f6
+	github.com/moby/policy-helpers v0.0.0-20261111163703-6acab594b423
 	github.com/moby/profiles/apparmor v0.3.0
 	github.com/moby/profiles/seccomp v0.3.0
 	github.com/moby/pubsub v1.0.0

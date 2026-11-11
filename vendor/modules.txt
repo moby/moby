@@ -1077,7 +1077,7 @@ github.com/mitchellh/copystructure
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.35.0-rc2
+# github.com/moby/buildkit v0.35.0
 ## explicit; go 1.26.8
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
@@ -1348,7 +1348,7 @@ github.com/moby/moby/client/pkg/versions
 ## explicit; go 1.19
 github.com/moby/patternmatcher
 github.com/moby/patternmatcher/ignorefile
-# github.com/moby/policy-helpers v0.0.0-20261022152518-485a1bec29f6
+# github.com/moby/policy-helpers v0.0.0-20261111163703-6acab594b423
 ## explicit; go 1.25.8
 github.com/moby/policy-helpers
 github.com/moby/policy-helpers/image
