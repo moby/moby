@@ -64,7 +64,7 @@ require (
 	github.com/miekg/dns v1.1.73
 	github.com/mistifyio/go-zfs/v4 v4.0.0
 	github.com/mitchellh/copystructure v1.2.0
-	github.com/moby/buildkit v0.35.0-rc1
+	github.com/moby/buildkit v0.35.0-rc2
 	github.com/moby/docker-image-spec v1.3.1
 	github.com/moby/extensions v0.0.0-20261026144205-2b6b3bd5fa82
 	github.com/moby/go-archive v0.3.3

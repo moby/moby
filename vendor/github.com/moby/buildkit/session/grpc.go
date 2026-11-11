@@ -176,9 +176,8 @@ func monitorHealth(ctx context.Context, conn net.Conn, cc *grpc.ClientConn, canc
 				bklog.G(ctx).WithError(err).WithFields(logFields).Warn("healthcheck failed")
 			} else {
 				consecutiveSuccessful++
-				consecutiveFailures = 0
-
-				if consecutiveSuccessful >= cfg.successResetThreshold {
+				if consecutiveFailures > 0 && consecutiveSuccessful >= cfg.successResetThreshold {
+					consecutiveFailures = 0
 					bklog.G(ctx).WithFields(logFields).Debug("reset healthcheck failure")
 				}
 			}
