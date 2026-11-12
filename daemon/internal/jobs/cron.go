@@ -26,6 +26,13 @@ type cronSchedule struct {
 	// quirk: when both are restricted (neither is *), a day matching either
 	// fires; otherwise the restricted one must match.
 	domRestricted, dowRestricted bool
+
+	// wildcard marks a schedule whose minute or hour field starts with *,
+	// Vixie cron's classification for time-change handling: a wildcard
+	// schedule follows the wall clock through a transition (firing in both
+	// passes of a repeated span, never catching up a skipped time), while a
+	// fixed-time schedule fires exactly once per nominal occurrence.
+	wildcard bool
 }
 
 // nextCronBoundYears caps the search for the next occurrence. The Gregorian
@@ -78,6 +85,7 @@ func parseCron(expr string) (*cronSchedule, error) {
 	// day-combination choice while its mask still applies.
 	schedule.domRestricted = !strings.HasPrefix(fields[2], "*")
 	schedule.dowRestricted = !strings.HasPrefix(fields[4], "*")
+	schedule.wildcard = strings.HasPrefix(fields[0], "*") || strings.HasPrefix(fields[1], "*")
 	return &schedule, nil
 }
 
@@ -156,15 +164,22 @@ func parseCronValue(expr string, minValue, maxValue int) (int, error) {
 // on the wall clock of loc, and false when no occurrence exists within the
 // search bound.
 //
-// Daylight-saving transitions follow wall-clock semantics: an occurrence
-// falling in the skipped hour of a spring-forward day does not fire that day
-// (the wall-clock time never happens), and an occurrence in the repeated
-// hour of a fall-back day fires once, at the first occurrence.
+// Daylight-saving transitions follow crontab(5) semantics. A fixed-time
+// schedule (minute and hour fields both restricted) fires exactly once per
+// nominal occurrence: one falling in the skipped span of a spring-forward
+// day fires immediately after the transition (occurrences collapsing onto
+// the same instant fire once), and one in the repeated span of a fall-back
+// day fires on the first pass only. A wildcard schedule (minute or hour
+// field starting with *) follows the wall clock instead: times that never
+// happen are not made up, and times that happen twice fire twice.
 func (s *cronSchedule) next(after time.Time, loc *time.Location) (time.Time, bool) {
-	t := after.In(loc).Truncate(time.Minute).Add(time.Minute)
+	t := minuteStep(after.In(loc))
 
 	bound := after.AddDate(nextCronBoundYears, 0, 0)
 	for t.Before(bound) {
+		if !s.wildcard && s.skippedOccurrence(t) {
+			return t, true
+		}
 		if s.months&(1<<uint(t.Month())) == 0 {
 			// Jump to the first minute of the next month.
 			t = jumpForward(t, time.Date(t.Year(), t.Month()+1, 1, 0, 0, 0, 0, loc))
@@ -175,34 +190,79 @@ func (s *cronSchedule) next(after time.Time, loc *time.Location) (time.Time, boo
 			continue
 		}
 		if s.hours&(1<<uint(t.Hour())) == 0 {
-			// Advance in absolute time rather than by rebuilding wall-clock
-			// components: across a fall-back transition the rebuilt time is
-			// ambiguous and Go may resolve it to the second occurrence,
-			// skipping the first one; the absolute walk visits both in real
-			// order and the fields are re-checked on every loop anyway.
-			t = t.Add(time.Duration(60-t.Minute()) * time.Minute)
+			t = hourJump(t)
 			continue
 		}
 		if s.minutes&(1<<uint(t.Minute())) == 0 {
-			t = t.Add(time.Minute)
+			t = minuteStep(t)
 			continue
 		}
 		// The first pass through a fall-back day's repeated hour already
-		// matched this wall-clock time, so it fires only once.
-		if end, repeated := repeatedWallClock(t); repeated {
-			t = end
-			continue
+		// matched this wall-clock time, so a fixed-time schedule fires only
+		// once; a wildcard schedule follows the wall clock and fires again.
+		if !s.wildcard {
+			if end, repeated := repeatedWallClock(t); repeated {
+				t = end
+				continue
+			}
 		}
 		return t, true
 	}
 	return time.Time{}, false
 }
 
-// jumpForward returns target, or the minute after t when target is not after
-// it. Where a transition skips midnight, as in America/Havana, time.Date
+// minuteStep advances t to the next whole minute, stopping at a zone
+// transition that comes first. Almost every transition sits on a whole
+// minute, but offsets predating 1972 can hold seconds — Africa/Monrovia left
+// -00:44:30 that year — and a step over such a transition would miss the
+// instant skippedOccurrence inspects.
+func minuteStep(t time.Time) time.Time {
+	next := t.Truncate(time.Minute).Add(time.Minute)
+	if _, end := t.ZoneBounds(); end.After(t) && end.Before(next) {
+		return end
+	}
+	return next
+}
+
+// hourJump advances t to the next hour boundary in absolute time rather than
+// by rebuilding wall-clock components: across a fall-back transition the
+// rebuilt time is ambiguous and Go may resolve it to the second occurrence,
+// skipping the first one; the absolute walk visits both in real order and the
+// fields are re-checked on every loop anyway.
+//
+// The jump is capped at the zone transition when one comes first: a
+// transition inside the hour moves the wall clock, so a full hour in absolute
+// time can overshoot wall-clock times that exist. In Pacific/Chatham the
+// clock jumps from 02:45 to 03:45, and an hour from 02:00 lands on 04:00,
+// past the day's only 03:45-03:59 span.
+func hourJump(t time.Time) time.Time {
+	next := t.Add(time.Duration(60-t.Minute()) * time.Minute)
+	if _, end := t.ZoneBounds(); end.After(t) && end.Before(next) {
+		return end
+	}
+	return next
+}
+
+// jumpForward returns target, or the zone transition before it when one comes
+// first, or the minute after t when target is not after it.
+//
+// The cap at the transition mirrors hourJump's: a backward transition can
+// re-enter the very dates the jump is skipping — America/St_Johns used to
+// fall back at 00:01, returning the wall clock to the previous day — so the
+// day and month masks must be rechecked where the offset changes.
+//
+// Where a transition skips midnight, as in America/Havana, time.Date
 // normalizes a day's midnight back into the previous day, so jumping to it
 // would repeat forever; walking minutes reaches the transition instead.
+//
+// Beyond a zone's transition table Go evaluates its TZif rule with
+// year-granularity segment bounds, which near a leap year's end can sit at or
+// before t itself; both caps take only a bound strictly ahead of t, or the
+// walk would stop making progress.
 func jumpForward(t, target time.Time) time.Time {
+	if _, end := t.ZoneBounds(); end.After(t) && end.Before(target) {
+		return end
+	}
 	if target.After(t) {
 		return target
 	}
@@ -228,6 +288,54 @@ func repeatedWallClock(t time.Time) (end time.Time, repeated bool) {
 	}
 
 	return start.Add(setBack), true
+}
+
+// skippedOccurrence reports whether t is the first instant after a
+// spring-forward transition whose skipped wall-clock span contains an
+// occurrence of s: crontab(5) runs a fixed-time job whose time was skipped
+// immediately after the transition. As there, only time changes under three
+// hours get this treatment; a larger jump is a clock correction, not a
+// daylight-saving change, and is not caught up.
+//
+// The walk lands exactly on every gap transition: every advance — the minute
+// steps as much as the hour, day and month jumps — is capped at the zone
+// transition it would otherwise cross, so checking the instants where a new
+// zone begins covers every gap.
+func (s *cronSchedule) skippedOccurrence(t time.Time) bool {
+	start, _ := t.ZoneBounds()
+	if !start.Equal(t) {
+		return false
+	}
+
+	_, offset := t.Zone()
+	_, before := t.Add(-time.Second).Zone()
+
+	skipped := time.Duration(offset-before) * time.Second
+	if skipped <= 0 || skipped >= 3*time.Hour {
+		return false
+	}
+
+	// Walk the skipped wall-clock minutes in pure calendar space: they have
+	// no time.Time in loc, by definition. The transition's seconds take part
+	// in the bounds: half a minute off, the walk would reach back into the
+	// last minute lived before the transition and skip the first one lost
+	// to it.
+	end := time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), 0, time.UTC)
+	for w := end.Add(-skipped); w.Before(end); w = w.Add(time.Minute) {
+		if s.matchesWall(w) {
+			return true
+		}
+	}
+	return false
+}
+
+// matchesWall reports whether a calendar time's components match every field
+// mask.
+func (s *cronSchedule) matchesWall(w time.Time) bool {
+	return s.months&(1<<uint(w.Month())) != 0 &&
+		s.dayMatches(w) &&
+		s.hours&(1<<uint(w.Hour())) != 0 &&
+		s.minutes&(1<<uint(w.Minute())) != 0
 }
 
 // dayMatches applies Vixie cron's day-combination rule: both masks always

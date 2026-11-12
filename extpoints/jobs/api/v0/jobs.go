@@ -249,7 +249,8 @@ type Trigger struct {
 type ScheduleTrigger struct {
 	// Cron is a strict five-field crontab expression of numbers, lists,
 	// ranges, and steps. Names and shortcuts such as @daily are not
-	// accepted on the wire; clients expand them.
+	// accepted on the wire; clients expand them. Daylight-saving changes
+	// follow crontab(5) semantics; see the package README for details.
 	Cron string `pb:"1"`
 	// Timezone is an IANA timezone name for evaluating the expression.
 	// Empty means UTC, never the daemon host's local timezone, so a spec
