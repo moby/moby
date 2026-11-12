@@ -283,7 +283,7 @@ WORKDIR /usr/src/runc
 # that is used. If you need to update runc, open a pull request in the containerd
 # project first, and update both after that is merged.
 # renovate: datasource=github-tags depName=opencontainers/runc
-ARG RUNC_VERSION=v1.5.2
+ARG RUNC_VERSION=v1.5.3
 ADD https://github.com/opencontainers/runc.git?ref=${RUNC_VERSION}&keep-git-dir=1 .
 
 FROM base AS runc-build
