@@ -11,10 +11,12 @@ import (
 //
 // This method is thread-safe.
 func (c *Controller) storeEndpoint(ctx context.Context, ep *Endpoint) error {
+	c.endpointsMu.Lock()
+	defer c.endpointsMu.Unlock()
 	if err := c.updateToStore(ctx, ep); err != nil {
 		return err
 	}
-	c.cacheEndpoint(ep)
+	c.endpoints[ep.id] = ep
 	return nil
 }
 
@@ -23,25 +25,14 @@ func (c *Controller) storeEndpoint(ctx context.Context, ep *Endpoint) error {
 //
 // This method is thread-safe.
 func (c *Controller) deleteStoredEndpoint(ep *Endpoint) error {
+	c.endpointsMu.Lock()
+	defer c.endpointsMu.Unlock()
 	if err := c.deleteFromStore(ep); err != nil {
 		return err
 	}
-
-	c.endpointsMu.Lock()
-	defer c.endpointsMu.Unlock()
 	delete(c.endpoints, ep.id)
 
 	return nil
-}
-
-// cacheEndpoint caches the endpoint in the in-memory cache of endpoints
-// maintained by the Controller.
-//
-// This method is thread-safe.
-func (c *Controller) cacheEndpoint(ep *Endpoint) {
-	c.endpointsMu.Lock()
-	defer c.endpointsMu.Unlock()
-	c.endpoints[ep.id] = ep
 }
 
 // findEndpoints looks for all endpoints matching the filter from the in-memory
