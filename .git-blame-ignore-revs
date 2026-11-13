@@ -1,0 +1,7 @@
+# Commits that only reformat, which `git blame` should skip. GitHub reads
+# this file by name; for a local checkout, run:
+#
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# d/libn/docs: put the network specs one sentence per line
+4a271214c6d9975e3a14fd89238e20c59c2702d5
