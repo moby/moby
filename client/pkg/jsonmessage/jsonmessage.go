@@ -15,8 +15,6 @@ import (
 	"github.com/moby/term"
 )
 
-var timeNow = time.Now // For overriding in tests.
-
 // RFC3339NanoFixed is time.RFC3339Nano with nanoseconds padded using zeros to
 // ensure the formatted time is always the same number of characters.
 const RFC3339NanoFixed = "2006-01-02T15:04:05.000000000Z07:00"
@@ -102,7 +100,7 @@ func RenderTUIProgress(p jsonstream.Progress, width uint16) string {
 	var timeLeftBox string
 	if width > 50 {
 		if p.Current > 0 && p.Start > 0 && percentage < 50 {
-			fromStart := timeNow().UTC().Sub(time.Unix(p.Start, 0))
+			fromStart := time.Now().UTC().Sub(time.Unix(p.Start, 0))
 			perEntry := fromStart / time.Duration(p.Current)
 			left := time.Duration(p.Total-p.Current) * perEntry
 			timeLeftBox = " " + left.Round(time.Second).String()

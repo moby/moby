@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -26,18 +27,11 @@ func TestRenderTUIProgress(t *testing.T) {
 		return expected{short: short, long: long}
 	}
 
-	start := time.Date(2017, 12, 3, 15, 10, 1, 0, time.UTC)
-	timeAfter := func(delta time.Duration) func() time.Time {
-		return func() time.Time {
-			return start.Add(delta)
-		}
-	}
-
 	testcases := []struct {
 		name     string
 		progress jsonstream.Progress
 		expected expected
-		nowFunc  func() time.Time
+		elapsed  time.Duration
 	}{
 		{
 			name: "no progress",
@@ -52,9 +46,8 @@ func TestRenderTUIProgress(t *testing.T) {
 			progress: jsonstream.Progress{
 				Current: 20,
 				Total:   100,
-				Start:   start.Unix(),
 			},
-			nowFunc: timeAfter(time.Second),
+			elapsed: time.Second,
 			expected: shortAndLong(
 				"     20B/100B 4s",
 				"[==========>                                        ]      20B/100B 4s",
@@ -104,13 +97,15 @@ func TestRenderTUIProgress(t *testing.T) {
 
 	for _, testcase := range testcases {
 		t.Run(testcase.name, func(t *testing.T) {
-			if testcase.nowFunc != nil {
-				originalTimeNow := timeNow
-				timeNow = testcase.nowFunc
-				defer func() { timeNow = originalTimeNow }()
-			}
-			assert.Equal(t, RenderTUIProgress(testcase.progress, 100), testcase.expected.short)
-			assert.Equal(t, RenderTUIProgress(testcase.progress, 200), testcase.expected.long)
+			synctest.Test(t, func(t *testing.T) {
+				if testcase.elapsed > 0 {
+					testcase.progress.Start = time.Now().Unix()
+					time.Sleep(testcase.elapsed)
+				}
+
+				assert.Equal(t, RenderTUIProgress(testcase.progress, 100), testcase.expected.short)
+				assert.Equal(t, RenderTUIProgress(testcase.progress, 200), testcase.expected.long)
+			})
 		})
 	}
 }
