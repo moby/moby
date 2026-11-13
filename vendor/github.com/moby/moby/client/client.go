@@ -108,7 +108,7 @@ const DummyHost = "api.moby.localhost"
 // overriding the version and disable API-version negotiation.
 //
 // This version may be lower than the version of the api library module used.
-const MaxAPIVersion = "1.57"
+const MaxAPIVersion = "1.56"
 
 // MinAPIVersion is the minimum API version supported by the client. API versions
 // below this version are not considered when performing API-version negotiation.
@@ -436,7 +436,7 @@ func (cli *Client) dialer() func(context.Context) (net.Conn, error) {
 			return dialPipeContext(ctx, cli.addr)
 		default:
 			if tlsConfig := cli.tlsConfig(); tlsConfig != nil {
-				return (&tls.Dialer{Config: tlsConfig}).DialContext(ctx, cli.proto, cli.addr)
+				return tls.Dial(cli.proto, cli.addr, tlsConfig)
 			}
 			return net.Dial(cli.proto, cli.addr)
 		}
