@@ -200,13 +200,6 @@ func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *
 		if bs, err := parseBytesFromFormValue("reserved-space"); err != nil {
 			return err
 		} else {
-			if bs == 0 {
-				// Deprecated parameter. Only checked if reserved-space is not used.
-				bs, err = parseBytesFromFormValue("keep-storage")
-				if err != nil {
-					return err
-				}
-			}
 			opts.ReservedSpace = bs
 		}
 
