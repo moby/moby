@@ -4,7 +4,9 @@ package sts
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/sts/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/sts/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -122,6 +124,27 @@ type GetSessionTokenInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *GetSessionTokenInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.GetSessionTokenRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *GetSessionTokenInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.DurationSeconds != nil {
+		s.WriteInt32(schemas.GetSessionTokenRequest_DurationSeconds, *v.DurationSeconds)
+	}
+	if v.MinimumSessionTokenSize != nil {
+		s.WriteInt32(schemas.GetSessionTokenRequest_MinimumSessionTokenSize, *v.MinimumSessionTokenSize)
+	}
+	if v.SerialNumber != nil {
+		s.WriteString(schemas.GetSessionTokenRequest_SerialNumber, *v.SerialNumber)
+	}
+	if v.TokenCode != nil {
+		s.WriteString(schemas.GetSessionTokenRequest_TokenCode, *v.TokenCode)
+	}
+}
+
 // Contains the response to a successful GetSessionToken request, including temporary Amazon Web
 // Services credentials that can be used to make Amazon Web Services requests.
 type GetSessionTokenOutput struct {
@@ -147,13 +170,46 @@ type GetSessionTokenOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *GetSessionTokenOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.GetSessionTokenResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *GetSessionTokenOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Credentials != nil {
+		s.WriteStruct(schemas.GetSessionTokenResponse_Credentials)
+		v.Credentials.SerializeMembers(s)
+		s.CloseStruct()
+	}
+	if v.SessionTokenSize != nil {
+		s.WriteInt32(schemas.GetSessionTokenResponse_SessionTokenSize, *v.SessionTokenSize)
+	}
+	if v.SessionTokenUtilization != nil {
+		s.WriteInt32(schemas.GetSessionTokenResponse_SessionTokenUtilization, *v.SessionTokenUtilization)
+	}
+}
+func (v *GetSessionTokenOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.GetSessionTokenResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.GetSessionTokenResponse_Credentials:
+			v.Credentials = &types.Credentials{}
+			return v.Credentials.Deserialize(d)
+		case schemas.GetSessionTokenResponse_SessionTokenSize:
+			v.SessionTokenSize = new(int32)
+			return d.ReadInt32(schemas.GetSessionTokenResponse_SessionTokenSize, v.SessionTokenSize)
+		case schemas.GetSessionTokenResponse_SessionTokenUtilization:
+			v.SessionTokenUtilization = new(int32)
+			return d.ReadInt32(schemas.GetSessionTokenResponse_SessionTokenUtilization, v.SessionTokenUtilization)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationGetSessionTokenMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsquery_serializeOpGetSessionToken{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.GetSessionToken, schemas.GetSessionTokenRequest, schemas.GetSessionTokenResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsquery_deserializeOpGetSessionToken{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.GetSessionToken, schemas.GetSessionTokenRequest, schemas.GetSessionTokenResponse), output: &GetSessionTokenOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

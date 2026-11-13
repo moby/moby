@@ -1,3 +1,21 @@
+# v1.39.5 (2026-11-10)
+
+* **Dependency Update**: Update to smithy-go v1.28.9.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.39.4 (2026-11-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.39.3 (2026-11-05)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.39.2 (2026-11-04)
+
+* **Dependency Update**: Update to smithy-go v1.28.8.
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.39.1 (2026-10-30)
 
 * **Bug Fix**: Fix malformed JSON when serializing nil lists or maps in union members, map values, and list elements.

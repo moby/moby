@@ -26,6 +26,9 @@ import (
 //
 //   - To see field index policies, you must have the logs:DescribeIndexPolicies
 //     and logs:DescribeAccountPolicies permissions.
+//
+//   - To see retention policies, you must have the logs:DescribeAccountPolicies
+//     permission.
 func (c *Client) DescribeAccountPolicies(ctx context.Context, params *DescribeAccountPoliciesInput, optFns ...func(*Options)) (*DescribeAccountPoliciesOutput, error) {
 	if params == nil {
 		params = &DescribeAccountPoliciesInput{}

@@ -4,7 +4,9 @@ package sts
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/sts/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/sts/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -97,6 +99,29 @@ type AssumeRootInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *AssumeRootInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.AssumeRootRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *AssumeRootInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.DurationSeconds != nil {
+		s.WriteInt32(schemas.AssumeRootRequest_DurationSeconds, *v.DurationSeconds)
+	}
+	if v.MinimumSessionTokenSize != nil {
+		s.WriteInt32(schemas.AssumeRootRequest_MinimumSessionTokenSize, *v.MinimumSessionTokenSize)
+	}
+	if v.TargetPrincipal != nil {
+		s.WriteString(schemas.AssumeRootRequest_TargetPrincipal, *v.TargetPrincipal)
+	}
+	if v.TaskPolicyArn != nil {
+		s.WriteStruct(schemas.AssumeRootRequest_TaskPolicyArn)
+		v.TaskPolicyArn.SerializeMembers(s)
+		s.CloseStruct()
+	}
+}
+
 type AssumeRootOutput struct {
 
 	// The temporary security credentials, which include an access key ID, a secret
@@ -134,13 +159,52 @@ type AssumeRootOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *AssumeRootOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.AssumeRootResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *AssumeRootOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Credentials != nil {
+		s.WriteStruct(schemas.AssumeRootResponse_Credentials)
+		v.Credentials.SerializeMembers(s)
+		s.CloseStruct()
+	}
+	if v.SessionTokenSize != nil {
+		s.WriteInt32(schemas.AssumeRootResponse_SessionTokenSize, *v.SessionTokenSize)
+	}
+	if v.SessionTokenUtilization != nil {
+		s.WriteInt32(schemas.AssumeRootResponse_SessionTokenUtilization, *v.SessionTokenUtilization)
+	}
+	if v.SourceIdentity != nil {
+		s.WriteString(schemas.AssumeRootResponse_SourceIdentity, *v.SourceIdentity)
+	}
+}
+func (v *AssumeRootOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.AssumeRootResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.AssumeRootResponse_Credentials:
+			v.Credentials = &types.Credentials{}
+			return v.Credentials.Deserialize(d)
+		case schemas.AssumeRootResponse_SessionTokenSize:
+			v.SessionTokenSize = new(int32)
+			return d.ReadInt32(schemas.AssumeRootResponse_SessionTokenSize, v.SessionTokenSize)
+		case schemas.AssumeRootResponse_SessionTokenUtilization:
+			v.SessionTokenUtilization = new(int32)
+			return d.ReadInt32(schemas.AssumeRootResponse_SessionTokenUtilization, v.SessionTokenUtilization)
+		case schemas.AssumeRootResponse_SourceIdentity:
+			v.SourceIdentity = new(string)
+			return d.ReadString(schemas.AssumeRootResponse_SourceIdentity, v.SourceIdentity)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationAssumeRootMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsquery_serializeOpAssumeRoot{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.AssumeRoot, schemas.AssumeRootRequest, schemas.AssumeRootResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsquery_deserializeOpAssumeRoot{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.AssumeRoot, schemas.AssumeRootRequest, schemas.AssumeRootResponse), output: &AssumeRootOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

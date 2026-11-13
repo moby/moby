@@ -3544,20 +3544,23 @@ type LogGroup struct {
 	// [ListTagsForResource]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_ListTagsForResource.html
 	LogGroupArn *string
 
-	// This specifies the log group class for this log group. There are three classes:
+	// This specifies the log group class for this log group. There are four classes:
 	//
 	//   - The Standard log class supports all CloudWatch Logs features.
 	//
 	//   - The Infrequent Access log class supports a subset of CloudWatch Logs
 	//   features and incurs lower costs.
 	//
+	//   - The Essentials log class supports a subset of CloudWatch Logs features and
+	//   incurs lower costs.
+	//
 	//   - Use the Delivery log class only for delivering Lambda logs to store in
 	//   Amazon S3 or Amazon Data Firehose. Log events in log groups in the Delivery
 	//   class are kept in CloudWatch Logs for only one day. This log class doesn't offer
 	//   rich CloudWatch Logs capabilities such as CloudWatch Logs Insights queries.
 	//
-	// For details about the features supported by the Standard and Infrequent Access
-	// classes, see [Log classes]
+	// For details about the features supported by the Standard, Infrequent Access,
+	// and Essentials classes, see [Log classes]
 	//
 	// [Log classes]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch_Logs_Log_Classes.html
 	LogGroupClass LogGroupClass

@@ -8,6 +8,13 @@ import (
 	smithytraits "github.com/aws/smithy-go/traits"
 )
 
+var CreateBearerToken = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "CreateBearerToken",
+}, smithy.ShapeTypeOperation, 0, &smithytraits.HTTP{Method: "POST",
+	URI:  "/v1/token?x-amz-token-request-type=bearer",
+	Code: 200})
+
 var CreateOAuth2Token = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.signin",
 	Name:      "CreateOAuth2Token",
@@ -126,6 +133,11 @@ var _AuthorizationCode = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.signin",
 	Name:      "AuthorizationCode",
 }, smithy.ShapeTypeString, 0)
+
+var _BearerTokenExpiresIn = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "BearerTokenExpiresIn",
+}, smithy.ShapeTypeInteger, 0)
 
 var _BearerTokenType = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.signin",
@@ -479,6 +491,11 @@ var _TargetId = smithy.NewSchema(smithy.ShapeID{
 	Name:      "TargetId",
 }, smithy.ShapeTypeString, 0)
 
+var _TokenDuration = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "TokenDuration",
+}, smithy.ShapeTypeInteger, 0)
+
 var _TokenExchangeGrantType = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.signin",
 	Name:      "TokenExchangeGrantType",
@@ -521,6 +538,26 @@ var _VpcSourceIp = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.signin",
 	Name:      "VpcSourceIp",
 }, smithy.ShapeTypeString, 0)
+
+var CreateBearerTokenRequest = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "CreateBearerTokenRequest",
+}, smithy.ShapeTypeStructure, 3)
+var CreateBearerTokenRequest_grantType *smithy.Schema
+
+var CreateBearerTokenRequest_resource *smithy.Schema
+
+var CreateBearerTokenRequest_durationSeconds *smithy.Schema
+
+var CreateBearerTokenResponse = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "CreateBearerTokenResponse",
+}, smithy.ShapeTypeStructure, 3)
+var CreateBearerTokenResponse_accessToken *smithy.Schema
+
+var CreateBearerTokenResponse_tokenType *smithy.Schema
+
+var CreateBearerTokenResponse_expiresIn *smithy.Schema
 
 var CreateOAuth2TokenRequest = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.signin",
@@ -883,6 +920,18 @@ func init() {
 	ValidationException_error = ValidationException.AddMember("error", OAuth2ErrorCode)
 
 	ValidationException_message = ValidationException.AddMember("message", smithyprelude.String)
+
+	CreateBearerTokenRequest_grantType = CreateBearerTokenRequest.AddMember("grantType", _ClientCredentialsGrantType, &smithytraits.JSONName{Name: "grant_type"})
+
+	CreateBearerTokenRequest_resource = CreateBearerTokenRequest.AddMember("resource", _Resource)
+
+	CreateBearerTokenRequest_durationSeconds = CreateBearerTokenRequest.AddMember("durationSeconds", _TokenDuration, &smithytraits.JSONName{Name: "duration"})
+
+	CreateBearerTokenResponse_accessToken = CreateBearerTokenResponse.AddMember("accessToken", _OAuthAccessToken, &smithytraits.JSONName{Name: "access_token"})
+
+	CreateBearerTokenResponse_tokenType = CreateBearerTokenResponse.AddMember("tokenType", _BearerTokenType, &smithytraits.JSONName{Name: "token_type"})
+
+	CreateBearerTokenResponse_expiresIn = CreateBearerTokenResponse.AddMember("expiresIn", _BearerTokenExpiresIn, &smithytraits.JSONName{Name: "expires_in"})
 
 	CreateOAuth2TokenRequest_tokenInput = CreateOAuth2TokenRequest.AddMember("tokenInput", CreateOAuth2TokenRequestBody, &smithytraits.HTTPPayload{})
 

@@ -58,3 +58,15 @@ func (r ThrottleErrorCode) IsErrorThrottle(err error) aws.Ternary {
 
 	return aws.TrueTernary
 }
+
+// throttleUnmodeledTooManyRequests treats an HTTP 429 response whose error did
+// not deserialize to a modeled error type as a throttle error. A modeled error
+// is a throttle error only if its error code is a throttle error code.
+type throttleUnmodeledTooManyRequests struct{}
+
+func (throttleUnmodeledTooManyRequests) IsErrorThrottle(err error) aws.Ternary {
+	if isUnmodeledTooManyRequests(err) {
+		return aws.TrueTernary
+	}
+	return aws.UnknownTernary
+}

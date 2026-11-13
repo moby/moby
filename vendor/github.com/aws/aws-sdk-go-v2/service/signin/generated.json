@@ -8,6 +8,7 @@
     "files": [
         "api_client.go",
         "api_client_test.go",
+        "api_op_CreateBearerToken.go",
         "api_op_CreateOAuth2Token.go",
         "api_op_CreateOAuth2TokenWithIAM.go",
         "api_op_CreateOAuth2TokenWithTokenExchange.go",
