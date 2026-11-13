@@ -64,11 +64,13 @@ func TestAtomicKVObjectFlatKey(t *testing.T) {
 }
 
 // TestAtomicOperations checks that a Store backed by a MemStore refuses the
-// same updates and deletes as one backed by BoltDB.
+// same updates and deletes as one backed by BoltDB, and that a Store refuses
+// them for objects it keeps only in its cache.
 func TestAtomicOperations(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		newStore func(*testing.T) *Store
+		skipSave bool
 	}{
 		{name: "memstore", newStore: func(*testing.T) *Store { return New(memstore.New()) }},
 		{name: "boltdb", newStore: func(t *testing.T) *Store {
@@ -77,14 +79,20 @@ func TestAtomicOperations(t *testing.T) {
 			t.Cleanup(kv.Close)
 			return New(kv)
 		}},
+		{name: "cache", newStore: func(*testing.T) *Store { return New(memstore.New()) }, skipSave: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ds := tc.newStore(t)
+			newObject := func() *dummyObject {
+				o := dummyKVObject("1000", true)
+				o.SkipSave = tc.skipSave
+				return o
+			}
 
 			assert.Check(t, is.ErrorIs(ds.GetObject(&dummyObject{ID: "1000"}), ErrKeyNotFound))
-			obj := dummyKVObject("1000", true)
+			obj := newObject()
 			assert.NilError(t, ds.PutObjectAtomic(obj))
-			stale := &dummyObject{ID: "1000"}
+			stale := &dummyObject{ID: "1000", SkipSave: tc.skipSave}
 			assert.NilError(t, ds.GetObject(stale))
 			stale.ReturnValue = true
 			assert.NilError(t, ds.PutObjectAtomic(obj))
@@ -98,11 +106,14 @@ func TestAtomicOperations(t *testing.T) {
 			assert.NilError(t, ds.DeleteObjectAtomic(obj))
 			assert.Check(t, is.ErrorIs(ds.GetObject(&dummyObject{ID: "1000"}), ErrKeyNotFound))
 			assert.Check(t, is.ErrorIs(ds.PutObjectAtomic(obj), ErrKeyNotFound), "update of a deleted object")
+			list, err = ds.List(&dummyObject{})
+			assert.NilError(t, err)
+			assert.Check(t, is.Len(list, 0))
 			assert.Check(t, is.ErrorIs(ds.DeleteObjectAtomic(obj), ErrKeyNotFound), "delete of a deleted object")
 
 			// The object created again has an index that none of its
 			// earlier versions had.
-			assert.NilError(t, ds.PutObjectAtomic(dummyKVObject("1000", true)))
+			assert.NilError(t, ds.PutObjectAtomic(newObject()))
 			assert.Check(t, is.ErrorIs(ds.PutObjectAtomic(stale), ErrKeyModified), "update through a copy from before the delete")
 		})
 	}
@@ -119,6 +130,7 @@ type dummyObject struct {
 	ID          string
 	DBIndex     uint64
 	DBExists    bool
+	SkipSave    bool
 	ReturnValue bool
 }
 
@@ -160,7 +172,7 @@ func (n *dummyObject) Exists() bool {
 }
 
 func (n *dummyObject) Skip() bool {
-	return false
+	return n.SkipSave
 }
 
 type tmpStruct struct {
