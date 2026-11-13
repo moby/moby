@@ -1362,7 +1362,7 @@ func (ep *Endpoint) releaseIPv6Address(ctx context.Context) error {
 		}
 	}
 
-	if err := ep.network.controller.updateToStore(ctx, ep); err != nil {
+	if err := ep.network.controller.storeEndpoint(ctx, ep); err != nil {
 		return err
 	}
 
