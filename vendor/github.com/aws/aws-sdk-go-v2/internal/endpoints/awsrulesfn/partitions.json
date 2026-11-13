@@ -98,11 +98,17 @@
       "me-south-1" : {
         "description" : "Middle East (Bahrain)"
       },
+      "me-west-1" : {
+        "description" : "Middle East (Saudi Arabia)"
+      },
       "mx-central-1" : {
         "description" : "Mexico (Central)"
       },
       "sa-east-1" : {
         "description" : "South America (Sao Paulo)"
+      },
+      "sa-west-1" : {
+        "description" : "South America (Chile)"
       },
       "us-east-1" : {
         "description" : "US East (N. Virginia)"

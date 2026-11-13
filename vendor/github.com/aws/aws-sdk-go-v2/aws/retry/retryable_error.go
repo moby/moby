@@ -4,10 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/smithy-go"
 )
 
 // IsErrorRetryable provides the interface of an implementation to determine if
@@ -184,6 +186,28 @@ func (r RetryableHTTPStatusCode) IsErrorRetryable(err error) aws.Ternary {
 	return aws.TrueTernary
 }
 
+// retryableUnmodeledTooManyRequests retries an HTTP 429 response whose error
+// did not deserialize to a modeled error type. A modeled error's own retry
+// rules decide whether it is retried.
+type retryableUnmodeledTooManyRequests struct{}
+
+func (retryableUnmodeledTooManyRequests) IsErrorRetryable(err error) aws.Ternary {
+	if isUnmodeledTooManyRequests(err) {
+		return aws.TrueTernary
+	}
+	return aws.UnknownTernary
+}
+
+// isUnmodeledTooManyRequests returns true if the error is for an HTTP 429
+// response and did not deserialize to a modeled error type.
+func isUnmodeledTooManyRequests(err error) bool {
+	var v interface{ HTTPStatusCode() int }
+	if !errors.As(err, &v) || v.HTTPStatusCode() != http.StatusTooManyRequests {
+		return false
+	}
+	return !isModeledAPIError(err)
+}
+
 // RetryableErrorCode determines if an attempt should be retried based on the
 // API error code.
 type RetryableErrorCode struct {
@@ -225,4 +249,16 @@ func (e *retryableClockSkewError) Unwrap() error {
 // RetryableError allows the retryer to retry this request
 func (e *retryableClockSkewError) RetryableError() bool {
 	return true
+}
+
+// isModeledAPIError returns true if the error wraps an API error that was
+// deserialized to a modeled error type. An error that deserialized to
+// *smithy.GenericAPIError, or that has no API error, is not modeled.
+func isModeledAPIError(err error) bool {
+	var apiErr smithy.APIError
+	if !errors.As(err, &apiErr) {
+		return false
+	}
+	_, generic := apiErr.(*smithy.GenericAPIError)
+	return !generic
 }

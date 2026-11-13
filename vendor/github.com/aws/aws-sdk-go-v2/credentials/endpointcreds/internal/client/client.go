@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -62,16 +63,7 @@ func New(options Options, optFns ...func(*Options)) *Client {
 	}
 
 	if options.Retryer == nil {
-		// Amazon-owned implementations of this endpoint are known to sometimes
-		// return plaintext responses (i.e. no Code) like normal, add a few
-		// additional status codes
-		options.Retryer = retry.NewStandard(func(o *retry.StandardOptions) {
-			o.Retryables = append(o.Retryables, retry.RetryableHTTPStatusCode{
-				Codes: map[int]struct{}{
-					http.StatusTooManyRequests: {},
-				},
-			})
-		})
+		options.Retryer = retry.NewStandard(addTooManyRequestsRetry)
 	}
 
 	for _, fn := range optFns {
@@ -127,6 +119,27 @@ type GetCredentialsOutput struct {
 	SecretAccessKey string
 	Token           string
 	AccountID       string
+}
+
+// addTooManyRequestsRetry retries an HTTP 429 response as a throttling error.
+// Amazon-owned implementations of this endpoint are known to sometimes return
+// plaintext responses (i.e. no Code) like normal, so the status code is used
+// instead of the error code.
+func addTooManyRequestsRetry(o *retry.StandardOptions) {
+	o.Retryables = append(o.Retryables, retry.RetryableHTTPStatusCode{
+		Codes: map[int]struct{}{
+			http.StatusTooManyRequests: {},
+		},
+	})
+	o.Throttles = append(o.Throttles, retry.IsErrorThrottleFunc(isTooManyRequests))
+}
+
+func isTooManyRequests(err error) aws.Ternary {
+	var v interface{ HTTPStatusCode() int }
+	if errors.As(err, &v) && v.HTTPStatusCode() == http.StatusTooManyRequests {
+		return aws.TrueTernary
+	}
+	return aws.UnknownTernary
 }
 
 // EndpointError is an error returned from the endpoint service

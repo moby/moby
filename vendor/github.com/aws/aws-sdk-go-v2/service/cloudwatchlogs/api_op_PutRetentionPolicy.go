@@ -13,6 +13,16 @@ import (
 // configure the number of days for which to retain log events in the specified log
 // group.
 //
+// Account-level retention policies created with [PutAccountPolicy] override the retention that you
+// set with PutRetentionPolicy . If an account-level retention policy applies to
+// the log group, this operation succeeds and CloudWatch Logs saves the retention
+// period that you specify, but the retention period from the account-level policy
+// continues to determine when log events in the log group expire.
+// DescribeLogGroups returns the retention period from the policy in
+// retentionInDays and the name of the policy in retentionPolicyName . The
+// retention period that you set with this operation takes effect if the
+// account-level policy no longer applies to the log group.
+//
 // CloudWatch Logs doesn't immediately delete log events when they reach their
 // retention setting. It typically takes up to 72 hours after that before log
 // events are deleted, but in rare situations might take longer.
@@ -30,6 +40,8 @@ import (
 // costs anymore, even if they are not actually deleted until later. These log
 // events marked for deletion are also not included when you use an API to retrieve
 // the storedBytes value to see how many bytes a log group is storing.
+//
+// [PutAccountPolicy]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutAccountPolicy.html
 func (c *Client) PutRetentionPolicy(ctx context.Context, params *PutRetentionPolicyInput, optFns ...func(*Options)) (*PutRetentionPolicyOutput, error) {
 	if params == nil {
 		params = &PutRetentionPolicyInput{}

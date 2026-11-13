@@ -15,6 +15,10 @@ import (
 // each log group. You can return all your log groups or filter the results by
 // prefix. The results are ASCII-sorted by log group name.
 //
+// If an account-level retention policy applies to a log group, retentionInDays
+// shows the retention period from that policy, and retentionPolicyName shows the
+// name of the policy.
+//
 // CloudWatch Logs doesn't support IAM policies that control access to the
 // DescribeLogGroups action by using the aws:ResourceTag/key-name  condition key.
 // Other CloudWatch Logs actions do support the use of the
@@ -67,12 +71,18 @@ type DescribeLogGroupsInput struct {
 	// specified log group class. If you omit this parameter, log groups of all classes
 	// can be returned.
 	//
-	// Specifies the log group class for this log group. There are three classes:
+	// If you specify either INFREQUENT_ACCESS or ESSENTIALS , the results include log
+	// groups in both the Infrequent Access and Essentials log classes.
+	//
+	// Specifies the log group class for this log group. There are four classes:
 	//
 	//   - The Standard log class supports all CloudWatch Logs features.
 	//
 	//   - The Infrequent Access log class supports a subset of CloudWatch Logs
 	//   features and incurs lower costs.
+	//
+	//   - The Essentials log class supports a subset of CloudWatch Logs features and
+	//   incurs lower costs.
 	//
 	//   - Use the Delivery log class only for delivering Lambda logs to store in
 	//   Amazon S3 or Amazon Data Firehose. Log events in log groups in the Delivery
