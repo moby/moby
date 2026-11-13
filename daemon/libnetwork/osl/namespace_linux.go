@@ -314,7 +314,12 @@ func (n *Namespace) InvokeFunc(f func()) error {
 			close(done)
 			rootless.UnmarkInSandboxNS()
 			if err := netns.Set(origNS); err != nil {
-				log.G(context.TODO()).WithError(err).Warn("failed to restore thread's network namespace")
+				detachedNetNS, _ := rootless.DetachedNetNS()
+				if restoreNetNSFailureExpected(err, detachedNetNS) {
+					log.G(context.TODO()).WithError(err).Debug("failed to restore thread's network namespace")
+				} else {
+					log.G(context.TODO()).WithError(err).Warn("failed to restore thread's network namespace")
+				}
 				// Recover from the error by leaving this goroutine locked to
 				// the thread. The runtime will terminate the thread and replace
 				// it with a clean one when this goroutine returns.
@@ -326,6 +331,15 @@ func (n *Namespace) InvokeFunc(f func()) error {
 		f()
 	}()
 	return <-done
+}
+
+// restoreNetNSFailureExpected reports whether failing to switch a thread back
+// to its original network namespace is expected. With RootlessKit's
+// detach-netns mode, the daemon runs in the host's network namespace but
+// without privileges in the user namespace that owns it, so setns(2) back to
+// it fails with EPERM.
+func restoreNetNSFailureExpected(err error, detachedNetNS string) bool {
+	return detachedNetNS != "" && errors.Is(err, unix.EPERM)
 }
 
 func (n *Namespace) nsPath() string {
