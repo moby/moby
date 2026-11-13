@@ -42,10 +42,9 @@ func (v textValue) String() string {
 	return ""
 }
 
-//end of copy
-
+// end of copy
 func (v textValue) Type() string {
-	return reflect.ValueOf(v.p).Type().Name()
+	return reflect.TypeOf(v.p).String()
 }
 
 // GetText set out, which implements encoding.UnmarshalText, to the value of a flag with given name
@@ -54,8 +53,8 @@ func (f *FlagSet) GetText(name string, out encoding.TextUnmarshaler) error {
 	if flag == nil {
 		return fmt.Errorf("flag accessed but not defined: %s", name)
 	}
-	if flag.Value.Type() != reflect.TypeOf(out).Name() {
-		return fmt.Errorf("trying to get %s value of flag of type %s", reflect.TypeOf(out).Name(), flag.Value.Type())
+	if flag.Value.Type() != reflect.TypeOf(out).String() {
+		return fmt.Errorf("trying to get %s value of flag of type %s", reflect.TypeOf(out).String(), flag.Value.Type())
 	}
 	return out.UnmarshalText([]byte(flag.Value.String()))
 }

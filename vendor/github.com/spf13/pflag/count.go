@@ -13,12 +13,15 @@ func newCountValue(val int, p *int) *countValue {
 func (i *countValue) Set(s string) error {
 	// "+1" means that no specific value was passed, so increment
 	if s == "+1" {
-		*i = countValue(*i + 1)
+		*i = *i + 1
 		return nil
 	}
 	v, err := strconv.ParseInt(s, 0, 0)
+	if err != nil {
+		return err
+	}
 	*i = countValue(v)
-	return err
+	return nil
 }
 
 func (i *countValue) Type() string {
