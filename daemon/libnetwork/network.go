@@ -2056,6 +2056,10 @@ func (n *Network) NdotsSet() bool {
 	return false
 }
 
+func (n *Network) Ndots() int {
+	return 0
+}
+
 // config-only network is looked up by name
 func (c *Controller) getConfigNetwork(name string) (*Network, error) {
 	var n *Network
