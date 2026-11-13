@@ -5588,6 +5588,20 @@ definitions:
         $ref: "#/definitions/NetworkSettings"
   ContainerSummary:
     type: "object"
+    required:
+      - Id
+      - Names
+      - Image
+      - ImageID
+      - Command
+      - Created
+      - Ports
+      - Labels
+      - State
+      - Status
+      - HostConfig
+      - NetworkSettings
+      - Mounts
     properties:
       Id:
         description: |-
@@ -5680,8 +5694,12 @@ definitions:
         x-nullable: true
         example: "1653948416"
       Labels:
-        description: "User-defined key/value metadata."
+        description: |-
+          User-defined key/value metadata.
+
+          This field can be `null` if the container has no labels.
         type: "object"
+        x-nullable: true
         additionalProperties:
           type: "string"
         example:

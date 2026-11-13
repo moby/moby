@@ -1,6 +1,7 @@
 package container
 
 import (
+	"encoding/json"
 	"math/rand"
 	"net/netip"
 	"os"
@@ -217,6 +218,63 @@ func TestViewWithPortBindings(t *testing.T) {
 			s, err := db.Snapshot().Get(ctr.ID)
 			assert.NilError(t, err)
 			assert.DeepEqual(t, s.Ports, tc.expected, cmpopts.EquateComparable(netip.Addr{}))
+		})
+	}
+}
+
+// TestViewSummaryRequiredFields verifies that the container summary contains
+// the fields that the API specification marks as required for ContainerSummary,
+// and that only the fields marked as nullable can be null.
+func TestViewSummaryRequiredFields(t *testing.T) {
+	tests := []struct {
+		name       string
+		config     *container.Config
+		nullLabels bool
+	}{
+		{
+			// Containers without a config (or without labels in it) have no
+			// labels, which is serialized as null.
+			name:       "no config",
+			nullLabels: true,
+		},
+		{
+			name:   "with labels",
+			config: &container.Config{Labels: map[string]string{"foo": "bar"}},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			db, err := NewViewDB()
+			assert.NilError(t, err)
+
+			ctr := newContainer(t, t.TempDir())
+			ctr.Config = tc.config
+			assert.NilError(t, ctr.CheckpointTo(t.Context(), db))
+
+			s, err := db.Snapshot().Get(ctr.ID)
+			assert.NilError(t, err)
+
+			out, err := json.Marshal(s.Summary)
+			assert.NilError(t, err)
+
+			var fields map[string]json.RawMessage
+			assert.NilError(t, json.Unmarshal(out, &fields))
+
+			for _, field := range []string{
+				"Id", "Names", "Image", "ImageID", "Command", "Created", "Ports",
+				"Labels", "State", "Status", "HostConfig", "NetworkSettings", "Mounts",
+			} {
+				v, ok := fields[field]
+				if !assert.Check(t, ok, "missing required field %q: %s", field, out) {
+					continue
+				}
+				if field == "Labels" && tc.nullLabels {
+					assert.Check(t, is.Equal(string(v), "null"))
+					continue
+				}
+				assert.Check(t, string(v) != "null", "required field %q must not be null: %s", field, out)
+			}
 		})
 	}
 }

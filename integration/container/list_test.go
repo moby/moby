@@ -2,6 +2,9 @@ package container
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/url"
 	"testing"
 	"time"
 
@@ -195,6 +198,49 @@ func TestContainerList_ImageManifestPlatform(t *testing.T) {
 		// depend on the platform on which we're running the test.
 		assert.Equal(t, ctr.ImageManifestDescriptor.Platform.OS, testEnv.DaemonInfo.OSType)
 		assert.Check(t, ctr.ImageManifestDescriptor.Platform.Architecture != "")
+	}
+}
+
+// TestContainerList_RequiredFields verifies that the response of the
+// container list endpoint contains the fields that are marked as required
+// for ContainerSummary in the API specification.
+func TestContainerList_RequiredFields(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	created := container.Create(ctx, t, apiClient)
+	defer container.Remove(ctx, t, apiClient, created, client.ContainerRemoveOptions{Force: true})
+
+	running := container.Run(ctx, t, apiClient)
+	defer container.Remove(ctx, t, apiClient, running, client.ContainerRemoveOptions{Force: true})
+
+	for _, id := range []string{created, running} {
+		filter := url.QueryEscape(`{"id":["` + id + `"]}`)
+		resp, body, err := request.Get(ctx, "/containers/json?all=1&filters="+filter, request.JSON)
+		assert.NilError(t, err)
+		assert.Equal(t, resp.StatusCode, http.StatusOK)
+
+		buf, err := request.ReadBody(body)
+		assert.NilError(t, err)
+
+		var list []map[string]json.RawMessage
+		assert.NilError(t, json.Unmarshal(buf, &list), string(buf))
+		assert.Assert(t, is.Len(list, 1), string(buf))
+
+		for _, field := range []string{
+			"Id", "Names", "Image", "ImageID", "Command", "Created", "Ports",
+			"Labels", "State", "Status", "HostConfig", "NetworkSettings", "Mounts",
+		} {
+			v, ok := list[0][field]
+			if !assert.Check(t, ok, "missing required field %q: %s", field, buf) {
+				continue
+			}
+			if field == "Labels" {
+				// Labels is nullable.
+				continue
+			}
+			assert.Check(t, string(v) != "null", "required field %q must not be null: %s", field, buf)
+		}
 	}
 }
 
