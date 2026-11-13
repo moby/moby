@@ -1,6 +1,9 @@
 package pflag
 
-import "strconv"
+import (
+	"errors"
+	"strconv"
+)
 
 // -- float32 Value
 type float32Value float32
@@ -12,8 +15,11 @@ func newFloat32Value(val float32, p *float32) *float32Value {
 
 func (f *float32Value) Set(s string) error {
 	v, err := strconv.ParseFloat(s, 32)
+	if err != nil {
+		return errors.New("must be a number")
+	}
 	*f = float32Value(v)
-	return err
+	return nil
 }
 
 func (f *float32Value) Type() string {

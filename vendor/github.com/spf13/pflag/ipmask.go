@@ -53,7 +53,11 @@ func ParseIPv4Mask(s string) net.IPMask {
 			return nil
 		}
 	}
-	return net.IPv4Mask(mask[12], mask[13], mask[14], mask[15])
+	mask = mask.To4()
+	if mask == nil {
+		return nil
+	}
+	return net.IPv4Mask(mask[0], mask[1], mask[2], mask[3])
 }
 
 func parseIPv4Mask(sval string) (interface{}, error) {
