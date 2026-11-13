@@ -1,9 +1,10 @@
-package security
+package security_test
 
 import (
 	"fmt"
 	"testing"
 
+	"github.com/moby/moby/client/pkg/security"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -12,32 +13,32 @@ func TestDecode(t *testing.T) {
 	tests := []struct {
 		name string
 		opts []string
-		want []Option
+		want []security.Option
 	}{
 		{
 			name: "empty options",
 			opts: []string{},
-			want: []Option{},
+			want: []security.Option{},
 		},
 		{
 			name: "nil options",
 			opts: nil,
-			want: []Option{},
+			want: []security.Option{},
 		},
 		{
 			name: "single option with name only",
 			opts: []string{"name=apparmor"},
-			want: []Option{
+			want: []security.Option{
 				{Name: "apparmor"},
 			},
 		},
 		{
 			name: "single option with name and additional options",
 			opts: []string{"name=selinux,type=container_t,level=s0:c1.c2"},
-			want: []Option{
+			want: []security.Option{
 				{
 					Name: "selinux",
-					Options: []KeyValue{
+					Options: []security.KeyValue{
 						{Key: "type", Value: "container_t"},
 						{Key: "level", Value: "s0:c1.c2"},
 					},
@@ -50,16 +51,16 @@ func TestDecode(t *testing.T) {
 				"name=apparmor,profile=docker-default",
 				"name=seccomp,profile=unconfined",
 			},
-			want: []Option{
+			want: []security.Option{
 				{
 					Name: "apparmor",
-					Options: []KeyValue{
+					Options: []security.KeyValue{
 						{Key: "profile", Value: "docker-default"},
 					},
 				},
 				{
 					Name: "seccomp",
-					Options: []KeyValue{
+					Options: []security.KeyValue{
 						{Key: "profile", Value: "unconfined"},
 					},
 				},
@@ -68,10 +69,10 @@ func TestDecode(t *testing.T) {
 		{
 			name: "option with equals in value",
 			opts: []string{"name=selinux,level=s0:c1=c2"},
-			want: []Option{
+			want: []security.Option{
 				{
 					Name: "selinux",
-					Options: []KeyValue{
+					Options: []security.KeyValue{
 						{Key: "level", Value: "s0:c1=c2"},
 					},
 				},
@@ -80,10 +81,10 @@ func TestDecode(t *testing.T) {
 		{
 			name: "invalid option without equals in comma-separated list",
 			opts: []string{"name=apparmor,invalid"},
-			want: []Option{
+			want: []security.Option{
 				{
 					Name: "apparmor",
-					Options: []KeyValue{
+					Options: []security.KeyValue{
 						{Key: "invalid"},
 					},
 				},
@@ -92,22 +93,22 @@ func TestDecode(t *testing.T) {
 		{
 			name: "empty key",
 			opts: []string{"=value"},
-			want: []Option{},
+			want: []security.Option{},
 		},
 		{
 			name: "empty value",
 			opts: []string{"key="},
-			want: []Option{},
+			want: []security.Option{},
 		},
 		{
 			name: "empty key and value",
 			opts: []string{"="},
-			want: []Option{},
+			want: []security.Option{},
 		},
 		{
 			name: "empty key in middle",
 			opts: []string{"name=apparmor,=value"},
-			want: []Option{
+			want: []security.Option{
 				{
 					Name: "apparmor",
 				},
@@ -116,10 +117,10 @@ func TestDecode(t *testing.T) {
 		{
 			name: "empty value in middle",
 			opts: []string{"name=apparmor,key="},
-			want: []Option{
+			want: []security.Option{
 				{
 					Name: "apparmor",
-					Options: []KeyValue{
+					Options: []security.KeyValue{
 						{Key: "key", Value: ""},
 					},
 				},
@@ -132,10 +133,10 @@ func TestDecode(t *testing.T) {
 				"name=apparmor,profile=/usr/bin/docker",
 				"name=seccomp,profile=builtin",
 			},
-			want: []Option{
+			want: []security.Option{
 				{
 					Name: "selinux",
-					Options: []KeyValue{
+					Options: []security.KeyValue{
 						{Key: "user", Value: "system_u"},
 						{Key: "role", Value: "system_r"},
 						{Key: "type", Value: "container_t"},
@@ -144,13 +145,13 @@ func TestDecode(t *testing.T) {
 				},
 				{
 					Name: "apparmor",
-					Options: []KeyValue{
+					Options: []security.KeyValue{
 						{Key: "profile", Value: "/usr/bin/docker"},
 					},
 				},
 				{
 					Name: "seccomp",
-					Options: []KeyValue{
+					Options: []security.KeyValue{
 						{Key: "profile", Value: "builtin"},
 					},
 				},
@@ -160,7 +161,7 @@ func TestDecode(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := DecodeOptions(tc.opts)
+			got := security.DecodeOptions(tc.opts)
 			assert.Check(t, is.DeepEqual(got, tc.want))
 		})
 	}
@@ -175,7 +176,7 @@ func BenchmarkDecode(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = DecodeOptions(opts)
+		_ = security.DecodeOptions(opts)
 	}
 }
 
@@ -187,6 +188,6 @@ func BenchmarkDecodeComplex(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = DecodeOptions(opts)
+		_ = security.DecodeOptions(opts)
 	}
 }
