@@ -1,9 +1,15 @@
-package stringid
+package stringid_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/moby/moby/client/pkg/stringid"
+)
+
+const fullLen = 64
 
 func TestGenerateRandomID(t *testing.T) {
-	id := GenerateRandomID()
+	id := stringid.GenerateRandomID()
 
 	if len(id) != fullLen {
 		t.Fatalf("Id returned is incorrect: %s", id)
@@ -45,7 +51,7 @@ func TestTruncateID(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			actual := TruncateID(tc.id)
+			actual := stringid.TruncateID(tc.id)
 			if actual != tc.expected {
 				t.Errorf("expected: %q, got: %q", tc.expected, actual)
 			}
