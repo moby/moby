@@ -71,7 +71,7 @@ require (
 	github.com/moby/ipvs v1.1.0
 	github.com/moby/locker v1.0.1
 	github.com/moby/moby/api v1.57.0
-	github.com/moby/moby/client v0.6.2
+	github.com/moby/moby/client v0.6.3
 	github.com/moby/patternmatcher v0.6.1
 	github.com/moby/policy-helpers v0.0.0-20261111163703-6acab594b423
 	github.com/moby/profiles/apparmor v0.3.0
@@ -309,7 +309,3 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 	tags.cncf.io/container-device-interface/specs-go v1.1.1 // indirect
 )
-
-replace github.com/moby/moby/api => ./api
-
-replace github.com/moby/moby/client => ./client
