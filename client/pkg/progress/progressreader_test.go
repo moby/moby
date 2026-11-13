@@ -11,7 +11,7 @@ func TestOutputOnPrematureClose(t *testing.T) {
 	reader := io.NopCloser(bytes.NewReader(content))
 	progressChan := make(chan Progress, 10)
 
-	pr := NewProgressReader(reader, ChanOutput(progressChan), int64(len(content)), "Test", "Read")
+	pr := NewProgressReader(reader, ChanOutput(progressChan), int64(len(content)), "Test", "Read") //nolint:staticcheck // ChanOutput is deprecated
 
 	part := make([]byte, 4)
 	_, err := io.ReadFull(pr, part)
@@ -43,7 +43,7 @@ func TestCompleteSilently(t *testing.T) {
 	reader := io.NopCloser(bytes.NewReader(content))
 	progressChan := make(chan Progress, 10)
 
-	pr := NewProgressReader(reader, ChanOutput(progressChan), int64(len(content)), "Test", "Read")
+	pr := NewProgressReader(reader, ChanOutput(progressChan), int64(len(content)), "Test", "Read") //nolint:staticcheck // ChanOutput is deprecated
 
 	out, err := io.ReadAll(pr)
 	if err != nil {
