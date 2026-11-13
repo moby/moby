@@ -4,6 +4,7 @@ go 1.24
 
 require (
 	go.yaml.in/yaml/v3 v3.0.6
+	go.yaml.in/yaml/v4 v4.0.0
 	gotest.tools/v3 v3.5.2
 )
 
