@@ -1,6 +1,6 @@
 module github.com/moby/moby/client
 
-go 1.24
+go 1.25
 
 require (
 	github.com/Microsoft/go-winio v0.6.2
@@ -32,3 +32,5 @@ require (
 	go.opentelemetry.io/otel/metric v1.35.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
 )
+
+replace github.com/moby/moby/api => ../api
