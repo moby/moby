@@ -98,6 +98,11 @@ func newCache(options ...Option) *Cache {
 		autoRefresh: true,
 		watch:       &watch{},
 	}
+
+	// configure() starts the watcher goroutine, so the Cache is already shared.
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	c.configure(options...)
 	return c
 }

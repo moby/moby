@@ -79,6 +79,9 @@ func (e *ContainerEdits) Apply(spec *oci.Spec) error {
 	if e == nil || e.ContainerEdits == nil {
 		return nil
 	}
+	if err := e.Validate(); err != nil {
+		return err
+	}
 
 	editor, err := ociedit.NewSpecEditor(spec)
 	if err != nil {
@@ -89,7 +92,12 @@ func (e *ContainerEdits) Apply(spec *oci.Spec) error {
 	}
 
 	for _, d := range e.DeviceNodes {
-		dn := DeviceNode{d}
+		// Work on a copy of the device node. e.DeviceNodes may point into a
+		// cached Spec (see Cache.InjectDevices), and fillMissingInfo() must
+		// not write host-derived information back into the cache: that would
+		// make later injections skip the host check and reuse stale values,
+		// and it races with concurrent injections of the same device.
+		dn := (&DeviceNode{d}).DeepCopy()
 
 		err := dn.fillMissingInfo()
 		if err != nil {
@@ -134,7 +142,7 @@ func (e *ContainerEdits) Apply(spec *oci.Spec) error {
 
 			editor.RemoveMount(m.ContainerPath)
 
-			if !specHasUserNamespace(spec) {
+			if !specHasIDMappingNamespace(spec) {
 				editor.AddMount(mnt.toOCI())
 			} else {
 				editor.AddMount(mnt.toOCI(withIDMapForBindMount()))
@@ -313,6 +321,9 @@ type LinuxNetDevice struct {
 
 // Validate LinuxNetDevice.
 func (d *LinuxNetDevice) Validate() error {
+	if d.LinuxNetDevice == nil {
+		return errors.New("invalid (nil) linux net device")
+	}
 	if d.HostInterfaceName == "" {
 		return errors.New("invalid linux net device, empty HostInterfaceName")
 	}
@@ -337,11 +348,18 @@ func (d *DeviceNode) Validate() error {
 		"p": {},
 	}
 
+	if d.DeviceNode == nil {
+		return errors.New("invalid (nil) device node")
+	}
 	if d.Path == "" {
 		return errors.New("invalid (empty) device path")
 	}
 	if _, ok := validTypes[d.Type]; !ok {
 		return fmt.Errorf("device %q: invalid type %q", d.Path, d.Type)
+	}
+	// NOTE: negative numbers are rejected as -1 is interpreted as a wildcard
+	if d.Major < 0 || d.Minor < 0 {
+		return fmt.Errorf("device %q: invalid (negative) device number %d:%d", d.Path, d.Major, d.Minor)
 	}
 	switch {
 	case d.Permissions == "":
@@ -354,6 +372,35 @@ func (d *DeviceNode) Validate() error {
 	return nil
 }
 
+// DeepCopy a DeviceNode. It returns a copy of the given device node that
+// shares no pointers with it, so that filling in or exporting the copy
+// cannot modify the original (for instance a device node of a cached Spec).
+func (d *DeviceNode) DeepCopy() *DeviceNode {
+	if d == nil {
+		return nil
+	}
+	if d.DeviceNode == nil {
+		return &DeviceNode{}
+	}
+
+	ccdi := *(d.DeviceNode)
+	c := &DeviceNode{&ccdi}
+
+	if d.FileMode != nil {
+		mode := *d.FileMode
+		c.FileMode = &mode
+	}
+	if d.UID != nil {
+		uid := *d.UID
+		c.UID = &uid
+	}
+	if d.GID != nil {
+		gid := *d.GID
+		c.GID = &gid
+	}
+	return c
+}
+
 // Hook is a CDI Spec Hook wrapper, used for validating hooks.
 type Hook struct {
 	*cdi.Hook
@@ -361,6 +408,9 @@ type Hook struct {
 
 // Validate a hook.
 func (h *Hook) Validate() error {
+	if h.Hook == nil {
+		return errors.New("invalid (nil) hook")
+	}
 	if _, ok := validHookNames[h.HookName]; !ok {
 		return fmt.Errorf("invalid hook name %q", h.HookName)
 	}
@@ -380,6 +430,9 @@ type Mount struct {
 
 // Validate a mount.
 func (m *Mount) Validate() error {
+	if m.Mount == nil {
+		return errors.New("invalid (nil) mount")
+	}
 	if m.HostPath == "" {
 		return errors.New("invalid mount, empty host path")
 	}
@@ -406,6 +459,9 @@ func ValidateIntelRdt(i *cdi.IntelRdt) error {
 
 // Validate validates the IntelRdt configuration.
 func (i *IntelRdt) Validate() error {
+	if i.IntelRdt == nil {
+		return nil
+	}
 	// ClosID must be a valid Linux filename. Exception: "/" refers to the root CLOS.
 	switch c := i.ClosID; {
 	case c == "/":
@@ -451,9 +507,16 @@ func (m orderedMounts) parts(i int) int {
 	return strings.Count(filepath.Clean(m[i].Destination), string(os.PathSeparator))
 }
 
-// specHasUserNamespace returns true if the OCI Spec has a Linux UserNamespace.
-func specHasUserNamespace(spec *oci.Spec) bool {
+// specHasIDMappingNamespace returns true if the OCI Spec has a Linux UserNamespace
+// together with both UID and GID mappings. A user namespace lacking either
+// mapping (for instance one set up for a pod sharing its process namespace)
+// can't reliably be used for idmapped mounts: runc rejects idmapped mounts
+// unless both mappings are present.
+func specHasIDMappingNamespace(spec *oci.Spec) bool {
 	if spec == nil || spec.Linux == nil {
+		return false
+	}
+	if len(spec.Linux.UIDMappings) == 0 || len(spec.Linux.GIDMappings) == 0 {
 		return false
 	}
 	for _, ns := range spec.Linux.Namespaces {
