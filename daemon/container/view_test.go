@@ -222,24 +222,31 @@ func TestViewWithPortBindings(t *testing.T) {
 	}
 }
 
-// TestViewSummaryRequiredFields verifies that the container summary contains
-// the fields that the API specification marks as required for ContainerSummary,
-// and that only the fields marked as nullable can be null.
-func TestViewSummaryRequiredFields(t *testing.T) {
+// TestViewSummaryLabelsNullable verifies that the Labels field of the container
+// summary is serialized as null when the container has no labels, and as a
+// key/value map otherwise. This is what the x-nullable annotation on the Labels
+// field in the API specification documents.
+func TestViewSummaryLabelsNullable(t *testing.T) {
 	tests := []struct {
-		name       string
-		config     *container.Config
-		nullLabels bool
+		name   string
+		config *container.Config
+		expect string
 	}{
 		{
 			// Containers without a config (or without labels in it) have no
 			// labels, which is serialized as null.
-			name:       "no config",
-			nullLabels: true,
+			name:   "no config",
+			expect: "null",
+		},
+		{
+			name:   "no labels",
+			config: &container.Config{},
+			expect: "null",
 		},
 		{
 			name:   "with labels",
 			config: &container.Config{Labels: map[string]string{"foo": "bar"}},
+			expect: `{"foo":"bar"}`,
 		},
 	}
 
@@ -261,20 +268,9 @@ func TestViewSummaryRequiredFields(t *testing.T) {
 			var fields map[string]json.RawMessage
 			assert.NilError(t, json.Unmarshal(out, &fields))
 
-			for _, field := range []string{
-				"Id", "Names", "Image", "ImageID", "Command", "Created", "Ports",
-				"Labels", "State", "Status", "HostConfig", "NetworkSettings", "Mounts",
-			} {
-				v, ok := fields[field]
-				if !assert.Check(t, ok, "missing required field %q: %s", field, out) {
-					continue
-				}
-				if field == "Labels" && tc.nullLabels {
-					assert.Check(t, is.Equal(string(v), "null"))
-					continue
-				}
-				assert.Check(t, string(v) != "null", "required field %q must not be null: %s", field, out)
-			}
+			labels, ok := fields["Labels"]
+			assert.Assert(t, ok, "Labels must be present in %s", out)
+			assert.Equal(t, string(labels), tc.expect)
 		})
 	}
 }

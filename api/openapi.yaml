@@ -5728,20 +5728,6 @@ components:
 
     ContainerSummary:
       type: "object"
-      required:
-        - Id
-        - Names
-        - Image
-        - ImageID
-        - Command
-        - Created
-        - Ports
-        - Labels
-        - State
-        - Status
-        - HostConfig
-        - NetworkSettings
-        - Mounts
       properties:
         Id:
           description: |-
