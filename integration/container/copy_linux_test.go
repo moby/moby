@@ -1,6 +1,7 @@
 package container
 
 import (
+	"archive/tar"
 	"bytes"
 	"io"
 	"net"
@@ -19,6 +20,103 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
 )
+
+// TestCopyToContainerKeepsBindMountReadOnly checks that a read-only bind mount
+// is never writable while docker cp extracts into the container, even if a
+// process with write access to an ancestor of the mount point races the setup.
+//
+// The ancestors /vol/a and /vol/b live in a writable bind mount. The test
+// swaps them in a tight loop, so a path resolved after the mount was created
+// can lead to the decoy mount at /vol/a/ro instead of the read-only mount at
+// /vol/b/ro.
+func TestCopyToContainerKeepsBindMountReadOnly(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.IsRemoteDaemon(), "requires access to the bind-mount source")
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	volDir := testutil.TempDir(t)
+	dirA := filepath.Join(volDir, "a")
+	dirB := filepath.Join(volDir, "b")
+	decoyDir := testutil.TempDir(t)
+	roDir := testutil.TempDir(t)
+
+	// A rootless daemon needs write access to the control directory, the
+	// decoy, and either mountpoint if it is exposed by the swap.
+	for _, dir := range []string{volDir, decoyDir, filepath.Join(dirA, "ro"), filepath.Join(dirB, "ro")} {
+		assert.NilError(t, os.MkdirAll(dir, 0o755))
+		assert.NilError(t, os.Chmod(dir, 0o777))
+	}
+
+	// Mounts are applied in lexical order within a depth, so the decoy
+	// is mounted before the read-only bind.
+	cid := container.Create(ctx, t, apiClient,
+		container.WithBindRaw(volDir+":/vol"),
+		container.WithBindRaw(decoyDir+":/vol/a/ro"),
+		container.WithBindRaw(roDir+":/vol/b/ro:ro"),
+	)
+
+	const content = "from docker cp"
+	copyFile := func(dest, name string) error {
+		t.Helper()
+		var buf bytes.Buffer
+		tw := tar.NewWriter(&buf)
+		assert.NilError(t, tw.WriteHeader(&tar.Header{Name: name, Mode: 0o644, Size: int64(len(content))}))
+		_, err := io.WriteString(tw, content)
+		assert.NilError(t, err)
+		assert.NilError(t, tw.Close())
+
+		_, err = apiClient.CopyToContainer(ctx, cid, client.CopyToContainerOptions{
+			DestinationPath: dest,
+			Content:         &buf,
+		})
+		return err
+	}
+
+	// A working copy into the writable bind shows that failures below come
+	// from the read-only mount, not from a broken setup.
+	assert.NilError(t, copyFile("/vol/", "control"))
+	got, err := os.ReadFile(filepath.Join(volDir, "control"))
+	assert.NilError(t, err)
+	assert.Equal(t, string(got), content)
+
+	stop := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+				_ = unix.Renameat2(unix.AT_FDCWD, dirA, unix.AT_FDCWD, dirB, unix.RENAME_EXCHANGE)
+			}
+		}
+	}()
+	defer func() {
+		close(stop)
+		<-done
+	}()
+
+	var readOnly, redirected int
+	for range 200 {
+		// Extract from the writable parent so it is the mount, not the API's
+		// destination-path check, that rejects the write. Depending on which
+		// directory is at /vol/b when the path is resolved, the file lands in
+		// the decoy or hits the read-only mount.
+		if err := copyFile("/vol/b/", "ro/file"); err != nil {
+			assert.ErrorContains(t, err, unix.EROFS.Error())
+			readOnly++
+		} else {
+			redirected++
+		}
+
+		_, err := os.Stat(filepath.Join(roDir, "file"))
+		assert.ErrorIs(t, err, os.ErrNotExist)
+	}
+	assert.Check(t, readOnly > 0, "no copy reached the read-only mount")
+	assert.Check(t, redirected > 0, "no copy reached the decoy mount; the swap had no effect")
+}
 
 // TestCopyWithAbsoluteSymlinkedMountTarget was introduced as a regression test
 // for https://github.com/moby/moby/issues/52653.

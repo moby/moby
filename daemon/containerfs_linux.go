@@ -84,6 +84,27 @@ func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSV
 		}
 	}()
 
+	// Create the staging mountpoints in the daemon's private temp directory.
+	// Only the worker namespace mounts on them, even if setup fails.
+	var stageDir, stageFile string
+	if len(mounts) > 0 {
+		stageDir, err = os.MkdirTemp("", "docker-containerfs-")
+		if err != nil {
+			return nil, err
+		}
+		defer os.Remove(stageDir)
+
+		f, err := os.CreateTemp("", "docker-containerfs-")
+		if err != nil {
+			return nil, err
+		}
+		stageFile = f.Name()
+		defer os.Remove(stageFile)
+		if err := f.Close(); err != nil {
+			return nil, err
+		}
+	}
+
 	// Setup in initial mount namespace complete. We're ready to unshare the
 	// mount namespace and bind the volume mounts into that private view of
 	// the container FS.
@@ -124,12 +145,22 @@ func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSV
 				if err := createIfNotExists(root, relDest, stat.IsDir()); err != nil {
 					return err
 				}
+				if err := validateContainerFSMount(m); err != nil {
+					return err
+				}
 
+				stub := stageFile
+				if stat.IsDir() {
+					stub = stageDir
+				}
 				bindMode := "rbind"
 				if m.NonRecursive {
 					bindMode = "bind"
 				}
-				if err := validateContainerFSMount(m); err != nil {
+				if err := mount.Mount(m.Source, stub, "", bindMode); err != nil {
+					return err
+				}
+				if err := applyContainerFSMountFlags(m, stub); err != nil {
 					return err
 				}
 
@@ -145,25 +176,10 @@ func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSV
 					return fmt.Errorf("open mount target %q: %w", m.Destination, err)
 				}
 				targetPath := "/proc/self/fd/" + strconv.FormatUint(uint64(targetFile.Fd()), 10)
-
-				// The kernel rejects remount and propagation-change syscalls
-				// when the target is a /proc/self/fd path. Only the initial
-				// bind mount works on such paths, so we perform that via the
-				// fd path for TOCTOU safety and then resolve the real path for
-				// the read-only remount and propagation change.
-				if err := mount.Mount(m.Source, targetPath, "", bindMode); err != nil {
-					targetFile.Close()
-					return err
-				}
-				realPath, err := os.Readlink(targetPath)
-				if err != nil {
-					targetFile.Close()
-					return fmt.Errorf("readlink %s: %w", targetPath, err)
-				}
-				err = applyContainerFSMountFlags(m, realPath)
+				err = unix.Mount(stub, targetPath, "", unix.MS_MOVE, "")
 				targetFile.Close()
 				if err != nil {
-					return err
+					return fmt.Errorf("move mount onto %q: %w", m.Destination, err)
 				}
 			}
 
