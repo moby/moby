@@ -28,9 +28,7 @@ func (c *Controller) getNetworks() ([]*Network, error) {
 	}
 
 	for _, kvo := range kvol {
-		n := kvo.(*Network)
-		c.cacheNetwork(n)
-		nl = append(nl, n)
+		nl = append(nl, kvo.(*Network))
 	}
 
 	return nl, nil
@@ -61,7 +59,6 @@ func (n *Network) getEndpointFromStore(eid string) (*Endpoint, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not find endpoint %s: %w", eid, err)
 	}
-	n.controller.cacheEndpoint(ep)
 	return ep, nil
 }
 
@@ -78,9 +75,7 @@ func (n *Network) getEndpointsFromStore() ([]*Endpoint, error) {
 	}
 
 	for _, kvo := range kvol {
-		ep := kvo.(*Endpoint)
-		epl = append(epl, ep)
-		n.controller.cacheEndpoint(ep)
+		epl = append(epl, kvo.(*Endpoint))
 	}
 
 	return epl, nil
