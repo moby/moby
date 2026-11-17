@@ -3,9 +3,6 @@
 package main
 
 import (
-	"os"
-	"strings"
-
 	"github.com/containerd/cgroups/v3"
 	"github.com/moby/moby/v2/pkg/sysinfo"
 )
@@ -67,9 +64,4 @@ func seccompEnabled() bool {
 func onlyCgroupsv2() bool {
 	// Only check for unified, cgroup v1 tests can run under other modes
 	return cgroups.Mode() == cgroups.Unified
-}
-
-func unprivilegedUsernsClone() bool {
-	content, err := os.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
-	return err != nil || !strings.Contains(string(content), "0")
 }
