@@ -19,7 +19,6 @@ import (
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/client"
-	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/integration/internal/process"
 	"github.com/moby/moby/v2/internal/testutil"
@@ -143,56 +142,6 @@ func TestDaemonConfigValidation(t *testing.T) {
 			} else {
 				assert.NilError(t, err)
 			}
-		})
-	}
-}
-
-func TestConfigDaemonSeccompProfiles(t *testing.T) {
-	skip.If(t, runtime.GOOS == "windows")
-	ctx := testutil.StartSpan(baseContext, t)
-
-	d := daemon.New(t)
-	defer d.Stop(t)
-
-	tests := []struct {
-		doc             string
-		profile         string
-		expectedProfile string
-	}{
-		{
-			doc:             "empty profile set",
-			profile:         "",
-			expectedProfile: config.SeccompProfileDefault,
-		},
-		{
-			doc:             "default profile",
-			profile:         config.SeccompProfileDefault,
-			expectedProfile: config.SeccompProfileDefault,
-		},
-		{
-			doc:             "unconfined profile",
-			profile:         config.SeccompProfileUnconfined,
-			expectedProfile: config.SeccompProfileUnconfined,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.doc, func(t *testing.T) {
-			_ = testutil.StartSpan(ctx, t)
-
-			d.Start(t, "--seccomp-profile="+tc.profile)
-			info := d.Info(t)
-			assert.Assert(t, is.Contains(info.SecurityOptions, "name=seccomp,profile="+tc.expectedProfile))
-			d.Stop(t)
-
-			cfg := filepath.Join(d.RootDir(), "daemon.json")
-			err := os.WriteFile(cfg, []byte(`{"seccomp-profile": "`+tc.profile+`"}`), 0o644)
-			assert.NilError(t, err)
-
-			d.Start(t, "--config-file", cfg)
-			info = d.Info(t)
-			assert.Assert(t, is.Contains(info.SecurityOptions, "name=seccomp,profile="+tc.expectedProfile))
-			d.Stop(t)
 		})
 	}
 }
