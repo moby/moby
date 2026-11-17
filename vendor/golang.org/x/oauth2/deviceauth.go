@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"mime"
 	"net/http"
 	"net/url"
@@ -53,7 +54,6 @@ func (d DeviceAuthResponse) MarshalJSON() ([]byte, error) {
 		ExpiresIn: expiresIn,
 		Alias:     (*Alias)(&d),
 	})
-
 }
 
 func (c *DeviceAuthResponse) UnmarshalJSON(data []byte) error {
@@ -189,8 +189,8 @@ func (c *Config) DeviceAccessToken(ctx context.Context, da *DeviceAuthResponse, 
 	// "If no value is provided, clients MUST use 5 as the default."
 	// https://datatracker.ietf.org/doc/html/rfc8628#section-3.2
 	interval := da.Interval
-	if interval == 0 {
-		interval = 5
+	if interval <= 0 || interval > math.MaxInt64/int64(time.Second) {
+		interval = 5 // missing or invalid
 	}
 
 	ticker := time.NewTicker(time.Duration(interval) * time.Second)

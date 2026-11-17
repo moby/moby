@@ -341,9 +341,21 @@ func (i *ImageService) multiPlatformSummary(ctx context.Context, img c8dimages.I
 			mfstSummary.ImageData.Platform = *target.Platform
 		}
 
+		for _, c := range i.containers.List() {
+			if c.ImageManifest != nil && c.ImageManifest.Digest == target.Digest {
+				mfstSummary.ImageData.Containers = append(mfstSummary.ImageData.Containers, c.ID)
+				summary.ContainersCount++
+			}
+		}
+
 		var dockerImage dockerspec.DockerOCIImage
-		if err := img.ReadConfig(ctx, &dockerImage); err != nil && !cerrdefs.IsNotFound(err) {
-			logger.WithError(err).Warn("failed to read image config")
+		if err := img.ReadConfig(ctx, &dockerImage); err != nil {
+			if !cerrdefs.IsNotFound(err) {
+				logger.WithError(err).Warn("failed to read image config")
+			}
+			// Nothing to report for this platform without its config, so it
+			// can't be the best match.
+			return nil
 		}
 
 		if dockerImage.Platform.OS != "" {
@@ -367,13 +379,6 @@ func (i *ImageService) multiPlatformSummary(ctx context.Context, img c8dimages.I
 			summary.TotalSize += unpackedSize
 
 			summary.AllChainIDs = append(summary.AllChainIDs, chainIDs...)
-		}
-
-		for _, c := range i.containers.List() {
-			if c.ImageManifest != nil && c.ImageManifest.Digest == target.Digest {
-				mfstSummary.ImageData.Containers = append(mfstSummary.ImageData.Containers, c.ID)
-				summary.ContainersCount++
-			}
 		}
 
 		platform := mfstSummary.ImageData.Platform

@@ -136,8 +136,7 @@ func (n *Network) IsPruneable() bool {
 // use for DNS requests from that endpoint.
 func addEpToResolver(
 	ctx context.Context,
-	netName, epName string,
-	config *containerConfig,
+	epName string,
 	epIface *EndpointInterface,
 	resolvers []*Resolver,
 ) error {
@@ -145,12 +144,12 @@ func addEpToResolver(
 	if err != nil {
 		return nil
 	}
-	return addEpToResolverImpl(ctx, netName, epName, epIface, resolvers, hnsEndpoints)
+	return addEpToResolverImpl(ctx, epName, epIface, resolvers, hnsEndpoints)
 }
 
 func addEpToResolverImpl(
 	ctx context.Context,
-	netName, epName string,
+	epName string,
 	epIface *EndpointInterface,
 	resolvers []*Resolver,
 	hnsEndpoints []hcsshim.HNSEndpoint,

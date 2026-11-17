@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/jsonstream"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/internal/progress"
@@ -25,7 +27,6 @@ import (
 	"github.com/moby/moby/v2/daemon/server/buildbackend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/pkg/ioutils"
-	"github.com/pkg/errors"
 )
 
 type invalidParam struct {
@@ -82,7 +83,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*buildbackend.B
 		if outputsJSON != "" {
 			var outputs []buildbackend.BuildOutput
 			if err := json.Unmarshal([]byte(outputsJSON), &outputs); err != nil {
-				return nil, invalidParam{errors.Wrap(err, "invalid outputs specified")}
+				return nil, invalidParam{fmt.Errorf("invalid outputs specified: %w", err)}
 			}
 			options.Outputs = outputs
 		}
@@ -99,14 +100,14 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*buildbackend.B
 	if i := r.FormValue("isolation"); i != "" {
 		options.Isolation = container.Isolation(i)
 		if !options.Isolation.IsValid() {
-			return nil, invalidParam{errors.Errorf("unsupported isolation: %q", i)}
+			return nil, invalidParam{fmt.Errorf("unsupported isolation: %q", i)}
 		}
 	}
 
 	if ulimitsJSON := r.FormValue("ulimits"); ulimitsJSON != "" {
 		buildUlimits := []*container.Ulimit{}
 		if err := json.Unmarshal([]byte(ulimitsJSON), &buildUlimits); err != nil {
-			return nil, invalidParam{errors.Wrap(err, "error reading ulimit settings")}
+			return nil, invalidParam{fmt.Errorf("error reading ulimit settings: %w", err)}
 		}
 		options.Ulimits = buildUlimits
 	}
@@ -126,7 +127,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*buildbackend.B
 	if buildArgsJSON := r.FormValue("buildargs"); buildArgsJSON != "" {
 		buildArgs := map[string]*string{}
 		if err := json.Unmarshal([]byte(buildArgsJSON), &buildArgs); err != nil {
-			return nil, invalidParam{errors.Wrap(err, "error reading build args")}
+			return nil, invalidParam{fmt.Errorf("error reading build args: %w", err)}
 		}
 		options.BuildArgs = buildArgs
 	}
@@ -134,7 +135,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*buildbackend.B
 	if labelsJSON := r.FormValue("labels"); labelsJSON != "" {
 		labels := map[string]string{}
 		if err := json.Unmarshal([]byte(labelsJSON), &labels); err != nil {
-			return nil, invalidParam{errors.Wrap(err, "error reading labels")}
+			return nil, invalidParam{fmt.Errorf("error reading labels: %w", err)}
 		}
 		options.Labels = labels
 	}
@@ -142,7 +143,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*buildbackend.B
 	if cacheFromJSON := r.FormValue("cachefrom"); cacheFromJSON != "" {
 		cacheFrom := []string{}
 		if err := json.Unmarshal([]byte(cacheFromJSON), &cacheFrom); err != nil {
-			return nil, invalidParam{errors.Wrap(err, "error reading cache-from")}
+			return nil, invalidParam{fmt.Errorf("error reading cache-from: %w", err)}
 		}
 		options.CacheFrom = cacheFrom
 	}
@@ -165,7 +166,7 @@ func parseVersion(s string) (build.BuilderVersion, error) {
 	case build.BuilderBuildKit:
 		return build.BuilderBuildKit, nil
 	default:
-		return "", invalidParam{errors.Errorf("invalid version %q", s)}
+		return "", invalidParam{fmt.Errorf("invalid version %q", s)}
 	}
 }
 
@@ -187,7 +188,7 @@ func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *
 		if fv := r.FormValue(name); fv != "" {
 			bs, err := strconv.Atoi(fv)
 			if err != nil {
-				return 0, invalidParam{errors.Wrapf(err, "%s is in bytes and expects an integer, got %v", name, fv)}
+				return 0, invalidParam{fmt.Errorf("%s is in bytes and expects an integer, got %v: %w", name, fv, err)}
 			}
 			return int64(bs), nil
 		}
@@ -278,7 +279,7 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		if !output.Flushed() {
 			return err
 		}
-		_, err = output.Write(streamformatter.FormatError(err))
+		_, err = output.Write(formatBuildError(err))
 		// don't log broken pipe errors as this is the normal case when a client aborts.
 		if err != nil && !errors.Is(err, syscall.EPIPE) {
 			log.G(ctx).WithError(err).Warn("could not write error response")
@@ -328,6 +329,22 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		_, _ = fmt.Fprintln(streamformatter.NewStdoutWriter(output), imgID)
 	}
 	return nil
+}
+
+// formatBuildError preserves the legacy build error format, where Code represents
+// a container exit code rather than an HTTP status code. Unlike other streaming
+// endpoints, build errors must not automatically include an HTTP status code,
+// because existing clients use this field as the CLI exit status.
+//
+// Also see;
+// https://github.com/moby/moby/blob/docker-v29.9.3/daemon/builder/dockerfile/dispatchers.go#L384-L399
+// https://github.com/moby/moby/commit/e0ef11a4c2c6789e08b61df082b5b9aa70898e7a / https://github.com/moby/moby/pull/16147
+func formatBuildError(err error) []byte {
+	jsonError, ok := errors.AsType[*jsonstream.Error](err)
+	if !ok {
+		jsonError = &jsonstream.Error{Message: err.Error()}
+	}
+	return streamformatter.FormatError(jsonError)
 }
 
 func getAuthConfigs(header http.Header) map[string]registry.AuthConfig {

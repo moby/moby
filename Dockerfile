@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG GO_VERSION=1.27.3
+ARG GO_VERSION=1.27.4
 ARG BASE_DEBIAN_DISTRO=trixie
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 
@@ -18,10 +18,10 @@ ARG DOCKERCLI_INTEGRATION_REPOSITORY="https://github.com/docker/cli.git"
 ARG DOCKERCLI_INTEGRATION_VERSION=v25.0.5
 
 # BUILDX_VERSION is the version of buildx to install in the dev container.
-ARG BUILDX_VERSION=0.38.2
+ARG BUILDX_VERSION=0.39.0
 
 # COMPOSE_VERSION is the version of compose to install in the dev container.
-ARG COMPOSE_VERSION=v5.7.0
+ARG COMPOSE_VERSION=v5.7.1
 
 ARG SYSTEMD="false"
 ARG FIREWALLD="false"
@@ -283,7 +283,7 @@ WORKDIR /usr/src/runc
 # that is used. If you need to update runc, open a pull request in the containerd
 # project first, and update both after that is merged.
 # renovate: datasource=github-tags depName=opencontainers/runc
-ARG RUNC_VERSION=v1.5.2
+ARG RUNC_VERSION=v1.5.3
 ADD https://github.com/opencontainers/runc.git?ref=${RUNC_VERSION}&keep-git-dir=1 .
 
 FROM base AS runc-build
@@ -384,12 +384,12 @@ RUN --mount=from=rootlesskit-src,src=/usr/src/rootlesskit,rw \
   if [ "$DOCKER_STATIC" = "1" ]; then
       set -x
       export CGO_ENABLED=0
-      xx-go build -tags=urfave_cli_no_docs  -o /build/rootlesskit ./cmd/rootlesskit
+      xx-go build -tags=urfave_cli_no_docs -ldflags='-s -w' -o /build/rootlesskit ./cmd/rootlesskit
       xx-verify --static /build/rootlesskit
   else
       set -x
       export CGO_ENABLED=1
-      xx-go build -o /build/rootlesskit -ldflags='-linkmode=external' ./cmd/rootlesskit
+      xx-go build -ldflags='-s -w -linkmode=external' -o /build/rootlesskit ./cmd/rootlesskit
       xx-verify /build/rootlesskit
   fi
 EOT
@@ -403,7 +403,7 @@ FROM rootlesskit-${TARGETOS} AS rootlesskit
 FROM base AS crun
 # CRUN_VERSION is the version of crun to install in the dev-container.
 # renovate: datasource=github-tags depName=containers/crun
-ARG CRUN_VERSION=1.30.1
+ARG CRUN_VERSION=1.31
 RUN --mount=type=cache,sharing=locked,id=moby-crun-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-crun-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \

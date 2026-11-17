@@ -281,7 +281,9 @@ func (ce *exporter) Finalize(ctx context.Context) (_ map[string]string, err erro
 			if err != nil {
 				return nil, layerDone(err)
 			}
-			if err := ce.cache.Save(ctx, key, ra); err != nil {
+			err = ce.cache.Save(ctx, key, ra)
+			ra.Close()
+			if err != nil {
 				if !errors.Is(err, os.ErrExist) {
 					return nil, layerDone(errors.Wrap(err, "error writing layer blob"))
 				}

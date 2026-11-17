@@ -205,7 +205,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, options
 func (i *ImageService) deleteImagePlatforms(ctx context.Context, img *c8dimages.Image, imgID image.ID, platformsToDel []ocispec.Platform) ([]imagetypes.DeleteResponse, error) {
 	var accumulatedResponses []imagetypes.DeleteResponse
 	for _, p := range platformsToDel {
-		responses, err := i.deleteImagePlatformByImageID(ctx, img, imgID, &p)
+		responses, err := i.deleteImagePlatformByImageID(ctx, img, imgID, p)
 		if err != nil {
 			return nil, fmt.Errorf("failed to delete platform %s for image %s: %w", platforms.Format(p), imgID.String(), err)
 		}
@@ -214,27 +214,44 @@ func (i *ImageService) deleteImagePlatforms(ctx context.Context, img *c8dimages.
 	return accumulatedResponses, nil
 }
 
-func (i *ImageService) deleteImagePlatformByImageID(ctx context.Context, img *c8dimages.Image, imgID image.ID, platform *ocispec.Platform) ([]imagetypes.DeleteResponse, error) {
-	pm := platforms.OnlyStrict(*platform)
-	var target ocispec.Descriptor
+func (i *ImageService) deleteImagePlatformByImageID(ctx context.Context, img *c8dimages.Image, imgID image.ID, platform ocispec.Platform) ([]imagetypes.DeleteResponse, error) {
+	pm := platforms.OnlyStrict(platform)
 	if img == nil {
 		// Find any image with the same target
 		// We're deleting by digest anyway so it doesn't matter - we just
-		// need a c8d image object to pass to getBestPresentImageManifest
+		// need a c8d image object to walk its manifests
 		i, err := i.resolveImage(ctx, imgID.String())
 		if err != nil {
 			return nil, err
 		}
 		img = &i
 	}
-	imgMfst, err := i.getBestPresentImageManifest(ctx, *img, pm)
+
+	// Deleting needs the present manifest for exactly this platform, whether
+	// or not its config can be read.
+	var target *ocispec.Descriptor
+	var targetPlatform ocispec.Platform
+	err := i.walkImageManifests(ctx, *img, func(im *ImageManifest) error {
+		imPlatform, err := im.ImagePlatform(ctx)
+		if err != nil {
+			return err
+		}
+		if pm.Match(imPlatform) && (target == nil || pm.Less(imPlatform, targetPlatform)) {
+			desc := im.Target()
+			target = &desc
+			targetPlatform = imPlatform
+		}
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	target = imgMfst.Target()
+	if target == nil {
+		return nil, &errPlatformNotFound{imageRef: imageFamiliarName(*img)}
+	}
 
 	var toDelete []ocispec.Descriptor
-	err = i.walkPresentChildren(ctx, target, func(ctx context.Context, d ocispec.Descriptor) error {
+	err = i.walkPresentChildren(ctx, *target, func(ctx context.Context, d ocispec.Descriptor) error {
 		toDelete = append(toDelete, d)
 		return nil
 	})

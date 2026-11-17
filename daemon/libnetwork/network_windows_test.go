@@ -175,8 +175,7 @@ func TestAddEpToResolver(t *testing.T) {
 			}
 
 			// Add the endpoint and check expected results.
-			err := addEpToResolverImpl(t.Context(),
-				"netname", "epname", tc.epToAdd, resolvers, tc.hnsEndpoints)
+			err := addEpToResolverImpl(t.Context(), "epname", tc.epToAdd, resolvers, tc.hnsEndpoints)
 			assert.Check(t, err)
 			for i, resolver := range resolvers {
 				if i == tc.expResolverIdx {

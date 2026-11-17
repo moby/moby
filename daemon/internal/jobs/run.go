@@ -403,10 +403,22 @@ func (m *Manager) fireQueued(ctx context.Context, jobID string) {
 	if evidence == nil {
 		return
 	}
-	// A failure to fire is the queued trigger's outcome, reported like a
-	// scheduler skip.
 	if _, err := m.tryFireLocked(ctx, jobID, evidence); err != nil {
-		log.G(ctx).WithError(err).WithFields(log.Fields{"job": jobID}).Warn("queued fire was not started")
+		if errors.Is(err, errFireQueued) {
+			// Another run took the job between the release that dispatched
+			// this fire and its acquisition of the lock: the fire is deferred
+			// again.
+			log.G(ctx).WithFields(log.Fields{"job": jobID}).Debug("queued fire deferred again behind a newer run")
+		} else {
+			// A failure to fire is the queued trigger's outcome, reported
+			// like a scheduler skip.
+			log.G(ctx).WithError(err).WithFields(log.Fields{"job": jobID}).Warn("queued fire was not started")
+		}
+		// Whether deferred again or failed without a recorded run, the
+		// stored next-fire time is the occurrence's only durable trace;
+		// advancing it would hide the occurrence from the deferred fire's
+		// restart catch-up.
+		return
 	}
 	// The deferred occurrence stayed recorded until now.
 	m.persistNextFireLocked(ctx, jobID)

@@ -13,12 +13,14 @@ import (
 	"github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/v2/daemon/initlayer"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
+	"github.com/moby/moby/v2/daemon/pkg/oci"
 	v2 "github.com/moby/moby/v2/daemon/pkg/plugin/v2"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/moby/v2/pkg/plugins"
 	"github.com/moby/sys/mount"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
@@ -32,7 +34,17 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 	if err != nil {
 		return err
 	}
-
+	// Remove the time namespace if it's not supported (or disabled through
+	// the "time-namespaces" feature flag), same as for containers.
+	if pm.config.RawSysInfo != nil {
+		sysInfo, err := pm.config.RawSysInfo()
+		if err != nil {
+			return errdefs.System(err)
+		}
+		if !sysInfo.TimeNamespaces {
+			oci.RemoveNamespace(spec, specs.TimeNamespace)
+		}
+	}
 	c.restart = true
 	c.exitChan = make(chan bool)
 

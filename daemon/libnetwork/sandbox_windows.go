@@ -39,8 +39,7 @@ func (sb *Sandbox) canPopulateNetworkResources() bool {
 }
 
 func (sb *Sandbox) populateNetworkResourcesOS(ctx context.Context, ep *Endpoint) error {
-	n := ep.getNetwork()
-	if err := addEpToResolver(ctx, n.Name(), ep.Name(), &sb.config, ep.iface, n.Resolvers()); err != nil {
+	if err := addEpToResolver(ctx, ep.Name(), ep.iface, ep.getNetwork().Resolvers()); err != nil {
 		return errdefs.System(err)
 	}
 	return nil

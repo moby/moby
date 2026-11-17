@@ -46,7 +46,12 @@ func (f *fakeStorage) Get(_ context.Context, req *storagekvv0.RecordRequest) (*s
 	return &storagekvv0.GetResponse{Value: slices.Clone(value)}, nil
 }
 
-func (f *fakeStorage) Create(_ context.Context, req *storagekvv0.WriteRequest) error {
+func (f *fakeStorage) Create(ctx context.Context, req *storagekvv0.WriteRequest) error {
+	// Like the real provider, fail writes whose context is done.
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	key := composeKey(req.Namespace, req.Key)
@@ -57,7 +62,11 @@ func (f *fakeStorage) Create(_ context.Context, req *storagekvv0.WriteRequest) e
 	return nil
 }
 
-func (f *fakeStorage) Update(_ context.Context, req *storagekvv0.WriteRequest) error {
+func (f *fakeStorage) Update(ctx context.Context, req *storagekvv0.WriteRequest) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	key := composeKey(req.Namespace, req.Key)
@@ -68,14 +77,22 @@ func (f *fakeStorage) Update(_ context.Context, req *storagekvv0.WriteRequest) e
 	return nil
 }
 
-func (f *fakeStorage) Delete(_ context.Context, req *storagekvv0.RecordRequest) error {
+func (f *fakeStorage) Delete(ctx context.Context, req *storagekvv0.RecordRequest) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	delete(f.data, composeKey(req.Namespace, req.Key))
 	return nil
 }
 
-func (f *fakeStorage) DeletePrefix(_ context.Context, req *storagekvv0.DeletePrefixRequest) error {
+func (f *fakeStorage) DeletePrefix(ctx context.Context, req *storagekvv0.DeletePrefixRequest) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	prefix := composeKey(req.Namespace, req.Prefix)
