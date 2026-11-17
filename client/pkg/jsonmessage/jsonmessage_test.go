@@ -2,12 +2,15 @@ package jsonmessage
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/jsonstream"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -173,17 +176,66 @@ func TestDisplay(t *testing.T) {
 
 // Test jsonstream.Message with an Error. It returns an error with the given text, not the meaning of the HTTP code.
 func TestDisplayWithJSONError(t *testing.T) {
-	data := bytes.NewBuffer([]byte{})
-	jsonMessage := jsonstream.Message{Error: &jsonstream.Error{Code: 404, Message: "Can't find it"}}
-
-	err := Display(jsonMessage, data, true, 0)
-	if err == nil || err.Error() != "Can't find it" {
-		t.Fatalf("Expected a jsonstream.Error 404, got %q", err)
+	tests := []struct {
+		name        string
+		code        int
+		isErr       func(error) bool
+		wantWrapped bool
+	}{
+		{
+			name: "no status code",
+		},
+		{
+			name:        "not found",
+			code:        http.StatusNotFound,
+			isErr:       cerrdefs.IsNotFound,
+			wantWrapped: true,
+		},
+		{
+			name:        "unauthorized",
+			code:        http.StatusUnauthorized,
+			isErr:       cerrdefs.IsUnauthorized,
+			wantWrapped: true,
+		},
+		{
+			name:        "rate limited",
+			code:        http.StatusTooManyRequests,
+			isErr:       cerrdefs.IsResourceExhausted,
+			wantWrapped: true,
+		},
+		{
+			name:        "internal error",
+			code:        http.StatusInternalServerError,
+			isErr:       cerrdefs.IsInternal,
+			wantWrapped: true,
+		},
+		{
+			name:        "unknown code",
+			code:        599,
+			isErr:       cerrdefs.IsInternal,
+			wantWrapped: true,
+		},
 	}
 
-	jsonMessage = jsonstream.Message{Error: &jsonstream.Error{Code: 401, Message: "Anything"}}
-	err = Display(jsonMessage, data, true, 0)
-	assert.Check(t, is.Error(err, "Anything"))
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			original := &jsonstream.Error{
+				Code:    tc.code,
+				Message: "test error",
+			}
+
+			err := Display(jsonstream.Message{Error: original}, io.Discard, false, 0)
+
+			assert.Check(t, is.Error(err, "test error"))
+			assert.Check(t, errors.Is(err, original))
+
+			if tc.wantWrapped {
+				assert.Check(t, tc.isErr(err))
+			} else {
+				assert.Equal(t, err, original)
+			}
+		})
+	}
 }
 
 func TestDisplayStreamInvalidJSON(t *testing.T) {

@@ -11,6 +11,7 @@ import (
 
 	"github.com/docker/go-units"
 	"github.com/moby/moby/api/types/jsonstream"
+	"github.com/moby/moby/client/internal/httperror"
 	"github.com/moby/term"
 )
 
@@ -144,7 +145,7 @@ func cursorDown(out io.Writer, l uint) {
 // error if [jsonstream.Message.Error] is non-nil.
 func Display(jm jsonstream.Message, out io.Writer, isTerminal bool, width uint16) error {
 	if jm.Error != nil {
-		return jm.Error
+		return httperror.FromStatusCode(jm.Error, jm.Error.Code)
 	}
 	var endl string
 	if isTerminal && jm.Stream == "" && jm.Progress != nil {
