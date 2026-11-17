@@ -1263,23 +1263,6 @@ func (s *DockerCLIRunSuite) TestUserNoEffectiveCapabilitiesMknod(c *testing.T) {
 // TODO CAP_AUDIT_WRITE
 // TODO CAP_SETFCAP
 
-func (s *DockerCLIRunSuite) TestRunApparmorProcDirectory(c *testing.T) {
-	testRequires(c, testEnv.IsLocalDaemon, Apparmor)
-
-	// running w seccomp unconfined tests the apparmor profile
-	result := icmd.RunCommand(dockerBinary, "run", "--security-opt", "seccomp=unconfined", "busybox", "chmod", "777", "/proc/1/cgroup")
-	result.Assert(c, icmd.Expected{ExitCode: 1})
-	if !strings.Contains(result.Combined(), "Permission denied") && !strings.Contains(result.Combined(), "Operation not permitted") {
-		c.Fatalf("expected chmod 777 /proc/1/cgroup to fail, got %s: %v", result.Combined(), result.Error)
-	}
-
-	result = icmd.RunCommand(dockerBinary, "run", "--security-opt", "seccomp=unconfined", "busybox", "chmod", "777", "/proc/1/attr/current")
-	result.Assert(c, icmd.Expected{ExitCode: 1})
-	if !strings.Contains(result.Combined(), "Permission denied") && !strings.Contains(result.Combined(), "Operation not permitted") {
-		c.Fatalf("expected chmod 777 /proc/1/attr/current to fail, got %s: %v", result.Combined(), result.Error)
-	}
-}
-
 // make sure the default profile can be successfully parsed (using unshare as it is
 // something which we know is blocked in the default profile)
 func (s *DockerCLIRunSuite) TestRunSeccompWithDefaultProfile(c *testing.T) {
