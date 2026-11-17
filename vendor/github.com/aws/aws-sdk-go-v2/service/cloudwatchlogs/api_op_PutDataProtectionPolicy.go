@@ -4,6 +4,8 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -100,6 +102,21 @@ type PutDataProtectionPolicyInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutDataProtectionPolicyInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutDataProtectionPolicyRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutDataProtectionPolicyInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.LogGroupIdentifier != nil {
+		s.WriteString(schemas.PutDataProtectionPolicyRequest_logGroupIdentifier, *v.LogGroupIdentifier)
+	}
+	if v.PolicyDocument != nil {
+		s.WriteString(schemas.PutDataProtectionPolicyRequest_policyDocument, *v.PolicyDocument)
+	}
+}
+
 type PutDataProtectionPolicyOutput struct {
 
 	// The date and time that this policy was most recently updated.
@@ -117,13 +134,44 @@ type PutDataProtectionPolicyOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutDataProtectionPolicyOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutDataProtectionPolicyResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutDataProtectionPolicyOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.LastUpdatedTime != nil {
+		s.WriteInt64(schemas.PutDataProtectionPolicyResponse_lastUpdatedTime, *v.LastUpdatedTime)
+	}
+	if v.LogGroupIdentifier != nil {
+		s.WriteString(schemas.PutDataProtectionPolicyResponse_logGroupIdentifier, *v.LogGroupIdentifier)
+	}
+	if v.PolicyDocument != nil {
+		s.WriteString(schemas.PutDataProtectionPolicyResponse_policyDocument, *v.PolicyDocument)
+	}
+}
+func (v *PutDataProtectionPolicyOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.PutDataProtectionPolicyResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.PutDataProtectionPolicyResponse_lastUpdatedTime:
+			v.LastUpdatedTime = new(int64)
+			return d.ReadInt64(schemas.PutDataProtectionPolicyResponse_lastUpdatedTime, v.LastUpdatedTime)
+		case schemas.PutDataProtectionPolicyResponse_logGroupIdentifier:
+			v.LogGroupIdentifier = new(string)
+			return d.ReadString(schemas.PutDataProtectionPolicyResponse_logGroupIdentifier, v.LogGroupIdentifier)
+		case schemas.PutDataProtectionPolicyResponse_policyDocument:
+			v.PolicyDocument = new(string)
+			return d.ReadString(schemas.PutDataProtectionPolicyResponse_policyDocument, v.PolicyDocument)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationPutDataProtectionPolicyMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpPutDataProtectionPolicy{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutDataProtectionPolicy, schemas.PutDataProtectionPolicyRequest, schemas.PutDataProtectionPolicyResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpPutDataProtectionPolicy{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutDataProtectionPolicy, schemas.PutDataProtectionPolicyRequest, schemas.PutDataProtectionPolicyResponse), output: &PutDataProtectionPolicyOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

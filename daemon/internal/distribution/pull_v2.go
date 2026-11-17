@@ -30,7 +30,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/tonistiigi/go-archvariant"
 )
 
 var (
@@ -885,13 +884,4 @@ func toOCIPlatform(p manifestlist.PlatformSpec) *ocispec.Platform {
 		OSFeatures:   p.OSFeatures,
 		OSVersion:    p.OSVersion,
 	}
-}
-
-// maximumSpec returns the distribution platform with maximum compatibility for the current node.
-func maximumSpec() ocispec.Platform {
-	p := platforms.DefaultSpec()
-	if p.Architecture == "amd64" {
-		p.Variant = archvariant.AMD64Variant()
-	}
-	return p
 }

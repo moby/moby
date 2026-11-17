@@ -248,7 +248,7 @@ func TestParseWithMultilineAnnotation(t *testing.T) {
 
 func assertName(t *testing.T, expected, actual string) {
 	if expected != actual {
-		fatalOut(t, fmt.Sprintf("expected name to be `%s`, got: %s", expected, actual))
+		fatalOut(t, fmt.Sprintf("expected name to be %#q, got: %s", expected, actual))
 	}
 }
 

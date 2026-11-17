@@ -50,10 +50,13 @@ can be configured using following options:
 ```go
 func WithAttributeCountLimit(limit int) LoggerProviderOption
 func WithAttributeValueLengthLimit(limit int) LoggerProviderOption
+func WithAttributeValueDepthLimit(limit int) LoggerProviderOption
 ```
 
-The limits can be also configured using the `OTEL_LOGRECORD_*` environment variables as
-[defined by the specification](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#logrecord-limits).
+The attribute count and value length limits can also be configured using the
+`OTEL_LOGRECORD_*` environment variables as [defined by the specification](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#logrecord-limits).
+The attribute value depth limit has no corresponding environment variable and
+defaults to 64.
 
 ### Processor
 

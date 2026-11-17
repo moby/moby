@@ -89,6 +89,16 @@ func WithMatchSuffix(enable bool) Option {
 //
 // Encoding tokens have no parameters, so this function is unaffected by
 // the v0.30 parameter-honouring change to [ContentType].
+//
+// Deprecated: ContentEncoding negotiation is not used by the components
+// of this project.
+//
+// This historical addition has never been associated with proper
+// compression middleware and is thus half a feature.
+// The runtime does not ship compression.
+// Use github.com/CAFxX/httpcompression or github.com/klauspost/compress/gzhttp
+// at the http.Handler level, or github.com/klauspost/compress/* for client
+// transport wrapping. See docs/examples/middleware for a recipe.
 func ContentEncoding(r *http.Request, offers []string) string {
 	bestOffer := "identity"
 	bestQ := -1.0

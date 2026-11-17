@@ -1,4 +1,4 @@
-// +build windows
+//go:build windows
 
 package winterm
 
@@ -50,12 +50,7 @@ func (h *windowsAnsiEventHandler) clearRange(attributes uint16, fromCoord COORD,
 	coordStart.X, coordStart.Y = xCurrent, yCurrent
 	coordEnd.X, coordEnd.Y = xEnd, yEnd
 
-	err = h.clearRect(attributes, coordStart, coordEnd)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return h.clearRect(attributes, coordStart, coordEnd)
 }
 
 func (h *windowsAnsiEventHandler) clearRect(attributes uint16, fromCoord COORD, toCoord COORD) error {
@@ -75,10 +70,5 @@ func (h *windowsAnsiEventHandler) clearRect(attributes uint16, fromCoord COORD, 
 		buffer[i] = char
 	}
 
-	err := WriteConsoleOutput(h.fd, buffer, COORD{X: width, Y: height}, COORD{X: 0, Y: 0}, &region)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return WriteConsoleOutput(h.fd, buffer, COORD{X: width, Y: height}, COORD{X: 0, Y: 0}, &region)
 }

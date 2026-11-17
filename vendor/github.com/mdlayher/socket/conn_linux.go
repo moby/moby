@@ -173,7 +173,7 @@ func (c *Conn) GetsockoptTpacketStatsV3(level, name int) (*unix.TpacketStatsV3, 
 
 // Waitid wraps waitid(2).
 func (c *Conn) Waitid(idType int, info *unix.Siginfo, options int, rusage *unix.Rusage) error {
-	return c.read(context.Background(), "waitid", func(fd int) error {
+	return c.ReadFunc(context.Background(), "waitid", func(fd int) error {
 		return unix.Waitid(idType, fd, info, options, rusage)
 	})
 }

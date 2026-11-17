@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+	"unsafe"
 
 	"golang.org/x/sys/unix"
 )
@@ -141,7 +142,7 @@ func (c *Conn) WriteContext(ctx context.Context, b []byte) (int, error) {
 		err   error
 	)
 
-	doErr := c.write(ctx, "write", func(fd int) error {
+	doErr := c.WriteFunc(ctx, "write", func(fd int) error {
 		lenb := len(b)
 		if c.facts.isStream && lenb-nn > maxRW {
 			lenb = nn + maxRW
@@ -471,7 +472,7 @@ func (c *Conn) Connect(ctx context.Context, sa unix.Sockaddr) (unix.Sockaddr, er
 		err error
 	)
 
-	doErr := c.write(ctx, op, func(fd int) error {
+	doErr := c.WriteFunc(ctx, op, func(fd int) error {
 		if progress.Add(1) == 1 {
 			// First call: initiate connect.
 			return unix.Connect(fd, sa)
@@ -557,6 +558,29 @@ func (c *Conn) GetsockoptString(level, opt int) (string, error) {
 	})
 }
 
+// Ioctl wraps ioctl(2) for an arbitrary request req with a pointer argument
+// arg, which is passed to the kernel verbatim. It is intended for requests
+// which have no typed wrapper in this package or in package
+// golang.org/x/sys/unix. arg may be nil for requests which take no argument.
+//
+// The caller is responsible for ensuring that arg points to memory of the
+// size and layout expected by the kernel for req.
+func (c *Conn) Ioctl(req uint, arg unsafe.Pointer) error {
+	return c.control("ioctl", func(fd int) error {
+		_, _, errno := unix.Syscall(
+			unix.SYS_IOCTL,
+			uintptr(fd),
+			uintptr(req),
+			uintptr(arg),
+		)
+		if errno != 0 {
+			return errno
+		}
+
+		return nil
+	})
+}
+
 // Listen wraps listen(2).
 func (c *Conn) Listen(n int) error {
 	return c.control("listen", func(fd int) error { return unix.Listen(fd, n) })
@@ -614,7 +638,7 @@ func (c *Conn) SendmsgBuffers(ctx context.Context, buffers [][]byte, oob []byte,
 
 // Sendto wraps sendto(2).
 func (c *Conn) Sendto(ctx context.Context, p []byte, flags int, to unix.Sockaddr) error {
-	return c.write(ctx, "sendto", func(fd int) error {
+	return c.WriteFunc(ctx, "sendto", func(fd int) error {
 		return unix.Sendto(fd, p, flags, to)
 	})
 }
@@ -649,18 +673,52 @@ func (c *Conn) Shutdown(how int) error {
 // syscall.RawConn APIs but the input closures return errors rather than
 // booleans.
 
-// read wraps readT to execute a function and capture its error result. This is
-// a convenience wrapper for functions which don't return any extra values.
-func (c *Conn) read(ctx context.Context, op string, f func(fd int) error) error {
+// ReadFunc executes f, a read function, against the underlying file descriptor
+// with integration into Go's runtime network poller. It is the raw building
+// block used by the Conn read methods such as ReadContext and Recvmsg and is
+// intended for system calls which have no wrapper in this package or in
+// package golang.org/x/sys/unix.
+//
+// f is invoked with the file descriptor while the runtime network poller holds
+// it, and must return the raw error from the system call it performs: nil on
+// success or a unix.Errno on failure. If f returns unix.EAGAIN, unix.EINTR, or
+// unix.EINPROGRESS, ReadFunc waits for the file descriptor to become readable
+// and invokes f again. Any other error or nil completes the operation, so f
+// may be called more than once and must be safe to retry.
+//
+// op is the name of the operation used in errors. The error returned by f is
+// wrapped as os.NewSyscallError(op, err). If ctx is canceled or its deadline
+// is reached before f completes, the context error is wrapped in the same way.
+// A context deadline is applied to the Conn's read deadline for the duration
+// of the call and is cleared before ReadFunc returns. If the Conn is closed,
+// ReadFunc returns os.NewSyscallError(op, unix.EBADF).
+func (c *Conn) ReadFunc(ctx context.Context, op string, f func(fd int) error) error {
 	_, err := readT(ctx, c, op, func(fd int) (struct{}, error) {
 		return struct{}{}, f(fd)
 	})
 	return err
 }
 
-// write executes f, a write function, against the associated file descriptor.
-// op is used to create an *os.SyscallError if the file descriptor is closed.
-func (c *Conn) write(ctx context.Context, op string, f func(fd int) error) error {
+// WriteFunc executes f, a write function, against the underlying file
+// descriptor with integration into Go's runtime network poller. It is the raw
+// building block used by the Conn write methods such as WriteContext and
+// Sendmsg and is intended for system calls which have no wrapper in this
+// package or in package golang.org/x/sys/unix.
+//
+// f is invoked with the file descriptor while the runtime network poller holds
+// it, and must return the raw error from the system call it performs: nil on
+// success or a unix.Errno on failure. If f returns unix.EAGAIN, unix.EINTR, or
+// unix.EINPROGRESS, WriteFunc waits for the file descriptor to become writable
+// and invokes f again. Any other error or nil completes the operation, so f
+// may be called more than once and must be safe to retry.
+//
+// op is the name of the operation used in errors. The error returned by f is
+// wrapped as os.NewSyscallError(op, err). If ctx is canceled or its deadline
+// is reached before f completes, the context error is wrapped in the same way.
+// A context deadline is applied to the Conn's write deadline for the duration
+// of the call and is cleared before WriteFunc returns. If the Conn is closed,
+// WriteFunc returns os.NewSyscallError(op, unix.EBADF).
+func (c *Conn) WriteFunc(ctx context.Context, op string, f func(fd int) error) error {
 	_, err := writeT(ctx, c, op, func(fd int) (struct{}, error) {
 		return struct{}{}, f(fd)
 	})

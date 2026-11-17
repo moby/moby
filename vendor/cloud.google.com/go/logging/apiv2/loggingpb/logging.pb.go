@@ -1047,18 +1047,18 @@ var File_google_logging_v2_logging_proto protoreflect.FileDescriptor
 
 const file_google_logging_v2_logging_proto_rawDesc = "" +
 	"\n" +
-	"\x1fgoogle/logging/v2/logging.proto\x12\x11google.logging.v2\x1a\x1cgoogle/api/annotations.proto\x1a\x17google/api/client.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a#google/api/monitored_resource.proto\x1a\x19google/api/resource.proto\x1a!google/logging/v2/log_entry.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x17google/rpc/status.proto\"Q\n" +
-	"\x10DeleteLogRequest\x12=\n" +
-	"\blog_name\x18\x01 \x01(\tB\"\xe0A\x02\xfaA\x1c\n" +
-	"\x1alogging.googleapis.com/LogR\alogName\"\xae\x03\n" +
-	"\x16WriteLogEntriesRequest\x12=\n" +
-	"\blog_name\x18\x01 \x01(\tB\"\xe0A\x01\xfaA\x1c\n" +
-	"\x1alogging.googleapis.com/LogR\alogName\x12>\n" +
-	"\bresource\x18\x02 \x01(\v2\x1d.google.api.MonitoredResourceB\x03\xe0A\x01R\bresource\x12R\n" +
-	"\x06labels\x18\x03 \x03(\v25.google.logging.v2.WriteLogEntriesRequest.LabelsEntryB\x03\xe0A\x01R\x06labels\x12:\n" +
-	"\aentries\x18\x04 \x03(\v2\x1b.google.logging.v2.LogEntryB\x03\xe0A\x02R\aentries\x12,\n" +
-	"\x0fpartial_success\x18\x05 \x01(\bB\x03\xe0A\x01R\x0epartialSuccess\x12\x1c\n" +
-	"\adry_run\x18\x06 \x01(\bB\x03\xe0A\x01R\x06dryRun\x1a9\n" +
+	"\x1fgoogle/logging/v2/logging.proto\x12\x11google.logging.v2\x1a\x1cgoogle/api/annotations.proto\x1a\x17google/api/client.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a#google/api/monitored_resource.proto\x1a\x19google/api/resource.proto\x1a!google/logging/v2/log_entry.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x17google/rpc/status.proto\"R\n" +
+	"\x10DeleteLogRequest\x12>\n" +
+	"\blog_name\x18\x01 \x01(\tB#\xe2A\x01\x02\xfaA\x1c\n" +
+	"\x1alogging.googleapis.com/LogR\alogName\"\xb4\x03\n" +
+	"\x16WriteLogEntriesRequest\x12>\n" +
+	"\blog_name\x18\x01 \x01(\tB#\xe2A\x01\x01\xfaA\x1c\n" +
+	"\x1alogging.googleapis.com/LogR\alogName\x12?\n" +
+	"\bresource\x18\x02 \x01(\v2\x1d.google.api.MonitoredResourceB\x04\xe2A\x01\x01R\bresource\x12S\n" +
+	"\x06labels\x18\x03 \x03(\v25.google.logging.v2.WriteLogEntriesRequest.LabelsEntryB\x04\xe2A\x01\x01R\x06labels\x12;\n" +
+	"\aentries\x18\x04 \x03(\v2\x1b.google.logging.v2.LogEntryB\x04\xe2A\x01\x02R\aentries\x12-\n" +
+	"\x0fpartial_success\x18\x05 \x01(\bB\x04\xe2A\x01\x01R\x0epartialSuccess\x12\x1d\n" +
+	"\adry_run\x18\x06 \x01(\bB\x04\xe2A\x01\x01R\x06dryRun\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x19\n" +
@@ -1067,37 +1067,37 @@ const file_google_logging_v2_logging_proto_rawDesc = "" +
 	"\x10log_entry_errors\x18\x01 \x03(\v2C.google.logging.v2.WriteLogEntriesPartialErrors.LogEntryErrorsEntryR\x0elogEntryErrors\x1aU\n" +
 	"\x13LogEntryErrorsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\x05R\x03key\x12(\n" +
-	"\x05value\x18\x02 \x01(\v2\x12.google.rpc.StatusR\x05value:\x028\x01\"\xe5\x01\n" +
-	"\x15ListLogEntriesRequest\x12I\n" +
-	"\x0eresource_names\x18\b \x03(\tB\"\xe0A\x02\xfaA\x1c\x12\x1alogging.googleapis.com/LogR\rresourceNames\x12\x1b\n" +
-	"\x06filter\x18\x02 \x01(\tB\x03\xe0A\x01R\x06filter\x12\x1e\n" +
-	"\border_by\x18\x03 \x01(\tB\x03\xe0A\x01R\aorderBy\x12 \n" +
-	"\tpage_size\x18\x04 \x01(\x05B\x03\xe0A\x01R\bpageSize\x12\"\n" +
+	"\x05value\x18\x02 \x01(\v2\x12.google.rpc.StatusR\x05value:\x028\x01\"\xea\x01\n" +
+	"\x15ListLogEntriesRequest\x12J\n" +
+	"\x0eresource_names\x18\b \x03(\tB#\xe2A\x01\x02\xfaA\x1c\x12\x1alogging.googleapis.com/LogR\rresourceNames\x12\x1c\n" +
+	"\x06filter\x18\x02 \x01(\tB\x04\xe2A\x01\x01R\x06filter\x12\x1f\n" +
+	"\border_by\x18\x03 \x01(\tB\x04\xe2A\x01\x01R\aorderBy\x12!\n" +
+	"\tpage_size\x18\x04 \x01(\x05B\x04\xe2A\x01\x01R\bpageSize\x12#\n" +
 	"\n" +
-	"page_token\x18\x05 \x01(\tB\x03\xe0A\x01R\tpageToken\"w\n" +
+	"page_token\x18\x05 \x01(\tB\x04\xe2A\x01\x01R\tpageToken\"w\n" +
 	"\x16ListLogEntriesResponse\x125\n" +
 	"\aentries\x18\x01 \x03(\v2\x1b.google.logging.v2.LogEntryR\aentries\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"o\n" +
-	"'ListMonitoredResourceDescriptorsRequest\x12 \n" +
-	"\tpage_size\x18\x01 \x01(\x05B\x03\xe0A\x01R\bpageSize\x12\"\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"q\n" +
+	"'ListMonitoredResourceDescriptorsRequest\x12!\n" +
+	"\tpage_size\x18\x01 \x01(\x05B\x04\xe2A\x01\x01R\bpageSize\x12#\n" +
 	"\n" +
-	"page_token\x18\x02 \x01(\tB\x03\xe0A\x01R\tpageToken\"\xae\x01\n" +
+	"page_token\x18\x02 \x01(\tB\x04\xe2A\x01\x01R\tpageToken\"\xae\x01\n" +
 	"(ListMonitoredResourceDescriptorsResponse\x12Z\n" +
 	"\x14resource_descriptors\x18\x01 \x03(\v2'.google.api.MonitoredResourceDescriptorR\x13resourceDescriptors\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xde\x01\n" +
-	"\x0fListLogsRequest\x12:\n" +
-	"\x06parent\x18\x01 \x01(\tB\"\xe0A\x02\xfaA\x1c\x12\x1alogging.googleapis.com/LogR\x06parent\x12I\n" +
-	"\x0eresource_names\x18\b \x03(\tB\"\xe0A\x01\xfaA\x1c\x12\x1alogging.googleapis.com/LogR\rresourceNames\x12 \n" +
-	"\tpage_size\x18\x02 \x01(\x05B\x03\xe0A\x01R\bpageSize\x12\"\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xe2\x01\n" +
+	"\x0fListLogsRequest\x12;\n" +
+	"\x06parent\x18\x01 \x01(\tB#\xe2A\x01\x02\xfaA\x1c\x12\x1alogging.googleapis.com/LogR\x06parent\x12J\n" +
+	"\x0eresource_names\x18\b \x03(\tB#\xe2A\x01\x01\xfaA\x1c\x12\x1alogging.googleapis.com/LogR\rresourceNames\x12!\n" +
+	"\tpage_size\x18\x02 \x01(\x05B\x04\xe2A\x01\x01R\bpageSize\x12#\n" +
 	"\n" +
-	"page_token\x18\x03 \x01(\tB\x03\xe0A\x01R\tpageToken\"W\n" +
+	"page_token\x18\x03 \x01(\tB\x04\xe2A\x01\x01R\tpageToken\"W\n" +
 	"\x10ListLogsResponse\x12\x1b\n" +
 	"\tlog_names\x18\x03 \x03(\tR\blogNames\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xa5\x01\n" +
-	"\x15TailLogEntriesRequest\x12*\n" +
-	"\x0eresource_names\x18\x01 \x03(\tB\x03\xe0A\x02R\rresourceNames\x12\x1b\n" +
-	"\x06filter\x18\x02 \x01(\tB\x03\xe0A\x01R\x06filter\x12C\n" +
-	"\rbuffer_window\x18\x03 \x01(\v2\x19.google.protobuf.DurationB\x03\xe0A\x01R\fbufferWindow\"\x92\x03\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xa8\x01\n" +
+	"\x15TailLogEntriesRequest\x12+\n" +
+	"\x0eresource_names\x18\x01 \x03(\tB\x04\xe2A\x01\x02R\rresourceNames\x12\x1c\n" +
+	"\x06filter\x18\x02 \x01(\tB\x04\xe2A\x01\x01R\x06filter\x12D\n" +
+	"\rbuffer_window\x18\x03 \x01(\v2\x19.google.protobuf.DurationB\x04\xe2A\x01\x01R\fbufferWindow\"\x92\x03\n" +
 	"\x16TailLogEntriesResponse\x125\n" +
 	"\aentries\x18\x01 \x03(\v2\x1b.google.logging.v2.LogEntryR\aentries\x12d\n" +
 	"\x10suppression_info\x18\x02 \x03(\v29.google.logging.v2.TailLogEntriesResponse.SuppressionInfoR\x0fsuppressionInfo\x1a\xda\x01\n" +

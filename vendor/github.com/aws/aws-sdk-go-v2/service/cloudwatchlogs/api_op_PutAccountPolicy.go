@@ -4,14 +4,18 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
 // Creates an account-level data protection policy, subscription filter policy,
 // field index policy, transformer policy, or metric extraction policy that applies
 // to all log groups, a subset of log groups, or a data source name and type
-// combination in the account.
+// combination in the account. Account-level policies are Region-specific: a policy
+// applies only to log groups in the Region where you create it. To apply a policy
+// across multiple Regions, create the policy separately in each Region.
 //
 // PutAccountPolicy is an account-wide administrative operation intended for
 // CloudWatch Logs administrators. Because it affects all log groups (or a broad
@@ -508,6 +512,15 @@ type PutAccountPolicyInput struct {
 	// This member is required.
 	PolicyType types.PolicyType
 
+	// Specifies whether to preview the impact of the policy without creating or
+	// updating it. If you specify true , CloudWatch Logs validates the request, does
+	// not save the policy, and returns the estimated impact in dryRunResult instead
+	// of accountPolicy . The default is false .
+	//
+	// Specifying dryRun is valid only when you specify RETENTION_POLICY for policyType
+	// . Only one dry run can be in progress for an account at a time.
+	DryRun bool
+
 	// Currently the only valid value for this parameter is ALL , which specifies that
 	// the data protection policy applies to all log groups in the account. If you omit
 	// this parameter, the default of ALL is used.
@@ -548,10 +561,41 @@ type PutAccountPolicyInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutAccountPolicyInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutAccountPolicyRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutAccountPolicyInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.DryRun != false {
+		s.WriteBool(schemas.PutAccountPolicyRequest_dryRun, v.DryRun)
+	}
+	if v.PolicyDocument != nil {
+		s.WriteString(schemas.PutAccountPolicyRequest_policyDocument, *v.PolicyDocument)
+	}
+	if v.PolicyName != nil {
+		s.WriteString(schemas.PutAccountPolicyRequest_policyName, *v.PolicyName)
+	}
+	if v.PolicyType != "" {
+		s.WriteString(schemas.PutAccountPolicyRequest_policyType, string(v.PolicyType))
+	}
+	if v.Scope != "" {
+		s.WriteString(schemas.PutAccountPolicyRequest_scope, string(v.Scope))
+	}
+	if v.SelectionCriteria != nil {
+		s.WriteString(schemas.PutAccountPolicyRequest_selectionCriteria, *v.SelectionCriteria)
+	}
+}
+
 type PutAccountPolicyOutput struct {
 
 	// The account policy that you created.
 	AccountPolicy *types.AccountPolicy
+
+	// The estimated impact of the policy on log groups in the account. This field is
+	// returned only when the request specifies dryRun as true .
+	DryRunResult *types.DryRunResult
 
 	// Metadata pertaining to the operation's result.
 	ResultMetadata middleware.Metadata
@@ -559,13 +603,42 @@ type PutAccountPolicyOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutAccountPolicyOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutAccountPolicyResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutAccountPolicyOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.AccountPolicy != nil {
+		s.WriteStruct(schemas.PutAccountPolicyResponse_accountPolicy)
+		v.AccountPolicy.SerializeMembers(s)
+		s.CloseStruct()
+	}
+	if v.DryRunResult != nil {
+		s.WriteStruct(schemas.PutAccountPolicyResponse_dryRunResult)
+		v.DryRunResult.SerializeMembers(s)
+		s.CloseStruct()
+	}
+}
+func (v *PutAccountPolicyOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.PutAccountPolicyResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.PutAccountPolicyResponse_accountPolicy:
+			v.AccountPolicy = &types.AccountPolicy{}
+			return v.AccountPolicy.Deserialize(d)
+		case schemas.PutAccountPolicyResponse_dryRunResult:
+			v.DryRunResult = &types.DryRunResult{}
+			return v.DryRunResult.Deserialize(d)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationPutAccountPolicyMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpPutAccountPolicy{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutAccountPolicy, schemas.PutAccountPolicyRequest, schemas.PutAccountPolicyResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpPutAccountPolicy{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutAccountPolicy, schemas.PutAccountPolicyRequest, schemas.PutAccountPolicyResponse), output: &PutAccountPolicyOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

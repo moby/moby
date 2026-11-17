@@ -611,40 +611,40 @@ var File_google_logging_v2_log_entry_proto protoreflect.FileDescriptor
 
 const file_google_logging_v2_log_entry_proto_rawDesc = "" +
 	"\n" +
-	"!google/logging/v2/log_entry.proto\x12\x11google.logging.v2\x1a\x1fgoogle/api/field_behavior.proto\x1a#google/api/monitored_resource.proto\x1a\x19google/api/resource.proto\x1a&google/logging/type/http_request.proto\x1a&google/logging/type/log_severity.proto\x1a\x19google/protobuf/any.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcf\t\n" +
-	"\bLogEntry\x12\x1e\n" +
-	"\blog_name\x18\f \x01(\tB\x03\xe0A\x02R\alogName\x12>\n" +
-	"\bresource\x18\b \x01(\v2\x1d.google.api.MonitoredResourceB\x03\xe0A\x02R\bresource\x12;\n" +
+	"!google/logging/v2/log_entry.proto\x12\x11google.logging.v2\x1a\x1fgoogle/api/field_behavior.proto\x1a#google/api/monitored_resource.proto\x1a\x19google/api/resource.proto\x1a&google/logging/type/http_request.proto\x1a&google/logging/type/log_severity.proto\x1a\x19google/protobuf/any.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xdd\t\n" +
+	"\bLogEntry\x12\x1f\n" +
+	"\blog_name\x18\f \x01(\tB\x04\xe2A\x01\x02R\alogName\x12?\n" +
+	"\bresource\x18\b \x01(\v2\x1d.google.api.MonitoredResourceB\x04\xe2A\x01\x02R\bresource\x12;\n" +
 	"\rproto_payload\x18\x02 \x01(\v2\x14.google.protobuf.AnyH\x00R\fprotoPayload\x12#\n" +
 	"\ftext_payload\x18\x03 \x01(\tH\x00R\vtextPayload\x12<\n" +
-	"\fjson_payload\x18\x06 \x01(\v2\x17.google.protobuf.StructH\x00R\vjsonPayload\x12=\n" +
-	"\ttimestamp\x18\t \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x01R\ttimestamp\x12L\n" +
-	"\x11receive_timestamp\x18\x18 \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\x10receiveTimestamp\x12A\n" +
+	"\fjson_payload\x18\x06 \x01(\v2\x17.google.protobuf.StructH\x00R\vjsonPayload\x12>\n" +
+	"\ttimestamp\x18\t \x01(\v2\x1a.google.protobuf.TimestampB\x04\xe2A\x01\x01R\ttimestamp\x12M\n" +
+	"\x11receive_timestamp\x18\x18 \x01(\v2\x1a.google.protobuf.TimestampB\x04\xe2A\x01\x03R\x10receiveTimestamp\x12B\n" +
 	"\bseverity\x18\n" +
-	" \x01(\x0e2 .google.logging.type.LogSeverityB\x03\xe0A\x01R\bseverity\x12 \n" +
-	"\tinsert_id\x18\x04 \x01(\tB\x03\xe0A\x01R\binsertId\x12H\n" +
-	"\fhttp_request\x18\a \x01(\v2 .google.logging.type.HttpRequestB\x03\xe0A\x01R\vhttpRequest\x12D\n" +
-	"\x06labels\x18\v \x03(\v2'.google.logging.v2.LogEntry.LabelsEntryB\x03\xe0A\x01R\x06labels\x12G\n" +
-	"\toperation\x18\x0f \x01(\v2$.google.logging.v2.LogEntryOperationB\x03\xe0A\x01R\toperation\x12\x19\n" +
-	"\x05trace\x18\x16 \x01(\tB\x03\xe0A\x01R\x05trace\x12\x1c\n" +
-	"\aspan_id\x18\x1b \x01(\tB\x03\xe0A\x01R\x06spanId\x12(\n" +
-	"\rtrace_sampled\x18\x1e \x01(\bB\x03\xe0A\x01R\ftraceSampled\x12W\n" +
-	"\x0fsource_location\x18\x17 \x01(\v2).google.logging.v2.LogEntrySourceLocationB\x03\xe0A\x01R\x0esourceLocation\x126\n" +
-	"\x05split\x18# \x01(\v2\x1b.google.logging.v2.LogSplitB\x03\xe0A\x01R\x05split\x1a9\n" +
+	" \x01(\x0e2 .google.logging.type.LogSeverityB\x04\xe2A\x01\x01R\bseverity\x12!\n" +
+	"\tinsert_id\x18\x04 \x01(\tB\x04\xe2A\x01\x01R\binsertId\x12I\n" +
+	"\fhttp_request\x18\a \x01(\v2 .google.logging.type.HttpRequestB\x04\xe2A\x01\x01R\vhttpRequest\x12E\n" +
+	"\x06labels\x18\v \x03(\v2'.google.logging.v2.LogEntry.LabelsEntryB\x04\xe2A\x01\x01R\x06labels\x12H\n" +
+	"\toperation\x18\x0f \x01(\v2$.google.logging.v2.LogEntryOperationB\x04\xe2A\x01\x01R\toperation\x12\x1a\n" +
+	"\x05trace\x18\x16 \x01(\tB\x04\xe2A\x01\x01R\x05trace\x12\x1d\n" +
+	"\aspan_id\x18\x1b \x01(\tB\x04\xe2A\x01\x01R\x06spanId\x12)\n" +
+	"\rtrace_sampled\x18\x1e \x01(\bB\x04\xe2A\x01\x01R\ftraceSampled\x12X\n" +
+	"\x0fsource_location\x18\x17 \x01(\v2).google.logging.v2.LogEntrySourceLocationB\x04\xe2A\x01\x01R\x0esourceLocation\x127\n" +
+	"\x05split\x18# \x01(\v2\x1b.google.logging.v2.LogSplitB\x04\xe2A\x01\x01R\x05split\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01:\xbd\x01\xeaA\xb9\x01\n" +
 	"\x1alogging.googleapis.com/Log\x12\x1dprojects/{project}/logs/{log}\x12'organizations/{organization}/logs/{log}\x12\x1bfolders/{folder}/logs/{log}\x12,billingAccounts/{billing_account}/logs/{log}\x1a\blog_nameB\t\n" +
-	"\apayload\"}\n" +
-	"\x11LogEntryOperation\x12\x13\n" +
-	"\x02id\x18\x01 \x01(\tB\x03\xe0A\x01R\x02id\x12\x1f\n" +
-	"\bproducer\x18\x02 \x01(\tB\x03\xe0A\x01R\bproducer\x12\x19\n" +
-	"\x05first\x18\x03 \x01(\bB\x03\xe0A\x01R\x05first\x12\x17\n" +
-	"\x04last\x18\x04 \x01(\bB\x03\xe0A\x01R\x04last\"k\n" +
-	"\x16LogEntrySourceLocation\x12\x17\n" +
-	"\x04file\x18\x01 \x01(\tB\x03\xe0A\x01R\x04file\x12\x17\n" +
-	"\x04line\x18\x02 \x01(\x03B\x03\xe0A\x01R\x04line\x12\x1f\n" +
-	"\bfunction\x18\x03 \x01(\tB\x03\xe0A\x01R\bfunction\"U\n" +
+	"\apayload\"\x81\x01\n" +
+	"\x11LogEntryOperation\x12\x14\n" +
+	"\x02id\x18\x01 \x01(\tB\x04\xe2A\x01\x01R\x02id\x12 \n" +
+	"\bproducer\x18\x02 \x01(\tB\x04\xe2A\x01\x01R\bproducer\x12\x1a\n" +
+	"\x05first\x18\x03 \x01(\bB\x04\xe2A\x01\x01R\x05first\x12\x18\n" +
+	"\x04last\x18\x04 \x01(\bB\x04\xe2A\x01\x01R\x04last\"n\n" +
+	"\x16LogEntrySourceLocation\x12\x18\n" +
+	"\x04file\x18\x01 \x01(\tB\x04\xe2A\x01\x01R\x04file\x12\x18\n" +
+	"\x04line\x18\x02 \x01(\x03B\x04\xe2A\x01\x01R\x04line\x12 \n" +
+	"\bfunction\x18\x03 \x01(\tB\x04\xe2A\x01\x01R\bfunction\"U\n" +
 	"\bLogSplit\x12\x10\n" +
 	"\x03uid\x18\x01 \x01(\tR\x03uid\x12\x14\n" +
 	"\x05index\x18\x02 \x01(\x05R\x05index\x12!\n" +

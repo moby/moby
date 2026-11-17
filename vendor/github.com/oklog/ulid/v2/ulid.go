@@ -505,7 +505,16 @@ func (id *ULID) Scan(src interface{}) error {
 	case string:
 		return id.UnmarshalText([]byte(x))
 	case []byte:
-		return id.UnmarshalBinary(x)
+		// Drivers often return text/varchar columns as []byte. Accept both
+		// the 16-byte binary form and the 26-character text encoding.
+		switch len(x) {
+		case len(*id):
+			return id.UnmarshalBinary(x)
+		case EncodedSize:
+			return id.UnmarshalText(x)
+		default:
+			return ErrDataSize
+		}
 	}
 
 	return ErrScanValue

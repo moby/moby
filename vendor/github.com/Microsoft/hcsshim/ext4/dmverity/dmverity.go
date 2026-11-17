@@ -183,11 +183,14 @@ func ReadDMVerityInfo(vhdPath string, offsetInBytes int64) (*VerityInfo, error) 
 
 func ReadDMVerityInfoReader(r io.Reader) (*VerityInfo, error) {
 	block := make([]byte, blockSize)
-	if s, err := r.Read(block); err != nil || s != blockSize {
-		if err != nil {
-			return nil, fmt.Errorf("%w: %w", ErrSuperBlockReadFailure, err)
+	// io.Reader is allowed to return fewer bytes than requested without that
+	// being an error, so read the whole block rather than relying on a single
+	// Read filling it.
+	if s, err := io.ReadFull(r, block); err != nil {
+		if errors.Is(err, io.ErrUnexpectedEOF) {
+			return nil, fmt.Errorf("unexpected bytes read expected=%d actual=%d: %w", blockSize, s, ErrSuperBlockReadFailure)
 		}
-		return nil, fmt.Errorf("unexpected bytes read expected=%d actual=%d: %w", blockSize, s, ErrSuperBlockReadFailure)
+		return nil, fmt.Errorf("%w: %w", ErrSuperBlockReadFailure, err)
 	}
 
 	dmvSB := &dmveritySuperblock{}
@@ -199,12 +202,15 @@ func ReadDMVerityInfoReader(r io.Reader) (*VerityInfo, error) {
 	if string(bytes.Trim(dmvSB.Signature[:], "\x00")[:]) != VeritySignature {
 		return nil, ErrNotVeritySuperBlock
 	}
+	if int(dmvSB.SaltSize) > len(dmvSB.Salt) {
+		return nil, fmt.Errorf("%w: salt size %d exceeds salt capacity %d", ErrSuperBlockParseFailure, dmvSB.SaltSize, len(dmvSB.Salt))
+	}
 
-	if s, err := r.Read(block); err != nil || s != blockSize {
-		if err != nil {
-			return nil, fmt.Errorf("%w: %w", ErrRootHashReadFailure, err)
+	if s, err := io.ReadFull(r, block); err != nil {
+		if errors.Is(err, io.ErrUnexpectedEOF) {
+			return nil, fmt.Errorf("unexpected bytes read expected=%d, actual=%d: %w", blockSize, s, ErrRootHashReadFailure)
 		}
-		return nil, fmt.Errorf("unexpected bytes read expected=%d, actual=%d: %w", blockSize, s, ErrRootHashReadFailure)
+		return nil, fmt.Errorf("%w: %w", ErrRootHashReadFailure, err)
 	}
 
 	rootHash := hash2(dmvSB.Salt[:dmvSB.SaltSize], block)

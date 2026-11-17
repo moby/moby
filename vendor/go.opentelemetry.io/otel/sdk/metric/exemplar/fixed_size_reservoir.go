@@ -24,6 +24,12 @@ func FixedSizeReservoirProvider(k int) ReservoirProvider {
 // sample each one. If there are more than k, the Reservoir will then randomly
 // sample all additional measurement with a decreasing probability.
 func NewFixedSizeReservoir(k int) *FixedSizeReservoir {
+	// A negative size is invalid. The constructor cannot return an error, so
+	// clamp it to zero and treat it as an empty reservoir (consistent with the
+	// existing behavior for k == 0) rather than panicking in make below.
+	if k < 0 {
+		k = 0
+	}
 	r := &FixedSizeReservoir{
 		storage: make([]measurement, k),
 	}

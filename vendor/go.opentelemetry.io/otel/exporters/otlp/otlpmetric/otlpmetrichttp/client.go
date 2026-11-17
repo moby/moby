@@ -31,11 +31,12 @@ import (
 
 type client struct {
 	// req is cloned for every upload the client makes.
-	req            *http.Request
-	compression    Compression
-	maxRequestSize int
-	requestFunc    retry.RequestFunc
-	httpClient     *http.Client
+	req             *http.Request
+	compression     Compression
+	maxRequestSize  int
+	maxResponseSize int64
+	requestFunc     retry.RequestFunc
+	httpClient      *http.Client
 
 	inst *observ.Instrumentation
 }
@@ -58,13 +59,6 @@ var ourTransport = &http.Transport{
 }
 
 var errInsecureEndpointWithTLS = errors.New("insecure HTTP endpoint cannot use TLS client configuration")
-
-// maxResponseBodySize is the maximum number of bytes to read from a response
-// body. It is set to 4 MiB per the OTLP specification recommendation to
-// mitigate excessive memory usage caused by a misconfigured or malicious
-// server. If exceeded, the response is treated as a not-retryable error.
-// This is a variable to allow tests to override it.
-var maxResponseBodySize int64 = 4 * 1024 * 1024
 
 // newClient creates a new HTTP metric client.
 func newClient(cfg oconf.Config) (*client, error) {
@@ -120,12 +114,13 @@ func newClient(cfg oconf.Config) (*client, error) {
 	inst, err := observ.NewInstrumentation(counter.NextExporterID(), cfg.Metrics.Endpoint)
 
 	return &client{
-		compression:    Compression(cfg.Metrics.Compression),
-		maxRequestSize: cfg.Metrics.MaxRequestSize,
-		req:            req,
-		requestFunc:    cfg.RetryConfig.RequestFunc(evaluate),
-		httpClient:     httpClient,
-		inst:           inst,
+		compression:     Compression(cfg.Metrics.Compression),
+		maxRequestSize:  cfg.Metrics.MaxRequestSize,
+		maxResponseSize: cfg.Metrics.MaxResponseSize,
+		req:             req,
+		requestFunc:     cfg.RetryConfig.RequestFunc(evaluate),
+		httpClient:      httpClient,
+		inst:            inst,
 	}, err
 }
 
@@ -204,11 +199,7 @@ func (c *client) UploadMetrics(ctx context.Context, protoMetrics *metricpb.Resou
 
 			// Read the partial success message, if any.
 			var respData bytes.Buffer
-			if _, err := io.Copy(&respData, http.MaxBytesReader(nil, resp.Body, maxResponseBodySize)); err != nil {
-				var maxBytesErr *http.MaxBytesError
-				if errors.As(err, &maxBytesErr) {
-					return fmt.Errorf("response body too large: exceeded %d bytes", maxBytesErr.Limit)
-				}
+			if err := internal.CopyResponseBody(&respData, resp.Body, c.maxResponseSize); err != nil {
 				return err
 			}
 			if respData.Len() == 0 {
@@ -239,11 +230,7 @@ func (c *client) UploadMetrics(ctx context.Context, protoMetrics *metricpb.Resou
 		// message to be returned. It will help in
 		// debugging the actual issue.
 		var respData bytes.Buffer
-		if _, err := io.Copy(&respData, http.MaxBytesReader(nil, resp.Body, maxResponseBodySize)); err != nil {
-			var maxBytesErr *http.MaxBytesError
-			if errors.As(err, &maxBytesErr) {
-				return fmt.Errorf("response body too large: exceeded %d bytes", maxBytesErr.Limit)
-			}
+		if err := internal.CopyResponseBody(&respData, resp.Body, c.maxResponseSize); err != nil {
 			return err
 		}
 		respStr := strings.TrimSpace(respData.String())

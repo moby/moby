@@ -111,7 +111,7 @@ type TableEntryObj struct {
 }
 
 func (t *TableEntryObj) String() string {
-	return fmt.Sprintf("%d) k:`%s` -> v:`%s` owner:`%s`\n", t.Index, t.Key, t.Value, t.Owner)
+	return fmt.Sprintf("%d) k:%#q -> v:%#q owner:%#q\n", t.Index, t.Key, t.Value, t.Owner)
 }
 
 // TableEndpointsResult fully typed message for proper unmarshaling on the client side

@@ -255,7 +255,7 @@ func (i *inserter[N]) Instrument(
 			continue
 		}
 		matched = true
-		in, id, e := i.cachedAggregator(inst.Scope, inst.Kind, stream, readerAggregation)
+		in, id, e := i.cachedAggregator(inst.Scope, inst.Kind, stream, allowedKeys, readerAggregation)
 		if e != nil {
 			err = errors.Join(err, e)
 		}
@@ -284,13 +284,7 @@ func (i *inserter[N]) Instrument(
 		Description: inst.Description,
 		Unit:        inst.Unit,
 	}
-	// allowedKeys == nil indicates that the WithDefaultAttributes option was not passed,
-	// and all keys are allowed. An empty (non-nil) slice indicates that the option was passed
-	// with an empty set of keys, and no keys are allowed.
-	if allowedKeys != nil {
-		stream.AttributeFilter = attribute.NewAllowKeysFilter(allowedKeys...)
-	}
-	in, _, e := i.cachedAggregator(inst.Scope, inst.Kind, stream, readerAggregation)
+	in, _, e := i.cachedAggregator(inst.Scope, inst.Kind, stream, allowedKeys, readerAggregation)
 	if e != nil {
 		if err == nil {
 			err = errCreatingAggregators
@@ -364,6 +358,7 @@ func (i *inserter[N]) cachedAggregator(
 	scope instrumentation.Scope,
 	kind InstrumentKind,
 	stream Stream,
+	allowedKeys []attribute.Key,
 	readerAggregation Aggregation,
 ) (meas aggregate.Measure[N], aggID uint64, err error) {
 	switch stream.Aggregation.(type) {
@@ -377,6 +372,14 @@ func (i *inserter[N]) cachedAggregator(
 	}
 	if stream.ExemplarReservoirProviderSelector == nil {
 		stream.ExemplarReservoirProviderSelector = DefaultExemplarReservoirProviderSelector
+	}
+	// If attribute_keys is not provided on the view (AttributeFilter == nil),
+	// use the advisory Attributes configured on the instrument (allowedKeys).
+	// allowedKeys == nil indicates that the WithDefaultAttributes option was not passed,
+	// and all keys are allowed. An empty (non-nil) slice indicates that the option was passed
+	// with an empty set of keys, and no keys are allowed.
+	if stream.AttributeFilter == nil && allowedKeys != nil {
+		stream.AttributeFilter = attribute.NewAllowKeysFilter(allowedKeys...)
 	}
 
 	if err := isAggregatorCompatible(kind, stream.Aggregation); err != nil {

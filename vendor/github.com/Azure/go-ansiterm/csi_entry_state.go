@@ -1,5 +1,7 @@
 package ansiterm
 
+import "slices"
+
 type csiEntryState struct {
 	baseState
 }
@@ -13,11 +15,11 @@ func (csiState csiEntryState) Handle(b byte) (s state, e error) {
 	}
 
 	switch {
-	case sliceContains(alphabetics, b):
+	case slices.Contains(alphabetics, b):
 		return csiState.parser.ground, nil
-	case sliceContains(csiCollectables, b):
+	case slices.Contains(csiCollectables, b):
 		return csiState.parser.csiParam, nil
-	case sliceContains(executors, b):
+	case slices.Contains(executors, b):
 		return csiState, csiState.parser.execute()
 	}
 
@@ -33,9 +35,9 @@ func (csiState csiEntryState) Transition(s state) error {
 		return csiState.parser.csiDispatch()
 	case csiState.parser.csiParam:
 		switch {
-		case sliceContains(csiParams, csiState.parser.context.currentChar):
+		case slices.Contains(csiParams, csiState.parser.context.currentChar):
 			_ = csiState.parser.collectParam()
-		case sliceContains(intermeds, csiState.parser.context.currentChar):
+		case slices.Contains(intermeds, csiState.parser.context.currentChar):
 			_ = csiState.parser.collectInter()
 		}
 	}

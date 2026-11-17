@@ -37,6 +37,7 @@ type Reference interface {
 }
 
 // ParseReference parses the string as a reference, either by tag or digest.
+// References that include both a tag and digest parse as Digest references.
 func ParseReference(s string, opts ...Option) (Reference, error) {
 	if t, err := NewTag(s, opts...); err == nil {
 		return t, nil

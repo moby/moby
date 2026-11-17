@@ -4,7 +4,9 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -28,6 +30,15 @@ type GetStorageTierPolicyInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *GetStorageTierPolicyInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.GetStorageTierPolicyRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *GetStorageTierPolicyInput) SerializeMembers(s smithy.ShapeSerializer) {
+}
+
 type GetStorageTierPolicyOutput struct {
 
 	// The time when the storage tier policy was last updated, expressed as the number
@@ -43,13 +54,42 @@ type GetStorageTierPolicyOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *GetStorageTierPolicyOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.GetStorageTierPolicyResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *GetStorageTierPolicyOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.LastUpdatedTime != nil {
+		s.WriteInt64(schemas.GetStorageTierPolicyResponse_lastUpdatedTime, *v.LastUpdatedTime)
+	}
+	if v.StorageTier != "" {
+		s.WriteString(schemas.GetStorageTierPolicyResponse_storageTier, string(v.StorageTier))
+	}
+}
+func (v *GetStorageTierPolicyOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.GetStorageTierPolicyResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.GetStorageTierPolicyResponse_lastUpdatedTime:
+			v.LastUpdatedTime = new(int64)
+			return d.ReadInt64(schemas.GetStorageTierPolicyResponse_lastUpdatedTime, v.LastUpdatedTime)
+		case schemas.GetStorageTierPolicyResponse_storageTier:
+			var ev string
+			if err := d.ReadString(schemas.GetStorageTierPolicyResponse_storageTier, &ev); err != nil {
+				return err
+			}
+			v.StorageTier = types.StorageTier(ev)
+			return nil
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationGetStorageTierPolicyMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpGetStorageTierPolicy{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.GetStorageTierPolicy, schemas.GetStorageTierPolicyRequest, schemas.GetStorageTierPolicyResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpGetStorageTierPolicy{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.GetStorageTierPolicy, schemas.GetStorageTierPolicyRequest, schemas.GetStorageTierPolicyResponse), output: &GetStorageTierPolicyOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

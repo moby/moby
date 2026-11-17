@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## v0.8.0
+
+- [New API]: add `Conn.ReadFunc` and `Conn.WriteFunc` to execute an arbitrary
+  system call against the underlying file descriptor with runtime network
+  poller integration, context cancelation, and deadline support. These are the
+  building blocks used by the other `Conn` read and write methods, exported for
+  system calls which have no wrapper in this package or in `x/sys/unix`.
+- [New API]: add `Conn.Ioctl` to wrap `ioctl(2)` for arbitrary requests with a
+  pointer argument.
+- [Improvement]: update dependencies.
+
 ## v0.7.0
 
 **This is the first release of package socket that only supports Go 1.26+.**

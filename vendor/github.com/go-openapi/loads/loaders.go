@@ -5,7 +5,6 @@ package loads
 
 import (
 	"encoding/json"
-	"errors"
 	"net/url"
 	"slices"
 
@@ -162,7 +161,7 @@ func (l *loader) WithNext(next *loader) *loader {
 func (l *loader) Load(path string) (json.RawMessage, error) {
 	_, erp := url.Parse(path)
 	if erp != nil {
-		return nil, errors.Join(erp, ErrLoads)
+		return nil, errLoads(erp)
 	}
 
 	var lastErr error = ErrNoLoader // default error if no match was found
@@ -180,7 +179,7 @@ func (l *loader) Load(path string) (json.RawMessage, error) {
 		lastErr = err
 	}
 
-	return nil, errors.Join(lastErr, ErrLoads)
+	return nil, errLoads(lastErr)
 }
 
 func (l *loader) clone() *loader {
@@ -202,7 +201,7 @@ func (l *loader) clone() *loader {
 func JSONDoc(path string, opts ...loading.Option) (json.RawMessage, error) {
 	data, err := loading.LoadFromFileOrHTTP(path, opts...)
 	if err != nil {
-		return nil, errors.Join(err, ErrLoads)
+		return nil, errLoads(err)
 	}
 	return json.RawMessage(data), nil
 }

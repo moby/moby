@@ -235,6 +235,7 @@ func ExponentialHistogramDataPoints[N int64 | float64](
 			Sum:               &sum,
 			Scale:             dPt.Scale,
 			ZeroCount:         dPt.ZeroCount,
+			ZeroThreshold:     dPt.ZeroThreshold,
 			Exemplars:         Exemplars(dPt.Exemplars),
 
 			Positive: ExponentialHistogramDataPointBuckets(dPt.PositiveBucket),

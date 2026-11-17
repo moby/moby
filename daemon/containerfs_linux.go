@@ -8,15 +8,18 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 
 	"github.com/containerd/log"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/symlink"
+	"github.com/moby/sys/userns"
 	"golang.org/x/sys/unix"
 
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/mounttree"
+	"github.com/moby/moby/v2/daemon/internal/rootless/mountopts"
 	"github.com/moby/moby/v2/daemon/internal/unshare"
 )
 
@@ -167,7 +170,19 @@ func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSV
 					return fmt.Errorf("readlink %s: %w", targetPath, err)
 				}
 				if !m.Writable {
-					if err := mount.Mount("", realPath, "", "ro,remount,bind"); err != nil {
+					opts := []string{"ro", "remount", "bind"}
+					// A rootless daemon cannot clear the flags locked by
+					// CL_UNPRIVILEGED, such as nosuid and nodev on a /tmp
+					// tmpfs holding X11 sockets, so the remount must keep them.
+					if userns.RunningInUserNS() {
+						unprivOpts, err := mountopts.UnprivilegedMountFlags(realPath)
+						if err != nil {
+							targetFile.Close()
+							return err
+						}
+						opts = append(opts, unprivOpts...)
+					}
+					if err := mount.Mount("", realPath, "", strings.Join(opts, ",")); err != nil {
 						targetFile.Close()
 						return err
 					}

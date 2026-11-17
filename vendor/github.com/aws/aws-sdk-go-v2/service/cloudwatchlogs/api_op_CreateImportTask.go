@@ -4,7 +4,9 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -102,6 +104,26 @@ type CreateImportTaskInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *CreateImportTaskInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.CreateImportTaskRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *CreateImportTaskInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.ImportFilter != nil {
+		s.WriteStruct(schemas.CreateImportTaskRequest_importFilter)
+		v.ImportFilter.SerializeMembers(s)
+		s.CloseStruct()
+	}
+	if v.ImportRoleArn != nil {
+		s.WriteString(schemas.CreateImportTaskRequest_importRoleArn, *v.ImportRoleArn)
+	}
+	if v.ImportSourceArn != nil {
+		s.WriteString(schemas.CreateImportTaskRequest_importSourceArn, *v.ImportSourceArn)
+	}
+}
+
 type CreateImportTaskOutput struct {
 
 	// The timestamp when the import task was created, expressed as the number of
@@ -121,13 +143,44 @@ type CreateImportTaskOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *CreateImportTaskOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.CreateImportTaskResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *CreateImportTaskOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.CreationTime != nil {
+		s.WriteInt64(schemas.CreateImportTaskResponse_creationTime, *v.CreationTime)
+	}
+	if v.ImportDestinationArn != nil {
+		s.WriteString(schemas.CreateImportTaskResponse_importDestinationArn, *v.ImportDestinationArn)
+	}
+	if v.ImportId != nil {
+		s.WriteString(schemas.CreateImportTaskResponse_importId, *v.ImportId)
+	}
+}
+func (v *CreateImportTaskOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.CreateImportTaskResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.CreateImportTaskResponse_creationTime:
+			v.CreationTime = new(int64)
+			return d.ReadInt64(schemas.CreateImportTaskResponse_creationTime, v.CreationTime)
+		case schemas.CreateImportTaskResponse_importDestinationArn:
+			v.ImportDestinationArn = new(string)
+			return d.ReadString(schemas.CreateImportTaskResponse_importDestinationArn, v.ImportDestinationArn)
+		case schemas.CreateImportTaskResponse_importId:
+			v.ImportId = new(string)
+			return d.ReadString(schemas.CreateImportTaskResponse_importId, v.ImportId)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationCreateImportTaskMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpCreateImportTask{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.CreateImportTask, schemas.CreateImportTaskRequest, schemas.CreateImportTaskResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpCreateImportTask{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.CreateImportTask, schemas.CreateImportTaskRequest, schemas.CreateImportTaskResponse), output: &CreateImportTaskOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

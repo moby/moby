@@ -1,16 +1,120 @@
 package client
 
 import (
+	"bufio"
+	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
+	"io"
+	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"runtime"
+	"strings"
 	"testing"
+	"time"
 
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
+
+func TestTLSDialCancellation(t *testing.T) {
+	for _, mode := range []string{"cancel", "deadline"} {
+		t.Run(mode, func(t *testing.T) {
+			listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
+			assert.NilError(t, err)
+			defer listener.Close()
+			assert.NilError(t, listener.(*net.TCPListener).SetDeadline(time.Now().Add(5*time.Second)))
+			c, err := New(WithHost("tcp://"+listener.Addr().String()), WithHTTPClient(&http.Client{
+				Transport: &http.Transport{TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}},
+			}))
+			assert.NilError(t, err)
+			defer c.Close()
+			ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+			defer cancel()
+			var conn net.Conn
+			var dialErr error
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				conn, dialErr = c.Dialer()(ctx)
+			}()
+			peer, err := listener.Accept()
+			assert.NilError(t, err)
+			defer func() {
+				_ = peer.Close()
+				<-done
+				if dialErr == nil {
+					_ = conn.Close()
+				}
+			}()
+			assert.NilError(t, peer.SetReadDeadline(time.Now().Add(5*time.Second)))
+			// Read the first ClientHello byte, then leave the TLS handshake stalled.
+			_, err = peer.Read(make([]byte, 1))
+			assert.NilError(t, err)
+			if mode == "cancel" {
+				cancel()
+			}
+			select {
+			case <-done:
+			case <-time.After(5 * time.Second):
+				t.Fatal("TLS dial did not honor its context")
+			}
+			assert.ErrorIs(t, dialErr, ctx.Err())
+			assert.Check(t, conn == nil)
+			// Drain the remaining ClientHello bytes and verify the socket closed.
+			_, err = io.Copy(io.Discard, peer)
+			assert.NilError(t, err)
+		})
+	}
+}
+
+func TestTLSDialVerificationAndOwnership(t *testing.T) {
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, "ok")
+	}))
+	defer ts.Close()
+	for _, mode := range []string{"untrusted", "trusted"} {
+		t.Run(mode, func(t *testing.T) {
+			roots := x509.NewCertPool()
+			if mode == "trusted" {
+				roots.AddCert(ts.Certificate())
+			}
+			c, err := New(WithHost("tcp://"+strings.TrimPrefix(ts.URL, "https://")), WithHTTPClient(&http.Client{
+				Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12}},
+			}))
+			assert.NilError(t, err)
+			defer c.Close()
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			conn, err := c.Dialer()(ctx)
+			if err == nil {
+				defer conn.Close()
+			}
+			if mode == "untrusted" {
+				var unknownAuthority x509.UnknownAuthorityError
+				assert.Check(t, errors.As(err, &unknownAuthority), "unexpected verification error: %v", err)
+				assert.Check(t, conn == nil)
+				return
+			}
+			assert.NilError(t, err)
+			cancel()
+			assert.NilError(t, conn.SetDeadline(time.Now().Add(5*time.Second)))
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, ts.URL, http.NoBody)
+			assert.NilError(t, err)
+			assert.NilError(t, req.Write(conn))
+			resp, err := http.ReadResponse(bufio.NewReader(conn), req)
+			assert.NilError(t, err)
+			defer resp.Body.Close()
+			body, err := io.ReadAll(resp.Body)
+			assert.NilError(t, err)
+			assert.Equal(t, string(body), "ok")
+		})
+	}
+}
 
 func TestNewClientWithNilOpt(t *testing.T) {
 	defer func() {

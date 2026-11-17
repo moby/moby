@@ -1,3 +1,54 @@
+# v1.91.0 (2026-10-30)
+
+* **Feature**: Adds support for account-level retention policies in Amazon CloudWatch Logs. Customers can now use PutAccountPolicy with the new RETENTION POLICY type to set default log retention across all log groups in an account. Includes dry-run mode to preview the impact of policy changes before applying them.
+* **Bug Fix**: Fix malformed JSON when serializing nil lists or maps in union members, map values, and list elements.
+
+# v1.90.3 (2026-10-27)
+
+* **Dependency Update**: Update to smithy-go v1.28.7.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.90.2 (2026-10-22)
+
+* **Bug Fix**: Update smithy-go to v1.28.6
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.90.1 (2026-10-21)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.90.0 (2026-10-19)
+
+* **Feature**: Amazon CloudWatch Logs now supports filtering DescribeDeliverySources by resourceArns, DescribeDeliveryDestinations by names, and DescribeDeliveries by deliverySourceNames.
+* **Bug Fix**: Allow lists with null values to deserialize into its zero value instead of failing
+
+# v1.89.3 (2026-10-09.2)
+
+* **Dependency Update**: Update to smithy-go v1.28.5.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.89.2 (2026-10-08)
+
+* **Bug Fix**: Fix modeled errors returning an empty `ErrorMessage()` when the service sends the message under a differently-cased key (`Message` instead of `message`). This was a regression introduced with schema-based deserialization.
+* **Dependency Update**: Update to smithy-go v1.28.4.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.89.1 (2026-10-06)
+
+* No change notes available for this release.
+
+# v1.89.0 (2026-09-30)
+
+* **Feature**: Amazon CloudWatch Logs now supports an optional roleArn parameter on PutDeliveryDestination for X-Ray trace delivery destinations, specifying the IAM role to assume when delivering traces.
+
+# v1.88.1 (2026-09-24)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.88.0 (2026-09-15)
+
+* **Feature**: Enable schema-based (de)serialization for this service.
+
 # v1.87.0 (2026-09-09)
 
 * **Feature**: Stop registering the `retry.MetricsHeader` middleware in generated clients. The `Amz-Sdk-Request` header is now set by the retry middleware itself.

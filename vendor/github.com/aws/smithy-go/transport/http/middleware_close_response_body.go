@@ -23,11 +23,11 @@ func CloseResponseBody(ctx context.Context, resp *Response, isStreaming bool, op
 	// Drain to EOF before closing; a body closed while unread prevents
 	// connection reuse.
 	if _, copyErr := io.Copy(io.Discard, resp.Body); copyErr != nil {
-		middleware.GetLogger(ctx).Logf(logging.Warn, "failed to discard remaining HTTP response body, this may affect connection reuse")
+		middleware.GetLogger(ctx).Logf(logging.Warn, "failed to discard remaining HTTP response body, this may affect connection reuse: %v", copyErr)
 	}
 
 	if closeErr := resp.Body.Close(); closeErr != nil {
-		middleware.GetLogger(ctx).Logf(logging.Warn, "failed to close HTTP response body, this may affect connection reuse")
+		middleware.GetLogger(ctx).Logf(logging.Warn, "failed to close HTTP response body, this may affect connection reuse: %v", closeErr)
 	}
 }
 
@@ -95,12 +95,12 @@ func (m *closeResponseBody) HandleDeserialize(
 		// Consume the full body to prevent TCP connection resets on some platforms
 		_, copyErr := io.Copy(io.Discard, resp.Body)
 		if copyErr != nil {
-			middleware.GetLogger(ctx).Logf(logging.Warn, "failed to discard remaining HTTP response body, this may affect connection reuse")
+			middleware.GetLogger(ctx).Logf(logging.Warn, "failed to discard remaining HTTP response body, this may affect connection reuse: %v", copyErr)
 		}
 
 		closeErr := resp.Body.Close()
 		if closeErr != nil {
-			middleware.GetLogger(ctx).Logf(logging.Warn, "failed to close HTTP response body, this may affect connection reuse")
+			middleware.GetLogger(ctx).Logf(logging.Warn, "failed to close HTTP response body, this may affect connection reuse: %v", closeErr)
 		}
 	}
 

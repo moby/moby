@@ -44,6 +44,27 @@ func (b *Broker) Register(identity extensions.ExtensionIdentity, ext extensions.
 	if identity.ID != decl.ID {
 		return fmt.Errorf("extension identity id %q does not match declared id %q", identity.ID, decl.ID)
 	}
+	if err := ValidateDeclaration(decl); err != nil {
+		return err
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if _, ok := b.extensions[decl.ID]; ok {
+		return fmt.Errorf("extension %q is already registered", decl.ID)
+	}
+	if err := b.checkConflicts(decl); err != nil {
+		return err
+	}
+
+	b.extensions[decl.ID] = &extensionState{extension: decl, identity: identity}
+	b.order = append(b.order, decl.ID)
+	return nil
+}
+
+// ValidateDeclaration checks the fields of a declaration independently of
+// registration, so hosts can reject malformed extensions even when policy
+// drops all their providers.
+func ValidateDeclaration(decl extensions.Declaration) error {
 	seenPoints := make(map[extensions.PointID]struct{})
 	for _, provider := range decl.Providers {
 		if provider.Point == "" {
@@ -73,17 +94,6 @@ func (b *Broker) Register(identity extensions.ExtensionIdentity, ext extensions.
 			return fmt.Errorf("extension %q conflicts with itself", decl.ID)
 		}
 	}
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if _, ok := b.extensions[decl.ID]; ok {
-		return fmt.Errorf("extension %q is already registered", decl.ID)
-	}
-	if err := b.checkConflicts(decl); err != nil {
-		return err
-	}
-
-	b.extensions[decl.ID] = &extensionState{extension: decl, identity: identity}
-	b.order = append(b.order, decl.ID)
 	return nil
 }
 

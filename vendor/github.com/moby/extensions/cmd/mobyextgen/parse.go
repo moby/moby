@@ -10,6 +10,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"path"
 	"reflect"
 	"sort"
 	"strconv"
@@ -19,6 +20,8 @@ import (
 )
 
 // parsing
+
+const streamImportPath = "github.com/moby/extensions/stream"
 
 func parsePoint(dir string) (point, error) {
 	return parseContract(dir, "")
@@ -38,21 +41,21 @@ func parseContract(dir, serviceIdentity string) (point, error) {
 	}
 
 	var files []*ast.File
-	var pkgName string
+	foundPackage := false
 	for name, pkg := range pkgs {
 		if strings.HasSuffix(name, "_test") {
 			continue
 		}
-		pkgName = name
+		foundPackage = true
 		for _, f := range pkg.Files {
 			files = append(files, f)
 		}
 	}
-	if pkgName == "" {
+	if !foundPackage {
 		return point{}, fmt.Errorf("no package found in %s", dir)
 	}
 
-	pt := point{pkgName: pkgName}
+	var pt point
 
 	if serviceIdentity != "" {
 		pkg, service, ok := splitServiceIdentity(serviceIdentity)
@@ -77,6 +80,7 @@ func parseContract(dir, serviceIdentity string) (point, error) {
 	if ifaceType == nil {
 		return point{}, fmt.Errorf("interface %q not found", pt.iface)
 	}
+	pt.doc = interfaceComment(files, pt.iface)
 	// Inherit the contract's copyright and license rather than imposing the
 	// generator's notices on output produced for other projects.
 	for _, f := range files {
@@ -98,7 +102,7 @@ func parseContract(dir, serviceIdentity string) (point, error) {
 	if pt.licenseHeader != "" {
 		pt.licenseHeader += "\n"
 	}
-	pt.methods, err = parseMethods(ifaceType)
+	pt.methods, err = parseMethods(files, ifaceType)
 	if err != nil {
 		return point{}, err
 	}
@@ -220,7 +224,34 @@ func structHasPBTag(st *ast.StructType) bool {
 	return false
 }
 
-func parseMethods(iface *ast.InterfaceType) ([]method, error) {
+func interfaceComment(files []*ast.File, name string) string {
+	for _, file := range files {
+		for _, decl := range file.Decls {
+			group, ok := decl.(*ast.GenDecl)
+			if !ok || group.Tok != token.TYPE {
+				continue
+			}
+			for _, spec := range group.Specs {
+				typeSpec := spec.(*ast.TypeSpec)
+				if typeSpec.Name.Name != name {
+					continue
+				}
+				doc := typeSpec.Doc
+				// Like go/doc, a group comment documents only a single-type group.
+				if doc == nil && len(group.Specs) == 1 {
+					doc = group.Doc
+				}
+				if doc != nil {
+					return strings.TrimSpace(doc.Text())
+				}
+				return ""
+			}
+		}
+	}
+	return ""
+}
+
+func parseMethods(files []*ast.File, iface *ast.InterfaceType) ([]method, error) {
 	var methods []method
 	for _, m := range iface.Methods.List {
 		ft, ok := m.Type.(*ast.FuncType)
@@ -228,29 +259,285 @@ func parseMethods(iface *ast.InterfaceType) ([]method, error) {
 			continue
 		}
 		name := m.Names[0].Name
-		if ft.Params == nil || len(ft.Params.List) == 0 {
-			return nil, fmt.Errorf("method %q: expected a request parameter", name)
-		}
-		reqType := ft.Params.List[len(ft.Params.List)-1].Type
-		req, err := pointerIdent(reqType)
-		if err != nil {
-			return nil, fmt.Errorf("method %q request: %w", name, err)
+		paramFields := fieldsPerName(ft.Params)
+		params := make([]methodParameter, len(paramFields))
+		for i, param := range paramFields {
+			var err error
+			params[i], err = classifyMethodParameter(files, param.Type, i)
+			if err != nil {
+				return nil, fmt.Errorf("method %q parameter %d: %w", name, i+1, err)
+			}
 		}
 		res := results(ft)
-		switch {
-		case len(res) == 1 && isIdent(res[0], "error"):
-			methods = append(methods, method{name: name, request: req, response: name + "Response", bareError: true})
-		case len(res) == 2 && isIdent(res[1], "error"):
-			resp, err := pointerIdent(res[0])
-			if err != nil {
-				return nil, fmt.Errorf("method %q response: %w", name, err)
+		for _, result := range res {
+			if _, isStream, _ := parseStreamParameter(files, result); isStream {
+				return nil, methodShapeError(name)
 			}
-			methods = append(methods, method{name: name, request: req, response: resp})
+		}
+
+		doc := fieldComment(m)
+		switch {
+		case len(params) == 2 && params[0].kind == methodContextParameter && params[1].kind == methodMessageParameter:
+			var (
+				response  string
+				bareError bool
+			)
+			switch {
+			case len(res) == 1 && isIdent(res[0], "error"):
+				response, bareError = name+"Response", true
+			case len(res) == 2 && isIdent(res[1], "error"):
+				var err error
+				response, err = pointerIdent(res[0])
+				if err != nil {
+					return nil, methodShapeError(name)
+				}
+			default:
+				return nil, methodShapeError(name)
+			}
+			methods = append(methods, method{
+				name: name, request: params[1].message, response: response,
+				bareError: bareError, doc: doc,
+			})
+		case len(params) == 3 && params[0].kind == methodContextParameter &&
+			params[1].kind == methodMessageParameter && params[2].kind == methodSenderParameter:
+			if len(res) != 1 || !isIdent(res[0], "error") {
+				return nil, methodShapeError(name)
+			}
+			methods = append(methods, method{
+				kind: methodServerStreaming, name: name,
+				request: params[1].message, response: params[2].message, doc: doc,
+			})
+		case len(params) == 2 && params[0].kind == methodContextParameter && params[1].kind == methodReceiverParameter:
+			if len(res) != 2 || !isIdent(res[1], "error") {
+				return nil, methodShapeError(name)
+			}
+			response, err := pointerIdent(res[0])
+			if err != nil {
+				return nil, methodShapeError(name)
+			}
+			methods = append(methods, method{
+				kind: methodClientStreaming, name: name,
+				request: params[1].message, response: response, doc: doc,
+			})
 		default:
-			return nil, fmt.Errorf("method %q: result must be `error` or `(*Resp, error)`", name)
+			return nil, methodShapeError(name)
 		}
 	}
 	return methods, nil
+}
+
+type methodParameterKind int
+
+const (
+	methodContextParameter methodParameterKind = iota + 1
+	methodMessageParameter
+	methodSenderParameter
+	methodReceiverParameter
+)
+
+type methodParameter struct {
+	kind    methodParameterKind
+	message string
+}
+
+const acceptedMethodShapes = "accepted shapes are M(context.Context, *Request) (*Reply, error), " +
+	"M(context.Context, *Request) error, " +
+	"M(context.Context, *Request, stream.Sender[Chunk]) error, and " +
+	"M(context.Context, stream.Receiver[Chunk]) (*Reply, error)"
+
+func methodShapeError(name string) error {
+	return fmt.Errorf("method %q: unsupported signature; %s", name, acceptedMethodShapes)
+}
+
+func classifyMethodParameter(files []*ast.File, expr ast.Expr, index int) (methodParameter, error) {
+	param, isStream, err := parseStreamParameter(files, expr)
+	switch {
+	case err != nil:
+		return methodParameter{}, err
+	case isStream && index == 0:
+		return methodParameter{}, errors.New("stream parameters cannot replace context.Context")
+	case isStream:
+		return param, nil
+	case index == 0 && !isContextType(files, expr):
+		return methodParameter{}, errors.New("must be context.Context")
+	case index == 0:
+		return methodParameter{kind: methodContextParameter}, nil
+	}
+	message, err := pointerIdent(expr)
+	if err != nil {
+		return methodParameter{}, err
+	}
+	return methodParameter{kind: methodMessageParameter, message: message}, nil
+}
+
+// parseStreamParameter reports whether expr names stream.Sender or
+// stream.Receiver and, if so, validates its import and message argument.
+func parseStreamParameter(files []*ast.File, expr ast.Expr) (methodParameter, bool, error) {
+	var (
+		selector *ast.SelectorExpr
+		args     []ast.Expr
+	)
+	switch expr := expr.(type) {
+	case *ast.SelectorExpr:
+		selector = expr
+	case *ast.IndexExpr:
+		selector, _ = expr.X.(*ast.SelectorExpr)
+		args = []ast.Expr{expr.Index}
+	case *ast.IndexListExpr:
+		selector, _ = expr.X.(*ast.SelectorExpr)
+		args = expr.Indices
+	default:
+		return methodParameter{}, false, nil
+	}
+	if selector == nil || (selector.Sel.Name != "Sender" && selector.Sel.Name != "Receiver") {
+		return methodParameter{}, false, nil
+	}
+	use := "stream." + selector.Sel.Name
+	file := fileForExpr(files, expr)
+	if file == nil {
+		return methodParameter{}, true, fmt.Errorf("%s must be imported from %q", use, streamImportPath)
+	}
+	if err := resolveStreamImport(file, selector.X, use); err != nil {
+		return methodParameter{}, true, err
+	}
+	if len(args) != 1 {
+		return methodParameter{}, true, fmt.Errorf("%s must have exactly one local message type argument", use)
+	}
+	message, err := streamMessageArgument(args[0])
+	if err != nil {
+		return methodParameter{}, true, fmt.Errorf("%s: %w", use, err)
+	}
+	if err := validateStreamMessage(files, message); err != nil {
+		return methodParameter{}, true, fmt.Errorf("%s message %q: %w", use, message, err)
+	}
+	kind := methodSenderParameter
+	if selector.Sel.Name == "Receiver" {
+		kind = methodReceiverParameter
+	}
+	return methodParameter{kind: kind, message: message}, true, nil
+}
+
+func fileForExpr(files []*ast.File, expr ast.Expr) *ast.File {
+	for _, file := range files {
+		if file.Pos() <= expr.Pos() && expr.End() <= file.End() {
+			return file
+		}
+	}
+	return nil
+}
+
+func resolveStreamImport(file *ast.File, packageExpr ast.Expr, use string) error {
+	ident, ok := packageExpr.(*ast.Ident)
+	if !ok {
+		return fmt.Errorf("%s must use a package imported from %q", use, streamImportPath)
+	}
+	importPath, ok := importedPath(file, ident.Name)
+	if !ok {
+		return fmt.Errorf("%s package name %q is not imported from %q", use, ident.Name, streamImportPath)
+	}
+	if importPath != streamImportPath {
+		return fmt.Errorf("%s must be imported from %q", use, streamImportPath)
+	}
+	return nil
+}
+
+// importedPath returns the path of the package that file imports as name.
+func importedPath(file *ast.File, name string) (string, bool) {
+	for _, spec := range file.Imports {
+		importPath, err := strconv.Unquote(spec.Path.Value)
+		if err != nil {
+			continue
+		}
+		local := path.Base(importPath)
+		if spec.Name != nil {
+			local = spec.Name.Name
+		}
+		if local == name {
+			return importPath, true
+		}
+	}
+	return "", false
+}
+
+// isContextType reports whether expr names context.Context under any import
+// name.
+func isContextType(files []*ast.File, expr ast.Expr) bool {
+	selector, ok := expr.(*ast.SelectorExpr)
+	if !ok || selector.Sel.Name != "Context" {
+		return false
+	}
+	ident, ok := selector.X.(*ast.Ident)
+	if !ok {
+		return false
+	}
+	file := fileForExpr(files, expr)
+	if file == nil {
+		return false
+	}
+	importPath, ok := importedPath(file, ident.Name)
+	return ok && importPath == "context"
+}
+
+func streamMessageArgument(expr ast.Expr) (string, error) {
+	if ident, ok := expr.(*ast.Ident); ok {
+		return ident.Name, nil
+	}
+	switch expr.(type) {
+	case *ast.StarExpr:
+		return "", errors.New("message type argument must not be a pointer")
+	case *ast.SelectorExpr:
+		return "", errors.New("imported message types are unsupported; use a local struct message")
+	case *ast.IndexExpr, *ast.IndexListExpr:
+		return "", errors.New("message type argument must be a non-generic local named type")
+	default:
+		return "", errors.New("message type argument must be a local named type")
+	}
+}
+
+func validateStreamMessage(files []*ast.File, name string) error {
+	var found *ast.TypeSpec
+	for _, file := range files {
+		for _, decl := range file.Decls {
+			group, ok := decl.(*ast.GenDecl)
+			if !ok || group.Tok != token.TYPE {
+				continue
+			}
+			for _, spec := range group.Specs {
+				typeSpec := spec.(*ast.TypeSpec)
+				if typeSpec.Name.Name != name {
+					continue
+				}
+				if found != nil {
+					return errors.New("is ambiguous; declare one local struct message")
+				}
+				found = typeSpec
+			}
+		}
+	}
+	if found == nil {
+		return errors.New("is unresolved")
+	}
+	if found.Assign.IsValid() {
+		return errors.New("is an alias")
+	}
+	if found.TypeParams != nil && len(found.TypeParams.List) != 0 {
+		return errors.New("must not be generic")
+	}
+	if _, ok := found.Type.(*ast.StructType); !ok {
+		return errors.New("must be a local struct declaration")
+	}
+	return nil
+}
+
+func fieldComment(field *ast.Field) string {
+	group := field.Doc
+	if group == nil {
+		group = field.Comment
+	}
+	if group == nil {
+		return ""
+	}
+	return strings.TrimSpace(group.Text())
 }
 
 func parseMessages(files []*ast.File, msgNames map[string]bool) ([]message, error) {
@@ -474,17 +761,23 @@ func isIdent(expr ast.Expr, name string) bool {
 }
 
 func results(ft *ast.FuncType) []ast.Expr {
-	if ft.Results == nil {
+	var out []ast.Expr
+	for _, f := range fieldsPerName(ft.Results) {
+		out = append(out, f.Type)
+	}
+	return out
+}
+
+// fieldsPerName repeats each field once per declared name, so a grouped
+// declaration such as `a, b *T` counts as two entries.
+func fieldsPerName(list *ast.FieldList) []*ast.Field {
+	if list == nil {
 		return nil
 	}
-	var out []ast.Expr
-	for _, f := range ft.Results.List {
-		if len(f.Names) == 0 {
-			out = append(out, f.Type)
-			continue
-		}
-		for range f.Names {
-			out = append(out, f.Type)
+	var out []*ast.Field
+	for _, f := range list.List {
+		for range max(1, len(f.Names)) {
+			out = append(out, f)
 		}
 	}
 	return out

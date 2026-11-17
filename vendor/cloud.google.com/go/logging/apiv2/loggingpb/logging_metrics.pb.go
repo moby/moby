@@ -680,22 +680,22 @@ var File_google_logging_v2_logging_metrics_proto protoreflect.FileDescriptor
 
 const file_google_logging_v2_logging_metrics_proto_rawDesc = "" +
 	"\n" +
-	"'google/logging/v2/logging_metrics.proto\x12\x11google.logging.v2\x1a\x1cgoogle/api/annotations.proto\x1a\x17google/api/client.proto\x1a\x1dgoogle/api/distribution.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x17google/api/metric.proto\x1a\x19google/api/resource.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xdd\x06\n" +
-	"\tLogMetric\x12\x17\n" +
-	"\x04name\x18\x01 \x01(\tB\x03\xe0A\x02R\x04name\x12%\n" +
-	"\vdescription\x18\x02 \x01(\tB\x03\xe0A\x01R\vdescription\x12\x1b\n" +
-	"\x06filter\x18\x03 \x01(\tB\x03\xe0A\x02R\x06filter\x12$\n" +
-	"\vbucket_name\x18\r \x01(\tB\x03\xe0A\x01R\n" +
-	"bucketName\x12\x1f\n" +
-	"\bdisabled\x18\f \x01(\bB\x03\xe0A\x01R\bdisabled\x12N\n" +
-	"\x11metric_descriptor\x18\x05 \x01(\v2\x1c.google.api.MetricDescriptorB\x03\xe0A\x01R\x10metricDescriptor\x12,\n" +
-	"\x0fvalue_extractor\x18\x06 \x01(\tB\x03\xe0A\x01R\x0evalueExtractor\x12a\n" +
-	"\x10label_extractors\x18\a \x03(\v21.google.logging.v2.LogMetric.LabelExtractorsEntryB\x03\xe0A\x01R\x0flabelExtractors\x12R\n" +
-	"\x0ebucket_options\x18\b \x01(\v2&.google.api.Distribution.BucketOptionsB\x03\xe0A\x01R\rbucketOptions\x12@\n" +
-	"\vcreate_time\x18\t \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\n" +
-	"createTime\x12@\n" +
+	"'google/logging/v2/logging_metrics.proto\x12\x11google.logging.v2\x1a\x1cgoogle/api/annotations.proto\x1a\x17google/api/client.proto\x1a\x1dgoogle/api/distribution.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x17google/api/metric.proto\x1a\x19google/api/resource.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe8\x06\n" +
+	"\tLogMetric\x12\x18\n" +
+	"\x04name\x18\x01 \x01(\tB\x04\xe2A\x01\x02R\x04name\x12&\n" +
+	"\vdescription\x18\x02 \x01(\tB\x04\xe2A\x01\x01R\vdescription\x12\x1c\n" +
+	"\x06filter\x18\x03 \x01(\tB\x04\xe2A\x01\x02R\x06filter\x12%\n" +
+	"\vbucket_name\x18\r \x01(\tB\x04\xe2A\x01\x01R\n" +
+	"bucketName\x12 \n" +
+	"\bdisabled\x18\f \x01(\bB\x04\xe2A\x01\x01R\bdisabled\x12O\n" +
+	"\x11metric_descriptor\x18\x05 \x01(\v2\x1c.google.api.MetricDescriptorB\x04\xe2A\x01\x01R\x10metricDescriptor\x12-\n" +
+	"\x0fvalue_extractor\x18\x06 \x01(\tB\x04\xe2A\x01\x01R\x0evalueExtractor\x12b\n" +
+	"\x10label_extractors\x18\a \x03(\v21.google.logging.v2.LogMetric.LabelExtractorsEntryB\x04\xe2A\x01\x01R\x0flabelExtractors\x12S\n" +
+	"\x0ebucket_options\x18\b \x01(\v2&.google.api.Distribution.BucketOptionsB\x04\xe2A\x01\x01R\rbucketOptions\x12A\n" +
+	"\vcreate_time\x18\t \x01(\v2\x1a.google.protobuf.TimestampB\x04\xe2A\x01\x03R\n" +
+	"createTime\x12A\n" +
 	"\vupdate_time\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampB\x04\xe2A\x01\x03R\n" +
 	"updateTime\x12E\n" +
 	"\aversion\x18\x04 \x01(\x0e2'.google.logging.v2.LogMetric.ApiVersionB\x02\x18\x01R\aversion\x1aB\n" +
 	"\x14LabelExtractorsEntry\x12\x10\n" +
@@ -705,30 +705,30 @@ const file_google_logging_v2_logging_metrics_proto_rawDesc = "" +
 	"ApiVersion\x12\x06\n" +
 	"\x02V2\x10\x00\x12\x06\n" +
 	"\x02V1\x10\x01:J\xeaAG\n" +
-	" logging.googleapis.com/LogMetric\x12#projects/{project}/metrics/{metric}\"\xaa\x01\n" +
-	"\x15ListLogMetricsRequest\x12K\n" +
-	"\x06parent\x18\x01 \x01(\tB3\xe0A\x02\xfaA-\n" +
-	"+cloudresourcemanager.googleapis.com/ProjectR\x06parent\x12\"\n" +
+	" logging.googleapis.com/LogMetric\x12#projects/{project}/metrics/{metric}\"\xad\x01\n" +
+	"\x15ListLogMetricsRequest\x12L\n" +
+	"\x06parent\x18\x01 \x01(\tB4\xe2A\x01\x02\xfaA-\n" +
+	"+cloudresourcemanager.googleapis.com/ProjectR\x06parent\x12#\n" +
 	"\n" +
-	"page_token\x18\x02 \x01(\tB\x03\xe0A\x01R\tpageToken\x12 \n" +
-	"\tpage_size\x18\x03 \x01(\x05B\x03\xe0A\x01R\bpageSize\"x\n" +
+	"page_token\x18\x02 \x01(\tB\x04\xe2A\x01\x01R\tpageToken\x12!\n" +
+	"\tpage_size\x18\x03 \x01(\x05B\x04\xe2A\x01\x01R\bpageSize\"x\n" +
 	"\x16ListLogMetricsResponse\x126\n" +
 	"\ametrics\x18\x01 \x03(\v2\x1c.google.logging.v2.LogMetricR\ametrics\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"`\n" +
-	"\x13GetLogMetricRequest\x12I\n" +
-	"\vmetric_name\x18\x01 \x01(\tB(\xe0A\x02\xfaA\"\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"a\n" +
+	"\x13GetLogMetricRequest\x12J\n" +
+	"\vmetric_name\x18\x01 \x01(\tB)\xe2A\x01\x02\xfaA\"\n" +
 	" logging.googleapis.com/LogMetricR\n" +
-	"metricName\"\x95\x01\n" +
-	"\x16CreateLogMetricRequest\x12@\n" +
-	"\x06parent\x18\x01 \x01(\tB(\xe0A\x02\xfaA\"\x12 logging.googleapis.com/LogMetricR\x06parent\x129\n" +
-	"\x06metric\x18\x02 \x01(\v2\x1c.google.logging.v2.LogMetricB\x03\xe0A\x02R\x06metric\"\x9e\x01\n" +
-	"\x16UpdateLogMetricRequest\x12I\n" +
-	"\vmetric_name\x18\x01 \x01(\tB(\xe0A\x02\xfaA\"\n" +
+	"metricName\"\x97\x01\n" +
+	"\x16CreateLogMetricRequest\x12A\n" +
+	"\x06parent\x18\x01 \x01(\tB)\xe2A\x01\x02\xfaA\"\x12 logging.googleapis.com/LogMetricR\x06parent\x12:\n" +
+	"\x06metric\x18\x02 \x01(\v2\x1c.google.logging.v2.LogMetricB\x04\xe2A\x01\x02R\x06metric\"\xa0\x01\n" +
+	"\x16UpdateLogMetricRequest\x12J\n" +
+	"\vmetric_name\x18\x01 \x01(\tB)\xe2A\x01\x02\xfaA\"\n" +
 	" logging.googleapis.com/LogMetricR\n" +
-	"metricName\x129\n" +
-	"\x06metric\x18\x02 \x01(\v2\x1c.google.logging.v2.LogMetricB\x03\xe0A\x02R\x06metric\"c\n" +
-	"\x16DeleteLogMetricRequest\x12I\n" +
-	"\vmetric_name\x18\x01 \x01(\tB(\xe0A\x02\xfaA\"\n" +
+	"metricName\x12:\n" +
+	"\x06metric\x18\x02 \x01(\v2\x1c.google.logging.v2.LogMetricB\x04\xe2A\x01\x02R\x06metric\"d\n" +
+	"\x16DeleteLogMetricRequest\x12J\n" +
+	"\vmetric_name\x18\x01 \x01(\tB)\xe2A\x01\x02\xfaA\"\n" +
 	" logging.googleapis.com/LogMetricR\n" +
 	"metricName2\xae\b\n" +
 	"\x10MetricsServiceV2\x12\x97\x01\n" +

@@ -4,8 +4,12 @@
 package spec
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
+	"iter"
+	"maps"
+	"slices"
 
 	"github.com/go-openapi/swag/loading"
 )
@@ -109,7 +113,8 @@ func ExpandSpec(spec *Swagger, options *ExpandOptions) error {
 	specBasePath := options.RelativeBase
 
 	if !options.SkipSchemas {
-		for key, definition := range spec.Definitions {
+		for key := range sortedKeys(spec.Definitions) {
+			definition := spec.Definitions[key]
 			parentRefs := make([]string, 0, smallPrealloc)
 			parentRefs = append(parentRefs, "#/definitions/"+key)
 
@@ -123,7 +128,7 @@ func ExpandSpec(spec *Swagger, options *ExpandOptions) error {
 		}
 	}
 
-	for key := range spec.Parameters {
+	for key := range sortedKeys(spec.Parameters) {
 		parameter := spec.Parameters[key]
 		if err := expandParameterOrResponse(&parameter, resolver, specBasePath); resolver.shouldStopOnError(err) {
 			return err
@@ -131,7 +136,7 @@ func ExpandSpec(spec *Swagger, options *ExpandOptions) error {
 		spec.Parameters[key] = parameter
 	}
 
-	for key := range spec.Responses {
+	for key := range sortedKeys(spec.Responses) {
 		response := spec.Responses[key]
 		if err := expandParameterOrResponse(&response, resolver, specBasePath); resolver.shouldStopOnError(err) {
 			return err
@@ -140,7 +145,7 @@ func ExpandSpec(spec *Swagger, options *ExpandOptions) error {
 	}
 
 	if spec.Paths != nil {
-		for key := range spec.Paths.Paths {
+		for key := range sortedKeys(spec.Paths.Paths) {
 			pth := spec.Paths.Paths[key]
 			if err := expandPathItem(&pth, resolver, specBasePath); resolver.shouldStopOnError(err) {
 				return err
@@ -278,6 +283,38 @@ func expandItems(target Schema, parentRefs []string, resolver *schemaLoader, bas
 	return &target, nil
 }
 
+// sortedKeys walks the keys of a map in a fixed order.
+//
+// Expansion inlines the first branch that reaches a cycle and leaves a $ref on the others, so
+// the order the walk visits siblings in decides which node ends up holding the $ref. Ranging a
+// map straight gives that decision to Go's map iteration, and the same document then expands
+// differently from one run to the next - see go-openapi/spec#93.
+//
+// A map of fewer than two keys has only one order, so it is yielded without sorting: schemata
+// with a single property or definition are most of what a walk of a large document visits, and
+// the slice this would otherwise allocate is paid at every node.
+func sortedKeys[K cmp.Ordered, V any](m map[K]V) iter.Seq[K] {
+	const alreadyOrdered = 2 // a map of fewer keys than this has only one order
+
+	return func(yield func(K) bool) {
+		if len(m) < alreadyOrdered {
+			for key := range m {
+				yield(key)
+
+				return
+			}
+
+			return
+		}
+
+		for _, key := range slices.Sorted(maps.Keys(m)) {
+			if !yield(key) {
+				return
+			}
+		}
+	}
+}
+
 //nolint:gocognit,gocyclo,cyclop // complex but well-tested $ref expansion logic; refactoring deferred to dedicated PR
 func expandSchema(target Schema, parentRefs []string, resolver *schemaLoader, basePath string) (*Schema, error) {
 	if err := resolver.context.countNode(); err != nil {
@@ -312,7 +349,9 @@ func expandSchema(target Schema, parentRefs []string, resolver *schemaLoader, ba
 		return &target, nil
 	}
 
-	for k := range target.Definitions {
+	rebaseExtraRefs(target.ExtraProps, resolver, basePath)
+
+	for k := range sortedKeys(target.Definitions) {
 		tt, err := expandSchema(target.Definitions[k], parentRefs, resolver, basePath)
 		if resolver.shouldStopOnError(err) {
 			return &target, err
@@ -370,7 +409,7 @@ func expandSchema(target Schema, parentRefs []string, resolver *schemaLoader, ba
 		}
 	}
 
-	for k := range target.Properties {
+	for k := range sortedKeys(target.Properties) {
 		t, err := expandSchema(target.Properties[k], parentRefs, resolver, basePath)
 		if resolver.shouldStopOnError(err) {
 			return &target, err
@@ -390,7 +429,7 @@ func expandSchema(target Schema, parentRefs []string, resolver *schemaLoader, ba
 		}
 	}
 
-	for k := range target.PatternProperties {
+	for k := range sortedKeys(target.PatternProperties) {
 		t, err := expandSchema(target.PatternProperties[k], parentRefs, resolver, basePath)
 		if resolver.shouldStopOnError(err) {
 			return &target, err
@@ -400,7 +439,7 @@ func expandSchema(target Schema, parentRefs []string, resolver *schemaLoader, ba
 		}
 	}
 
-	for k := range target.Dependencies {
+	for k := range sortedKeys(target.Dependencies) {
 		if target.Dependencies[k].Schema != nil {
 			t, err := expandSchema(*target.Dependencies[k].Schema, parentRefs, resolver, basePath)
 			if resolver.shouldStopOnError(err) {
@@ -422,6 +461,67 @@ func expandSchema(target Schema, parentRefs []string, resolver *schemaLoader, ba
 		}
 	}
 	return &target, nil
+}
+
+// rebaseExtraRefs rewrites the $ref held by keywords this model does not map, so that
+// they still point at their target once the schema is inlined into another document.
+//
+// expandSchema walks the fields of [Schema] and stops there. A keyword the Swagger 2.0
+// model predates - propertyNames, contains, if/then/else, $defs - lands in ExtraProps as
+// raw JSON, and a $ref inside it is copied into the root verbatim: "#/definitions/leaf"
+// then names a definition of the root document instead of the one it came from.
+//
+// Rebasing makes the pointer correct. It does not expand it, and it does not make the
+// expanded document self-contained: a $ref that came from another document keeps pointing
+// there.
+func rebaseExtraRefs(extra map[string]any, resolver *schemaLoader, basePath string) {
+	for key := range extra {
+		rebaseRawRefs(extra[key], resolver, basePath)
+	}
+}
+
+// rebaseRawRefs walks raw JSON and rebases every "$ref" string value it finds.
+func rebaseRawRefs(node any, resolver *schemaLoader, basePath string) {
+	switch value := node.(type) {
+	case map[string]any:
+		for key := range value {
+			if key == jsonRef {
+				if ref, ok := value[key].(string); ok {
+					if rebased, ok := rebaseRawRef(ref, resolver, basePath); ok {
+						value[key] = rebased
+					}
+
+					continue
+				}
+			}
+
+			rebaseRawRefs(value[key], resolver, basePath)
+		}
+	case []any:
+		for i := range value {
+			rebaseRawRefs(value[i], resolver, basePath)
+		}
+	}
+}
+
+// rebaseRawRef resolves a $ref against basePath, then spells it relative to the document
+// being expanded, like the SkipSchemas branch of [expandSchema] does for a mapped $ref.
+//
+// It reports false when the $ref is empty or does not parse: an unmapped keyword may hold
+// any JSON, and a string under a "$ref" key is not necessarily a reference.
+func rebaseRawRef(ref string, resolver *schemaLoader, basePath string) (string, bool) {
+	if ref == "" {
+		return "", false
+	}
+
+	rebased, err := NewRef(normalizeURI(ref, basePath))
+	if err != nil {
+		return "", false
+	}
+
+	denormalized := denormalizeRef(&rebased, resolver.context.basePath, resolver.context.rootID)
+
+	return denormalized.String(), true
 }
 
 func expandSchemaRef(target Schema, parentRefs []string, resolver *schemaLoader, basePath string) (*Schema, error) {
@@ -483,7 +583,7 @@ func expandPathItem(pathItem *PathItem, resolver *schemaLoader, basePath string)
 
 	pathItem.Ref = Ref{}
 	for i := range pathItem.Parameters {
-		if err := expandParameterOrResponse(&(pathItem.Parameters[i]), resolver, basePath); resolver.shouldStopOnError(err) {
+		if err := expandParameterOrResponse(&pathItem.Parameters[i], resolver, basePath); resolver.shouldStopOnError(err) {
 			return err
 		}
 	}
@@ -528,7 +628,7 @@ func expandOperation(op *Operation, resolver *schemaLoader, basePath string) err
 		return err
 	}
 
-	for code := range responses.StatusCodeResponses {
+	for code := range sortedKeys(responses.StatusCodeResponses) {
 		response := responses.StatusCodeResponses[code]
 		if err := expandParameterOrResponse(&response, resolver, basePath); resolver.shouldStopOnError(err) {
 			return err

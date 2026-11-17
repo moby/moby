@@ -56,7 +56,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build
-        uses: docker/bake-action@018cb6412ab401ebaa809aa5f85966b74628600f # v7.4.0
+        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
         with:
           targets: ${{ matrix.target }}
       -
@@ -83,7 +83,7 @@ jobs:
       -
         name: Create matrix
         id: gen
-        uses: docker/bake-action/subaction/matrix@018cb6412ab401ebaa809aa5f85966b74628600f # v7.4.0
+        uses: docker/bake-action/subaction/matrix@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
         with:
           target: binary-cross
           fields: platforms
@@ -115,7 +115,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build
-        uses: docker/bake-action@018cb6412ab401ebaa809aa5f85966b74628600f # v7.4.0
+        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
         with:
           targets: ${{ matrix.target }}
           set: |
@@ -146,7 +146,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Run
-        uses: docker/bake-action@018cb6412ab401ebaa809aa5f85966b74628600f # v7.4.0
+        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
         with:
           targets: govulncheck
         env:
@@ -154,7 +154,7 @@ jobs:
       -
         name: Upload SARIF report
         if: ${{ github.event_name != 'pull_request' && github.repository == 'moby/moby' }}
-        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        uses: github/codeql-action/upload-sarif@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
         with:
           sarif_file: ${{ env.DESTDIR }}/govulncheck.out
 
@@ -174,7 +174,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build dind image
-        uses: docker/bake-action@018cb6412ab401ebaa809aa5f85966b74628600f # v7.4.0
+        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
         with:
           targets: dind
           set: |

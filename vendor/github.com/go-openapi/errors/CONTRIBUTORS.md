@@ -4,12 +4,12 @@
 
 | Total Contributors | Total Contributions |
 | --- | --- |
-| 13  | 115  |
+| 13  | 121  |
 
 | Username | All Time Contribution Count | All Commits |
 | --- | --- | --- |
 | @casualjim | 58 | <https://github.com/go-openapi/errors/commits?author=casualjim> |
-| @fredbi | 41 | <https://github.com/go-openapi/errors/commits?author=fredbi> |
+| @fredbi | 47 | <https://github.com/go-openapi/errors/commits?author=fredbi> |
 | @youyuanwu | 5 | <https://github.com/go-openapi/errors/commits?author=youyuanwu> |
 | @alexandear | 2 | <https://github.com/go-openapi/errors/commits?author=alexandear> |
 | @fiorix | 1 | <https://github.com/go-openapi/errors/commits?author=fiorix> |

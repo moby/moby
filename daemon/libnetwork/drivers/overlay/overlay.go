@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"path/filepath"
 	"sync"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/discoverapi"
@@ -22,8 +23,12 @@ const (
 	NetworkType  = "overlay"
 	vethPrefix   = "veth"
 	vethLen      = len(vethPrefix) + 7
-	vxlanEncap   = 50
 	secureOption = "encrypted"
+
+	// VXLAN encapsulation overhead: inner Ethernet header (14) + outer IP
+	// header (20 for IPv4, 40 for IPv6) + UDP header (8) + VXLAN header (8).
+	vxlanEncap  = 50
+	vxlan6Encap = 70
 )
 
 var (
@@ -34,6 +39,12 @@ var (
 type driver struct {
 	// Immutable; mu does not need to be held when accessing these fields.
 	initOS sync.Once
+	// sandboxDir is the directory the driver keeps the network namespaces
+	// of its network sandboxes in.
+	sandboxDir string
+	// legacySandboxDir is the directory earlier versions of the driver
+	// kept the network namespaces of their network sandboxes in.
+	legacySandboxDir string
 
 	// encrMu guards secMap and keys,
 	// and synchronizes the application of encryption parameters
@@ -59,16 +70,24 @@ type driver struct {
 	networks         networkTable
 }
 
-func newDriver() *driver {
-	return &driver{
+func newDriver(netnsDir string) *driver {
+	d := &driver{
 		networks: networkTable{},
 		secMap:   encrMap{},
 	}
+	if netnsDir != "" {
+		d.sandboxDir = filepath.Join(netnsDir, "overlay")
+		d.legacySandboxDir = netnsDir
+	}
+	return d
 }
 
-// Register registers a new instance of the overlay driver.
-func Register(r driverapi.Registerer) error {
-	return r.RegisterDriver(NetworkType, newDriver(), driverapi.Capability{
+// Register registers a new instance of the overlay driver. It keeps the
+// network namespaces of its network sandboxes in the "overlay"
+// subdirectory of netnsDir. If netnsDir is empty, the driver cannot create
+// network sandboxes.
+func Register(r driverapi.Registerer, netnsDir string) error {
+	return r.RegisterDriver(NetworkType, newDriver(netnsDir), driverapi.Capability{
 		DataScope:         scope.Global,
 		ConnectivityScope: scope.Global,
 	})
@@ -84,6 +103,7 @@ func (d *driver) configure() error {
 				d.restoreOverlayEncryptionFirewall(context.TODO())
 			})
 		}
+		d.removeStaleSandboxes()
 	})
 
 	return nil

@@ -4,6 +4,8 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -34,6 +36,18 @@ type DeleteScheduledQueryInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DeleteScheduledQueryInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DeleteScheduledQueryRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DeleteScheduledQueryInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Identifier != nil {
+		s.WriteString(schemas.DeleteScheduledQueryRequest_identifier, *v.Identifier)
+	}
+}
+
 type DeleteScheduledQueryOutput struct {
 	// Metadata pertaining to the operation's result.
 	ResultMetadata middleware.Metadata
@@ -41,13 +55,26 @@ type DeleteScheduledQueryOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DeleteScheduledQueryOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DeleteScheduledQueryResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DeleteScheduledQueryOutput) SerializeMembers(s smithy.ShapeSerializer) {
+}
+func (v *DeleteScheduledQueryOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.DeleteScheduledQueryResponse, func(s *smithy.Schema) error {
+		switch s {
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationDeleteScheduledQueryMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDeleteScheduledQuery{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DeleteScheduledQuery, schemas.DeleteScheduledQueryRequest, schemas.DeleteScheduledQueryResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDeleteScheduledQuery{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DeleteScheduledQuery, schemas.DeleteScheduledQueryRequest, schemas.DeleteScheduledQueryResponse), output: &DeleteScheduledQueryOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

@@ -18,6 +18,15 @@ type SchemaValidatorOptions struct {
 	recycleResult                 bool
 	skipSchemataResult            bool
 	pathLoaderWithOptions         func(string, ...loading.Option) (json.RawMessage, error)
+
+	// ownSchemata tells the validators that the schemata they walk are theirs to rewrite.
+	//
+	// Validation expands every schema carrying a $ref or an id, and expansion rewrites what it is
+	// given. The copy that makes this safe is taken once, at the entry point - the whole document
+	// in [SpecValidator.Validate], the single schema in [NewSchemaValidator] - because a copy per
+	// schema multiplies with the recursion, and because parameters, path items and responses
+	// expand too, not only schemata.
+	ownSchemata bool
 }
 
 // Option sets optional rules for schema validation.

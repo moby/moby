@@ -19,7 +19,7 @@ on:
   pull_request:
 
 env:
-  GO_VERSION: "1.26.10"
+  GO_VERSION: "1.27.3"
   GIT_PAGER: "cat"
   PAGER: "cat"
   SETUP_BUILDX_VERSION: edge
@@ -64,7 +64,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build dev image
-        uses: docker/bake-action@018cb6412ab401ebaa809aa5f85966b74628600f # v7.4.0
+        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
         with:
           targets: dev
           set: |
@@ -80,6 +80,9 @@ jobs:
           path: /tmp/dev-image-${{ matrix.arch }}.tar
 
   test:
+    permissions:
+      contents: read
+      id-token: write # needed for CodeCov; https://github.com/codecov/codecov-action/blob/v7.1.1/README.md#using-oidc
     name: test (${{ matrix.arch }}, ${{ matrix.storage }})
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
@@ -108,10 +111,11 @@ jobs:
       storage: ${{ matrix.storage }}
       runnerSuffix: ${{ matrix.runnerSuffix }}
       extraModes: ${{ matrix.extraModes }}
-    secrets:
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   test-unit:
+    permissions:
+      contents: read
+      id-token: write # needed for CodeCov; https://github.com/codecov/codecov-action/blob/v7.1.1/README.md#using-oidc
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
       - build-dev
@@ -128,8 +132,6 @@ jobs:
     with:
       arch: ${{ matrix.arch }}
       runnerSuffix: ${{ matrix.runnerSuffix }}
-    secrets:
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   validate-prepare:
     runs-on: ubuntu-26.04
@@ -194,7 +196,7 @@ jobs:
         # restored (e.g. cache miss or a rate-limited download).
         name: Build dev image
         if: steps.restore-dev-image.outputs.cache-hit != 'true'
-        uses: docker/bake-action@018cb6412ab401ebaa809aa5f85966b74628600f # v7.4.0
+        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
         with:
           targets: dev
           set: |
@@ -240,7 +242,7 @@ jobs:
       -
         name: Create matrix
         id: gen
-        uses: docker/bake-action/subaction/matrix@018cb6412ab401ebaa809aa5f85966b74628600f # v7.4.0
+        uses: docker/bake-action/subaction/matrix@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
         with:
           target: binary-smoketest
           fields: platforms
@@ -274,7 +276,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Test
-        uses: docker/bake-action@018cb6412ab401ebaa809aa5f85966b74628600f # v7.4.0
+        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
         with:
           targets: ${{ matrix.target }}
           set: |

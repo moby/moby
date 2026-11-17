@@ -20,12 +20,12 @@ type AnsiParser struct {
 	oscString          state
 	stateMap           []state
 
-	logf func(string, ...interface{})
+	logf func(string, ...any)
 }
 
 type Option func(*AnsiParser)
 
-func WithLogf(f func(string, ...interface{})) Option {
+func WithLogf(f func(string, ...any)) Option {
 	return func(ap *AnsiParser) {
 		ap.logf = f
 	}
@@ -45,7 +45,7 @@ func CreateParser(initialState string, evtHandler AnsiEventHandler, opts ...Opti
 		logger := log.New(logFile, "", log.LstdFlags)
 		if ap.logf != nil {
 			l := ap.logf
-			ap.logf = func(s string, v ...interface{}) {
+			ap.logf = func(s string, v ...any) {
 				l(s, v...)
 				logger.Printf(s, v...)
 			}
@@ -55,7 +55,7 @@ func CreateParser(initialState string, evtHandler AnsiEventHandler, opts ...Opti
 	}
 
 	if ap.logf == nil {
-		ap.logf = func(string, ...interface{}) {}
+		ap.logf = func(string, ...any) {}
 	}
 
 	ap.csiEntry = csiEntryState{baseState{name: "CsiEntry", parser: ap}}

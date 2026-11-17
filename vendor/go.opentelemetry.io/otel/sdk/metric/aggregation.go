@@ -79,7 +79,7 @@ func (l AggregationLastValue) copy() Aggregation { return l }
 func (AggregationLastValue) err() error { return nil }
 
 // AggregationExplicitBucketHistogram is an Aggregation that summarizes a set of
-// measurements as an histogram with explicitly defined buckets.
+// measurements as a histogram with explicitly defined buckets.
 type AggregationExplicitBucketHistogram struct {
 	// Boundaries are the increasing bucket boundary values. Boundary values
 	// define bucket upper bounds. Buckets are exclusive of their lower
@@ -138,7 +138,7 @@ func (h AggregationExplicitBucketHistogram) copy() Aggregation {
 }
 
 // AggregationBase2ExponentialHistogram is an Aggregation that summarizes a set of
-// measurements as an histogram with bucket widths that grow exponentially.
+// measurements as a histogram with bucket widths that grow exponentially.
 type AggregationBase2ExponentialHistogram struct {
 	// MaxSize is the maximum number of buckets to use for the histogram.
 	MaxSize int32

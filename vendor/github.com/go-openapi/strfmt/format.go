@@ -122,7 +122,7 @@ func (f *defaultFormats) Add(name string, strfmt Format, validator Validator) bo
 	nme := f.normalizeName(name)
 
 	tpe := reflect.TypeOf(strfmt)
-	if tpe.Kind() == reflect.Ptr {
+	if tpe.Kind() == reflect.Pointer {
 		tpe = tpe.Elem()
 	}
 
@@ -176,7 +176,7 @@ func (f *defaultFormats) DelByFormat(strfmt Format) bool {
 	defer f.Unlock()
 
 	tpe := reflect.TypeOf(strfmt)
-	if tpe.Kind() == reflect.Ptr {
+	if tpe.Kind() == reflect.Pointer {
 		tpe = tpe.Elem()
 	}
 
@@ -208,7 +208,7 @@ func (f *defaultFormats) ContainsFormat(strfmt Format) bool {
 	f.Lock()
 	defer f.Unlock()
 	tpe := reflect.TypeOf(strfmt)
-	if tpe.Kind() == reflect.Ptr {
+	if tpe.Kind() == reflect.Pointer {
 		tpe = tpe.Elem()
 	}
 

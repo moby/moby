@@ -197,18 +197,14 @@ func Parse(s string) (MediaType, error) {
 	if plus := strings.LastIndexByte(mt.Subtype, '+'); plus >= 0 && plus < len(mt.Subtype)-1 {
 		mt.Suffix = mt.Subtype[plus+1:]
 	}
+
 	if q, ok := params["q"]; ok {
-		if qf, perr := strconv.ParseFloat(q, 64); perr == nil {
-			if qf < 0 {
-				qf = 0
-			}
-			if qf > 1 {
-				qf = 1
-			}
+		if qf, isFloat := boundedQ(q); isFloat {
 			mt.Q = qf
 		}
 		delete(params, "q")
 	}
+
 	if len(params) > 0 {
 		mt.Params = params
 	}
@@ -265,6 +261,23 @@ func (m MediaType) Specificity() int {
 	}
 
 	return SpecificityExactWithParams
+}
+
+func boundedQ(q string) (float64, bool) {
+	qf, err := strconv.ParseFloat(q, 64)
+	if err != nil {
+		return 0, false
+	}
+
+	if qf < 0 {
+		qf = 0
+	}
+
+	if qf > 1 {
+		qf = 1
+	}
+
+	return qf, true
 }
 
 // typeAgrees reports whether two top-level types match, allowing "*" on

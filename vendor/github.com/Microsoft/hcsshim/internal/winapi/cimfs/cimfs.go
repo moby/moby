@@ -19,6 +19,10 @@ type FsHandle = types.FsHandle
 type StreamHandle = types.StreamHandle
 type FileMetadata = types.CimFsFileMetadata
 type ImagePath = types.CimFsImagePath
+type CimInfo = types.CimFsCimInfo
+type VerificationInfoFlags = types.CimGetVerificationInfoFlags
+type SignatureType = types.CimSignatureType
+type HashAlgorithm = types.CimHashAlgorithm
 
 //sys CimMountImage(imagePath string, fsName string, flags uint32, volumeID *GUID) (hr error) = cimfs.CimMountImage?
 //sys CimDismountImage(volumeID *GUID) (hr error) = cimfs.CimDismountImage?
@@ -29,7 +33,7 @@ type ImagePath = types.CimFsImagePath
 //sys CimCommitImage(cimFSHandle FsHandle) (hr error) = cimfs.CimCommitImage?
 
 //sys CimCreateFile(cimFSHandle FsHandle, path string, file *FileMetadata, cimStreamHandle *StreamHandle) (hr error) = cimfs.CimCreateFile?
-//sys CimCloseStream(cimStreamHandle StreamHandle) (hr error) = cimfs.CimCloseStream?
+//sys CimCloseStream(cimStreamHandle StreamHandle) = cimfs.CimCloseStream?
 //sys CimWriteStream(cimStreamHandle StreamHandle, buffer uintptr, bufferSize uint32) (hr error) = cimfs.CimWriteStream?
 //sys CimDeletePath(cimFSHandle FsHandle, path string) (hr error) = cimfs.CimDeletePath?
 //sys CimCreateHardLink(cimFSHandle FsHandle, newPath string, oldPath string) (hr error) = cimfs.CimCreateHardLink?
@@ -41,6 +45,8 @@ type ImagePath = types.CimFsImagePath
 //sys CimCreateMergeLink(cimFSHandle FsHandle, newPath string, oldPath string) (hr error) = cimfs.CimCreateMergeLink?
 //sys CimSealImage(blockCimPath string, hashSize *uint64, fixedHeaderSize *uint64, hash *byte) (hr error) = cimfs.CimSealImage?
 //sys CimGetVerificationInformation(blockCimPath string, isSealed *uint32, hashSize *uint64, signatureSize *uint64, fixedHeaderSize *uint64, hash *byte, signature *byte) (hr error) = cimfs.CimGetVerificationInformation?
+//sys CimGetVerificationInformation2(blockCimPath string, flags VerificationInfoFlags, isSealed *uint32, hashSize *uint64, signatureOffset *uint64, signatureSize *uint64, fixedHeaderSize *uint64, hash *byte, signature *byte, signatureType *SignatureType, hashAlgorithm *HashAlgorithm) (hr error) = cimfs.CimGetVerificationInformation2?
+//sys CimQueryBlockInfo(blockCimPath string, cimInfoBufferSize uint32, cimInfoBuffer *CimInfo, requiredBufferSize *uint32, cimCount *uint32) (hr error) = cimfs.CimQueryBlockInfo?
 //sys CimMountVerifiedImage(imagePath string, fsName string, flags uint32, volumeID *GUID, hashSize uint16, hash *byte) (hr error) = cimfs.CimMountVerifiedImage?
 //sys CimMergeMountVerifiedImage(numCimPaths uint32, backingImagePaths *ImagePath, flags uint32, volumeID *GUID, hashSize uint16, hash *byte) (hr error) = cimfs.CimMergeMountVerifiedImage?
 

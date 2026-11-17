@@ -1,5 +1,7 @@
 package ansiterm
 
+import "slices"
+
 type csiParamState struct {
 	baseState
 }
@@ -13,11 +15,11 @@ func (csiState csiParamState) Handle(b byte) (s state, e error) {
 	}
 
 	switch {
-	case sliceContains(alphabetics, b):
+	case slices.Contains(alphabetics, b):
 		return csiState.parser.ground, nil
-	case sliceContains(csiCollectables, b):
+	case slices.Contains(csiCollectables, b):
 		return csiState, csiState.parser.collectParam()
-	case sliceContains(executors, b):
+	case slices.Contains(executors, b):
 		return csiState, csiState.parser.execute()
 	}
 

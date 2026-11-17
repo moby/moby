@@ -120,6 +120,7 @@ type Record struct {
 	scope *instrumentation.Scope
 
 	attributeValueLengthLimit int
+	attributeValueDepthLimit  int
 	attributeCountLimit       int
 
 	// allowDupKeys specifies whether duplicate keys are allowed in key-value
@@ -200,7 +201,7 @@ func (r *Record) Body() attribute.Value {
 // SetBody sets the body of the log record.
 func (r *Record) SetBody(v attribute.Value) {
 	if !r.allowDupKeys {
-		r.body, _ = attrnorm.Value(v)
+		r.body, _ = attrnorm.ValueDedup(v)
 	} else {
 		r.body = v
 	}
@@ -279,6 +280,7 @@ func (r *Record) AddAttributes(attrs ...attribute.KeyValue) {
 				// New attrs overwrite any existing with the same key.
 				dropped++
 				logKeyValuePairDropped()
+				a = r.applyAttrLimitsAndDedup(a)
 				if idx < 0 {
 					r.front[-(idx + 1)] = a
 				} else {
@@ -514,13 +516,35 @@ func (r *Record) Clone() Record {
 }
 
 func (r *Record) applyAttrLimitsAndDedup(attr attribute.KeyValue) attribute.KeyValue {
-	if !r.allowDupKeys {
-		var changed bool
-		attr, changed = attrnorm.KeyValue(attr)
-		if changed {
-			logKeyValuePairDropped()
-		}
+	switch attr.Value.Type() {
+	case attribute.SLICE, attribute.MAP:
+		attr = r.applyCompositeAttrDepthLimitAndDedup(attr)
 	}
 	attr.Value = attrnorm.TruncateValue(r.attributeValueLengthLimit, attr.Value)
 	return attr
+}
+
+func (r *Record) applyCompositeAttrDepthLimitAndDedup(attr attribute.KeyValue) attribute.KeyValue {
+	depthLimit := r.attrValueDepthLimit()
+	if !r.allowDupKeys {
+		var deduplicated bool
+		if depthLimit < 0 {
+			attr, deduplicated = attrnorm.KeyValueDedup(attr)
+		} else {
+			attr, _, deduplicated = attrnorm.KeyValueDedupLimitDepth(attr, depthLimit)
+		}
+		if deduplicated {
+			logKeyValuePairDropped()
+		}
+	} else if depthLimit >= 0 {
+		attr, _ = attrnorm.KeyValueLimitDepth(attr, depthLimit)
+	}
+	return attr
+}
+
+func (r *Record) attrValueDepthLimit() int {
+	if r.attributeValueDepthLimit == 0 {
+		return defaultAttrValDepthLim
+	}
+	return r.attributeValueDepthLimit
 }
