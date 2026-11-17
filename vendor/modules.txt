@@ -2297,7 +2297,7 @@ sigs.k8s.io/json/internal/golang/encoding/json
 # sigs.k8s.io/yaml v1.6.0
 ## explicit; go 1.22
 sigs.k8s.io/yaml
-# tags.cncf.io/container-device-interface v1.1.1
+# tags.cncf.io/container-device-interface v1.1.2
 ## explicit; go 1.23
 tags.cncf.io/container-device-interface/internal/ociedit
 tags.cncf.io/container-device-interface/internal/validation
