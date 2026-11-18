@@ -1671,7 +1671,7 @@ func TestPortMappingOnDistinctLoopbackAddrs(t *testing.T) {
 		var err error
 		// The userland proxy or RootlessKit forwarder may need a moment to
 		// start accepting connections after container start.
-		for attempt := 0; attempt < 5; attempt++ {
+		for range 5 {
 			resp, err = httpClient.Get(url)
 			if err == nil {
 				break
