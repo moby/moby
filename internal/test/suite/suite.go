@@ -36,8 +36,7 @@ func Run(ctx context.Context, t *testing.T, suite any) {
 	}()
 
 	methodFinder := reflect.TypeOf(suite)
-	for index := 0; index < methodFinder.NumMethod(); index++ {
-		method := methodFinder.Method(index)
+	for method := range methodFinder.Methods() {
 		if !methodFilter(method.Name, method.Type) {
 			continue
 		}
@@ -78,8 +77,8 @@ func getSetupAllSuite(suite any) (SetupAllSuite, bool) {
 	}
 
 	t := reflect.TypeOf(suite)
-	for i := 0; i < t.NumMethod(); i++ {
-		if t.Method(i).Name == "SetUpSuite" {
+	for method := range t.Methods() {
+		if method.Name == "SetUpSuite" {
 			panic("Wrong SetUpSuite signature")
 		}
 	}
@@ -93,8 +92,8 @@ func getSetupTestSuite(suite any) (SetupTestSuite, bool) {
 	}
 
 	t := reflect.TypeOf(suite)
-	for i := 0; i < t.NumMethod(); i++ {
-		if t.Method(i).Name == "SetUpTest" {
+	for method := range t.Methods() {
+		if method.Name == "SetUpTest" {
 			panic("Wrong SetUpTest signature")
 		}
 	}
@@ -108,8 +107,8 @@ func getTearDownTestSuite(suite any) (TearDownTestSuite, bool) {
 	}
 
 	t := reflect.TypeOf(suite)
-	for i := 0; i < t.NumMethod(); i++ {
-		if t.Method(i).Name == "TearDownTest" {
+	for method := range t.Methods() {
+		if method.Name == "TearDownTest" {
 			panic("Wrong TearDownTest signature")
 		}
 	}
@@ -123,8 +122,8 @@ func getTeardownAllSuite(suite any) (TearDownAllSuite, bool) {
 	}
 
 	t := reflect.TypeOf(suite)
-	for i := 0; i < t.NumMethod(); i++ {
-		if t.Method(i).Name == "TearDownSuite" {
+	for method := range t.Methods() {
+		if method.Name == "TearDownSuite" {
 			panic("Wrong TearDownSuite signature")
 		}
 	}
