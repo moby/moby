@@ -9,29 +9,25 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func strPtr(source string) *string {
-	return &source
-}
-
 func TestGetAllAllowed(t *testing.T) {
 	buildArgs := NewBuildArgs(map[string]*string{
-		"ArgNotUsedInDockerfile":              strPtr("fromopt1"),
-		"ArgOverriddenByOptions":              strPtr("fromopt2"),
-		"ArgNoDefaultInDockerfileFromOptions": strPtr("fromopt3"),
-		"HTTP_PROXY":                          strPtr("theproxy"),
-		"all_proxy":                           strPtr("theproxy2"),
+		"ArgNotUsedInDockerfile":              new("fromopt1"),
+		"ArgOverriddenByOptions":              new("fromopt2"),
+		"ArgNoDefaultInDockerfileFromOptions": new("fromopt3"),
+		"HTTP_PROXY":                          new("theproxy"),
+		"all_proxy":                           new("theproxy2"),
 	})
 
-	buildArgs.AddMetaArg("ArgFromMeta", strPtr("frommeta1"))
-	buildArgs.AddMetaArg("ArgFromMetaOverridden", strPtr("frommeta2"))
-	buildArgs.AddMetaArg("ArgFromMetaNotUsed", strPtr("frommeta3"))
+	buildArgs.AddMetaArg("ArgFromMeta", new("frommeta1"))
+	buildArgs.AddMetaArg("ArgFromMetaOverridden", new("frommeta2"))
+	buildArgs.AddMetaArg("ArgFromMetaNotUsed", new("frommeta3"))
 
-	buildArgs.AddArg("ArgOverriddenByOptions", strPtr("fromdockerfile2"))
-	buildArgs.AddArg("ArgWithDefaultInDockerfile", strPtr("fromdockerfile1"))
+	buildArgs.AddArg("ArgOverriddenByOptions", new("fromdockerfile2"))
+	buildArgs.AddArg("ArgWithDefaultInDockerfile", new("fromdockerfile1"))
 	buildArgs.AddArg("ArgNoDefaultInDockerfile", nil)
 	buildArgs.AddArg("ArgNoDefaultInDockerfileFromOptions", nil)
 	buildArgs.AddArg("ArgFromMeta", nil)
-	buildArgs.AddArg("ArgFromMetaOverridden", strPtr("fromdockerfile3"))
+	buildArgs.AddArg("ArgFromMetaOverridden", new("fromdockerfile3"))
 
 	all := buildArgs.GetAllAllowed()
 	expected := map[string]string{
@@ -48,14 +44,14 @@ func TestGetAllAllowed(t *testing.T) {
 
 func TestGetAllMeta(t *testing.T) {
 	buildArgs := NewBuildArgs(map[string]*string{
-		"ArgNotUsedInDockerfile":        strPtr("fromopt1"),
-		"ArgOverriddenByOptions":        strPtr("fromopt2"),
-		"ArgNoDefaultInMetaFromOptions": strPtr("fromopt3"),
-		"HTTP_PROXY":                    strPtr("theproxy"),
+		"ArgNotUsedInDockerfile":        new("fromopt1"),
+		"ArgOverriddenByOptions":        new("fromopt2"),
+		"ArgNoDefaultInMetaFromOptions": new("fromopt3"),
+		"HTTP_PROXY":                    new("theproxy"),
 	})
 
-	buildArgs.AddMetaArg("ArgFromMeta", strPtr("frommeta1"))
-	buildArgs.AddMetaArg("ArgOverriddenByOptions", strPtr("frommeta2"))
+	buildArgs.AddMetaArg("ArgFromMeta", new("frommeta1"))
+	buildArgs.AddMetaArg("ArgOverriddenByOptions", new("frommeta2"))
 	buildArgs.AddMetaArg("ArgNoDefaultInMetaFromOptions", nil)
 
 	all := buildArgs.GetAllMeta()
@@ -70,10 +66,10 @@ func TestGetAllMeta(t *testing.T) {
 
 func TestWarnOnUnusedBuildArgs(t *testing.T) {
 	buildArgs := NewBuildArgs(map[string]*string{
-		"ThisArgIsUsed":    strPtr("fromopt1"),
-		"ThisArgIsNotUsed": strPtr("fromopt2"),
-		"HTTPS_PROXY":      strPtr("referenced builtin"),
-		"HTTP_PROXY":       strPtr("unreferenced builtin"),
+		"ThisArgIsUsed":    new("fromopt1"),
+		"ThisArgIsNotUsed": new("fromopt2"),
+		"HTTPS_PROXY":      new("referenced builtin"),
+		"HTTP_PROXY":       new("unreferenced builtin"),
 	})
 	buildArgs.AddArg("ThisArgIsUsed", nil)
 	buildArgs.AddArg("HTTPS_PROXY", nil)
@@ -89,10 +85,10 @@ func TestWarnOnUnusedBuildArgs(t *testing.T) {
 
 func TestIsUnreferencedBuiltin(t *testing.T) {
 	buildArgs := NewBuildArgs(map[string]*string{
-		"ThisArgIsUsed":    strPtr("fromopt1"),
-		"ThisArgIsNotUsed": strPtr("fromopt2"),
-		"HTTPS_PROXY":      strPtr("referenced builtin"),
-		"HTTP_PROXY":       strPtr("unreferenced builtin"),
+		"ThisArgIsUsed":    new("fromopt1"),
+		"ThisArgIsNotUsed": new("fromopt2"),
+		"HTTPS_PROXY":      new("referenced builtin"),
+		"HTTP_PROXY":       new("unreferenced builtin"),
 	})
 	buildArgs.AddArg("ThisArgIsUsed", nil)
 	buildArgs.AddArg("HTTPS_PROXY", nil)

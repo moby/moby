@@ -430,7 +430,7 @@ func TestPrependEnvOnCmd(t *testing.T) {
 func TestRunWithBuildArgs(t *testing.T) {
 	b := newBuilderWithMockBackend(t)
 	args := NewBuildArgs(make(map[string]*string))
-	args.argsFromOptions["HTTP_PROXY"] = strPtr("FOO")
+	args.argsFromOptions["HTTP_PROXY"] = new("FOO")
 	b.disableCommit = false
 	sb := newDispatchRequest(b, '`', nil, args, newStagesBuildResults())
 
@@ -488,7 +488,7 @@ func TestRunWithBuildArgs(t *testing.T) {
 	from := &instructions.Stage{BaseName: "abcdef"}
 	err = initializeStage(t.Context(), sb, from)
 	assert.NilError(t, err)
-	sb.state.buildArgs.AddArg("one", strPtr("two"))
+	sb.state.buildArgs.AddArg("one", new("two"))
 
 	// This is hugely annoying. On the Windows side, it relies on the
 	// RunCommand being able to emit String() and Name() (as implemented by
@@ -573,7 +573,7 @@ func TestRunIgnoresHealthcheck(t *testing.T) {
 		return container.CreateResponse{ID: "123456"}, nil
 	}
 
-	sb.state.buildArgs.AddArg("one", strPtr("two"))
+	sb.state.buildArgs.AddArg("one", new("two"))
 	runint, err := instructions.ParseInstruction(&parser.Node{Original: `RUN echo foo`, Value: "run"})
 	assert.NilError(t, err)
 	run := runint.(*instructions.RunCommand)
