@@ -279,7 +279,7 @@ func TestWatchRelease(t *testing.T) {
 }
 
 func TestWatchFinishedTransfer(t *testing.T) {
-	makeXferFunc := func(id string) doFunc {
+	makeXferFunc := func(_ string) doFunc {
 		return func(progressChan chan<- progress.Progress, _ <-chan struct{}, _ chan<- struct{}) transfer {
 			xfer := newTransfer()
 			go func() {
