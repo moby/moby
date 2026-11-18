@@ -3,6 +3,7 @@ package containerd
 import (
 	"context"
 	"errors"
+	"slices"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -230,8 +231,8 @@ func (p *pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pr
 	// Remove finished/committed layers from p.layers
 	if len(committedIdx) > 0 {
 		sort.Ints(committedIdx)
-		for i := len(committedIdx) - 1; i >= 0; i-- {
-			p.layers = append(p.layers[:committedIdx[i]], p.layers[committedIdx[i]+1:]...)
+		for _, c := range slices.Backward(committedIdx) {
+			p.layers = append(p.layers[:c], p.layers[c+1:]...)
 		}
 	}
 
@@ -266,7 +267,7 @@ func findMatchingSnapshot(ctx context.Context, sn snapshots.Snapshotter, layerDe
 	return *matchingSnapshot, nil
 }
 
-func (p *pullProgress) finished(ctx context.Context, out progress.Output, desc ocispec.Descriptor) {
+func (p *pullProgress) finished(_ context.Context, _ progress.Output, desc ocispec.Descriptor) {
 	if c8dimages.IsLayerType(desc.MediaType) {
 		p.layers = append(p.layers, desc)
 	}

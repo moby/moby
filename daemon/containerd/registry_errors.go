@@ -22,9 +22,7 @@ func translateRegistryError(ctx context.Context, err error) error {
 	// Check for registry specific error
 	var derrs docker.Errors
 	if !errors.As(err, &derrs) {
-		var remoteErr remoteerrors.ErrUnexpectedStatus
-		var derr docker.Error
-		if errors.As(err, &remoteErr) {
+		if remoteErr, ok := errors.AsType[remoteerrors.ErrUnexpectedStatus](err); ok {
 			if jerr := json.Unmarshal(remoteErr.Body, &derrs); jerr != nil {
 				log.G(ctx).WithError(jerr).Debug("unable to unmarshal registry error")
 				return fmt.Errorf("%w: %w", cerrdefs.ErrUnknown, err)
@@ -42,7 +40,7 @@ func translateRegistryError(ctx context.Context, err error) error {
 					return cerrdefs.ErrPermissionDenied.WithMessage(fmt.Sprintf("%s - %s", docker.ErrorCodeDenied.Message(), tokenErr.Details))
 				}
 			}
-		} else if errors.As(err, &derr) {
+		} else if derr, ok := errors.AsType[docker.Error](err); ok {
 			derrs = append(derrs, derr)
 		} else {
 			return err
@@ -50,8 +48,7 @@ func translateRegistryError(ctx context.Context, err error) error {
 	}
 	var errs []error
 	for _, err := range derrs {
-		var derr docker.Error
-		if errors.As(err, &derr) {
+		if derr, ok := errors.AsType[docker.Error](err); ok {
 			var message string
 
 			if derr.Message != "" {
