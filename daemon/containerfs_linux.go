@@ -101,7 +101,6 @@ func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSV
 			}
 			defer root.Close()
 
-			// TODO(vvoland): Refactor this after security release.
 			for _, m := range mounts {
 				// Walk m.Destination through the container's symlinks before
 				// passing it to os.Root, which refuses absolute symlinks
@@ -130,16 +129,8 @@ func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSV
 				if m.NonRecursive {
 					bindMode = "bind"
 				}
-				if m.Writable {
-					if m.ReadOnlyNonRecursive {
-						return errors.New("options conflict: Writable && ReadOnlyNonRecursive")
-					}
-					if m.ReadOnlyForceRecursive {
-						return errors.New("options conflict: Writable && ReadOnlyForceRecursive")
-					}
-				}
-				if m.ReadOnlyNonRecursive && m.ReadOnlyForceRecursive {
-					return errors.New("options conflict: ReadOnlyNonRecursive && ReadOnlyForceRecursive")
+				if err := validateContainerFSMount(m); err != nil {
+					return err
 				}
 
 				// Open the mount target through os.Root so we have a
@@ -169,50 +160,11 @@ func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSV
 					targetFile.Close()
 					return fmt.Errorf("readlink %s: %w", targetPath, err)
 				}
-				if !m.Writable {
-					opts := []string{"ro", "remount", "bind"}
-					// A rootless daemon cannot clear the flags locked by
-					// CL_UNPRIVILEGED, such as nosuid and nodev on a /tmp
-					// tmpfs holding X11 sockets, so the remount must keep them.
-					if userns.RunningInUserNS() {
-						unprivOpts, err := mountopts.UnprivilegedMountFlags(realPath)
-						if err != nil {
-							targetFile.Close()
-							return err
-						}
-						opts = append(opts, unprivOpts...)
-					}
-					if err := mount.Mount("", realPath, "", strings.Join(opts, ",")); err != nil {
-						targetFile.Close()
-						return err
-					}
-				}
-
-				// openContainerFS() is called for temporary mounts
-				// outside the container. Soon these will be unmounted
-				// with lazy unmount option and given we have mounted
-				// them rbind, all the submounts will propagate if these
-				// are shared. If daemon is running in host namespace
-				// and has / as shared then these unmounts will
-				// propagate and unmount original mount as well. So make
-				// all these mounts rprivate.  Do not use propagation
-				// property of volume as that should apply only when
-				// mounting happens inside the container.
-				if err := mount.MakeRPrivate(realPath); err != nil {
-					targetFile.Close()
+				err = applyContainerFSMountFlags(m, realPath)
+				targetFile.Close()
+				if err != nil {
 					return err
 				}
-
-				if !m.Writable && !m.ReadOnlyNonRecursive {
-					if err := makeMountRRO(realPath); err != nil {
-						targetFile.Close()
-						if m.ReadOnlyForceRecursive {
-							return err
-						}
-						log.G(context.TODO()).WithError(err).Debugf("Failed to make %q recursively read-only", m.Destination)
-					}
-				}
-				targetFile.Close()
 			}
 
 			return mounttree.SwitchRoot(ctr.BaseFS)
@@ -242,6 +194,58 @@ func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSV
 	}
 	runtime.SetFinalizer(vw, (*containerFSView).Close)
 	return vw, nil
+}
+
+func validateContainerFSMount(m container.Mount) error {
+	if m.Writable {
+		if m.ReadOnlyNonRecursive {
+			return errors.New("options conflict: Writable && ReadOnlyNonRecursive")
+		}
+		if m.ReadOnlyForceRecursive {
+			return errors.New("options conflict: Writable && ReadOnlyForceRecursive")
+		}
+	}
+	if m.ReadOnlyNonRecursive && m.ReadOnlyForceRecursive {
+		return errors.New("options conflict: ReadOnlyNonRecursive && ReadOnlyForceRecursive")
+	}
+	return nil
+}
+
+// applyContainerFSMountFlags sets read-only flags and private propagation on a
+// bind mount in the container filesystem view's private mount namespace.
+func applyContainerFSMountFlags(m container.Mount, path string) error {
+	if !m.Writable {
+		opts := []string{"ro", "remount", "bind"}
+		// A rootless daemon cannot clear the flags locked by
+		// CL_UNPRIVILEGED, such as nosuid and nodev on a /tmp
+		// tmpfs holding X11 sockets, so the remount must keep them.
+		if userns.RunningInUserNS() {
+			unprivOpts, err := mountopts.UnprivilegedMountFlags(path)
+			if err != nil {
+				return err
+			}
+			opts = append(opts, unprivOpts...)
+		}
+		if err := mount.Mount("", path, "", strings.Join(opts, ",")); err != nil {
+			return err
+		}
+	}
+
+	// Keep lazy unmounts of these temporary mounts from propagating back to
+	// the host. The volume's propagation mode only applies inside the container.
+	if err := mount.MakeRPrivate(path); err != nil {
+		return err
+	}
+
+	if !m.Writable && !m.ReadOnlyNonRecursive {
+		if err := makeMountRRO(path); err != nil {
+			if m.ReadOnlyForceRecursive {
+				return err
+			}
+			log.G(context.TODO()).WithError(err).Debugf("Failed to make %q recursively read-only", m.Destination)
+		}
+	}
+	return nil
 }
 
 // RunInFS synchronously runs fn in the context of the container filesystem and
