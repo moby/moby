@@ -167,8 +167,7 @@ func (s *Sender) Send(message string, priority journal.Priority, vars map[string
 	if s.TB != nil {
 		out, err := cmd.CombinedOutput()
 		s.TB.Logf("[systemd-journal-remote] %s", out)
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 			s.TB.Logf("systemd-journal-remote exit status: %d", exitErr.ExitCode())
 		}
 		return err

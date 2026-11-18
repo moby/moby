@@ -745,7 +745,7 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, 
 	return nil
 }
 
-func (pm *Manager) validateConfig(config plugin.Config) error {
+func (pm *Manager) validateConfig(_ plugin.Config) error {
 	return nil // TODO:
 }
 

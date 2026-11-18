@@ -11,8 +11,6 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
-func iPtr(i int64) *int64 { return &i }
-
 const defaultUnixPathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 // DefaultPathEnv is unix style list of directories to search for
@@ -136,50 +134,50 @@ func DefaultLinuxSpec() specs.Spec {
 					{
 						Allow:  true,
 						Type:   "c",
-						Major:  iPtr(1),
-						Minor:  iPtr(5),
+						Major:  new(int64(1)),
+						Minor:  new(int64(5)),
 						Access: "rwm",
 					},
 					{
 						Allow:  true,
 						Type:   "c",
-						Major:  iPtr(1),
-						Minor:  iPtr(3),
+						Major:  new(int64(1)),
+						Minor:  new(int64(3)),
 						Access: "rwm",
 					},
 					{
 						Allow:  true,
 						Type:   "c",
-						Major:  iPtr(1),
-						Minor:  iPtr(9),
+						Major:  new(int64(1)),
+						Minor:  new(int64(9)),
 						Access: "rwm",
 					},
 					{
 						Allow:  true,
 						Type:   "c",
-						Major:  iPtr(1),
-						Minor:  iPtr(8),
+						Major:  new(int64(1)),
+						Minor:  new(int64(8)),
 						Access: "rwm",
 					},
 					{
 						Allow:  true,
 						Type:   "c",
-						Major:  iPtr(5),
-						Minor:  iPtr(0),
+						Major:  new(int64(5)),
+						Minor:  new(int64(0)),
 						Access: "rwm",
 					},
 					{
 						Allow:  true,
 						Type:   "c",
-						Major:  iPtr(5),
-						Minor:  iPtr(1),
+						Major:  new(int64(5)),
+						Minor:  new(int64(1)),
 						Access: "rwm",
 					},
 					{
 						Allow:  false,
 						Type:   "c",
-						Major:  iPtr(10),
-						Minor:  iPtr(229),
+						Major:  new(int64(10)),
+						Minor:  new(int64(229)),
 						Access: "rwm",
 					},
 				},
