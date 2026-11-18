@@ -996,7 +996,7 @@ func TestRelease(t *testing.T) {
 	}
 }
 
-func assertGetAddress(t *testing.T, subnet string) {
+func assertGetAddress(_ *testing.T, subnet string) {
 	var (
 		err       error
 		printTime = false
@@ -1054,7 +1054,7 @@ func assertNRequests(t *testing.T, subnet string, numReq int, lastExpectedIP str
 	}
 }
 
-func benchmarkRequest(b *testing.B, a *Allocator, subnet string) {
+func benchmarkRequest(_ *testing.B, a *Allocator, subnet string) {
 	alloc, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: subnet})
 	for !errors.Is(err, ipamapi.ErrNoAvailableIPs) {
 		_, _, err = a.RequestAddress(alloc.PoolID, nil, nil)
@@ -1084,7 +1084,7 @@ func TestAllocateRandomDeallocate(t *testing.T) {
 	}
 }
 
-func testAllocateRandomDeallocate(t *testing.T, pool, subPool string, num int, store bool) {
+func testAllocateRandomDeallocate(t *testing.T, pool, subPool string, num int, _ bool) {
 	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	if err != nil {
 		t.Fatal(err)
