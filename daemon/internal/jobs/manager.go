@@ -499,12 +499,12 @@ func (m *Manager) validateSpec(spec *jobsv0.JobSpec) (*container.CreateRequest, 
 	if err := validateTrigger(spec.Trigger, m.validateCron); err != nil {
 		return nil, errdefs.InvalidParameter(err)
 	}
-	if spec.TimeoutSeconds < 0 {
+	if spec.TimeoutMilliseconds < 0 {
 		return nil, errdefs.InvalidParameter(errors.New("timeout must not be negative"))
 	}
 
-	if spec.TimeoutSeconds > int64(math.MaxInt64/time.Second) {
-		return nil, errdefs.InvalidParameter(fmt.Errorf("timeout must not exceed %d seconds", int64(math.MaxInt64/time.Second)))
+	if spec.TimeoutMilliseconds > int64(math.MaxInt64/time.Millisecond) {
+		return nil, errdefs.InvalidParameter(fmt.Errorf("timeout must not exceed %d milliseconds", int64(math.MaxInt64/time.Millisecond)))
 	}
 
 	for label := range spec.Labels {
@@ -645,26 +645,26 @@ func decodeContainerSpec(raw []byte, strict bool) (*container.CreateRequest, err
 // empty HostConfig decodes to a non-nil pointer and hashes differently from
 // an absent one, a conservative trade-off over normalizing every substruct.
 type canonicalSpec struct {
-	ContainerSpec   *container.CreateRequest
-	TriggerKind     string
-	Schedule        *jobsv0.ScheduleTrigger `json:",omitempty"`
-	Labels          map[string]string       `json:",omitempty"`
-	TimeoutSeconds  int64
-	RemoveOnSuccess bool
-	RemoveOnFailure bool
-	RunHistoryLimit uint32
+	ContainerSpec       *container.CreateRequest
+	TriggerKind         string
+	Schedule            *jobsv0.ScheduleTrigger `json:",omitempty"`
+	Labels              map[string]string       `json:",omitempty"`
+	TimeoutMilliseconds int64
+	RemoveOnSuccess     bool
+	RemoveOnFailure     bool
+	RunHistoryLimit     uint32
 }
 
 // specHash computes the canonical identity hash of a validated spec.
 func specHash(spec *jobsv0.JobSpec, decoded *container.CreateRequest) (string, error) {
 	canonical := canonicalSpec{
-		ContainerSpec:   decoded,
-		TriggerKind:     triggerKind(spec.Trigger),
-		Labels:          spec.Labels,
-		TimeoutSeconds:  spec.TimeoutSeconds,
-		RemoveOnSuccess: spec.RemoveOnSuccess,
-		RemoveOnFailure: spec.RemoveOnFailure,
-		RunHistoryLimit: spec.RunHistoryLimit,
+		ContainerSpec:       decoded,
+		TriggerKind:         triggerKind(spec.Trigger),
+		Labels:              spec.Labels,
+		TimeoutMilliseconds: spec.TimeoutMilliseconds,
+		RemoveOnSuccess:     spec.RemoveOnSuccess,
+		RemoveOnFailure:     spec.RemoveOnFailure,
+		RunHistoryLimit:     spec.RunHistoryLimit,
 	}
 	if canonical.RunHistoryLimit == 0 {
 		canonical.RunHistoryLimit = DefaultRunHistoryLimit

@@ -129,7 +129,7 @@ const (
 	// RunStateFailed means the container exited nonzero after its restart
 	// policy was exhausted, or its creation failed.
 	RunStateFailed = "failed"
-	// RunStateTimedOut means the run exceeded JobSpec.TimeoutSeconds and was
+	// RunStateTimedOut means the run exceeded JobSpec.TimeoutMilliseconds and was
 	// stopped by the daemon.
 	RunStateTimedOut = "timed_out"
 	// RunStateCancelled means the run was stopped by Cancel or by removing
@@ -208,9 +208,9 @@ type JobSpec struct {
 	// containers carry the reserved com.docker.job.id and
 	// com.docker.job.run-id labels instead.
 	Labels map[string]string `pb:"3"`
-	// TimeoutSeconds bounds a run's execution; past the deadline the daemon
+	// TimeoutMilliseconds bounds a run's execution; past the deadline the daemon
 	// stops the container and the run ends timed_out. Zero means no timeout.
-	TimeoutSeconds int64 `pb:"4"`
+	TimeoutMilliseconds int64 `pb:"4"`
 	// RemoveOnSuccess removes the run container after a successful exit,
 	// before the terminal run record is written, so the record reports
 	// ContainerGone. Logs are lost with the container; exit code and error
