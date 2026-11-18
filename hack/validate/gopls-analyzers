@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -e -o pipefail
+
+REPODIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../" && pwd)"
+
+[ -n "${TESTDEBUG}" ] && set -x
+
+if pkg-config 'libsystemd' 2> /dev/null; then
+	DOCKER_BUILDTAGS+=" journald"
+fi
+
+gopls-analyzers -list-analyzers
+
+# JSON tag changes need a separate API compatibility review. Generator fixtures
+# intentionally contain older syntax to exercise code generation.
+flags=(-omitzero=false -exclude-generated -exclude='/pkg/plugins/pluginrpc-gen/fixtures/')
+command=(go vet "-vettool=$(command -v gopls-analyzers)")
+if [ "${1:-}" = "--fix" ]; then
+	command=(gopls-analyzers -fix)
+fi
+
+# Exclude man, which contains no Go code, and untracked local modules.
+while IFS= read -r mod; do
+	pushd "${REPODIR}/$(dirname "${mod}")" > /dev/null
+	echo -e "\n\033[0;36mINFO\033[0m Start validation for module '${mod}' with gopls-analyzers"
+	"${command[@]}" -tags="${DOCKER_BUILDTAGS}" "${flags[@]}" ./...
+	popd > /dev/null
+done < <(git -C "${REPODIR}" ls-files -- go.mod '**/go.mod' ':!:man/**')

@@ -9,6 +9,7 @@ SCRIPTS=(
 	pkg-imports
 	deprecate-integration-cli
 	golangci-lint
+	gopls-analyzers
 	shfmt
 )
 

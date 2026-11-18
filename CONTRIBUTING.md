@@ -134,6 +134,7 @@ Avoid unrelated cleanup in a focused change.
 
 - Format changed Go files with `gofmt -s -w`.
 - Use the repository's [golangci-lint configuration](.golangci.yml); run `make validate-golangci-lint` to use the development container's linter.
+- Run `make validate-gopls-analyzers` for gopls and modernization checks. To apply suggested fixes, run `hack/validate/gopls-analyzers --fix` inside the development container (`make shell`). Review the resulting changes.
 - Document exported APIs and their important expectations and caveats.
 - Explain non-obvious intent and constraints in comments rather than narrating code.
 - Scale variable names to their scope and avoid underscores in package names.

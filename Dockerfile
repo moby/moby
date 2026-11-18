@@ -224,6 +224,13 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
         GOBIN=/build CGO_ENABLED=0 go install ./cmd/golangci-lint \
      && /build/golangci-lint --version
 
+FROM base AS gopls-analyzers
+# renovate: datasource=github-tags depName=crazy-max/gopls-analyzers
+ARG GOPLS_ANALYZERS_VERSION=v0.3.0
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+        GOBIN=/build CGO_ENABLED=0 go install github.com/crazy-max/gopls-analyzers/cmd/gopls-analyzers@${GOPLS_ANALYZERS_VERSION}
+
 FROM base AS gotestsum
 # GOTESTSUM_VERSION is the version of gotest.tools/gotestsum to install.
 ARG GOTESTSUM_VERSION=v1.13.0
@@ -467,17 +474,18 @@ COPY --link --from=registry      /build/ /usr/local/bin/
 #
 # FIXME(thaJeztah): re-enable this stage when https://github.com/moby/moby/issues/38963 is resolved (see https://github.com/moby/moby/pull/38984)
 # COPY --link --from=criu          /build/ /usr/local/bin/
-COPY --link --from=gotestsum     /build/ /usr/local/bin/
-COPY --link --from=golangci_lint /build/ /usr/local/bin/
-COPY --link --from=shfmt         /build/ /usr/local/bin/
-COPY --link --from=runc          /build/ /usr/local/bin/
-COPY --link --from=containerd    /build/ /usr/local/bin/
-COPY --link --from=rootlesskit   /build/ /usr/local/bin/
-COPY --link --from=containerutil /build/ /usr/local/bin/
-COPY --link --from=crun          /build/ /usr/local/bin/
+COPY --link --from=gotestsum       /build/ /usr/local/bin/
+COPY --link --from=golangci_lint   /build/ /usr/local/bin/
+COPY --link --from=gopls-analyzers /build/ /usr/local/bin/
+COPY --link --from=shfmt           /build/ /usr/local/bin/
+COPY --link --from=runc            /build/ /usr/local/bin/
+COPY --link --from=containerd      /build/ /usr/local/bin/
+COPY --link --from=rootlesskit     /build/ /usr/local/bin/
+COPY --link --from=containerutil   /build/ /usr/local/bin/
+COPY --link --from=crun            /build/ /usr/local/bin/
 COPY --link hack/dockerfile/etc/docker/  /etc/docker/
-COPY --link --from=buildx        /buildx /usr/local/libexec/docker/cli-plugins/docker-buildx
-COPY --link --from=compose       /docker-compose /usr/libexec/docker/cli-plugins/docker-compose
+COPY --link --from=buildx          /buildx /usr/local/libexec/docker/cli-plugins/docker-buildx
+COPY --link --from=compose         /docker-compose /usr/libexec/docker/cli-plugins/docker-compose
 
 ENV PATH=/usr/local/cli:$PATH
 ENV TEST_CLIENT_BINARY=/usr/local/cli-integration/docker
