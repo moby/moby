@@ -4,7 +4,9 @@ package sts
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/sts/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/sts/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -38,6 +40,18 @@ type GetDelegatedAccessTokenInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *GetDelegatedAccessTokenInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.GetDelegatedAccessTokenRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *GetDelegatedAccessTokenInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.TradeInToken != nil {
+		s.WriteString(schemas.GetDelegatedAccessTokenRequest_TradeInToken, *v.TradeInToken)
+	}
+}
+
 type GetDelegatedAccessTokenOutput struct {
 
 	// The Amazon Resource Name (ARN) of the principal that was assumed when obtaining
@@ -62,13 +76,46 @@ type GetDelegatedAccessTokenOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *GetDelegatedAccessTokenOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.GetDelegatedAccessTokenResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *GetDelegatedAccessTokenOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.AssumedPrincipal != nil {
+		s.WriteString(schemas.GetDelegatedAccessTokenResponse_AssumedPrincipal, *v.AssumedPrincipal)
+	}
+	if v.Credentials != nil {
+		s.WriteStruct(schemas.GetDelegatedAccessTokenResponse_Credentials)
+		v.Credentials.SerializeMembers(s)
+		s.CloseStruct()
+	}
+	if v.PackedPolicySize != nil {
+		s.WriteInt32(schemas.GetDelegatedAccessTokenResponse_PackedPolicySize, *v.PackedPolicySize)
+	}
+}
+func (v *GetDelegatedAccessTokenOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.GetDelegatedAccessTokenResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.GetDelegatedAccessTokenResponse_AssumedPrincipal:
+			v.AssumedPrincipal = new(string)
+			return d.ReadString(schemas.GetDelegatedAccessTokenResponse_AssumedPrincipal, v.AssumedPrincipal)
+		case schemas.GetDelegatedAccessTokenResponse_Credentials:
+			v.Credentials = &types.Credentials{}
+			return v.Credentials.Deserialize(d)
+		case schemas.GetDelegatedAccessTokenResponse_PackedPolicySize:
+			v.PackedPolicySize = new(int32)
+			return d.ReadInt32(schemas.GetDelegatedAccessTokenResponse_PackedPolicySize, v.PackedPolicySize)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationGetDelegatedAccessTokenMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsquery_serializeOpGetDelegatedAccessToken{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.GetDelegatedAccessToken, schemas.GetDelegatedAccessTokenRequest, schemas.GetDelegatedAccessTokenResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsquery_deserializeOpGetDelegatedAccessToken{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.GetDelegatedAccessToken, schemas.GetDelegatedAccessTokenRequest, schemas.GetDelegatedAccessTokenResponse), output: &GetDelegatedAccessTokenOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

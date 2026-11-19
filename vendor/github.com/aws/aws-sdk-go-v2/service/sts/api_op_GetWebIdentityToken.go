@@ -4,7 +4,9 @@ package sts
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/sts/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/sts/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 	"time"
 )
@@ -63,6 +65,27 @@ type GetWebIdentityTokenInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *GetWebIdentityTokenInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.GetWebIdentityTokenRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *GetWebIdentityTokenInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Audience != nil {
+		serializewebIdentityTokenAudienceListType(s, schemas.GetWebIdentityTokenRequest_Audience, v.Audience)
+	}
+	if v.DurationSeconds != nil {
+		s.WriteInt32(schemas.GetWebIdentityTokenRequest_DurationSeconds, *v.DurationSeconds)
+	}
+	if v.SigningAlgorithm != nil {
+		s.WriteString(schemas.GetWebIdentityTokenRequest_SigningAlgorithm, *v.SigningAlgorithm)
+	}
+	if v.Tags != nil {
+		serializetagListType(s, schemas.GetWebIdentityTokenRequest_Tags, v.Tags)
+	}
+}
+
 type GetWebIdentityTokenOutput struct {
 
 	// The date and time when the web identity token expires, in UTC. The expiration
@@ -85,13 +108,38 @@ type GetWebIdentityTokenOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *GetWebIdentityTokenOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.GetWebIdentityTokenResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *GetWebIdentityTokenOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Expiration != nil {
+		s.WriteTime(schemas.GetWebIdentityTokenResponse_Expiration, *v.Expiration)
+	}
+	if v.WebIdentityToken != nil {
+		s.WriteString(schemas.GetWebIdentityTokenResponse_WebIdentityToken, *v.WebIdentityToken)
+	}
+}
+func (v *GetWebIdentityTokenOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.GetWebIdentityTokenResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.GetWebIdentityTokenResponse_Expiration:
+			v.Expiration = new(time.Time)
+			return d.ReadTime(schemas.GetWebIdentityTokenResponse_Expiration, v.Expiration)
+		case schemas.GetWebIdentityTokenResponse_WebIdentityToken:
+			v.WebIdentityToken = new(string)
+			return d.ReadString(schemas.GetWebIdentityTokenResponse_WebIdentityToken, v.WebIdentityToken)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationGetWebIdentityTokenMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsquery_serializeOpGetWebIdentityToken{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.GetWebIdentityToken, schemas.GetWebIdentityTokenRequest, schemas.GetWebIdentityTokenResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsquery_deserializeOpGetWebIdentityToken{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.GetWebIdentityToken, schemas.GetWebIdentityTokenRequest, schemas.GetWebIdentityTokenResponse), output: &GetWebIdentityTokenOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

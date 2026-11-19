@@ -4,7 +4,9 @@ package sts
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/sts/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/sts/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -261,6 +263,33 @@ type GetFederationTokenInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *GetFederationTokenInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.GetFederationTokenRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *GetFederationTokenInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.DurationSeconds != nil {
+		s.WriteInt32(schemas.GetFederationTokenRequest_DurationSeconds, *v.DurationSeconds)
+	}
+	if v.MinimumSessionTokenSize != nil {
+		s.WriteInt32(schemas.GetFederationTokenRequest_MinimumSessionTokenSize, *v.MinimumSessionTokenSize)
+	}
+	if v.Name != nil {
+		s.WriteString(schemas.GetFederationTokenRequest_Name, *v.Name)
+	}
+	if v.Policy != nil {
+		s.WriteString(schemas.GetFederationTokenRequest_Policy, *v.Policy)
+	}
+	if v.PolicyArns != nil {
+		serializepolicyDescriptorListType(s, schemas.GetFederationTokenRequest_PolicyArns, v.PolicyArns)
+	}
+	if v.Tags != nil {
+		serializetagListType(s, schemas.GetFederationTokenRequest_Tags, v.Tags)
+	}
+}
+
 // Contains the response to a successful GetFederationToken request, including temporary Amazon Web
 // Services credentials that can be used to make Amazon Web Services requests.
 type GetFederationTokenOutput struct {
@@ -300,13 +329,60 @@ type GetFederationTokenOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *GetFederationTokenOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.GetFederationTokenResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *GetFederationTokenOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Credentials != nil {
+		s.WriteStruct(schemas.GetFederationTokenResponse_Credentials)
+		v.Credentials.SerializeMembers(s)
+		s.CloseStruct()
+	}
+	if v.FederatedUser != nil {
+		s.WriteStruct(schemas.GetFederationTokenResponse_FederatedUser)
+		v.FederatedUser.SerializeMembers(s)
+		s.CloseStruct()
+	}
+	if v.PackedPolicySize != nil {
+		s.WriteInt32(schemas.GetFederationTokenResponse_PackedPolicySize, *v.PackedPolicySize)
+	}
+	if v.SessionTokenSize != nil {
+		s.WriteInt32(schemas.GetFederationTokenResponse_SessionTokenSize, *v.SessionTokenSize)
+	}
+	if v.SessionTokenUtilization != nil {
+		s.WriteInt32(schemas.GetFederationTokenResponse_SessionTokenUtilization, *v.SessionTokenUtilization)
+	}
+}
+func (v *GetFederationTokenOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.GetFederationTokenResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.GetFederationTokenResponse_Credentials:
+			v.Credentials = &types.Credentials{}
+			return v.Credentials.Deserialize(d)
+		case schemas.GetFederationTokenResponse_FederatedUser:
+			v.FederatedUser = &types.FederatedUser{}
+			return v.FederatedUser.Deserialize(d)
+		case schemas.GetFederationTokenResponse_PackedPolicySize:
+			v.PackedPolicySize = new(int32)
+			return d.ReadInt32(schemas.GetFederationTokenResponse_PackedPolicySize, v.PackedPolicySize)
+		case schemas.GetFederationTokenResponse_SessionTokenSize:
+			v.SessionTokenSize = new(int32)
+			return d.ReadInt32(schemas.GetFederationTokenResponse_SessionTokenSize, v.SessionTokenSize)
+		case schemas.GetFederationTokenResponse_SessionTokenUtilization:
+			v.SessionTokenUtilization = new(int32)
+			return d.ReadInt32(schemas.GetFederationTokenResponse_SessionTokenUtilization, v.SessionTokenUtilization)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationGetFederationTokenMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsquery_serializeOpGetFederationToken{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.GetFederationToken, schemas.GetFederationTokenRequest, schemas.GetFederationTokenResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsquery_deserializeOpGetFederationToken{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.GetFederationToken, schemas.GetFederationTokenRequest, schemas.GetFederationTokenResponse), output: &GetFederationTokenOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

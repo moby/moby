@@ -2468,12 +2468,14 @@ var _LogGroupArnList_member *smithy.Schema
 var LogGroupClass = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.cloudwatchlogs",
 	Name:      "LogGroupClass",
-}, smithy.ShapeTypeEnum, 3)
+}, smithy.ShapeTypeEnum, 4)
 var LogGroupClass_STANDARD *smithy.Schema
 
 var LogGroupClass_INFREQUENT_ACCESS *smithy.Schema
 
 var LogGroupClass_DELIVERY *smithy.Schema
+
+var LogGroupClass_ESSENTIALS *smithy.Schema
 
 var _LogGroupCount = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.cloudwatchlogs",
@@ -7318,6 +7320,8 @@ func init() {
 	LogGroupClass_INFREQUENT_ACCESS = LogGroupClass.AddMember("INFREQUENT_ACCESS", smithyprelude.Unit)
 
 	LogGroupClass_DELIVERY = LogGroupClass.AddMember("DELIVERY", smithyprelude.Unit)
+
+	LogGroupClass_ESSENTIALS = LogGroupClass.AddMember("ESSENTIALS", smithyprelude.Unit)
 
 	LogGroup_logGroupName = LogGroup.AddMember("logGroupName", _LogGroupName)
 

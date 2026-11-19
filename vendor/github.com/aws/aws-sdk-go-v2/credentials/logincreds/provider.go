@@ -37,6 +37,9 @@ type Options struct {
 	Client TokenAPIClient
 
 	// APIOptions to pass to the underlying CreateOAuth2Token operation.
+	//
+	// When the cached token names a sign-in region, that region overrides
+	// any region set here.
 	ClientOptions []func(*signin.Options)
 
 	// The path to the cached login token.
@@ -84,9 +87,15 @@ func (p *Provider) Retrieve(ctx context.Context) (aws.Credentials, error) {
 		return token.Credentials(), nil
 	}
 
-	opts := make([]func(*signin.Options), len(p.options.ClientOptions)+1)
-	opts[0] = addSignDPOP(token)
-	copy(opts[1:], p.options.ClientOptions)
+	opts := []func(*signin.Options){addSignDPOP(token)}
+	opts = append(opts, p.options.ClientOptions...)
+	if token.SignInRegion != "" {
+		// the session must be refreshed in the region it was created in
+		region := token.SignInRegion
+		opts = append(opts, func(o *signin.Options) {
+			o.Region = region
+		})
+	}
 
 	out, err := p.options.Client.CreateOAuth2Token(ctx, &signin.CreateOAuth2TokenInput{
 		TokenInput: &types.CreateOAuth2TokenRequestBody{

@@ -4,7 +4,9 @@ package sts
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/sts/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/sts/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -299,6 +301,39 @@ type AssumeRoleWithWebIdentityInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *AssumeRoleWithWebIdentityInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.AssumeRoleWithWebIdentityRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *AssumeRoleWithWebIdentityInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.DurationSeconds != nil {
+		s.WriteInt32(schemas.AssumeRoleWithWebIdentityRequest_DurationSeconds, *v.DurationSeconds)
+	}
+	if v.MinimumSessionTokenSize != nil {
+		s.WriteInt32(schemas.AssumeRoleWithWebIdentityRequest_MinimumSessionTokenSize, *v.MinimumSessionTokenSize)
+	}
+	if v.Policy != nil {
+		s.WriteString(schemas.AssumeRoleWithWebIdentityRequest_Policy, *v.Policy)
+	}
+	if v.PolicyArns != nil {
+		serializepolicyDescriptorListType(s, schemas.AssumeRoleWithWebIdentityRequest_PolicyArns, v.PolicyArns)
+	}
+	if v.ProviderId != nil {
+		s.WriteString(schemas.AssumeRoleWithWebIdentityRequest_ProviderId, *v.ProviderId)
+	}
+	if v.RoleArn != nil {
+		s.WriteString(schemas.AssumeRoleWithWebIdentityRequest_RoleArn, *v.RoleArn)
+	}
+	if v.RoleSessionName != nil {
+		s.WriteString(schemas.AssumeRoleWithWebIdentityRequest_RoleSessionName, *v.RoleSessionName)
+	}
+	if v.WebIdentityToken != nil {
+		s.WriteString(schemas.AssumeRoleWithWebIdentityRequest_WebIdentityToken, *v.WebIdentityToken)
+	}
+}
+
 // Contains the response to a successful AssumeRoleWithWebIdentity request, including temporary Amazon Web
 // Services credentials that can be used to make Amazon Web Services requests.
 type AssumeRoleWithWebIdentityOutput struct {
@@ -382,13 +417,84 @@ type AssumeRoleWithWebIdentityOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *AssumeRoleWithWebIdentityOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.AssumeRoleWithWebIdentityResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *AssumeRoleWithWebIdentityOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.AssumedRoleUser != nil {
+		s.WriteStruct(schemas.AssumeRoleWithWebIdentityResponse_AssumedRoleUser)
+		v.AssumedRoleUser.SerializeMembers(s)
+		s.CloseStruct()
+	}
+	if v.Audience != nil {
+		s.WriteString(schemas.AssumeRoleWithWebIdentityResponse_Audience, *v.Audience)
+	}
+	if v.Credentials != nil {
+		s.WriteStruct(schemas.AssumeRoleWithWebIdentityResponse_Credentials)
+		v.Credentials.SerializeMembers(s)
+		s.CloseStruct()
+	}
+	if v.PackedPolicySize != nil {
+		s.WriteInt32(schemas.AssumeRoleWithWebIdentityResponse_PackedPolicySize, *v.PackedPolicySize)
+	}
+	if v.Provider != nil {
+		s.WriteString(schemas.AssumeRoleWithWebIdentityResponse_Provider, *v.Provider)
+	}
+	if v.SessionTokenSize != nil {
+		s.WriteInt32(schemas.AssumeRoleWithWebIdentityResponse_SessionTokenSize, *v.SessionTokenSize)
+	}
+	if v.SessionTokenUtilization != nil {
+		s.WriteInt32(schemas.AssumeRoleWithWebIdentityResponse_SessionTokenUtilization, *v.SessionTokenUtilization)
+	}
+	if v.SourceIdentity != nil {
+		s.WriteString(schemas.AssumeRoleWithWebIdentityResponse_SourceIdentity, *v.SourceIdentity)
+	}
+	if v.SubjectFromWebIdentityToken != nil {
+		s.WriteString(schemas.AssumeRoleWithWebIdentityResponse_SubjectFromWebIdentityToken, *v.SubjectFromWebIdentityToken)
+	}
+}
+func (v *AssumeRoleWithWebIdentityOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.AssumeRoleWithWebIdentityResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.AssumeRoleWithWebIdentityResponse_AssumedRoleUser:
+			v.AssumedRoleUser = &types.AssumedRoleUser{}
+			return v.AssumedRoleUser.Deserialize(d)
+		case schemas.AssumeRoleWithWebIdentityResponse_Audience:
+			v.Audience = new(string)
+			return d.ReadString(schemas.AssumeRoleWithWebIdentityResponse_Audience, v.Audience)
+		case schemas.AssumeRoleWithWebIdentityResponse_Credentials:
+			v.Credentials = &types.Credentials{}
+			return v.Credentials.Deserialize(d)
+		case schemas.AssumeRoleWithWebIdentityResponse_PackedPolicySize:
+			v.PackedPolicySize = new(int32)
+			return d.ReadInt32(schemas.AssumeRoleWithWebIdentityResponse_PackedPolicySize, v.PackedPolicySize)
+		case schemas.AssumeRoleWithWebIdentityResponse_Provider:
+			v.Provider = new(string)
+			return d.ReadString(schemas.AssumeRoleWithWebIdentityResponse_Provider, v.Provider)
+		case schemas.AssumeRoleWithWebIdentityResponse_SessionTokenSize:
+			v.SessionTokenSize = new(int32)
+			return d.ReadInt32(schemas.AssumeRoleWithWebIdentityResponse_SessionTokenSize, v.SessionTokenSize)
+		case schemas.AssumeRoleWithWebIdentityResponse_SessionTokenUtilization:
+			v.SessionTokenUtilization = new(int32)
+			return d.ReadInt32(schemas.AssumeRoleWithWebIdentityResponse_SessionTokenUtilization, v.SessionTokenUtilization)
+		case schemas.AssumeRoleWithWebIdentityResponse_SourceIdentity:
+			v.SourceIdentity = new(string)
+			return d.ReadString(schemas.AssumeRoleWithWebIdentityResponse_SourceIdentity, v.SourceIdentity)
+		case schemas.AssumeRoleWithWebIdentityResponse_SubjectFromWebIdentityToken:
+			v.SubjectFromWebIdentityToken = new(string)
+			return d.ReadString(schemas.AssumeRoleWithWebIdentityResponse_SubjectFromWebIdentityToken, v.SubjectFromWebIdentityToken)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationAssumeRoleWithWebIdentityMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsquery_serializeOpAssumeRoleWithWebIdentity{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.AssumeRoleWithWebIdentity, schemas.AssumeRoleWithWebIdentityRequest, schemas.AssumeRoleWithWebIdentityResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsquery_deserializeOpAssumeRoleWithWebIdentity{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.AssumeRoleWithWebIdentity, schemas.AssumeRoleWithWebIdentityRequest, schemas.AssumeRoleWithWebIdentityResponse), output: &AssumeRoleWithWebIdentityOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

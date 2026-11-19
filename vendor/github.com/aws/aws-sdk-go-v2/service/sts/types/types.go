@@ -3,6 +3,8 @@
 package types
 
 import (
+	"github.com/aws/aws-sdk-go-v2/service/sts/schemas"
+	smithy "github.com/aws/smithy-go"
 	smithydocument "github.com/aws/smithy-go/document"
 	"time"
 )
@@ -28,6 +30,34 @@ type AssumedRoleUser struct {
 	AssumedRoleId *string
 
 	noSmithyDocumentSerde
+}
+
+func (v *AssumedRoleUser) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.AssumedRoleUser)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *AssumedRoleUser) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Arn != nil {
+		s.WriteString(schemas.AssumedRoleUser_Arn, *v.Arn)
+	}
+	if v.AssumedRoleId != nil {
+		s.WriteString(schemas.AssumedRoleUser_AssumedRoleId, *v.AssumedRoleId)
+	}
+}
+func (v *AssumedRoleUser) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.AssumedRoleUser, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.AssumedRoleUser_Arn:
+			v.Arn = new(string)
+			return d.ReadString(schemas.AssumedRoleUser_Arn, v.Arn)
+		case schemas.AssumedRoleUser_AssumedRoleId:
+			v.AssumedRoleId = new(string)
+			return d.ReadString(schemas.AssumedRoleUser_AssumedRoleId, v.AssumedRoleId)
+		}
+		return nil
+	})
 }
 
 // Amazon Web Services credentials for API authentication.
@@ -57,6 +87,46 @@ type Credentials struct {
 	noSmithyDocumentSerde
 }
 
+func (v *Credentials) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.Credentials)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *Credentials) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.AccessKeyId != nil {
+		s.WriteString(schemas.Credentials_AccessKeyId, *v.AccessKeyId)
+	}
+	if v.Expiration != nil {
+		s.WriteTime(schemas.Credentials_Expiration, *v.Expiration)
+	}
+	if v.SecretAccessKey != nil {
+		s.WriteString(schemas.Credentials_SecretAccessKey, *v.SecretAccessKey)
+	}
+	if v.SessionToken != nil {
+		s.WriteString(schemas.Credentials_SessionToken, *v.SessionToken)
+	}
+}
+func (v *Credentials) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.Credentials, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.Credentials_AccessKeyId:
+			v.AccessKeyId = new(string)
+			return d.ReadString(schemas.Credentials_AccessKeyId, v.AccessKeyId)
+		case schemas.Credentials_Expiration:
+			v.Expiration = new(time.Time)
+			return d.ReadTime(schemas.Credentials_Expiration, v.Expiration)
+		case schemas.Credentials_SecretAccessKey:
+			v.SecretAccessKey = new(string)
+			return d.ReadString(schemas.Credentials_SecretAccessKey, v.SecretAccessKey)
+		case schemas.Credentials_SessionToken:
+			v.SessionToken = new(string)
+			return d.ReadString(schemas.Credentials_SessionToken, v.SessionToken)
+		}
+		return nil
+	})
+}
+
 // Identifiers for the federated user that is associated with the credentials.
 type FederatedUser struct {
 
@@ -78,6 +148,34 @@ type FederatedUser struct {
 	noSmithyDocumentSerde
 }
 
+func (v *FederatedUser) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.FederatedUser)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *FederatedUser) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Arn != nil {
+		s.WriteString(schemas.FederatedUser_Arn, *v.Arn)
+	}
+	if v.FederatedUserId != nil {
+		s.WriteString(schemas.FederatedUser_FederatedUserId, *v.FederatedUserId)
+	}
+}
+func (v *FederatedUser) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.FederatedUser, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.FederatedUser_Arn:
+			v.Arn = new(string)
+			return d.ReadString(schemas.FederatedUser_Arn, v.Arn)
+		case schemas.FederatedUser_FederatedUserId:
+			v.FederatedUserId = new(string)
+			return d.ReadString(schemas.FederatedUser_FederatedUserId, v.FederatedUserId)
+		}
+		return nil
+	})
+}
+
 // A reference to the IAM managed policy that is passed as a session policy for a
 // role session or a federated user session.
 type PolicyDescriptorType struct {
@@ -90,6 +188,28 @@ type PolicyDescriptorType struct {
 	Arn *string
 
 	noSmithyDocumentSerde
+}
+
+func (v *PolicyDescriptorType) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PolicyDescriptorType)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PolicyDescriptorType) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Arn != nil {
+		s.WriteString(schemas.PolicyDescriptorType_arn, *v.Arn)
+	}
+}
+func (v *PolicyDescriptorType) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.PolicyDescriptorType, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.PolicyDescriptorType_arn:
+			v.Arn = new(string)
+			return d.ReadString(schemas.PolicyDescriptorType_arn, v.Arn)
+		}
+		return nil
+	})
 }
 
 // Contains information about the provided context. This includes the signed and
@@ -106,6 +226,34 @@ type ProvidedContext struct {
 	ProviderArn *string
 
 	noSmithyDocumentSerde
+}
+
+func (v *ProvidedContext) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ProvidedContext)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ProvidedContext) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.ContextAssertion != nil {
+		s.WriteString(schemas.ProvidedContext_ContextAssertion, *v.ContextAssertion)
+	}
+	if v.ProviderArn != nil {
+		s.WriteString(schemas.ProvidedContext_ProviderArn, *v.ProviderArn)
+	}
+}
+func (v *ProvidedContext) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.ProvidedContext, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.ProvidedContext_ContextAssertion:
+			v.ContextAssertion = new(string)
+			return d.ReadString(schemas.ProvidedContext_ContextAssertion, v.ContextAssertion)
+		case schemas.ProvidedContext_ProviderArn:
+			v.ProviderArn = new(string)
+			return d.ReadString(schemas.ProvidedContext_ProviderArn, v.ProviderArn)
+		}
+		return nil
+	})
 }
 
 // You can pass custom key-value pair attributes when you assume a role or
@@ -139,6 +287,34 @@ type Tag struct {
 	Value *string
 
 	noSmithyDocumentSerde
+}
+
+func (v *Tag) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.Tag)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *Tag) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Key != nil {
+		s.WriteString(schemas.Tag_Key, *v.Key)
+	}
+	if v.Value != nil {
+		s.WriteString(schemas.Tag_Value, *v.Value)
+	}
+}
+func (v *Tag) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.Tag, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.Tag_Key:
+			v.Key = new(string)
+			return d.ReadString(schemas.Tag_Key, v.Key)
+		case schemas.Tag_Value:
+			v.Value = new(string)
+			return d.ReadString(schemas.Tag_Value, v.Value)
+		}
+		return nil
+	})
 }
 
 type noSmithyDocumentSerde = smithydocument.NoSerde
