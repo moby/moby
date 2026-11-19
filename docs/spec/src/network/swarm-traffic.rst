@@ -5,6 +5,12 @@
 This document continues :doc:`swarm-networking`. Its conventions, definitions and host requirements
 apply here.
 
+.. _swarm-traffic-requirements:
+
+**************
+ Requirements
+**************
+
 .. _swarm-traffic-observable-state-inside-a-container:
 
 *************************************
@@ -68,8 +74,7 @@ interfaces on overlay networks, whatever other overlay networks the container is
     *Applies to:* A running standalone container on an attachable Swarm-scoped network
 
     After :api-op:`POST /networks/{id}/disconnect` for the container responds 200, the container
-    does not have the interface that it had on that network. See
-    :ref:`network-common-known-divergences-non-goals`.
+    does not have the interface that it had on that network.
 
 .. expectation:: A generated overlay MAC address is 02:42 then the IPv4 address
     :id: SWARM-CTR-MAC-GENERATED-FORMAT

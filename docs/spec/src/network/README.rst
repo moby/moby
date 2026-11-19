@@ -34,6 +34,10 @@ gives the conventions that only the networking specs use. It covers these docume
       - A Swarm over time and on the wire: encryption, the wire format, restarts, convergence,
         churn, exhaustion, failure reporting and the firewall integration that is specific to Swarm
 
+In a spec that is not about Swarm, an expectation or defect whose case needs a Swarm, such as a node
+in a Swarm, a Swarm-scoped network, a service or a task, sits in a subsection titled "In a Swarm" at
+the end of the section that holds the expectations of its subject, with its exact and CLI forms.
+
 .. _readme-nodes:
 
 *******
@@ -368,7 +372,8 @@ An expectation that states the behavior of each of several drivers that it names
 requirements of each of them.
 
 The requirements of :doc:`network-common.md <network-common>` cover every networking spec, and those
-of :doc:`swarm-networking.md <swarm-networking>` cover the three Swarm documents.
+of :doc:`swarm-networking.md <swarm-networking>` cover the three Swarm documents and the "In a
+Swarm" subsections of the other specs.
 
 .. toctree::
     :maxdepth: 2

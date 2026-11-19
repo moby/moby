@@ -9,7 +9,7 @@ statement covers it directly, whichever spec the requirement belongs to.
 
 **Principle PRIN-NO-LEAKS**: The daemon leaves nothing behind
 
-*Refines:* [PRIN-OWNS-ONLY-ITS-OWN](#PRIN-OWNS-ONLY-ITS-OWN)
+*Refines:* [PRIN-OWNS-ONLY-ITS-OWN](#PRIN-OWNS-ONLY-ITS-OWN) · *Refined by:* [NET-API-CONNECT-FAILED-NO-IFACE](network/network-common.md#NET-API-CONNECT-FAILED-NO-IFACE), [NET-API-CONNECT-FAILED-NOT-LISTED](network/network-common.md#NET-API-CONNECT-FAILED-NOT-LISTED), [NET-API-START-FAILED-ENDPOINT-NOT-LISTED](network/network-common.md#NET-API-START-FAILED-ENDPOINT-NOT-LISTED), [NET-IFACE-MACVLAN-NO-PARENT-REMOVED](network/network-common.md#NET-IFACE-MACVLAN-NO-PARENT-REMOVED), [NET-IFACE-MACVLAN-VLAN-PARENT-REMOVED](network/network-common.md#NET-IFACE-MACVLAN-VLAN-PARENT-REMOVED), [NET-RESTART-NAMESPACES-REMOVED](network/network-common.md#NET-RESTART-NAMESPACES-REMOVED) · *Violated by:* [NET-API-DISCONNECT-IFACE-LEFT](network/network-common.md#NET-API-DISCONNECT-IFACE-LEFT), [NET-API-FAILED-CONNECT-IFACE-LEFT](network/network-common.md#NET-API-FAILED-CONNECT-IFACE-LEFT)
 
 What the daemon creates for a network, an endpoint, a container, a sandbox or a service does not
 outlive that object. Examples are network namespaces, interfaces, firewall rules, kernel state
@@ -22,7 +22,7 @@ on the object that fails leaves nothing of what the operation created.
 
 **Principle PRIN-FAILS-CLOSED**: Bad configuration fails closed
 
-*Refines:* [PRIN-FAITHFUL](#PRIN-FAITHFUL)
+*Refines:* [PRIN-FAITHFUL](#PRIN-FAITHFUL) · *Refined by:* [NET-API-START-FAILED-NETWORKS-KEPT](network/network-common.md#NET-API-START-FAILED-NETWORKS-KEPT), [NET-API-STATIC-ADDRESS-DEFAULT-BRIDGE](network/network-common.md#NET-API-STATIC-ADDRESS-DEFAULT-BRIDGE), [NET-API-STATIC-ADDRESS-DEFAULT-BRIDGE-CLI](network/network-common.md#NET-API-STATIC-ADDRESS-DEFAULT-BRIDGE-CLI), [NET-API-STATIC-ADDRESS-OUTSIDE-SUBNET](network/network-common.md#NET-API-STATIC-ADDRESS-OUTSIDE-SUBNET), [NET-API-STATIC-ADDRESS-OUTSIDE-SUBNET-CLI](network/network-common.md#NET-API-STATIC-ADDRESS-OUTSIDE-SUBNET-CLI), [NET-HOSTS-HOST-GATEWAY-NO-BRIDGE](network/network-common.md#NET-HOSTS-HOST-GATEWAY-NO-BRIDGE), [NET-HOSTS-HOST-GATEWAY-NO-BRIDGE-CLI](network/network-common.md#NET-HOSTS-HOST-GATEWAY-NO-BRIDGE-CLI), [NET-IFACE-MAC-ADDRESS-REFUSED-CONNECT](network/network-common.md#NET-IFACE-MAC-ADDRESS-REFUSED-CONNECT), [NET-IFACE-MAC-ADDRESS-REFUSED-START](network/network-common.md#NET-IFACE-MAC-ADDRESS-REFUSED-START), [NET-IFACE-MAC-ADDRESS-REFUSED-START-CLI](network/network-common.md#NET-IFACE-MAC-ADDRESS-REFUSED-START-CLI), [NET-IFACE-NAME-CONFLICT-CONNECT](network/network-common.md#NET-IFACE-NAME-CONFLICT-CONNECT), [NET-IFACE-NAME-CONFLICT-CONNECT-CLI](network/network-common.md#NET-IFACE-NAME-CONFLICT-CONNECT-CLI), [NET-IFACE-NAME-CONFLICT-START](network/network-common.md#NET-IFACE-NAME-CONFLICT-START), [NET-IFACE-NAME-CONFLICT-START-CLI](network/network-common.md#NET-IFACE-NAME-CONFLICT-START-CLI), [NET-IFACE-NAME-REFUSED-CONNECT](network/network-common.md#NET-IFACE-NAME-REFUSED-CONNECT), [NET-IFACE-NAME-REFUSED-CONNECT-CLI](network/network-common.md#NET-IFACE-NAME-REFUSED-CONNECT-CLI), [NET-IFACE-NAME-REFUSED-START](network/network-common.md#NET-IFACE-NAME-REFUSED-START), [NET-IFACE-NAME-REFUSED-START-CLI](network/network-common.md#NET-IFACE-NAME-REFUSED-START-CLI) · *Violated by:* [NET-API-CONNECT-ALREADY-ATTACHED-STOPPED-SETTINGS](network/network-common.md#NET-API-CONNECT-ALREADY-ATTACHED-STOPPED-SETTINGS), [NET-HOSTS-WINDOWS-EXTRA-HOSTS-IGNORED](network/network-common.md#NET-HOSTS-WINDOWS-EXTRA-HOSTS-IGNORED), [NET-IFACE-NAME-KERNEL-REWRITE](network/network-common.md#NET-IFACE-NAME-KERNEL-REWRITE), [NET-IFACE-WINDOWS-NAME-IGNORED](network/network-common.md#NET-IFACE-WINDOWS-NAME-IGNORED)
 
 A request or a daemon setting whose configuration the daemon or a driver cannot apply fails: the
 request is refused, or the daemon does not start with that setting. The daemon does not go on
@@ -32,7 +32,7 @@ with that configuration ignored, or with another value in its place.
 
 **Principle PRIN-AMBIGUITY-NOT-DESTRUCTIVE**: A request by an ambiguous name or ID prefix is refused
 
-*Refines:* [PRIN-FAITHFUL](#PRIN-FAITHFUL)
+*Refines:* [PRIN-FAITHFUL](#PRIN-FAITHFUL) · *Refined by:* [NET-API-DELETE-AMBIGUOUS-PREFIX](network/network-common.md#NET-API-DELETE-AMBIGUOUS-PREFIX), [NET-API-DELETE-AMBIGUOUS-PREFIX-CLI](network/network-common.md#NET-API-DELETE-AMBIGUOUS-PREFIX-CLI), [NET-API-INSPECT-AMBIGUOUS-PREFIX](network/network-common.md#NET-API-INSPECT-AMBIGUOUS-PREFIX) · *Violated by:* [NET-API-CONNECT-STOPPED-AMBIGUOUS-PREFIX](network/network-common.md#NET-API-CONNECT-STOPPED-AMBIGUOUS-PREFIX), [NET-API-INSPECT-AMBIGUOUS-PREFIX-SWARM-PREDEFINED](network/network-common.md#NET-API-INSPECT-AMBIGUOUS-PREFIX-SWARM-PREDEFINED), [NET-API-INSPECT-AMBIGUOUS-PREFIX-SWARM-SCOPED](network/network-common.md#NET-API-INSPECT-AMBIGUOUS-PREFIX-SWARM-SCOPED)
 
 A request names an object by its full ID, then by its name, then by a prefix of its ID, and the
 first of these that matches decides. A request whose string matches more than one object at that
@@ -42,7 +42,7 @@ rank is refused. The request changes and removes none of the objects that the st
 
 **Principle PRIN-FAIL-FAST**: A request that cannot succeed is refused as early as it can be
 
-*Refines:* [PRIN-USER-INFORMED](#PRIN-USER-INFORMED)
+*Refines:* [PRIN-USER-INFORMED](#PRIN-USER-INFORMED) · *Refined by:* [NET-API-LINK-LOCAL-ADDRESS-INVALID](network/network-common.md#NET-API-LINK-LOCAL-ADDRESS-INVALID), [NET-API-STATIC-ADDRESS-DEFAULT-BRIDGE](network/network-common.md#NET-API-STATIC-ADDRESS-DEFAULT-BRIDGE), [NET-API-STATIC-ADDRESS-OUTSIDE-SUBNET](network/network-common.md#NET-API-STATIC-ADDRESS-OUTSIDE-SUBNET) · *Violated by:* [NET-API-CONFIG-ONLY-CONNECT-STOPPED](network/network-common.md#NET-API-CONFIG-ONLY-CONNECT-STOPPED), [NET-API-CONFIG-ONLY-CTR-CREATE](network/network-common.md#NET-API-CONFIG-ONLY-CTR-CREATE), [NET-API-STATIC-ADDRESS-DEFAULT-BRIDGE-ID](network/network-common.md#NET-API-STATIC-ADDRESS-DEFAULT-BRIDGE-ID), [NET-IFACE-NAME-CONFLICT-UNCHECKED](network/network-common.md#NET-IFACE-NAME-CONFLICT-UNCHECKED), [NET-IFACE-NAME-REFUSED-UNCHECKED](network/network-common.md#NET-IFACE-NAME-REFUSED-UNCHECKED)
 
 When a request cannot succeed because of what it asks, given the properties that the objects it
 names keep for as long as they exist, the daemon refuses it with an error response, at the
@@ -66,7 +66,7 @@ that a request did not do what was asked.
 
 **Principle PRIN-FAITHFUL**: A request does what it asks, or nothing
 
-*Refined by:* [PRIN-AMBIGUITY-NOT-DESTRUCTIVE](#PRIN-AMBIGUITY-NOT-DESTRUCTIVE), [PRIN-FAILS-CLOSED](#PRIN-FAILS-CLOSED), [PRIN-REPEATABLE](#PRIN-REPEATABLE)
+*Refined by:* [PRIN-AMBIGUITY-NOT-DESTRUCTIVE](#PRIN-AMBIGUITY-NOT-DESTRUCTIVE), [PRIN-FAILS-CLOSED](#PRIN-FAILS-CLOSED), [PRIN-REPEATABLE](#PRIN-REPEATABLE) · *Violated by:* [NET-IFACE-MACVLAN-VLAN-PARENT-REMOVED-IPVLAN](network/network-common.md#NET-IFACE-MACVLAN-VLAN-PARENT-REMOVED-IPVLAN)
 
 The daemon does what a request asks, or nothing. It does not apply something other than what was
 asked, act on objects the request did not name unambiguously, or let anything the request does
@@ -76,7 +76,7 @@ not control decide the outcome.
 
 **Principle PRIN-OWNS-ONLY-ITS-OWN**: The daemon manages only what it creates
 
-*Refined by:* [PRIN-NO-LEAKS](#PRIN-NO-LEAKS)
+*Refined by:* [NET-IFACE-MACVLAN-VLAN-PARENT-KEPT](network/network-common.md#NET-IFACE-MACVLAN-VLAN-PARENT-KEPT), [PRIN-NO-LEAKS](#PRIN-NO-LEAKS)
 
 The daemon manages only what it creates. It removes everything it creates once the object it
 belongs to is gone, and it leaves alone what it did not create: it does not remove or change it.
@@ -97,13 +97,15 @@ node's local resources is for the orchestrator to decide, as it decides where ta
 
 **Principle PRIN-LEAST-ACCESS**: The daemon grants no access the user did not ask for
 
+*Refined by:* [REQ-NET-INTERNAL-NO-EXTERNAL-ACCESS](network/network-common.md#REQ-NET-INTERNAL-NO-EXTERNAL-ACCESS) · *Violated by:* [REQ-NET-DEFAULT-BRIDGE-ATTACHMENT](network/network-common.md#REQ-NET-DEFAULT-BRIDGE-ATTACHMENT)
+
 The daemon grants no access the user did not ask for.
 
 <a id="PRIN-STABLE"></a>
 
 **Principle PRIN-STABLE**: What a release does, later minor releases keep doing
 
-*Refined by:* [PRIN-SECURITY-NOT-WEAKENED](#PRIN-SECURITY-NOT-WEAKENED)
+*Refined by:* [PRIN-SECURITY-NOT-WEAKENED](#PRIN-SECURITY-NOT-WEAKENED), [REQ-NET-API-BACKWARD-COMPATIBLE](network/network-common.md#REQ-NET-API-BACKWARD-COMPATIBLE)
 
 What a release does at the daemon's interfaces, later minor releases keep doing; a change needs
 a major release, or an option that restores the behavior. A change that only a new version of
@@ -132,7 +134,7 @@ change. A major release that weakens one of them states it in its release notes.
 
 **Principle PRIN-REPEATABLE**: The outcome of a request does not depend on internal ordering
 
-*Refines:* [PRIN-FAITHFUL](#PRIN-FAITHFUL)
+*Refines:* [PRIN-FAITHFUL](#PRIN-FAITHFUL) · *Violated by:* [NET-IFACE-NAME-COLLISION-ORDER](network/network-common.md#NET-IFACE-NAME-COLLISION-ORDER)
 
 The outcome of a request depends only on the request and the state the daemon reports. The
 daemon does not let an order it chooses internally, and that the request does not control,
@@ -142,7 +144,7 @@ decide whether the request succeeds.
 
 **Principle PRIN-ERRORS-ACTIONABLE**: Errors say what to change
 
-*Refines:* [PRIN-USER-INFORMED](#PRIN-USER-INFORMED)
+*Refines:* [PRIN-USER-INFORMED](#PRIN-USER-INFORMED) · *Violated by:* [NET-API-CONFIG-FROM-WRONG-KIND-MISREPORTED](network/network-common.md#NET-API-CONFIG-FROM-WRONG-KIND-MISREPORTED)
 
 An error response, a task error or a log entry for a refused request, or for a failure that a
 setting, option or object of the user causes, tells the user what to change: it names the
@@ -153,7 +155,7 @@ internal state, such as a file path or a context deadline, in place of the cause
 
 **Principle PRIN-WARN-AHEAD**: Foreseeable failures are reported when the request is accepted
 
-*Refines:* [PRIN-USER-INFORMED](#PRIN-USER-INFORMED)
+*Refines:* [PRIN-USER-INFORMED](#PRIN-USER-INFORMED) · *Violated by:* [NET-API-CONNECT-MISSING-START-FAILS](network/network-common.md#NET-API-CONNECT-MISSING-START-FAILS), [NET-API-CONNECT-MISSING-SWARM-START-FAILS](network/network-common.md#NET-API-CONNECT-MISSING-SWARM-START-FAILS), [NET-API-CTR-CREATE-HOST-PORT-HELD](network/network-common.md#NET-API-CTR-CREATE-HOST-PORT-HELD), [NET-HOSTS-HOST-GATEWAY-NO-ADDRESS-CREATE](network/network-common.md#NET-HOSTS-HOST-GATEWAY-NO-ADDRESS-CREATE)
 
 When a request is accepted with configuration that state the daemon holds will make a later
 request, or the tasks of a service, fail, the daemon says so in that request's response, in its

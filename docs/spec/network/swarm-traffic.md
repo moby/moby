@@ -5,6 +5,10 @@
 This document continues [Swarm networking surface area](swarm-networking.md). Its conventions, definitions and host requirements
 apply here.
 
+<a id="swarm-traffic-requirements"></a>
+
+## Requirements
+
 <a id="swarm-traffic-observable-state-inside-a-container"></a>
 
 ## Observable state inside a container
@@ -67,13 +71,12 @@ The MAC address of the container's interface on that network is the
 
 *Observed from:* ctr · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Does not cover:* A disconnect leaves an interface whose name the kernel numbered ([NET-API-DISCONNECT-IFACE-LEFT](network-common.md#NET-API-DISCONNECT-IFACE-LEFT))
 
 *Applies to:* A running standalone container on an attachable Swarm-scoped network
 
 After `POST /networks/{id}/disconnect` for the container responds 200, the container
-does not have the interface that it had on that network. See
-[Known divergences & non-goals](network-common.md#network-common-known-divergences-non-goals).
+does not have the interface that it had on that network.
 
 <a id="SWARM-CTR-MAC-GENERATED-FORMAT"></a>
 
@@ -2074,7 +2077,7 @@ node's address, not the container's.
 
 *Observed from:* task, ctr · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Concerned by:* [NET-GW-WINDOWS-INTERNAL-OVERLAY-EGRESS](network-common.md#NET-GW-WINDOWS-INTERNAL-OVERLAY-EGRESS)
 
 A container attached only to `internal` overlays does not have egress.
 
