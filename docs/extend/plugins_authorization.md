@@ -67,9 +67,43 @@ request.
 
 The sequence diagrams below depict an allow and deny authorization flow:
 
-![Authorization Allow flow](images/authz_allow.png)
+### Authorization allow scenario
 
-![Authorization Deny flow](images/authz_deny.png)
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Daemon
+    participant AuthZPlugin
+
+    Client->>Daemon: HTTP request
+    Daemon->>Daemon: Authentication
+    Daemon->>AuthZPlugin: HTTP request, user
+    Note right of AuthZPlugin: Process request
+    AuthZPlugin-->>Daemon: Allow
+    Daemon->>Daemon: Daemon command flow
+    Daemon->>AuthZPlugin: HTTP response, user
+    Note right of AuthZPlugin: Process response
+    AuthZPlugin-->>Daemon: Allow
+    Daemon-->>Client: HTTP response
+```
+
+### Authorization deny scenario
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Daemon
+    participant AuthZPlugin
+
+    Client->>Daemon: HTTP request
+    Daemon->>Daemon: Authentication
+    Daemon->>AuthZPlugin: HTTP request, user
+    Note right of AuthZPlugin: Process request
+    AuthZPlugin-->>Daemon: Deny, error message
+    Daemon-->>Client: Error message
+```
+
+### Authorization data and policy requirements
 
 Each request sent to the plugin includes the authenticated user, the HTTP
 headers, and the request/response body. Only the user name and the
@@ -122,7 +156,22 @@ the initial request. Response authorization may still be performed after the
 handler returns, but cannot inspect or restrict data already sent to the
 client.
 
-![Handling chunked transfer encoding](images/authz_chunked.png)
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Daemon
+    participant AuthZPlugin
+
+    Client->>Daemon: HTTP request
+    Daemon->>Daemon: Authentication
+    Daemon->>AuthZPlugin: HTTP request, user
+    Note right of AuthZPlugin: Process request
+    AuthZPlugin-->>Daemon: Allow
+    Daemon-->>Client: Chunked response 1
+    Daemon-->>Client: Chunked response 2
+    Daemon-->>Client: Chunked response 3
+    Daemon-->>Client: Final chunk
+```
 
 ### Connection hijacking
 
@@ -131,7 +180,26 @@ the plugin authorizes the initial HTTP request. Hijacking does not necessarily
 require an HTTP Upgrade header. Once hijacked, subsequent communication
 bypasses authorization.
 
-![Handling connection hijack](images/authz_connection_hijack.png)
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Daemon
+    participant AuthZPlugin
+
+    Client->>Daemon: HTTP request (Upgrade: TCP)
+    Daemon->>Daemon: Authentication
+    Daemon->>AuthZPlugin: HTTP request, user
+    Note right of AuthZPlugin: Process request
+    AuthZPlugin-->>Daemon: Allow
+    Daemon<<->>Client: TCP communication
+
+    opt In case switched back to HTTP
+        Daemon->>AuthZPlugin: HTTP response, user
+        Note right of AuthZPlugin: Process response
+        AuthZPlugin-->>Daemon: Allow
+        Daemon-->>Client: HTTP response
+    end
+```
 
 ### Response body size and partial buffering
 
@@ -157,7 +225,27 @@ plugins can call the daemon API similar to a regular user. To enable these
 additional queries, the plugin must provide the means for an administrator to
 configure proper authentication and security policies.
 
-![Requesting additional information from the daemon](images/authz_additional_info.png)
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Daemon
+    participant AuthZPlugin
+
+    Client->>Daemon: HTTP request
+    Daemon->>Daemon: Authentication
+    Daemon->>AuthZPlugin: HTTP request, user
+    Note right of AuthZPlugin: Process request
+    AuthZPlugin->>Daemon: Additional HTTP request
+    Daemon->>Daemon: Authentication and authorization
+    Daemon-->>AuthZPlugin: HTTP response
+    Note right of AuthZPlugin: Additional processing
+    AuthZPlugin-->>Daemon: Allow
+    Daemon->>Daemon: Daemon command flow
+    Daemon->>AuthZPlugin: HTTP response, user
+    Note right of AuthZPlugin: Process response
+    AuthZPlugin-->>Daemon: Allow
+    Daemon-->>Client: HTTP response
+```
 
 Additional requests made by the authorization plugin go through the daemon's
 normal authentication and authorization flow. Plugins must account for these
