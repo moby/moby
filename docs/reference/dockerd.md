@@ -646,6 +646,23 @@ the `containerd` socket using the `--containerd` flag. For example:
 $ sudo dockerd --containerd /run/containerd/containerd.sock
 ```
 
+#### Configure embedded containerd
+
+With the experimental `embedded-containerd` [feature](#feature), the daemon
+runs containerd within its own process, even if `--containerd` is set. The
+daemon then loads containerd configuration files (`*.toml`) from the
+`containerd.d` directory next to the daemon configuration file, for example
+`/etc/docker/containerd.d` on Linux. The daemon merges the files in lexical
+order.
+
+Each drop-in file must set `version` to 4 or later, and must not contain a
+non-empty `imports` list. Only the `plugins`, `disabled_plugins`, and
+`required_plugins` settings apply, excluding server settings such as gRPC,
+TTRPC, debug, and metrics.
+
+The daemon ignores these files, and logs a warning, when it doesn't use
+embedded containerd.
+
 #### Configure cgroup driver
 
 You can configure how the runtime should manage container cgroups, using the
