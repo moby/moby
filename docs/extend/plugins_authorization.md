@@ -83,14 +83,6 @@ credentials or tokens are passed.
 > bodies of any other type are not visible to the plugin and cannot be used for enforcement,
 > even though the daemon acts on this data.
 
-For commands that can potentially hijack the HTTP connection (`HTTP
-Upgrade`), such as `exec`, the authorization plugin is only called for the
-initial HTTP requests. Once the plugin approves the command, authorization is
-not applied to the rest of the flow. Specifically, the streaming data is not
-passed to the authorization plugins. For commands that return chunked HTTP
-response, such as `logs` and `events`, only the HTTP request is sent to the
-authorization plugins.
-
 The Engine's authorization middleware fails closed: when a plugin returns an error or returns `Allow: false`,
 the request is denied and the error is surfaced to the client. Plugins should also fail closed: if the plugin
 cannot confidently evaluate a request, it should return an error or `Allow: false`.
@@ -106,6 +98,40 @@ cannot confidently evaluate a request, it should return an error or `Allow: fals
 > commands whose responses are streamed or are likely to exceed the [buffer](#response-body-size-and-partial-buffering) through multiple
 > writes, do not rely on `ResponseBody` for security-relevant decisions; perform the filtering
 > in a separate layer in front of the daemon.
+
+### Streaming responses and connection hijacking
+
+For commands that can potentially hijack the HTTP connection, such as `exec`,
+request authorization is performed on the initial HTTP request. Once the
+connection is hijacked, subsequent traffic bypasses authorization and is not
+forwarded to authorization plugins.
+
+For commands that return chunked HTTP responses, such as `logs` and `events`,
+request authorization is performed on the initial HTTP request. Response
+authorization may still be invoked after the handler returns, but cannot
+inspect or restrict response data already streamed to the client.
+
+The following diagrams illustrate how authorization works for streaming HTTP
+responses and connection hijacking. In both cases, authorization of the initial
+request does not extend to the subsequent data stream.
+
+### Chunked responses
+
+For streaming responses, such as `logs` and `events`, the plugin authorizes
+the initial request. Response authorization may still be performed after the
+handler returns, but cannot inspect or restrict data already sent to the
+client.
+
+![Handling chunked transfer encoding](images/authz_chunked.png)
+
+### Connection hijacking
+
+For connections hijacked by the daemon, such as interactive `exec` sessions,
+the plugin authorizes the initial HTTP request. Hijacking does not necessarily
+require an HTTP Upgrade header. Once hijacked, subsequent communication
+bypasses authorization.
+
+![Handling connection hijack](images/authz_connection_hijack.png)
 
 ### Response body size and partial buffering
 
