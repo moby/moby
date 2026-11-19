@@ -186,20 +186,28 @@ sequenceDiagram
     participant Daemon
     participant AuthZPlugin
 
-    Client->>Daemon: HTTP request (Upgrade: TCP)
+    Client->>Daemon: HTTP request
     Daemon->>Daemon: Authentication
     Daemon->>AuthZPlugin: HTTP request, user
     Note right of AuthZPlugin: Process request
     AuthZPlugin-->>Daemon: Allow
-    Daemon<<->>Client: TCP communication
 
-    opt In case switched back to HTTP
+    alt Connection hijacked
+        Daemon-->>Client: HTTP response / connection handoff
+        Daemon<<->>Client: Bidirectional stream
+        Note over Daemon,AuthZPlugin: Subsequent traffic bypasses authorization
+    else Connection not hijacked
         Daemon->>AuthZPlugin: HTTP response, user
         Note right of AuthZPlugin: Process response
         AuthZPlugin-->>Daemon: Allow
         Daemon-->>Client: HTTP response
     end
 ```
+
+> [!WARNING]
+> Once a connection is hijacked, subsequent communication bypasses authorization.
+> Response authorization may still be invoked after the handler returns, but cannot
+> inspect or restrict data already exchanged over the hijacked connection.
 
 ### Response body size and partial buffering
 
