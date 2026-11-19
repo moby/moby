@@ -311,6 +311,16 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 
 	wantAux := versions.GreaterThanOrEqualTo(version, "1.30")
 
+	// The builder may write progress before it starts reading the build
+	// context from the request body. If the client sent "Expect: 100-continue",
+	// Go 1.27 and later treat writing a response before the first body read as
+	// rejecting the body, and close it even in full-duplex mode (see
+	// https://go.dev/cl/793160). Send the 100 Continue upfront if the request
+	// body is used as build context.
+	if buildOptions.RemoteContext == "" && expectsContinue(r) {
+		w.WriteHeader(http.StatusContinue)
+	}
+
 	imgID, err := br.backend.Build(ctx, buildbackend.BuildConfig{
 		Source:         r.Body,
 		Options:        buildOptions,
@@ -329,6 +339,25 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		_, _ = fmt.Fprintln(streamformatter.NewStdoutWriter(output), imgID)
 	}
 	return nil
+}
+
+// expectsContinue reports whether the client waits for a "100 Continue"
+// response before sending the request body. It matches net/http, which looks
+// for the "100-continue" token in the first Expect header value, delimited by
+// commas, spaces or tabs.
+func expectsContinue(r *http.Request) bool {
+	if !r.ProtoAtLeast(1, 1) || r.ContentLength == 0 {
+		return false
+	}
+	tokens := strings.FieldsFunc(r.Header.Get("Expect"), func(c rune) bool {
+		return c == ',' || c == ' ' || c == '\t'
+	})
+	for _, token := range tokens {
+		if strings.EqualFold(token, "100-continue") {
+			return true
+		}
+	}
+	return false
 }
 
 // formatBuildError preserves the legacy build error format, where Code represents
