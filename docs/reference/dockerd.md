@@ -1558,6 +1558,31 @@ $ sudo dockerd \
         --exec-root=/var/run/docker-bootstrap
 ```
 
+### Default address pools
+
+The `default-address-pools` option in the
+[daemon configuration file](#daemon-configuration-file), or the
+`--default-address-pool` flag, sets the pools that the IPAM driver selects
+subnets from for local networks. Each pool has a `base` prefix that the IPAM
+driver splits into subnets of the given `size`.
+
+The following example makes the IPAM driver allocate subnets from
+`172.30.[0-255].0/24`:
+
+```json
+{
+  "default-address-pools": [
+    { "base": "172.30.0.0/16", "size": 24 }
+  ]
+}
+```
+
+The equivalent command line is:
+
+```console
+$ sudo dockerd --default-address-pool base=172.30.0.0/16,size=24
+```
+
 ### Default network options
 
 The `default-network-opts` key in the `daemon.json` configuration file, and the
