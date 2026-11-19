@@ -200,6 +200,11 @@ sequenceDiagram
         Daemon-->>Client: HTTP response / connection handoff
         Daemon<<->>Client: Bidirectional stream
         Note over Daemon,AuthZPlugin: Subsequent traffic bypasses authorization
+        opt If response authorization is performed
+            Daemon->>AuthZPlugin: Response callback, user
+            Note right of AuthZPlugin: Handshake metadata and stream unavailable
+            AuthZPlugin-->>Daemon: Allow
+        end
     else Connection not hijacked
         Daemon->>AuthZPlugin: HTTP response, user
         Note right of AuthZPlugin: Process response
@@ -211,7 +216,9 @@ sequenceDiagram
 > [!WARNING]
 > Once a connection is hijacked, subsequent communication bypasses authorization.
 > Response authorization may still be invoked after the handler returns, but cannot
-> inspect or restrict data already exchanged over the hijacked connection.
+> inspect or restrict data already exchanged over the hijacked connection. The
+> response callback also cannot inspect the handshake status and headers written
+> directly to the hijacked connection.
 
 ### Response body size and partial buffering
 
