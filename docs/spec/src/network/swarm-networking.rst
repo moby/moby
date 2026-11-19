@@ -634,6 +634,57 @@ Kernel facilities
 
     *Kernel options:* :kconfig:`IP_VS_PROTO_SCTP`
 
+.. hostreq:: nftables with route chains
+    :id: SWARM-HOST-NFTABLES-ROUTE-CHAINS
+    :kind: os
+    :platforms: linux
+    :kernel_options: NF_TABLES, NF_TABLES_IPV4, NF_TABLES_IPV6, NFT_CHAIN_ROUTE_IPV4, NFT_CHAIN_ROUTE_IPV6
+    :when: nftables-backend
+
+    *Needed when:* The nftables backend
+
+    *Kernel options:* :kconfig:`NF_TABLES`, :kconfig:`NF_TABLES_IPV4`, :kconfig:`NF_TABLES_IPV6`.
+    Before Linux 5.2, :kconfig:`NFT_CHAIN_ROUTE_IPV4` and :kconfig:`NFT_CHAIN_ROUTE_IPV6`.
+
+.. needextend:: type == "expectation" and (docname in ['network/swarm-networking', 'network/swarm-traffic', 'network/swarm-lifecycle'] or "In a Swarm" in sections) and ("linux" in platforms) and "SWARM-HOST-NFTABLES-ROUTE-CHAINS" not in pins
+    :+needs: SWARM-HOST-NFTABLES-ROUTE-CHAINS
+
+.. hostreq:: nftables with NAT, reject, numgen and concatenated interval maps
+    :id: SWARM-HOST-NFTABLES-NAT
+    :kind: os
+    :platforms: linux
+    :kernel_options: NF_TABLES, NF_TABLES_IPV4, NFT_NAT, NFT_MASQ, NFT_REDIR, NFT_REJECT, NFT_REJECT_IPV4, NFT_CT, NFT_NUMGEN, NFT_MASQ_IPV4, NFT_REDIR_IPV4
+    :when: nftables-backend
+
+    *Facility:* nftables with the NAT, masquerade, redirect, reject, connection-tracking and
+    random-number expressions, and maps keyed on concatenations with intervals
+
+    *Needed when:* The nftables backend, and traffic to a VIP or to a port that a service publishes
+    in ingress mode
+
+    *Kernel options:* :kconfig:`NF_TABLES`, :kconfig:`NF_TABLES_IPV4`, :kconfig:`NFT_NAT`,
+    :kconfig:`NFT_MASQ`, :kconfig:`NFT_REDIR`, :kconfig:`NFT_REJECT`, :kconfig:`NFT_REJECT_IPV4`,
+    :kconfig:`NFT_CT`, :kconfig:`NFT_NUMGEN`. :kconfig:`NFT_MASQ_IPV4` and :kconfig:`NFT_REDIR_IPV4`
+    on kernels that have them. Maps keyed on concatenations with intervals are part of
+    :kconfig:`NF_TABLES` from Linux 5.6.
+
+.. hostreq:: nftables netdev tables with ingress and egress hooks
+    :id: SWARM-HOST-NFTABLES-NETDEV
+    :kind: os
+    :platforms: linux
+    :kernel_options: NF_TABLES_NETDEV, NETFILTER_INGRESS, NETFILTER_EGRESS, NFT_FWD_NETDEV, NFT_CT
+    :when: nftables-backend
+    :tags: dsr
+
+    *Facility:* nftables netdev tables with the ingress and egress hooks and the forward expression
+
+    *Needed when:* The nftables backend, and an overlay network with the :drvopt:`dsr` option, on
+    the node of a client that sends traffic to a VIP on that network
+
+    *Kernel options:* :kconfig:`NF_TABLES_NETDEV`, :kconfig:`NETFILTER_INGRESS`,
+    :kconfig:`NETFILTER_EGRESS`, :kconfig:`NFT_FWD_NETDEV`, :kconfig:`NFT_CT`.
+    :kconfig:`NETFILTER_EGRESS` from Linux 5.16.
+
 .. hostreq:: SCTP
     :id: SWARM-HOST-SCTP
     :kind: os
@@ -666,16 +717,55 @@ Programs
     *Needed when:* The iptables backend, and traffic to a VIP or to a port that a service publishes
     in ingress mode, or an :drvopt:`encrypted` overlay network
 
+.. hostreq:: nft accepting concatenated interval maps and numgen
+    :id: SWARM-HOST-NFT-COMMAND
+    :kind: program
+    :platforms: linux
+    :when: nftables-backend
+
+    *Facility:* :program:`nft`, accepting sets and maps keyed on concatenations with intervals, and
+    the ``numgen`` expression
+
+    *Needed when:* The nftables backend, on a daemon built without the ``libnftables`` build tag,
+    and traffic to a VIP or to a port that a service publishes in ingress mode. A daemon built with
+    it uses the libnftables library and runs no :program:`nft` command.
+
+.. hostreq:: nft accepting netdev tables with the egress hook
+    :id: SWARM-HOST-NFT-NETDEV-EGRESS-COMMAND
+    :kind: program
+    :platforms: linux
+    :when: nftables-backend
+    :tags: dsr
+
+    *Facility:* :program:`nft`, accepting netdev tables with the egress hook
+
+    *Needed when:* The nftables backend, and an overlay network with the :drvopt:`dsr` option, on
+    the node of a client that sends traffic to a VIP on that network, on a daemon built without the
+    ``libnftables`` build tag
+
 .. hostreq:: iptables under the nftables backend
     :id: SWARM-HOST-IPTABLES-CLEANUP-COMMAND
     :kind: program
     :platforms: linux
     :when: nftables-backend
 
-    *Facility:* :program:`iptables`, accepting the filter and nat tables
+    *Facility:* :program:`iptables`, and :program:`ip6tables` on a node with an IPv6 data-path
+    address, accepting the filter, nat and mangle tables
 
     *Needed when:* The nftables backend, on a node with chains or rules that a daemon left in those
     tables under the iptables backend
+
+.. hostreq:: nft under the iptables backend
+    :id: SWARM-HOST-NFT-CLEANUP-COMMAND
+    :kind: program
+    :platforms: linux
+    :when: iptables-backend
+
+    *Facility:* :program:`nft`
+
+    *Needed when:* The iptables backend, on a node with a :nft-table:`docker-overlay` table that a
+    daemon left under the nftables backend, on a daemon built without the ``libnftables`` build tag.
+    A daemon built with it uses the libnftables library and runs no :program:`nft` command.
 
 .. hostreq:: ip6tables with the tables, targets and matches it needs
     :id: SWARM-HOST-IP6TABLES-COMMAND
@@ -1621,7 +1711,7 @@ section that it refers to specify the behavior in full, and what it depends on.
     :depends_on: os-linux
     :platforms: linux
     :refines: REQ-SWARM-NETWORK-DRIVER-OPTIONS
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-NFTABLES-NETDEV, SWARM-HOST-NFT-NETDEV-EGRESS-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
     :within: SWARM-CEIL-REASSIGNMENT
 
     The option selects direct server return for east-west VIP traffic on Linux nodes. :api-op:`POST
@@ -1646,7 +1736,7 @@ section that it refers to specify the behavior in full, and what it depends on.
     :depends_on: os-linux
     :platforms: linux
     :refines: REQ-SWARM-NETWORK-DRIVER-OPTIONS
-    :needs: SWARM-HOST-XFRM, SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-ENC-MATCHES, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL
+    :needs: SWARM-HOST-XFRM, SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-NFTABLES-NETDEV, SWARM-HOST-NFT-NETDEV-EGRESS-COMMAND, SWARM-HOST-IPTABLES-ENC-MATCHES, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL
     :within: SWARM-CEIL-REASSIGNMENT
 
     On Linux nodes, each key takes effect when it is present in the network's options, whatever its
@@ -3850,7 +3940,7 @@ an expectation says that :api-op:`GET /services/{id}` then reports a VIP, it rep
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-NETWORK-VERBOSE-INSPECT
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
     :within: SWARM-CEIL-REASSIGNMENT
 
     The VIP that :api-op:`GET /networks/{id}?verbose=true` reports for a service is the address that
@@ -4446,7 +4536,7 @@ node, attaches to the network.
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-INGRESS-REPLACEABLE, REQ-SWARM-ROUTING-MESH
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
     :within: SWARM-CEIL-REASSIGNMENT
 
     *Applies to:* A Swarm with an ingress network created with :api-field:`Ingress` set and with a
@@ -4569,7 +4659,7 @@ node, attaches to the network.
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-INGRESS-LEGACY-FORM, REQ-SWARM-ROUTING-MESH
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
     :within: SWARM-CEIL-REASSIGNMENT
 
     *Applies to:* A Swarm with an overlay network named :network:`ingress` that was created with the
@@ -4723,7 +4813,7 @@ node, attaches to the network.
     :observed_from: api:mgr, api:wkr, client
     :depends_on: none
     :platforms: linux, windows
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, BR-HOST-NO-FORWARD-DROP, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, BR-HOST-NO-FORWARD-DROP, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
     :within: SWARM-CEIL-REJOIN, SWARM-CEIL-ALLOCATION, SWARM-CEIL-REASSIGNMENT
     :concerns: SWARM-INGRESS-LABEL-IS-INGRESS, SWARM-INGRESS-LABEL-PUBLISH, SWARM-INGRESS-LABEL-UNATTACHED-NODE, SWARM-INGRESS-LABEL-WORKER-UNLISTED, SWARM-INGRESS-LABEL-ATTACHABLE, SWARM-INGRESS-LABEL-SECOND, SWARM-INGRESS-LABEL-DELETE-STALE, SWARM-INGRESS-LABEL-DELETE-RECREATE, SWARM-INGRESS-LABEL-DELETE-OVERLAP
     :violates: REQ-SWARM-ROUTING-MESH, REQ-SWARM-INGRESS-SINGLE, REQ-SWARM-INGRESS-OVERLAY-ONLY, PRIN-NO-LEAKS
@@ -4754,12 +4844,16 @@ expectation.
 - The content of Moby's own chains and tables, and their names other than :ipt-chain:`DOCKER-USER`,
   except where :ref:`swarm-lifecycle-cross-generation-cleanup` in :doc:`swarm-lifecycle.md
   <swarm-lifecycle>` pins them for cleanup and :ref:`bridge-networking-rule-content` in
-  :doc:`bridge-networking.md <bridge-networking>` pins the bridge driver's rules. The content
-  includes individual match/target lines and their order in a chain. A backend change replaces
-  exactly these rules. A contract asserts their effect on packets, and never the content.
+  :doc:`bridge-networking.md <bridge-networking>` pins the bridge driver's rules.
+  :need:`SWARM-NFT-REFERENCE` also asserts the content of the overlay driver's nftables table. The
+  content includes individual match/target lines and their order in a chain. A backend change
+  replaces exactly these rules. A contract asserts their effect on packets, and never the content.
+  This item does not include the overlay driver's base-chain hooks and priorities.
+  :need:`SWARM-NFT-OVERLAY-TABLE` asserts them.
 - Which packet-filtering technology is in use, beyond what the expectations of
   :ref:`swarm-lifecycle-firewall-anchors-host-integration` in :doc:`swarm-lifecycle.md
-  <swarm-lifecycle>` about anchors and cleanup assert for each backend.
+  <swarm-lifecycle>` about anchors, cleanup and the overlay driver's nftables table assert for each
+  backend.
 - The existence, name or topology of internal sandboxes (per-network load-balancer sandbox, ingress
   sandbox), network-namespace paths, and generated :link-kind:`veth` / bridge / VXLAN interface
   names. One exception is the name ``ingress-sbox`` in :api-field:`Containers` of :api-op:`GET

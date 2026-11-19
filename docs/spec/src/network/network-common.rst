@@ -1924,7 +1924,7 @@ In a Swarm
     :depends_on: os-linux
     :platforms: linux
     :refines: REQ-NET-PRUNE-UNUSED, REQ-SWARM-ROUTING-MESH, REQ-SWARM-OVERLAY-EGRESS
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
 
     *Applies to:* A Linux node in a Swarm that has an ingress network created with
     :api-field:`Ingress` set, a service that publishes a port in ingress mode, and a task on the

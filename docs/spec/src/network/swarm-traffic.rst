@@ -1203,7 +1203,7 @@ section, a service's running tasks are those that :ref:`swarm-traffic-service-di
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-VIP-LOAD-BALANCING
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-SCTP, SWARM-HOST-IPVS-SCTP, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-SCTP, SWARM-HOST-IPVS-SCTP, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
     :within: SWARM-CEIL-REASSIGNMENT
 
     The VIP load-balances TCP, UDP and SCTP flows across the service's running tasks.
@@ -1216,8 +1216,8 @@ section, a service's running tasks are those that :ref:`swarm-traffic-service-di
     :pins: SWARM-HOST-IPVS
     :within: SWARM-CEIL-REASSIGNMENT
 
-    *Applies to:* Linux nodes whose kernel does not offer IPVS, and a service in vip mode with a
-    running task on a network that is programmed on the node
+    *Applies to:* Linux nodes whose kernel does not offer IPVS, with the iptables backend, and a
+    service in vip mode with a running task on a network that is programmed on the node
 
     The daemon log of that node contains :log:`Could not get ipvs family information from the
     kernel`.
@@ -1228,7 +1228,7 @@ section, a service's running tasks are those that :ref:`swarm-traffic-service-di
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-VIP-LOAD-BALANCING
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
     :within: SWARM-CEIL-REASSIGNMENT
 
     All packets of a flow reach the same task.
@@ -1239,7 +1239,7 @@ section, a service's running tasks are those that :ref:`swarm-traffic-service-di
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-VIP-LOAD-BALANCING, REQ-SWARM-UNPUBLISHED-NOT-EXPOSED
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
     :within: SWARM-CEIL-REASSIGNMENT
 
     Traffic to any port on a service VIP reaches the service's tasks, whether or not the service
@@ -1269,7 +1269,7 @@ section, a service's running tasks are those that :ref:`swarm-traffic-service-di
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-VIP-LOAD-BALANCING
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
     :within: SWARM-CEIL-REASSIGNMENT
 
     *Applies to:* A node without a task of a service
@@ -1282,7 +1282,7 @@ section, a service's running tasks are those that :ref:`swarm-traffic-service-di
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-VIP-ADDRESS-MODES
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
     :within: SWARM-CEIL-REASSIGNMENT
 
     *Applies to:* NAT mode (the default)
@@ -1296,7 +1296,7 @@ section, a service's running tasks are those that :ref:`swarm-traffic-service-di
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :exact_form_of: SWARM-LB-NAT-SOURCE
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
     :within: SWARM-CEIL-REASSIGNMENT
 
     *Applies to:* NAT mode
@@ -1310,7 +1310,7 @@ section, a service's running tasks are those that :ref:`swarm-traffic-service-di
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-VIP-ADDRESS-MODES
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
     :within: SWARM-CEIL-REASSIGNMENT
 
     *Applies to:* NAT mode
@@ -1323,7 +1323,7 @@ section, a service's running tasks are those that :ref:`swarm-traffic-service-di
     :depends_on: os-linux
     :platforms: linux
     :refines: REQ-SWARM-VIP-ADDRESS-MODES
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-NFTABLES-NETDEV, SWARM-HOST-NFT-NETDEV-EGRESS-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
     :within: SWARM-CEIL-REASSIGNMENT
 
     *Applies to:* DSR mode (the :drvopt:`dsr` option), with the client and the task on Linux nodes
@@ -1336,7 +1336,7 @@ section, a service's running tasks are those that :ref:`swarm-traffic-service-di
     :depends_on: os-linux
     :platforms: linux
     :refines: REQ-SWARM-VIP-ADDRESS-MODES
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-NFTABLES-NETDEV, SWARM-HOST-NFT-NETDEV-EGRESS-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
     :within: SWARM-CEIL-REASSIGNMENT
 
     *Applies to:* DSR mode, with the client and the task on Linux nodes
@@ -1362,7 +1362,7 @@ section, a service's running tasks are those that :ref:`swarm-traffic-service-di
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-VIP-LOAD-BALANCING
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
     :within: SWARM-CEIL-REASSIGNMENT
 
     Every connection from a task to the VIP of its own service reaches a task of the service.
@@ -1373,7 +1373,7 @@ section, a service's running tasks are those that :ref:`swarm-traffic-service-di
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :exact_form_of: SWARM-LB-SELF-VIP
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
     :within: SWARM-CEIL-REASSIGNMENT
 
     *Applies to:* NAT mode
@@ -1388,7 +1388,7 @@ section, a service's running tasks are those that :ref:`swarm-traffic-service-di
     :platforms: linux
     :exact_form_of: SWARM-LB-SELF-VIP
     :pins: SWARM-LBHEALTH-DSR-OWN-VIP
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
     :within: SWARM-CEIL-REASSIGNMENT
 
     *Applies to:* DSR mode
@@ -1409,6 +1409,25 @@ section, a service's running tasks are those that :ref:`swarm-traffic-service-di
     says. A task on a Windows node does not observe the client's real source address, and does not
     observe the VIP.
 
+.. expectation:: Without the netdev egress hook, dsr VIP traffic follows NAT mode
+    :id: SWARM-LB-DSR-NO-EGRESS-HOOK
+    :observed_from: task
+    :depends_on: os-linux
+    :platforms: linux
+    :pins: SWARM-HOST-NFT-NETDEV-EGRESS-COMMAND, SWARM-HOST-NFTABLES-NETDEV
+    :needs: SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND
+    :within: SWARM-CEIL-REASSIGNMENT
+
+    *Applies to:* Linux nodes whose kernel does not offer the nftables netdev egress hook, or whose
+    :program:`nft` does not accept netdev tables with that hook, with the nftables backend, and an
+    overlay network with the :drvopt:`dsr` option
+
+    For traffic from a client on such a node to a VIP on that network, the expectations of this
+    section about NAT mode hold, and the expectations about DSR mode do not. The exception is a
+    task's connection to the VIP of its own service, for which the expectations about DSR mode hold.
+    The expectations about DSR mode hold for traffic from a client on a node with the hook to a task
+    on a Linux node, whether or not the task's node has the hook.
+
 .. _swarm-traffic-distribution:
 
 Distribution
@@ -1417,21 +1436,24 @@ Distribution
 The distribution property allows round-robin, equal-weight random, and 5-tuple hashing. It excludes
 least-connections and other schedulers that depend on backend state. Clause (1), a limit, cannot
 exclude them on its own because least-connections also converges to 1/*k* with identical backends.
-Clause (2), invariance, tells them apart. The property does not fix a number of flows or a tolerance
-on *fᵢ(n)/n*. A difference in connection holding time is one of the properties in clause (2), and
-tells least-connections apart from round-robin.
+Clause (2), invariance, tells them apart. The property does not fix a number of flows, and fixes no
+tolerance on *fᵢ(n)/n* beyond the bound in clause (1). That bound allows for the nftables backend,
+which splits a space of 65,536 equal buckets over the *k* tasks, so that each task gets ⌈65,536/*k*\
+⌉ or ⌊65,536/*k*\ ⌋ of them. A difference in connection holding time is one of the properties in
+clause (2), and tells least-connections apart from round-robin.
 
     Let *H* be the set of running tasks, \|\ *H*\| = *k*, held constant. For *n* client flows let
-    *fᵢ(n)* be the number of them that reach task *i*. Then (1) lim *fᵢ(n)/n* = 1/*k* for every *i*
-    ∈ *H*, and (2) that limit is invariant to any observable property of the tasks: connection
-    holding time, in-flight concurrency, latency, byte volume, or load.
+    *fᵢ(n)* be the number of them that reach task *i*. Then (1) lim *fᵢ(n)/n* differs from 1/*k* by
+    less than 1/65,536 for every *i* ∈ *H*, and (2) that limit is invariant to any observable
+    property of the tasks: connection holding time, in-flight concurrency, latency, byte volume, or
+    load.
 
 .. expectation:: East-west VIP flows split evenly over running tasks, whatever their load
     :id: SWARM-LBDIST-VIP
     :observed_from: task
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
     :within: SWARM-CEIL-REASSIGNMENT
     :rationale: RAT-SWARM-LB-SCHEDULER
 
@@ -1442,7 +1464,7 @@ tells least-connections apart from round-robin.
     :observed_from: client, task
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
     :within: SWARM-CEIL-REASSIGNMENT
     :rationale: RAT-SWARM-LB-SCHEDULER
 
@@ -1485,7 +1507,7 @@ grace period.
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-HEALTH-AWARE
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
     :within: SWARM-CEIL-REASSIGNMENT
 
     A task with a healthcheck does not receive traffic until it first reports healthy. This holds
@@ -1497,7 +1519,7 @@ grace period.
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-HEALTH-AWARE
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
     :within: SWARM-CEIL-REASSIGNMENT
 
     A task that does not have a healthcheck receives traffic once it is running, without waiting for
@@ -1509,7 +1531,7 @@ grace period.
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-HEALTH-AWARE
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
     :within: SWARM-CEIL-ALLOCATION, SWARM-CEIL-REASSIGNMENT
 
     *Applies to:* A service whose tasks have a healthcheck and a stop grace period longer than the
@@ -1524,7 +1546,7 @@ grace period.
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-LB-GRACEFUL-DRAIN
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
     :within: SWARM-CEIL-REASSIGNMENT
 
     *Applies to:* An established connection to a task that has been running for longer than the
@@ -1539,7 +1561,7 @@ grace period.
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-LB-GRACEFUL-DRAIN
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
     :within: SWARM-CEIL-REASSIGNMENT
 
     *Applies to:* A task with a stop grace period of at least 10 seconds, and another task of the
@@ -1557,7 +1579,7 @@ grace period.
     :observed_from: task
     :depends_on: none
     :platforms: linux
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
     :within: SWARM-CEIL-REASSIGNMENT
     :narrows: SWARM-LBHEALTH-PENDING, SWARM-LBHEALTH-DRAIN-LOCAL, SWARM-LBHEALTH-UNHEALTHY, SWARM-LBDIST-VIP, SWARM-LB-PROTOCOLS, SWARM-CHURN-DNSRR-TO-VIP-BALANCES
     :concerns: SWARM-LB-SELF-VIP-DSR, SWARM-LB-SELF-VIP
@@ -1574,7 +1596,7 @@ grace period.
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-LB-GRACEFUL-DRAIN
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
     :within: SWARM-CEIL-ALLOCATION, SWARM-CEIL-REASSIGNMENT
 
     *Applies to:* A task with a stop grace period longer than the :need:`[[title|lower]] ceiling
@@ -1908,7 +1930,7 @@ is set on the overlay networks that a service is attached to, other than the ing
     :platforms: linux
     :needs: BR-HOST-NO-FORWARD-DROP
     :within: SWARM-CEIL-REASSIGNMENT
-    :narrows: BR-PUB-HOST-PORT-ASSIGNED, SWARM-PUB-TARGET-PORT, SWARM-PUB-PROTOCOLS, SWARM-PUB-PORT-CHANGE, SWARM-PUB-V6-USERLAND-PROXY, SWARM-HOSTPUB-TASK-NODES-ONLY, SWARM-HOSTPUB-LOCAL-TASK, SWARM-RESTART-GRACEFUL-PUBLISHED-PORTS, SWARM-RESTART-KILLED-PUBLISHED-PORTS, SWARM-CONVERGE-REJOIN-PUBLISHED-PORTS, SWARM-CONVERGE-LEAVE-REMAINING-TASKS, SWARM-SCALE-PORT-PROTOCOLS, SWARM-SCALE-PORT-PROTOCOLS-REMOVAL, BR-FW-FIREWALLD-LATE-START-PORT, BR-PUB-HOST-PORT-ASSIGNED-CLI, SWARM-INGRESS-LABEL-PUBLISH
+    :narrows: BR-PUB-HOST-PORT-ASSIGNED, SWARM-PUB-TARGET-PORT, SWARM-PUB-PROTOCOLS, SWARM-PUB-PORT-CHANGE, SWARM-PUB-V6-USERLAND-PROXY, SWARM-HOSTPUB-TASK-NODES-ONLY, SWARM-HOSTPUB-LOCAL-TASK, SWARM-RESTART-GRACEFUL-PUBLISHED-PORTS, SWARM-RESTART-KILLED-PUBLISHED-PORTS, SWARM-CONVERGE-REJOIN-PUBLISHED-PORTS, SWARM-CONVERGE-LEAVE-REMAINING-TASKS, SWARM-SCALE-PORT-PROTOCOLS, SWARM-SCALE-PORT-PROTOCOLS-REMOVAL, SWARM-BACKEND-PUBLISHED-PORTS-IPT, SWARM-BACKEND-PUBLISHED-PORTS-NFT, BR-FW-FIREWALLD-LATE-START-PORT, BR-PUB-HOST-PORT-ASSIGNED-CLI, SWARM-INGRESS-LABEL-PUBLISH
     :concerns: BR-FW-FIREWALLD-RELOAD-PORT
     :violates: REQ-BR-PUBLISH-DEFAULTS, REQ-SWARM-PUB-IPV6-PROXY
 
@@ -1919,7 +1941,7 @@ is set on the overlay networks that a service is attached to, other than the ing
     Swarm task publishes in :api-value:`mode=host`
 
     A connection to the port at an IPv6 address of the node does not answer, before and after a
-    firewalld reload. The port answers at the node's IPv4 addresses.
+    firewalld reload, with either firewall backend. The port answers at the node's IPv4 addresses.
 
 .. expectation:: With userland-proxy, a published port is reachable over IPv6 on-node
     :id: SWARM-PUB-V6-USERLAND-PROXY-LOCAL
@@ -2101,7 +2123,7 @@ tasks.
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-ROUTING-MESH
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
     :within: SWARM-CEIL-REASSIGNMENT
 
     A published port is reachable on every node, including nodes that do not run a task of the
@@ -2113,7 +2135,7 @@ tasks.
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-PORT-PROTOCOLS
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
     :within: SWARM-CEIL-REASSIGNMENT
 
     *Applies to:* A service that publishes the same port number in ingress mode for TCP and for UDP
@@ -2127,7 +2149,7 @@ tasks.
     :depends_on: os-linux
     :platforms: linux
     :refines: REQ-SWARM-ROUTING-MESH
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
     :within: SWARM-CEIL-REASSIGNMENT
 
     *Applies to:* A node with firewalld running, and a service that publishes a port in ingress mode
@@ -2139,9 +2161,9 @@ tasks.
     :observed_from: client
     :depends_on: os-linux
     :platforms: linux
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, BR-HOST-NO-FORWARD-DROP, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, BR-HOST-NO-FORWARD-DROP, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
     :within: SWARM-CEIL-REASSIGNMENT
-    :narrows: SWARM-PUB-V6-USERLAND-PROXY, SWARM-INGPUB-EVERY-NODE, SWARM-PUB-TCP-UDP-ONE-SERVICE, SWARM-INGPUB-FIREWALLD-RELOAD, SWARM-PORTALLOC-REPORTED-REACHABLE, SWARM-PORTALLOC-PORT-IN-USE-OLD-TASKS, SWARM-INGRESS-CUSTOM-SUBNET-REACHABLE, SWARM-RESTART-INGRESS-FROM-OTHER-NODES, SWARM-CONVERGE-REJOIN-INGRESS-BACKENDS, SWARM-FAILREP-INGRESS-PORT-RECOVERY
+    :narrows: SWARM-PUB-V6-USERLAND-PROXY, SWARM-INGPUB-EVERY-NODE, SWARM-PUB-TCP-UDP-ONE-SERVICE, SWARM-INGPUB-FIREWALLD-RELOAD, SWARM-PORTALLOC-REPORTED-REACHABLE, SWARM-PORTALLOC-PORT-IN-USE-OLD-TASKS, SWARM-INGRESS-CUSTOM-SUBNET-REACHABLE, SWARM-RESTART-INGRESS-FROM-OTHER-NODES, SWARM-CONVERGE-REJOIN-INGRESS-BACKENDS, SWARM-BACKEND-INGRESS-FROM-OTHER-NODES, SWARM-BACKEND-ROLLING-PUBLISHED-PORTS, SWARM-FAILREP-INGRESS-PORT-RECOVERY
     :violates: REQ-SWARM-PUB-IPV6-PROXY
 
     *Applies to:* A daemon with :daemon-json:`userland-proxy` true and firewalld running, with
@@ -2150,7 +2172,7 @@ tasks.
     service publishes in ingress mode
 
     A connection to the port at an IPv6 address of the node does not answer, before and after a
-    firewalld reload. The port answers at the node's IPv4 addresses.
+    firewalld reload, with either firewall backend. The port answers at the node's IPv4 addresses.
 
 .. expectation:: All packets of an ingress flow reach the same task
     :id: SWARM-INGPUB-FLOW-SAME-TASK
@@ -2158,7 +2180,7 @@ tasks.
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-ROUTING-MESH
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
     :within: SWARM-CEIL-REASSIGNMENT
 
     All packets of a flow reach the same task.
@@ -2168,7 +2190,7 @@ tasks.
     :observed_from: task
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
     :within: SWARM-CEIL-REASSIGNMENT
     :rationale: RAT-SWARM-INGRESS-SOURCE-REPLACED
 
@@ -2226,7 +2248,7 @@ tasks.
     :depends_on: none
     :platforms: linux
     :refines: REQ-SWARM-TASK-ERRORS
-    :pins: SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS
+    :pins: SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-NFT-COMMAND, SWARM-HOST-NFTABLES-NAT
 
     *Applies to:* A Linux node that cannot add the ingress rules of a task's network namespace, and
     a service with a task on that node that publishes a port in ingress mode
@@ -2240,7 +2262,7 @@ tasks.
     :depends_on: none
     :platforms: linux
     :exact_form_of: SWARM-INGPUB-INGRESS-RULES-FAILED
-    :pins: SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS
+    :pins: SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-NFT-COMMAND, SWARM-HOST-NFTABLES-NAT
 
     *Applies to:* A Linux node that cannot add the ingress rules of a task's network namespace, and
     a service with a task on that node that publishes a port in ingress mode
@@ -2406,7 +2428,7 @@ the request responds.
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-PUB-TARGET
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
     :within: SWARM-CEIL-ALLOCATION, SWARM-CEIL-REASSIGNMENT
 
     A client reaches a task of a service at any node's address on the published port that
@@ -2572,7 +2594,7 @@ the request responds.
     :depends_on: none
     :platforms: linux
     :within: SWARM-CEIL-ALLOCATION, SWARM-CEIL-REASSIGNMENT
-    :narrows: SWARM-INGPUB-EVERY-NODE, SWARM-PORTALLOC-REPORTED-REACHABLE, SWARM-PUB-TARGET-PORT, SWARM-PUB-PROTOCOLS, SWARM-PUB-REPLIES, SWARM-PUB-UDP-NO-LISTENER, SWARM-PUB-PORT-CHANGE, SWARM-INGRESS-CUSTOM-SUBNET-REACHABLE, SWARM-INGRESS-LABEL-PUBLISH, SWARM-HAIRPIN-LOOPBACK, SWARM-HAIRPIN-NODE-ADDRESS, SWARM-HAIRPIN-BRIDGE-CTR, SWARM-HAIRPIN-SERVICE-NETWORK, SWARM-HAIRPIN-OTHER-NETWORK, SWARM-PUB-TCP-UDP-ONE-SERVICE, SWARM-INGPUB-FIREWALLD-RELOAD, SWARM-PUB-V6-USERLAND-PROXY, SWARM-PUB-V6-USERLAND-PROXY-LOCAL, SWARM-HAIRPIN-USERLAND-PROXY, SWARM-RESTART-GRACEFUL-PUBLISHED-PORTS, SWARM-RESTART-KILLED-PUBLISHED-PORTS, SWARM-RESTART-INGRESS-FROM-OTHER-NODES, SWARM-CONVERGE-REJOIN-PUBLISHED-PORTS, SWARM-CONVERGE-REJOIN-INGRESS-BACKENDS, SWARM-CONVERGE-LEAVE-REMAINING-TASKS, SWARM-SCALE-PORT-PROTOCOLS, SWARM-SCALE-PORT-PROTOCOLS-REMOVAL
+    :narrows: SWARM-INGPUB-EVERY-NODE, SWARM-PORTALLOC-REPORTED-REACHABLE, SWARM-PUB-TARGET-PORT, SWARM-PUB-PROTOCOLS, SWARM-PUB-REPLIES, SWARM-PUB-UDP-NO-LISTENER, SWARM-PUB-PORT-CHANGE, SWARM-INGRESS-CUSTOM-SUBNET-REACHABLE, SWARM-INGRESS-LABEL-PUBLISH, SWARM-HAIRPIN-LOOPBACK, SWARM-HAIRPIN-NODE-ADDRESS, SWARM-HAIRPIN-BRIDGE-CTR, SWARM-HAIRPIN-SERVICE-NETWORK, SWARM-HAIRPIN-OTHER-NETWORK, SWARM-PUB-TCP-UDP-ONE-SERVICE, SWARM-INGPUB-FIREWALLD-RELOAD, SWARM-PUB-V6-USERLAND-PROXY, SWARM-PUB-V6-USERLAND-PROXY-LOCAL, SWARM-HAIRPIN-USERLAND-PROXY, SWARM-RESTART-GRACEFUL-PUBLISHED-PORTS, SWARM-RESTART-KILLED-PUBLISHED-PORTS, SWARM-RESTART-INGRESS-FROM-OTHER-NODES, SWARM-CONVERGE-REJOIN-PUBLISHED-PORTS, SWARM-CONVERGE-REJOIN-INGRESS-BACKENDS, SWARM-CONVERGE-LEAVE-REMAINING-TASKS, SWARM-BACKEND-PUBLISHED-PORTS-IPT, SWARM-BACKEND-PUBLISHED-PORTS-NFT, SWARM-BACKEND-INGRESS-FROM-OTHER-NODES, SWARM-BACKEND-ROLLING-PUBLISHED-PORTS, SWARM-SCALE-PORT-PROTOCOLS, SWARM-SCALE-PORT-PROTOCOLS-REMOVAL
     :concerns: SWARM-PORTALLOC-MODE-CONFLICT, SWARM-PORTALLOC-AUTO
     :violates: REQ-SWARM-PORT-ALLOCATION, REQ-SWARM-PORT-NO-CONFLICT, REQ-SWARM-ROUTING-MESH
 
@@ -2711,7 +2733,7 @@ the request responds.
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-ROLLING-UPDATE
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
     :within: SWARM-CEIL-REASSIGNMENT
 
     *Applies to:* A node where a port is in use by a process or container, and a service that
@@ -2756,7 +2778,7 @@ the request responds.
     :depends_on: os-linux
     :platforms: linux
     :within: SWARM-CEIL-REASSIGNMENT
-    :narrows: SWARM-INGPUB-EVERY-NODE, SWARM-PORTALLOC-REPORTED-REACHABLE, SWARM-PUB-TARGET-PORT, SWARM-PUB-PROTOCOLS, SWARM-PUB-REPLIES, SWARM-PUB-UDP-NO-LISTENER, SWARM-PUB-PORT-CHANGE, SWARM-INGRESS-CUSTOM-SUBNET-REACHABLE, SWARM-INGRESS-LABEL-PUBLISH, SWARM-HAIRPIN-LOOPBACK, SWARM-HAIRPIN-NODE-ADDRESS, SWARM-HAIRPIN-BRIDGE-CTR, SWARM-HAIRPIN-SERVICE-NETWORK, SWARM-HAIRPIN-OTHER-NETWORK, SWARM-PUB-TCP-UDP-ONE-SERVICE, SWARM-INGPUB-FIREWALLD-RELOAD, SWARM-PUB-V6-USERLAND-PROXY, SWARM-PUB-V6-USERLAND-PROXY-LOCAL, SWARM-HAIRPIN-USERLAND-PROXY, SWARM-RESTART-GRACEFUL-PUBLISHED-PORTS, SWARM-RESTART-KILLED-PUBLISHED-PORTS, SWARM-RESTART-INGRESS-FROM-OTHER-NODES, SWARM-CONVERGE-REJOIN-PUBLISHED-PORTS, SWARM-CONVERGE-REJOIN-INGRESS-BACKENDS, SWARM-CONVERGE-LEAVE-REMAINING-TASKS, SWARM-SCALE-PORT-PROTOCOLS, SWARM-SCALE-PORT-PROTOCOLS-REMOVAL
+    :narrows: SWARM-INGPUB-EVERY-NODE, SWARM-PORTALLOC-REPORTED-REACHABLE, SWARM-PUB-TARGET-PORT, SWARM-PUB-PROTOCOLS, SWARM-PUB-REPLIES, SWARM-PUB-UDP-NO-LISTENER, SWARM-PUB-PORT-CHANGE, SWARM-INGRESS-CUSTOM-SUBNET-REACHABLE, SWARM-INGRESS-LABEL-PUBLISH, SWARM-HAIRPIN-LOOPBACK, SWARM-HAIRPIN-NODE-ADDRESS, SWARM-HAIRPIN-BRIDGE-CTR, SWARM-HAIRPIN-SERVICE-NETWORK, SWARM-HAIRPIN-OTHER-NETWORK, SWARM-PUB-TCP-UDP-ONE-SERVICE, SWARM-INGPUB-FIREWALLD-RELOAD, SWARM-PUB-V6-USERLAND-PROXY, SWARM-PUB-V6-USERLAND-PROXY-LOCAL, SWARM-HAIRPIN-USERLAND-PROXY, SWARM-RESTART-GRACEFUL-PUBLISHED-PORTS, SWARM-RESTART-KILLED-PUBLISHED-PORTS, SWARM-RESTART-INGRESS-FROM-OTHER-NODES, SWARM-CONVERGE-REJOIN-PUBLISHED-PORTS, SWARM-CONVERGE-REJOIN-INGRESS-BACKENDS, SWARM-CONVERGE-LEAVE-REMAINING-TASKS, SWARM-BACKEND-PUBLISHED-PORTS-IPT, SWARM-BACKEND-PUBLISHED-PORTS-NFT, SWARM-BACKEND-INGRESS-FROM-OTHER-NODES, SWARM-BACKEND-ROLLING-PUBLISHED-PORTS, SWARM-SCALE-PORT-PROTOCOLS, SWARM-SCALE-PORT-PROTOCOLS-REMOVAL
     :concerns: SWARM-PORTALLOC-PORT-IN-USE, SWARM-PORTALLOC-PORT-IN-USE-UNREACHABLE, SWARM-FAILREP-INGRESS-PORT-IN-USE, SWARM-PORTALLOC-PUBLISH-FAILED-LISTENER, SWARM-PORTALLOC-PUBLISH-FAILED-PORTS-FREED, SWARM-FAILREP-INGRESS-PORT-RECOVERY
     :violates: REQ-SWARM-ROUTING-MESH, REQ-SWARM-PUB-IPV6-PROXY
 

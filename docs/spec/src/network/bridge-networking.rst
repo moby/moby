@@ -1030,11 +1030,10 @@ port bindings. :need:`BR-CLEAN-BUILTIN-CHAIN-RULES` states which rules stay for 
     the :ipt-chain:`FORWARD` jump to it, which hold the operator's rules and stay in place. The
     tables and built-in chains that an :program:`iptables` command creates by itself, such as the
     filter table and its :ipt-chain:`FORWARD` chain, are also exceptions. The overlay driver's
-    :nft-table:`docker-overlay` table is also an exception. It is not asserted
-    (:ref:`swarm-lifecycle-nftables`). The tables and chains that belong to Swarm, such as
-    :ipt-chain:`DOCKER-INGRESS`, are among those that do not remain. This holds for a switch from
-    iptables to nftables and for a switch from nftables to iptables. It holds across a package
-    upgrade from *N−1* to *N* and across a same-binary restart.
+    :nft-table:`docker-overlay` table is also an exception. The tables and chains that belong to
+    Swarm, such as :ipt-chain:`DOCKER-INGRESS`, are among those that do not remain. This holds for a
+    switch from iptables to nftables and for a switch from nftables to iptables. It holds across a
+    package upgrade from *N−1* to *N* and across a same-binary restart.
 
 .. expectation:: Neither the old DOCKER-ISOLATION chain nor its FORWARD rule remains
     :id: BR-CLEAN-ISOLATION-CHAIN
@@ -1781,7 +1780,7 @@ Firewall backend and firewalld
     :depends_on: none
     :platforms: linux
     :refines: PRIN-FAILS-CLOSED
-    :pins: BR-HOST-NFT-COMMAND, DNS-HOST-NFT-COMMAND
+    :pins: BR-HOST-NFT-COMMAND, SWARM-HOST-NFT-COMMAND, DNS-HOST-NFT-COMMAND
 
     *Applies to:* A daemon built without the ``libnftables`` build tag, with the nftables backend,
     on a host without the :program:`nft` command
@@ -1794,7 +1793,7 @@ Firewall backend and firewalld
     :depends_on: none
     :platforms: linux
     :exact_form_of: BR-FW-NFT-MISSING
-    :pins: BR-HOST-NFT-COMMAND, DNS-HOST-NFT-COMMAND
+    :pins: BR-HOST-NFT-COMMAND, SWARM-HOST-NFT-COMMAND, DNS-HOST-NFT-COMMAND
 
     *Applies to:* A daemon built without the ``libnftables`` build tag, with the nftables backend,
     on a host without the :program:`nft` command

@@ -63,6 +63,18 @@ and host requirements apply here.
     Swarm-scoped networks that they are attached to, and removes those networks from the node.
     Containers keep their attachments to networks that are not Swarm-scoped.
 
+.. req:: A node with the nftables backend takes part in a Swarm of iptables nodes
+    :id: REQ-SWARM-MIXED-BACKEND-INTEROP
+    :source_kind: issue
+    :source: https://github.com/moby/moby/pull/53125: the merged change that lets such a daemon join, https://docs.docker.com/engine/network/firewall-nftables/
+    :violates: PRIN-STABLE
+
+    A daemon with the nftables firewall backend joins a Swarm. A Swarm's other nodes can run the
+    iptables backend, the default. A node with the nftables backend takes part in the overlay and
+    ingress networks of such a Swarm. The page about the nftables backend says that its support is
+    experimental: its configuration options, behavior and implementation may all change in future
+    releases.
+
 .. req:: A node logs its failure to program a load balancer or an ingress port
     :id: REQ-SWARM-NODE-FAILURE-LOGGED
     :source_kind: issue
@@ -648,13 +660,14 @@ All overlay networks
 .. expectation:: Cross-node expectations hold between workers of different releases
     :id: SWARM-WIRE-MIXED-VERSIONS
     :observed_from: client, task, underlay
-    :depends_on: os-linux, os-windows
-    :platforms: linux, windows
+    :depends_on: os-linux
+    :platforms: linux
     :refines: REQ-SWARM-MIXED-VERSION-INTEROP
 
     *Applies to:* A Swarm whose managers run the release under test, and whose workers mix nodes of
-    the previous release and the release under test, where the nodes of the previous release all run
-    one of the two releases that :doc:`../README.md <../README>` calls *N−1*
+    the previous release and the release under test, with every node on the iptables backend, where
+    the nodes of the previous release all run one of the two releases that :doc:`../README.md
+    <../README>` calls *N−1*
 
     In that Swarm, the expectations of the following sections about traffic between nodes hold
     between nodes of different versions: in :doc:`swarm-traffic.md <swarm-traffic>`,
@@ -672,6 +685,35 @@ All overlay networks
     between two nodes of the previous release. An expectation that involves more than two nodes
     holds for every assignment of the two releases to its nodes in which none of the traffic between
     nodes that it states passes between two nodes of the previous release.
+
+.. expectation:: Cross-node expectations hold between nodes with different firewall backends
+    :id: SWARM-WIRE-MIXED-BACKENDS
+    :observed_from: client, task, underlay
+    :depends_on: os-linux
+    :platforms: linux
+    :provisional_on: REQ-SWARM-MIXED-BACKEND-INTEROP
+
+    *Applies to:* A Swarm that mixes Linux nodes with the iptables firewall backend and Linux nodes
+    with the nftables firewall backend
+
+    In that Swarm, every expectation of :doc:`swarm-networking.md <swarm-networking>`,
+    :doc:`swarm-traffic.md <swarm-traffic>` and this document about traffic between nodes holds
+    between nodes with different backends, when the nodes run the same release. In a Swarm that
+    :need:`SWARM-WIRE-MIXED-VERSIONS` describes, but with either backend on each node, the
+    expectations that it names also hold between nodes with different backends. An expectation is
+    about traffic between nodes when its statement is about traffic that one node of the Swarm sends
+    to another, or about the encryption keys and security associations that a node keeps for such
+    traffic. An expectation about traffic that another host on the underlay sends to a node is not
+    among them. An expectation that involves more than two nodes holds whatever backend each of its
+    nodes runs. These include the expectations of the following sections that are about traffic
+    between nodes: in :doc:`swarm-traffic.md <swarm-traffic>`,
+    :ref:`swarm-traffic-east-west-reachability`, :ref:`swarm-traffic-load-balancing-east-west-vip`
+    with its subsections, and the :ref:`swarm-traffic-api-value-mode-ingress` subsection of
+    :ref:`swarm-traffic-published-ports`; in this document, :ref:`swarm-lifecycle-encryption` and
+    :ref:`swarm-lifecycle-failure-lifecycle`. They also include the expectations of
+    :ref:`swarm-traffic-service-discovery` about a name whose workload is on another node. Each of
+    those expectations keeps its own category and dependencies. They hold on cleartext and
+    :drvopt:`encrypted` overlays and on the ingress network.
 
 .. expectation:: Without VXLAN devices, a task on an overlay network does not run
     :id: SWARM-WIRE-NO-VXLAN
@@ -867,17 +909,18 @@ HNS network by its ID.
     No event on the third node interrupts the flow: no TCP flow is reset, and no TCP or UDP flow has
     a gap in delivery longer than 1 second. The events include a graceful restart of the third
     node's daemon, a kill and restart of it, an upgrade of its daemon from the previous release to
-    the release under test, a node partition between the third node and the other nodes in which the
+    the release under test, a restart of it with the iptables backend in place of nftables when it
+    is a Linux node, a node partition between the third node and the other nodes in which the
     managers' quorum is on the other nodes' side, the third node leaving the Swarm or joining it,
     and a change of leader manager to or from the third node. For each event, this holds from when
     the event starts until the ceiling of its class has passed: the :need:`[[title|lower]] ceiling
     ([[seconds]] s) <SWARM-CEIL-REJOIN>` from when a restart of the third node's daemon is complete,
-    whether graceful, after a kill or after an upgrade, or from when its request to leave or join
-    the Swarm responds; the :need:`[[title|lower]] ceiling ([[seconds]] s)
-    <SWARM-CEIL-FAILURE-DETECTION>` from when the partition starts; the :need:`[[title|lower]]
-    ceiling ([[seconds]] s) <SWARM-CEIL-PARTITION-HEAL>` from when the partition is removed, which
-    is an event of its own; and the :need:`[[title|lower]] ceiling ([[seconds]] s)
-    <SWARM-CEIL-ALLOCATION>` from the change of leader. This holds in the Swarm of
+    whether graceful, after a kill, after an upgrade or with the other firewall backend, or from
+    when its request to leave or join the Swarm responds; the :need:`[[title|lower]] ceiling
+    ([[seconds]] s) <SWARM-CEIL-FAILURE-DETECTION>` from when the partition starts; the
+    :need:`[[title|lower]] ceiling ([[seconds]] s) <SWARM-CEIL-PARTITION-HEAL>` from when the
+    partition is removed, which is an event of its own; and the :need:`[[title|lower]] ceiling
+    ([[seconds]] s) <SWARM-CEIL-ALLOCATION>` from the change of leader. This holds in the Swarm of
     :need:`SWARM-WIRE-MIXED-VERSIONS`, whose workers mix releases, when the client's node and the
     task's node run the release under test.
 
@@ -1024,7 +1067,7 @@ HNS network by its ID.
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-RESTART-RECOVERY, REQ-SWARM-VIP-LOAD-BALANCING, REQ-SWARM-SD-SERVICE-NAMES, REQ-SWARM-MESH-FOLLOWS-TASKS
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, DNS-HOST-NFTABLES-NAT, DNS-HOST-IPTABLES-COMMAND, DNS-HOST-NFT-COMMAND, DNS-HOST-IPTABLES-KERNEL, DNS-HOST-IPTABLES-LEGACY-KERNEL, DNS-HOST-IPTABLES-NFT-KERNEL
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, DNS-HOST-NFTABLES-NAT, DNS-HOST-IPTABLES-COMMAND, DNS-HOST-NFT-COMMAND, DNS-HOST-IPTABLES-KERNEL, DNS-HOST-IPTABLES-LEGACY-KERNEL, DNS-HOST-IPTABLES-NFT-KERNEL
     :within: SWARM-CEIL-REJOIN, SWARM-CEIL-REASSIGNMENT
 
     *Applies to:* A node, a service in vip mode on an overlay network whose tasks are constrained to
@@ -1044,7 +1087,7 @@ HNS network by its ID.
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-RESTART-RECOVERY, REQ-SWARM-ROUTING-MESH, REQ-SWARM-MESH-FOLLOWS-TASKS
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
     :within: SWARM-CEIL-REJOIN, SWARM-CEIL-REASSIGNMENT
 
     *Applies to:* A node, and a service whose tasks are constrained to that node and that publishes
@@ -1196,14 +1239,15 @@ update that does not replace a task is complete when the request responds. For a
 is complete when the request that removes the object responds. For a restart of a node's daemon, the
 change is complete when the daemon's API responds again and :api-op:`GET /info` on the node reports
 :api-field:`Swarm.LocalNodeState` as ``active``. How long a node takes to be ``active`` again is
-bounded too: :need:`SWARM-RESTART-NODE-STATE-ACTIVE` times it from when the daemon's API responds
-again. For a change in a task's health, or the exit of its container, the change is complete when
-the task's node emits the container's :api-event:`health_status` or :api-event:`die` event. For a
-change of a task's desired state away from ``running``, the change is complete when :api-op:`GET
-/tasks` first reports the new :api-field:`DesiredState`. For a change of leader, the change is
-complete when :api-op:`GET /nodes` on a manager reports :api-field:`ManagerStatus.Leader` as true
-for the new leader. For an expectation about what holds once no container of a service is running,
-the change is complete when the last of those containers emits its :api-event:`die` event.
+bounded too: :need:`SWARM-RESTART-NODE-STATE-ACTIVE`, or :need:`SWARM-BACKEND-NODE-STATE-ACTIVE` for
+a restart with the nftables backend in place of iptables, times it from when the daemon's API
+responds again. For a change in a task's health, or the exit of its container, the change is
+complete when the task's node emits the container's :api-event:`health_status` or :api-event:`die`
+event. For a change of a task's desired state away from ``running``, the change is complete when
+:api-op:`GET /tasks` first reports the new :api-field:`DesiredState`. For a change of leader, the
+change is complete when :api-op:`GET /nodes` on a manager reports :api-field:`ManagerStatus.Leader`
+as true for the new leader. For an expectation about what holds once no container of a service is
+running, the change is complete when the last of those containers emits its :api-event:`die` event.
 
 A node partition divides the nodes of a Swarm into two sides, and blocks all traffic between the
 nodes of one side and the nodes of the other, in both directions. The managers that hold a quorum
@@ -1264,7 +1308,7 @@ the orchestrator replaces the tasks on that side.
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-MESH-FOLLOWS-TASKS
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, DNS-HOST-NFTABLES-NAT, DNS-HOST-IPTABLES-COMMAND, DNS-HOST-NFT-COMMAND, DNS-HOST-IPTABLES-KERNEL, DNS-HOST-IPTABLES-LEGACY-KERNEL, DNS-HOST-IPTABLES-NFT-KERNEL
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, DNS-HOST-NFTABLES-NAT, DNS-HOST-IPTABLES-COMMAND, DNS-HOST-NFT-COMMAND, DNS-HOST-IPTABLES-KERNEL, DNS-HOST-IPTABLES-LEGACY-KERNEL, DNS-HOST-IPTABLES-NFT-KERNEL
     :within: SWARM-CEIL-REASSIGNMENT
 
     When a task is replaced by one on another node, a client that could reach the old task reaches
@@ -1292,7 +1336,7 @@ the orchestrator replaces the tasks on that side.
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-MESH-FOLLOWS-TASKS, REQ-SWARM-FAULT-TOLERANT
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
     :within: SWARM-CEIL-FAILURE-DETECTION, SWARM-CEIL-REASSIGNMENT
 
     *Applies to:* A node partition, and a service with running tasks on both sides
@@ -1410,7 +1454,7 @@ the orchestrator replaces the tasks on that side.
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-REJOIN-RECOVERY, REQ-SWARM-MESH-FOLLOWS-TASKS
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
     :within: SWARM-CEIL-REJOIN, SWARM-CEIL-REASSIGNMENT
 
     A node leaves the Swarm with :api-op:`POST /swarm/leave` and rejoins with :api-op:`POST
@@ -1427,7 +1471,7 @@ the orchestrator replaces the tasks on that side.
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-REJOIN-RECOVERY, REQ-SWARM-VIP-LOAD-BALANCING, REQ-SWARM-SD-SERVICE-NAMES, REQ-SWARM-MESH-FOLLOWS-TASKS
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, DNS-HOST-NFTABLES-NAT, DNS-HOST-IPTABLES-COMMAND, DNS-HOST-NFT-COMMAND, DNS-HOST-IPTABLES-KERNEL, DNS-HOST-IPTABLES-LEGACY-KERNEL, DNS-HOST-IPTABLES-NFT-KERNEL
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, DNS-HOST-NFTABLES-NAT, DNS-HOST-IPTABLES-COMMAND, DNS-HOST-NFT-COMMAND, DNS-HOST-IPTABLES-KERNEL, DNS-HOST-IPTABLES-LEGACY-KERNEL, DNS-HOST-IPTABLES-NFT-KERNEL
     :within: SWARM-CEIL-REJOIN, SWARM-CEIL-REASSIGNMENT
 
     *Applies to:* A service in vip mode on an overlay network, and a task or container on that
@@ -1448,7 +1492,7 @@ the orchestrator replaces the tasks on that side.
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-MESH-FOLLOWS-TASKS, REQ-SWARM-FAULT-TOLERANT
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
     :within: SWARM-CEIL-REJOIN, SWARM-CEIL-REASSIGNMENT
 
     *Applies to:* A service with a running task on each of two or more nodes
@@ -1494,7 +1538,7 @@ always its tasks.
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-ROLLING-UPDATE
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
     :within: SWARM-CEIL-ALLOCATION, SWARM-CEIL-REASSIGNMENT
 
     A service has a rolling update in which at least one task keeps running throughout, and that
@@ -1510,7 +1554,7 @@ always its tasks.
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-ROLLING-UPDATE, REQ-SWARM-MESH-FOLLOWS-TASKS
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
     :within: SWARM-CEIL-REASSIGNMENT
 
     A service has a rolling update in which at least one task keeps running throughout, and that
@@ -1525,7 +1569,7 @@ always its tasks.
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-MESH-FOLLOWS-TASKS
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
     :within: SWARM-CEIL-REASSIGNMENT
 
     A service's replica count is changed at least 10 times, alternating between 1 and 5. Each update
@@ -1702,7 +1746,7 @@ always its tasks.
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-ENDPOINT-MODE-UPDATE
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
     :within: SWARM-CEIL-REASSIGNMENT
 
     After a service's endpoint mode changes from ``dnsrr`` to ``vip``, the service's VIP
@@ -1714,7 +1758,7 @@ always its tasks.
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-SERVICE-NETWORK-UPDATE
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, DNS-HOST-NFTABLES-NAT, DNS-HOST-IPTABLES-COMMAND, DNS-HOST-NFT-COMMAND, DNS-HOST-IPTABLES-KERNEL, DNS-HOST-IPTABLES-LEGACY-KERNEL, DNS-HOST-IPTABLES-NFT-KERNEL
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, DNS-HOST-NFTABLES-NAT, DNS-HOST-IPTABLES-COMMAND, DNS-HOST-NFT-COMMAND, DNS-HOST-IPTABLES-KERNEL, DNS-HOST-IPTABLES-LEGACY-KERNEL, DNS-HOST-IPTABLES-NFT-KERNEL
     :within: SWARM-CEIL-REASSIGNMENT
 
     *Applies to:* A service, an overlay network that the service is not attached to, and a client on
@@ -1999,7 +2043,7 @@ Scale and exhaustion
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-ROUTING-MESH
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-SCTP, SWARM-HOST-IPVS-SCTP, SWARM-HOST-IPTABLES-SCTP-MATCH, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-SCTP, SWARM-HOST-IPVS-SCTP, SWARM-HOST-IPTABLES-SCTP-MATCH, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
     :within: SWARM-CEIL-REASSIGNMENT
 
     *Applies to:* A Swarm with a service that publishes a port in ingress mode
@@ -2013,7 +2057,7 @@ Scale and exhaustion
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-ROUTING-MESH
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-SCTP, SWARM-HOST-IPVS-SCTP, SWARM-HOST-IPTABLES-SCTP-MATCH, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-SCTP, SWARM-HOST-IPVS-SCTP, SWARM-HOST-IPTABLES-SCTP-MATCH, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
     :within: SWARM-CEIL-REASSIGNMENT
 
     *Applies to:* A Swarm with two services that publish the same port number in ingress mode under
@@ -2041,8 +2085,238 @@ Scale and exhaustion
 Firewall-backend transition
 ===========================
 
-No expectation of these specs is asserted on a node in a Swarm with the nftables backend, and a
-switch of a node in a Swarm to or from the nftables backend is not asserted either.
+The firewall backend is a Linux daemon setting. This subsection holds on Linux nodes. A rolling
+backend switch changes one node at a time, from either backend to the other. For each node, the
+steps are to drain the node, switch its backend once none of the node's tasks is running, and set
+the node's availability to ``active`` again. A node is being switched from the request that drains
+it until its availability is ``active`` again and the :need:`[[title|lower]] ceiling ([[seconds]] s)
+<SWARM-CEIL-REJOIN>` has passed since its restart was complete, as
+:ref:`swarm-lifecycle-convergence` defines it. A restart in this section is graceful, with or
+without a drain first, unless an expectation says that it follows a kill. When the daemon starts
+again with the iptables backend in place of nftables, :need:`SWARM-RESTART-NODE-STATE-ACTIVE`,
+:need:`SWARM-RESTART-OTHER-NODES`, :need:`SWARM-RESTART-TASKS-FROM-OTHER-NODES` and
+:need:`SWARM-RESTART-INGRESS-FROM-OTHER-NODES` hold, and after a kill, so does
+:need:`SWARM-RESTART-KILLED-VNI-REUSE`. After a kill, in either direction,
+:need:`SWARM-RESTART-STALE-OVERLAY` and :need:`SWARM-RESTART-STALE-OVERLAY-REMOVAL` hold too. For a
+restart with the other backend, in either direction, the expectations below take the place of the
+expectations of :ref:`swarm-lifecycle-restart-and-reclamation` that the previous two sentences do
+not name for that direction. In the expectations about a rolling backend switch, each service has a
+running task on a node that is not being switched, and a task's process ignores its stop signal and
+keeps accepting connections until it is killed at the end of a stop grace period longer than the
+:need:`[[title|lower]] ceiling ([[seconds]] s) <SWARM-CEIL-ALLOCATION>`.
+
+.. expectation:: After a switch to nftables, the node is active within the ceiling
+    :id: SWARM-BACKEND-NODE-STATE-ACTIVE
+    :observed_from: api:mgr, api:wkr
+    :depends_on: none
+    :platforms: linux
+    :provisional_on: REQ-BR-NFT-MIGRATION, REQ-SWARM-MIXED-BACKEND-INTEROP
+    :within: SWARM-CEIL-REJOIN
+
+    *Applies to:* A node in a Swarm
+
+    After the node's daemon restarts with the nftables backend in place of iptables, gracefully or
+    after a kill, :api-op:`GET /info` on the node reports :api-field:`Swarm.LocalNodeState` as
+    ``active`` within the :need:`[[title|lower]] ceiling ([[seconds]] s) <SWARM-CEIL-REJOIN>` after
+    the daemon's API responds again.
+
+.. expectation:: After a switch to nftables, node tasks are reachable within the ceiling
+    :id: SWARM-BACKEND-TASKS
+    :observed_from: task
+    :depends_on: os-linux
+    :platforms: linux
+    :provisional_on: REQ-BR-NFT-MIGRATION, REQ-SWARM-MIXED-BACKEND-INTEROP
+    :within: SWARM-CEIL-REJOIN, SWARM-CEIL-REASSIGNMENT
+
+    *Applies to:* A service whose tasks are constrained to a node
+
+    After the node's daemon restarts with the nftables backend in place of iptables, gracefully or
+    after a kill, without the node being drained first, each of the service's tasks on the node is
+    reachable over its overlay networks once the :need:`[[title|lower]] ceiling ([[seconds]] s)
+    <SWARM-CEIL-REJOIN>` has passed from when the restart is complete, and the
+    :need:`[[title|lower]] ceiling ([[seconds]] s) <SWARM-CEIL-REASSIGNMENT>` has passed from when
+    :api-op:`GET /tasks` first reports that task's state as ``running``.
+
+.. expectation:: After a switch to iptables, node tasks are reachable within the ceiling
+    :id: SWARM-BACKEND-TASKS-IPT
+    :observed_from: task
+    :depends_on: os-linux
+    :platforms: linux
+    :refines: REQ-SWARM-RESTART-RECOVERY
+    :within: SWARM-CEIL-REJOIN, SWARM-CEIL-REASSIGNMENT
+
+    *Applies to:* A service whose tasks are constrained to a node
+
+    After the node's daemon restarts with the iptables backend in place of nftables, gracefully or
+    after a kill, without the node being drained first, each of the service's tasks on the node is
+    reachable over its overlay networks once the :need:`[[title|lower]] ceiling ([[seconds]] s)
+    <SWARM-CEIL-REJOIN>` has passed from when the restart is complete, and the
+    :need:`[[title|lower]] ceiling ([[seconds]] s) <SWARM-CEIL-REASSIGNMENT>` has passed from when
+    :api-op:`GET /tasks` first reports that task's state as ``running``.
+
+.. expectation:: After a switch to iptables, published ports answer within the ceiling
+    :id: SWARM-BACKEND-PUBLISHED-PORTS-IPT
+    :observed_from: client
+    :depends_on: os-linux
+    :platforms: linux
+    :refines: REQ-SWARM-RESTART-RECOVERY
+    :within: SWARM-CEIL-REJOIN, SWARM-CEIL-REASSIGNMENT
+
+    After a node's daemon restarts with the iptables backend in place of nftables, gracefully or
+    after a kill, without the node being drained first, each of the node's published ports answers
+    once the :need:`[[title|lower]] ceiling ([[seconds]] s) <SWARM-CEIL-REJOIN>` has passed from
+    when the restart is complete, and the :need:`[[title|lower]] ceiling ([[seconds]] s)
+    <SWARM-CEIL-REASSIGNMENT>` has passed from when :api-op:`GET /tasks` first reports the last of
+    the tasks that the port is published for as ``running``.
+
+.. expectation:: After a switch to nftables, published ports answer within the ceiling
+    :id: SWARM-BACKEND-PUBLISHED-PORTS-NFT
+    :observed_from: client
+    :depends_on: os-linux
+    :platforms: linux
+    :provisional_on: REQ-BR-NFT-MIGRATION, REQ-SWARM-MIXED-BACKEND-INTEROP
+    :needs: BR-HOST-NO-FORWARD-DROP
+    :within: SWARM-CEIL-REJOIN, SWARM-CEIL-REASSIGNMENT
+
+    *Applies to:* A node whose filter table's :ipt-chain:`FORWARD` chain has policy ACCEPT
+
+    After the node's daemon restarts with the nftables backend in place of iptables, gracefully or
+    after a kill, without the node being drained first, each of the node's published ports answers
+    once the :need:`[[title|lower]] ceiling ([[seconds]] s) <SWARM-CEIL-REJOIN>` has passed from
+    when the restart is complete, and the :need:`[[title|lower]] ceiling ([[seconds]] s)
+    <SWARM-CEIL-REASSIGNMENT>` has passed from when :api-op:`GET /tasks` first reports the last of
+    the tasks that the port is published for as ``running``.
+
+.. expectation:: After a switch to nftables, other nodes' VIPs and names reach its tasks
+    :id: SWARM-BACKEND-TASKS-FROM-OTHER-NODES
+    :observed_from: task, ctr
+    :depends_on: os-linux
+    :platforms: linux
+    :provisional_on: REQ-BR-NFT-MIGRATION, REQ-SWARM-MIXED-BACKEND-INTEROP
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, DNS-HOST-NFTABLES-NAT, DNS-HOST-IPTABLES-COMMAND, DNS-HOST-NFT-COMMAND, DNS-HOST-IPTABLES-KERNEL, DNS-HOST-IPTABLES-LEGACY-KERNEL, DNS-HOST-IPTABLES-NFT-KERNEL
+    :within: SWARM-CEIL-REJOIN, SWARM-CEIL-REASSIGNMENT
+
+    *Applies to:* A node, a service in vip mode on an overlay network whose tasks are constrained to
+    that node, and a task or container on that network on another node
+
+    After the node's daemon restarts with the nftables backend in place of iptables, gracefully or
+    after a kill, without the node being drained first, :dns-name:`tasks.<service>` resolves in that
+    task or container to the addresses on that network of the service's running tasks, and its
+    connections to the service's VIP reach them. Both hold once the :need:`[[title|lower]] ceiling
+    ([[seconds]] s) <SWARM-CEIL-REJOIN>` has passed from when the restart is complete, and the
+    :need:`[[title|lower]] ceiling ([[seconds]] s) <SWARM-CEIL-REASSIGNMENT>` has passed from when
+    :api-op:`GET /tasks` first reports each of those tasks' state as ``running``.
+
+.. expectation:: After a switch to nftables, published ports elsewhere reach its tasks
+    :id: SWARM-BACKEND-INGRESS-FROM-OTHER-NODES
+    :observed_from: client
+    :depends_on: os-linux
+    :platforms: linux
+    :provisional_on: REQ-BR-NFT-MIGRATION, REQ-SWARM-MIXED-BACKEND-INTEROP
+    :needs: BR-HOST-NO-FORWARD-DROP, SWARM-HOST-IPVS, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
+    :within: SWARM-CEIL-REJOIN, SWARM-CEIL-REASSIGNMENT
+
+    *Applies to:* A node, and a service whose tasks are constrained to that node and that publishes
+    a port in ingress mode
+
+    After the node's daemon restarts with the nftables backend in place of iptables, gracefully or
+    after a kill, without the node being drained first, connections to the service's published port
+    at the address of another node reach the service's running tasks. This holds once the
+    :need:`[[title|lower]] ceiling ([[seconds]] s) <SWARM-CEIL-REJOIN>` has passed from when the
+    restart is complete, and the :need:`[[title|lower]] ceiling ([[seconds]] s)
+    <SWARM-CEIL-REASSIGNMENT>` has passed from when :api-op:`GET /tasks` first reports each of those
+    tasks' state as ``running``.
+
+.. expectation:: After a kill and switch to nftables, a reused VNI passes traffic
+    :id: SWARM-BACKEND-KILLED-VNI-REUSE
+    :observed_from: node, task
+    :depends_on: os-linux
+    :platforms: linux
+    :provisional_on: REQ-BR-NFT-MIGRATION, REQ-SWARM-MIXED-BACKEND-INTEROP
+    :within: SWARM-CEIL-REASSIGNMENT
+
+    *Applies to:* A node that used a VNI before its daemon was killed and started again with the
+    nftables backend in place of iptables
+
+    A task or container on a network that is allocated that VNI starts on the node, and the network
+    passes traffic. This holds whether the network is the one that used the VNI before the kill or
+    another network.
+
+.. expectation:: A rolling backend switch does not interrupt flows among unswitched nodes
+    :id: SWARM-BACKEND-ROLLING-FLOWS
+    :observed_from: client, task
+    :depends_on: os-linux
+    :platforms: linux
+    :provisional_on: REQ-BR-NFT-MIGRATION, REQ-SWARM-MIXED-BACKEND-INTEROP
+    :needs: BR-HOST-NO-FORWARD-DROP, SWARM-HOST-IPVS, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
+    :within: SWARM-CEIL-REASSIGNMENT, SWARM-CEIL-REJOIN
+
+    *Applies to:* A Swarm whose nodes' filter tables' :ipt-chain:`FORWARD` chains have policy ACCEPT
+    once they run the nftables backend
+
+    Throughout a rolling backend switch, a flow is not interrupted when two conditions are true. The
+    flow starts at a client on a node that is not being switched and is sent to a VIP, or enters
+    through a published port on such a node. The flow goes to a task on a node that is not being
+    switched. The expectation covers the flow from its start until the node where it starts or
+    enters, or the task's node, starts being switched. Not interrupted means that a TCP flow is not
+    reset, and that no TCP or UDP flow has a gap in delivery longer than 1 second. The
+    :need:`[[title|lower]] ceiling ([[seconds]] s) <SWARM-CEIL-REJOIN>` is a length of time in the
+    definition of a node that is being switched, and does not delay this expectation. The
+    expectation covers a flow that starts once the :need:`[[title|lower]] ceiling ([[seconds]] s)
+    <SWARM-CEIL-REASSIGNMENT>` has passed from when the last of the flow's client and task runs.
+
+.. expectation:: In a rolling backend switch, ingress ports answer on unswitched nodes
+    :id: SWARM-BACKEND-ROLLING-PUBLISHED-PORTS
+    :observed_from: client
+    :depends_on: os-linux
+    :platforms: linux
+    :provisional_on: REQ-BR-NFT-MIGRATION, REQ-SWARM-MIXED-BACKEND-INTEROP
+    :needs: BR-HOST-NO-FORWARD-DROP, SWARM-HOST-IPVS, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
+    :within: SWARM-CEIL-ALLOCATION, SWARM-CEIL-REASSIGNMENT, SWARM-CEIL-REJOIN
+
+    *Applies to:* A Swarm whose nodes' filter tables' :ipt-chain:`FORWARD` chains have policy ACCEPT
+    once they run the nftables backend
+
+    Throughout a rolling backend switch, every port that a service publishes in ingress mode answers
+    on the nodes that are not being switched. The :need:`[[title|lower]] ceiling ([[seconds]] s)
+    <SWARM-CEIL-REJOIN>` and the :need:`[[title|lower]] ceiling ([[seconds]] s)
+    <SWARM-CEIL-ALLOCATION>` are lengths of time in the introduction of this subsection, and do not
+    delay this expectation. A new connection is covered when, at the time it is made, every task of
+    the service that :api-op:`GET /tasks` reports as ``running`` was first reported as ``running``
+    at least the :need:`[[title|lower]] ceiling ([[seconds]] s) <SWARM-CEIL-REASSIGNMENT>` earlier.
+
+.. expectation:: A third node's switch to nftables does not interrupt other nodes' flows
+    :id: SWARM-BACKEND-OTHER-NODES-FLOWS
+    :observed_from: task, client
+    :depends_on: os-linux
+    :platforms: linux
+    :provisional_on: REQ-BR-NFT-MIGRATION, REQ-SWARM-MIXED-BACKEND-INTEROP
+    :needs: BR-HOST-NO-FORWARD-DROP
+    :within: SWARM-CEIL-REASSIGNMENT, SWARM-CEIL-REJOIN
+
+    *Applies to:* A flow to a task, from a client on a node to a VIP or from a client outside the
+    Swarm to a port that a node publishes, and a third node that is neither that node nor the task's
+    node
+
+    A restart of the third node's daemon with the nftables backend in place of iptables, gracefully
+    or after a kill, without the node being drained first, does not interrupt the flow: no TCP flow
+    is reset, and no TCP or UDP flow has a gap in delivery longer than 1 second. This holds from
+    when the restart starts until the :need:`[[title|lower]] ceiling ([[seconds]] s)
+    <SWARM-CEIL-REJOIN>` has passed from when the restart is complete.
+
+.. expectation:: After a switch to nftables, a DROP FORWARD policy drops container traffic
+    :id: SWARM-BACKEND-NFT-FORWARD-POLICY
+    :observed_from: client, task, ctr
+    :depends_on: os-linux
+    :platforms: linux
+    :provisional_on: REQ-BR-NFT-MIGRATION
+    :within: SWARM-CEIL-REJOIN, SWARM-CEIL-REASSIGNMENT
+
+    *Applies to:* A node whose filter table's :ipt-chain:`FORWARD` chain has policy DROP
+
+    After the node's daemon restarts with the nftables backend in place of iptables, the node drops
+    traffic that it routes to and from containers, such as traffic to published ports and the egress
+    of containers, unless an operator's rule accepts it.
 
 .. _swarm-lifecycle-failure-reporting:
 
@@ -2059,7 +2333,9 @@ such a failure: the task does not start, and :api-op:`GET /tasks` reports the er
 (:need:`SWARM-INGPUB-INGRESS-RULES-FAILED`). A failure to add or remove a VIP alias on a
 load-balancer endpoint, or to find that endpoint's interface, is a failure to program the
 load-balancer service. Under the iptables backend, so is a failure to add the service's
-firewall-mark rule.
+firewall-mark rule. Under the nftables backend, a failure to apply the nat table when a backend is
+added is a failure to program that backend, and a failure to apply a :drvopt:`dsr` network's
+direct-routing table is a failure to program the load-balancer service.
 
 .. expectation:: A node-local load-balancer programming failure is logged at error level
     :id: SWARM-FAILREP-LB
@@ -2080,6 +2356,8 @@ firewall-mark rule.
     :exact_form_of: SWARM-FAILREP-LB
     :within: SWARM-CEIL-REASSIGNMENT
 
+    *Applies to:* Linux nodes with the iptables backend
+
     A daemon log entry for a node-local failure to program a load-balancer service or backend
     contains :log:`Failed to create an ipvs handle`, :log:`Failed find interface name for endpoint`,
     :log:`Failed add IP alias`, :log:`Failed to remove IP alias`, :log:`Failed to add firewall mark
@@ -2089,6 +2367,41 @@ firewall-mark rule.
     No entry names the service. The entries about an ipvs handle, a firewall mark rule, a service
     and a real server identify the load-balancer sandbox only by prefixes of its ID and of its
     container ID. The entry about an ipvs handle adds the path of its network namespace.
+
+.. expectation:: With nftables, a load-balancer failure entry has one of six messages
+    :id: SWARM-FAILREP-LB-MSG-NFT
+    :observed_from: log
+    :depends_on: none
+    :platforms: linux
+    :exact_form_of: SWARM-FAILREP-LB
+    :within: SWARM-CEIL-REASSIGNMENT
+
+    *Applies to:* Linux nodes with the nftables backend
+
+    A daemon log entry for a node-local failure to program a load-balancer service or backend
+    contains :log:`Failed to apply changes to nftables nat table`, :log:`Failed add IP alias`,
+    :log:`Failed remove IP alias`, :log:`Failed find interface name for endpoint`,
+    :log:`addLBBackend` or :log:`Failed to apply nftables dsr table`. No entry names the service.
+    The entry that contains :log:`Failed to apply changes to nftables nat table` names no network
+    either. The entry that contains :log:`Failed to apply nftables dsr table` has the network's full
+    ID in its ``network`` field.
+
+.. expectation:: Without the netdev egress hook, a dsr network logs a fallback to NAT
+    :id: SWARM-FAILREP-DSR-NO-EGRESS-HOOK
+    :observed_from: log
+    :depends_on: none
+    :platforms: linux
+    :pins: SWARM-HOST-NFT-NETDEV-EGRESS-COMMAND, SWARM-HOST-NFTABLES-NETDEV
+    :needs: SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND
+    :within: SWARM-CEIL-REASSIGNMENT
+
+    *Applies to:* Linux nodes whose kernel does not offer the nftables netdev egress hook, or whose
+    :program:`nft` does not accept netdev tables with that hook, with the nftables backend, and a
+    service in vip mode on an overlay network with the :drvopt:`dsr` option
+
+    The daemon log of the node contains an error-level entry that contains :log:`Failed to apply
+    nftables dsr table; this network's overlay VIP traffic will be load-balanced via NAT rather than
+    direct server return`. Its ``network`` field is the network's full ID.
 
 .. expectation:: A Windows load-balancer failure entry has one of seven messages
     :id: SWARM-FAILREP-LB-MSG-WINDOWS
@@ -2255,7 +2568,7 @@ firewall-mark rule.
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :refines: REQ-SWARM-MESH-FOLLOWS-TASKS
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL
     :within: SWARM-CEIL-REASSIGNMENT
 
     *Applies to:* A node where a node-local failure to program the load-balancer service or a
@@ -2286,7 +2599,7 @@ firewall-mark rule.
     :depends_on: os-linux
     :platforms: linux
     :refines: REQ-SWARM-ROUTING-MESH
-    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-NFTABLES-NAT, SWARM-HOST-NFT-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
     :within: SWARM-CEIL-REASSIGNMENT
 
     *Applies to:* A Linux node where publishing a service's ingress ports failed
@@ -2379,14 +2692,55 @@ content. :ref:`bridge-networking-rule-content` in :doc:`bridge-networking.md <br
 states the bridge driver's rules in detectors only, the rules for Swarm ingress ports included. This
 section covers the overlay driver's own firewall state. It also covers how Swarm traffic meets the
 bridge driver's firewall anchors. :doc:`bridge-networking.md <bridge-networking>` specifies those
-anchors, :ipt-chain:`DOCKER-USER` among them. This section holds on Linux nodes.
+anchors, :ipt-chain:`DOCKER-USER` among them. This section holds on Linux nodes. The
+:ref:`swarm-lifecycle-nftables` subsection states the content of the overlay driver's nftables table
+in detectors only.
 
 .. _swarm-lifecycle-nftables:
 
 nftables
 ========
 
-The overlay driver's nftables table on a node in a Swarm is not asserted.
+The first expectation below states the hooks and priorities of the base chains in the nftables table
+that the driver uses for encrypted networks. The names of that table and its chains are not anchors.
+An operator's rules can reach them only if the rules are added to Moby's own table. That is not a
+supported configuration. The last expectation below asserts the content of that table, so that a
+change to it is visible in review. A deliberate change to this content is not a breakage.
+
+.. expectation:: The overlay nftables table's family follows the data-path address
+    :id: SWARM-NFT-OVERLAY-TABLE
+    :observed_from: node
+    :depends_on: none
+    :platforms: linux
+    :pins: SWARM-HOST-NFTABLES-ROUTE-CHAINS
+    :needs: SWARM-HOST-NFTABLES-ROUTE-CHAINS
+
+    *Applies to:* A node with the nftables backend where an overlay network, the ingress network
+    included, is programmed
+
+    The overlay driver's nftables table is in the ``ip`` family when the node's data-path address is
+    IPv4, and in the ``ip6`` family when it is IPv6. Its base chains are on the input hook at raw
+    priority (−300) and on the output hook at mangle priority (−150).
+
+.. expectation:: The overlay driver's nftables table matches the reference
+    :id: SWARM-NFT-REFERENCE
+    :observed_from: node
+    :depends_on: none
+    :platforms: linux
+    :pins: SWARM-HOST-NFTABLES-ROUTE-CHAINS
+    :needs: SWARM-HOST-XFRM, SWARM-HOST-NFTABLES-ROUTE-CHAINS
+    :within: SWARM-CEIL-REASSIGNMENT
+
+    *Applies to:* A node with the nftables backend and an IPv4 data-path address
+
+    For each configuration that the repository keeps a reference nftables ruleset for in
+    :repo-path:`daemon/libnetwork/drivers/overlay/testdata/TestOverlayEncNftTable`, the overlay
+    driver's nftables table matches that reference. The reference gives the matches and statements
+    of each rule, the order of the rules in each chain, and the table, set and chain names. The
+    table matches it whatever the values of its counters, with the VNIs of the encrypted overlay
+    networks that are programmed on the node in place of the elements of the reference's set. The
+    configurations are an encrypted overlay network while it is programmed on the node, and after it
+    stops being programmed.
 
 .. _swarm-lifecycle-iptables:
 
@@ -2486,3 +2840,81 @@ here cover state that belongs to Swarm and the overlay driver.
 
     After the daemon first starts after a switch to nftables, the filter and nat tables do not
     contain that chain.
+
+.. expectation:: A programmed VNI has no encryption state that the other backend left
+    :id: SWARM-CLEAN-ENCRYPTION-OTHER-BACKEND
+    :observed_from: node
+    :depends_on: os-linux, upgrade
+    :platforms: linux
+    :refines: PRIN-NO-LEAKS
+    :provisional_on: REQ-BR-NFT-MIGRATION
+    :needs: SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-CLEANUP-COMMAND, SWARM-HOST-NFT-CLEANUP-COMMAND
+    :within: SWARM-CEIL-REJOIN, SWARM-CEIL-REASSIGNMENT
+
+    *Applies to:* Firewall state for overlay encryption that a previous generation left for a VNI
+    under the other firewall backend, such as after the previous generation's daemon was killed, on
+    a node in a Swarm with an ingress network
+
+    The node switches firewall backend from iptables to nftables across a package upgrade from *N−1*
+    to *N*, or in either direction across a same-binary restart. After a switch to nftables, that
+    state is the rules for the VNI in filter :ipt-chain:`INPUT` or mangle :ipt-chain:`OUTPUT`. After
+    a switch to iptables, it is the :nft-table:`docker-overlay` table in the family of the node's
+    data-path address. While a network with that VNI is programmed on the node, the node does not
+    have that state.
+
+.. expectation:: Old iptables encryption rules for a VNI remain until it is programmed
+    :id: SWARM-CLEAN-ENCRYPTION-OTHER-BACKEND-NFT
+    :observed_from: node
+    :depends_on: os-linux
+    :platforms: linux
+    :exact_form_of: SWARM-CLEAN-ENCRYPTION-OTHER-BACKEND
+    :pins: SWARM-CLEAN-ENCRYPTION-LEFT-IN-PLACE
+    :needs: SWARM-HOST-IPTABLES-CLEANUP-COMMAND
+    :within: SWARM-CEIL-REJOIN, SWARM-CEIL-REASSIGNMENT
+
+    *Applies to:* A node with encryption rules for a VNI in filter :ipt-chain:`INPUT` and mangle
+    :ipt-chain:`OUTPUT` that a previous generation left
+
+    After a switch from iptables to nftables, the rules remain until a network with that VNI is
+    programmed on the node. They do not remain after that.
+
+.. expectation:: Old docker-overlay tables stay until an overlay is programmed or deleted
+    :id: SWARM-CLEAN-ENCRYPTION-OTHER-BACKEND-IPT
+    :observed_from: node
+    :depends_on: os-linux
+    :platforms: linux
+    :exact_form_of: SWARM-CLEAN-ENCRYPTION-OTHER-BACKEND
+    :pins: SWARM-CLEAN-ENCRYPTION-LEFT-IN-PLACE
+    :needs: SWARM-HOST-NFT-CLEANUP-COMMAND, SWARM-HOST-IPTABLES-COMMAND
+    :within: SWARM-CEIL-REJOIN, SWARM-CEIL-REASSIGNMENT
+
+    *Applies to:* A node in a Swarm with an ingress network, with a :nft-table:`docker-overlay`
+    table that a previous generation left under the nftables backend, in the family of the node's
+    data-path address
+
+    After the node switches firewall backend from nftables to iptables, the table remains until the
+    first time after the daemon's start that an overlay network or the ingress network is programmed
+    on the node, or that the node deletes one.
+
+.. expectation:: A backend switch leaves old overlay encryption rules in place
+    :id: SWARM-CLEAN-ENCRYPTION-LEFT-IN-PLACE
+    :observed_from: node, log
+    :depends_on: none
+    :platforms: linux
+    :needs: SWARM-HOST-IPTABLES-CLEANUP-COMMAND, SWARM-HOST-NFT-CLEANUP-COMMAND, SWARM-HOST-IPTABLES-COMMAND
+    :within: SWARM-CEIL-REJOIN, SWARM-CEIL-REASSIGNMENT
+    :narrows: SWARM-CLEAN-ENCRYPTION-OTHER-BACKEND, SWARM-CLEAN-ENCRYPTION-OTHER-BACKEND-IPT
+    :violates: PRIN-NO-LEAKS
+
+    After a switch from nftables to iptables, the :nft-table:`docker-overlay` table is deleted one
+    time. This occurs the first time after the start that an overlay network or the ingress network
+    is programmed on the node, or that the node deletes one. If that time comes before the daemon
+    has initialized the node's part of the Swarm's networking on that start, which it does after the
+    daemon log entry that contains :log:`Initializing Libnetwork Agent`, the table is not deleted.
+    An error that contains :log:`Deleting overlay encryption nftables rules` then appears in the
+    daemon log. The table stays in place until the next restart of the daemon. The node programs the
+    ingress network only after that initialization. After a switch from iptables to nftables, a
+    previous generation's encryption rules for a VNI stay in place. They stay until a network with
+    that VNI is programmed on the node again. Cleanup deletes the :nft-table:`docker-overlay` table
+    only in the family of the node's data-path address. A table in the other family, which a
+    previous generation left when the node had a data-path address of that family, stays in place.
