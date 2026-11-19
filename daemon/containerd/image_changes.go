@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/containerd/log"
 	"github.com/moby/go-archive"
 	"github.com/moby/moby/v2/daemon/container"
@@ -52,7 +51,7 @@ func (i *ImageService) Changes(ctx context.Context, ctr *container.Container) ([
 		}
 	}()
 	var changes []archive.Change
-	err = mount.WithReadonlyTempMount(ctx, imageMounts, func(imageRoot string) error {
+	err = i.refCountMounter.WithReadonlyTempMount(ctx, imageMounts, func(imageRoot string) error {
 		changes, err = archive.ChangesDirs(containerRoot, imageRoot)
 		return err
 	})
