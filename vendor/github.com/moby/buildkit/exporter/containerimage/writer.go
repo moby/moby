@@ -319,6 +319,9 @@ func (ic *ImageWriter) Commit(ctx context.Context, inp *exporter.Source, session
 			if err != nil {
 				return nil, nil, err
 			}
+			if len(attestations) == 0 {
+				continue
+			}
 
 			eg, ctx2 := errgroup.WithContext(ctx)
 			for i, att := range attestations {
