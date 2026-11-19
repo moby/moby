@@ -1313,10 +1313,14 @@ The following is a full example of the allowed configuration options on Linux:
       ]
     }
   },
+  "cdi-spec-dirs": ["/etc/cdi", "/var/run/cdi"],
   "cgroup-parent": "",
   "containerd": "/run/containerd/containerd.sock",
   "containerd-namespace": "docker",
   "containerd-plugins-namespace": "docker-plugins",
+  "cpu-rt-period": 0,
+  "cpu-rt-runtime": 0,
+  "cri-containerd": false,
   "data-root": "",
   "debug": true,
   "default-address-pools": [
@@ -1358,7 +1362,7 @@ The following is a full example of the allowed configuration options on Linux:
   "fixed-cidr": "",
   "fixed-cidr-v6": "",
   "group": "",
-  "host-gateway-ip": "",
+  "host-gateway-ips": [],
   "hosts": [],
   "proxies": {
     "http-proxy": "http://proxy.example.com:80",
@@ -1394,7 +1398,9 @@ The following is a full example of the allowed configuration options on Linux:
   "max-concurrent-downloads": 3,
   "max-concurrent-uploads": 5,
   "max-download-attempts": 5,
+  "metrics-addr": "",
   "mtu": 0,
+  "network-control-plane-mtu": 1500,
   "no-new-privileges": false,
   "node-generic-resources": [
     "NVIDIA-GPU=UUID1",
@@ -1403,6 +1409,7 @@ The following is a full example of the allowed configuration options on Linux:
   "pidfile": "",
   "raw-logs": false,
   "registry-mirrors": [],
+  "rootless": false,
   "runtimes": {
     "cc-runtime": {
       "path": "/usr/bin/cc-runtime"
@@ -1469,7 +1476,7 @@ The following is a full example of the allowed configuration options on Windows:
   "features": {},
   "fixed-cidr": "",
   "group": "",
-  "host-gateway-ip": "",
+  "host-gateway-ips": [],
   "hosts": [],
   "insecure-registries": [],
   "labels": [],
