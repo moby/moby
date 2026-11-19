@@ -46,16 +46,17 @@ var (
 const maxPruneBatch = 10 // maximum number of refs to prune while holding the manager lock
 
 type ManagerOpt struct {
-	Snapshotter     snapshot.Snapshotter
-	ContentStore    content.Store
-	LeaseManager    leases.Manager
-	PruneRefChecker ExternalRefCheckerFunc
-	GarbageCollect  func(ctx context.Context) (gc.Stats, error)
-	Applier         diff.Applier
-	Differ          diff.Comparer
-	MetadataStore   *metadata.Store
-	Root            string
-	MountPoolRoot   string
+	Snapshotter          snapshot.Snapshotter
+	ContentStore         content.Store
+	LeaseManager         leases.Manager
+	PruneRefChecker      ExternalRefCheckerFunc
+	GarbageCollect       func(ctx context.Context) (gc.Stats, error)
+	Applier              diff.Applier
+	Differ               diff.Comparer
+	MetadataStore        *metadata.Store
+	Root                 string
+	MountPoolRoot        string
+	UseCommonSnapshotIDs bool // Enables snapshot sharing without legacy snapshot quarantine.
 }
 
 type Accessor interface {
@@ -100,9 +101,9 @@ type cacheManager struct {
 	Differ          diff.Comparer
 	MetadataStore   *metadata.Store
 
-	root string
-
-	mountPool sharableMountPool
+	root                 string
+	mountPool            sharableMountPool
+	useCommonSnapshotIDs bool
 
 	muPrune sync.Mutex // make sure parallel prune is not allowed so there will not be inconsistent results
 	unlazyG flightcontrol.Group[struct{}]
@@ -114,6 +115,9 @@ func isLegacyLayerSnapshotID(ref *immutableRef) bool {
 }
 
 func isLegacyLayerRecord(ref *cacheRecord) bool {
+	if ref.cm.useCommonSnapshotIDs {
+		return false
+	}
 	switch ref.kind() {
 	case BaseLayer, Layer:
 	default:
@@ -138,16 +142,17 @@ func hasLegacyLayerSnapshotID(ref *immutableRef) bool {
 
 func NewManager(opt ManagerOpt) (Manager, error) {
 	cm := &cacheManager{
-		Snapshotter:     snapshot.NewMergeSnapshotter(context.TODO(), opt.Snapshotter, opt.LeaseManager),
-		ContentStore:    opt.ContentStore,
-		LeaseManager:    opt.LeaseManager,
-		PruneRefChecker: opt.PruneRefChecker,
-		GarbageCollect:  opt.GarbageCollect,
-		Applier:         opt.Applier,
-		Differ:          opt.Differ,
-		MetadataStore:   opt.MetadataStore,
-		root:            opt.Root,
-		records:         make(map[string]*cacheRecord),
+		useCommonSnapshotIDs: opt.UseCommonSnapshotIDs,
+		Snapshotter:          snapshot.NewMergeSnapshotter(context.TODO(), opt.Snapshotter, opt.LeaseManager),
+		ContentStore:         opt.ContentStore,
+		LeaseManager:         opt.LeaseManager,
+		PruneRefChecker:      opt.PruneRefChecker,
+		GarbageCollect:       opt.GarbageCollect,
+		Applier:              opt.Applier,
+		Differ:               opt.Differ,
+		MetadataStore:        opt.MetadataStore,
+		root:                 opt.Root,
+		records:              make(map[string]*cacheRecord),
 	}
 
 	if err := cm.init(context.TODO()); err != nil {
@@ -289,6 +294,9 @@ func (cm *cacheManager) GetByBlob(ctx context.Context, desc ocispecs.Descriptor,
 
 	id := identity.NewID()
 	snapshotID := snapshot.LayerSnapshotID(chainID)
+	if cm.useCommonSnapshotIDs {
+		snapshotID = chainID.String()
+	}
 	if link != nil {
 		snapshotID = link.getSnapshotID()
 		go link.Release(context.WithoutCancel(ctx))
