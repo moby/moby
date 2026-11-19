@@ -170,7 +170,11 @@ sequenceDiagram
     Daemon-->>Client: Chunked response 1
     Daemon-->>Client: Chunked response 2
     Daemon-->>Client: Chunked response 3
-    Daemon-->>Client: Final chunk
+    opt If response authorization is performed
+        Daemon->>AuthZPlugin: Response callback, user
+        Note right of AuthZPlugin: Flushed response data, status, and headers unavailable
+        AuthZPlugin-->>Daemon: Allow
+    end
 ```
 
 ### Connection hijacking
