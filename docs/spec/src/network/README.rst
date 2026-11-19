@@ -34,6 +34,10 @@ gives the conventions that only the networking specs use. It covers these docume
       - A Swarm over time and on the wire: encryption, the wire format, restarts, convergence,
         churn, exhaustion, failure reporting and the firewall integration that is specific to Swarm
 
+In a spec that is not about Swarm, an expectation or defect whose case needs a Swarm, such as a node
+in a Swarm, a Swarm-scoped network, a service or a task, sits in a subsection titled "In a Swarm" at
+the end of the section that holds the expectations of its subject, with its exact and CLI forms.
+
 .. _readme-nodes:
 
 *******
@@ -411,7 +415,8 @@ lists such a requirement adds it to every expectation of the documents that its 
 cover, on its platform, other than the expectations that pin it and those whose *Applies to*
 describes a node that lacks it, whether or not the daemon starts without it. The requirements of
 :doc:`network-common.md <network-common>` cover every networking spec, and those of
-:doc:`swarm-networking.md <swarm-networking>` cover the three Swarm documents.
+:doc:`swarm-networking.md <swarm-networking>` cover the three Swarm documents and the "In a Swarm"
+subsections of the other specs.
 
 Where the expectations that need a host requirement can be selected by their document, section,
 vantage point or ID, such as every expectation of a spec, a ``needextend`` directive next to the

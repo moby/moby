@@ -55,6 +55,34 @@ mode for that address's family is not ``routed``, without
 :drvopt:`com.docker.network.bridge.inhibit_ipv4`, unless the expectation names them
 (:doc:`bridge-networking.md <bridge-networking>`).
 
+.. _swarm-networking-requirements:
+
+**************
+ Requirements
+**************
+
+.. _swarm-networking-rationales:
+
+************
+ Rationales
+************
+
+.. rationale:: The Swarm's bridge and host networks stand for each node's own network
+    :id: RAT-SWARM-PREDEFINED-NETWORKS
+
+    A service that names :network:`bridge` or :network:`host` stores the ID of one of the Swarm's
+    predefined networks, and :api-op:`GET /services/{id}` and :api-op:`GET /tasks` report that
+    ID. The task's container uses the node's own network of that name. The network list leaves the
+    Swarm's predefined networks out, so that it shows each of :network:`bridge` and
+    :network:`host` once, as the network that containers use. A lookup by ID finds them, so that
+    the IDs in services and tasks resolve to a network. A lookup by the name :network:`bridge` or
+    :network:`host` without :api-query:`scope` ``swarm`` finds the node's own network, which is
+    what the name means on every node. Listing them would show two networks of each name on every
+    manager to the tooling that reads the list. A lookup by name that matched them would make the
+    names :network:`bridge` and :network:`host` ambiguous on every manager, and a lookup by ID that
+    did not find them would leave those IDs without a network. Each of these changes should be made
+    on purpose.
+
 .. _swarm-networking-host-requirements:
 
 *******************
@@ -94,7 +122,7 @@ Kernel facilities
 
     *Needed when:* Always
 
-.. needextend:: type == "expectation" and docname in ['network/swarm-networking', 'network/swarm-traffic', 'network/swarm-lifecycle'] and ("linux" in platforms) and "SWARM-HOST-VXLAN" not in pins
+.. needextend:: type == "expectation" and (docname in ['network/swarm-networking', 'network/swarm-traffic', 'network/swarm-lifecycle'] or "In a Swarm" in sections) and ("linux" in platforms) and "SWARM-HOST-VXLAN" not in pins
     :+needs: SWARM-HOST-VXLAN
 
 .. hostreq:: IPv6
@@ -123,7 +151,7 @@ Kernel facilities
 
     *Needed when:* Always
 
-.. needextend:: type == "expectation" and docname in ['network/swarm-networking', 'network/swarm-traffic', 'network/swarm-lifecycle'] and ("linux" in platforms) and "SWARM-HOST-NETNS-VETH-BRIDGE" not in pins
+.. needextend:: type == "expectation" and (docname in ['network/swarm-networking', 'network/swarm-traffic', 'network/swarm-lifecycle'] or "In a Swarm" in sections) and ("linux" in platforms) and "SWARM-HOST-NETNS-VETH-BRIDGE" not in pins
     :+needs: SWARM-HOST-NETNS-VETH-BRIDGE
 
 .. hostreq:: Netfilter hooks for bridged traffic
@@ -137,7 +165,7 @@ Kernel facilities
 
     *Needed when:* The daemon option :daemon-json:`iptables` true
 
-.. needextend:: type == "expectation" and docname in ['network/swarm-networking', 'network/swarm-traffic', 'network/swarm-lifecycle'] and ("linux" in platforms) and "SWARM-HOST-BR-NETFILTER" not in pins
+.. needextend:: type == "expectation" and (docname in ['network/swarm-networking', 'network/swarm-traffic', 'network/swarm-lifecycle'] or "In a Swarm" in sections) and ("linux" in platforms) and "SWARM-HOST-BR-NETFILTER" not in pins
     :+needs: SWARM-HOST-BR-NETFILTER
 
 .. hostreq:: IPVS with firewall marks, round-robin and connection tracking
@@ -210,7 +238,7 @@ the host has. The kernel options that the programs need depend on that implement
     :kconfig:`NETFILTER_XT_MATCH_SCTP`, :kconfig:`NETFILTER_XT_MATCH_BPF`,
     :kconfig:`NETFILTER_XT_MATCH_POLICY`, :kconfig:`NETFILTER_XT_MATCH_OWNER`
 
-.. needextend:: type == "expectation" and docname in ['network/swarm-networking', 'network/swarm-traffic', 'network/swarm-lifecycle'] and ("linux" in platforms) and "SWARM-HOST-IPTABLES-KERNEL" not in pins
+.. needextend:: type == "expectation" and (docname in ['network/swarm-networking', 'network/swarm-traffic', 'network/swarm-lifecycle'] or "In a Swarm" in sections) and ("linux" in platforms) and "SWARM-HOST-IPTABLES-KERNEL" not in pins
     :+needs: SWARM-HOST-IPTABLES-KERNEL
 
 .. hostreq:: Kernel options for iptables from iptables-legacy
@@ -227,7 +255,7 @@ the host has. The kernel options that the programs need depend on that implement
     :kconfig:`IP_NF_NAT`. :kconfig:`IP_NF_IPTABLES_LEGACY` from Linux 6.9, and
     :kconfig:`NETFILTER_XTABLES_LEGACY` from Linux 6.17.
 
-.. needextend:: type == "expectation" and docname in ['network/swarm-networking', 'network/swarm-traffic', 'network/swarm-lifecycle'] and ("linux" in platforms) and "SWARM-HOST-IPTABLES-LEGACY-KERNEL" not in pins
+.. needextend:: type == "expectation" and (docname in ['network/swarm-networking', 'network/swarm-traffic', 'network/swarm-lifecycle'] or "In a Swarm" in sections) and ("linux" in platforms) and "SWARM-HOST-IPTABLES-LEGACY-KERNEL" not in pins
     :+needs: SWARM-HOST-IPTABLES-LEGACY-KERNEL
 
 .. hostreq:: Kernel options for iptables from iptables-nft
@@ -245,7 +273,7 @@ the host has. The kernel options that the programs need depend on that implement
     :kconfig:`NFT_NAT`. Before Linux 5.2, :kconfig:`NFT_CHAIN_ROUTE_IPV4` for the
     :ipt-chain:`OUTPUT` chain of the mangle table.
 
-.. needextend:: type == "expectation" and docname in ['network/swarm-networking', 'network/swarm-traffic', 'network/swarm-lifecycle'] and ("linux" in platforms) and "SWARM-HOST-IPTABLES-NFT-KERNEL" not in pins
+.. needextend:: type == "expectation" and (docname in ['network/swarm-networking', 'network/swarm-traffic', 'network/swarm-lifecycle'] or "In a Swarm" in sections) and ("linux" in platforms) and "SWARM-HOST-IPTABLES-NFT-KERNEL" not in pins
     :+needs: SWARM-HOST-IPTABLES-NFT-KERNEL
 
 .. hostreq:: Kernel options for ip6tables
@@ -293,7 +321,7 @@ Windows facilities
 
     *Needed when:* Always
 
-.. needextend:: type == "expectation" and docname in ['network/swarm-networking', 'network/swarm-traffic', 'network/swarm-lifecycle'] and ("windows" in platforms) and "SWARM-HOST-HNS-OVERLAY" not in pins
+.. needextend:: type == "expectation" and (docname in ['network/swarm-networking', 'network/swarm-traffic', 'network/swarm-lifecycle'] or "In a Swarm" in sections) and ("windows" in platforms) and "SWARM-HOST-HNS-OVERLAY" not in pins
     :+needs: SWARM-HOST-HNS-OVERLAY
 
 .. _swarm-networking-host-configuration:
@@ -315,7 +343,7 @@ These are requirements of each node, and of the physical network between nodes.
 
     *Needed when:* A node in a Swarm
 
-.. needextend:: type == "expectation" and docname in ['network/swarm-networking', 'network/swarm-traffic', 'network/swarm-lifecycle'] and ("linux" in platforms or "windows" in platforms) and "SWARM-HOST-FIREWALL-CLUSTER-PORTS" not in pins
+.. needextend:: type == "expectation" and (docname in ['network/swarm-networking', 'network/swarm-traffic', 'network/swarm-lifecycle'] or "In a Swarm" in sections) and ("linux" in platforms or "windows" in platforms) and "SWARM-HOST-FIREWALL-CLUSTER-PORTS" not in pins
     :+needs: SWARM-HOST-FIREWALL-CLUSTER-PORTS
 
 .. hostreq:: Firewalls pass IP protocol 50 (ESP)
@@ -1120,6 +1148,18 @@ The expectations in this subsection hold for any Swarm-scoped network, whatever 
 
     :cli:`docker network ls` on a manager lists each Swarm-scoped network.
 
+.. expectation:: On a manager, GET /networks never lists the Swarm's bridge or host network
+    :id: SWARM-SCOPED-PREDEFINED-NOT-LISTED
+    :observed_from: api:mgr
+    :depends_on: none
+    :platforms: linux
+    :rationale: RAT-SWARM-PREDEFINED-NETWORKS
+
+    On a manager, :api-op:`GET /networks` does not list the Swarm's predefined networks, with or
+    without filters. This includes the filters :api-query:`scope=swarm`, :api-query:`type=builtin`,
+    :api-query:`type=custom` and :api-query:`dangling=true`, and an :api-query:`id` filter with
+    the full ID of one of them.
+
 .. expectation:: A container on an attachable network starts on any active node
     :id: SWARM-SCOPED-ATTACHABLE-START
     :observed_from: api:active
@@ -1180,8 +1220,7 @@ The expectations in this subsection hold for any Swarm-scoped network, whatever 
     is already attached to an attachable Swarm-scoped network
 
     :api-op:`POST /networks/{id}/connect` to that network, for that container, responds 409. The
-    container's addresses on that network do not change. See
-    :ref:`network-common-known-divergences-non-goals`.
+    container's addresses on that network do not change.
 
 .. expectation:: A container's attachment task disappears once it disconnects or stops
     :id: SWARM-SCOPED-ATTACHMENT-TASK-REMOVED
@@ -1620,8 +1659,7 @@ The expectations in this subsection hold for any Swarm-scoped network, whatever 
 
     On the first manager, :api-op:`POST /networks/create` for a Swarm-scoped network of any driver,
     with :api-field:`ConfigFrom` naming that config-only network, responds 404. See
-    :ref:`swarm-lifecycle-known-divergences-non-goals` and
-    :ref:`network-common-known-divergences-non-goals`.
+    :ref:`swarm-lifecycle-known-divergences-non-goals`.
 
 .. expectation:: An overlay network created with ConfigFrom responds 201
     :id: SWARM-SCOPED-CONFIG-FROM-OVERLAY

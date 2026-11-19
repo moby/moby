@@ -17,6 +17,10 @@ gives the conventions that only the networking specs use. It covers these docume
 | [swarm-traffic.md](swarm-traffic.md)         | Traffic in a Swarm: what a container observes, reachability between containers, service discovery, load balancing, published ports and egress                                                   |
 | [swarm-lifecycle.md](swarm-lifecycle.md)     | A Swarm over time and on the wire: encryption, the wire format, restarts, convergence, churn, exhaustion, failure reporting and the firewall integration that is specific to Swarm              |
 
+In a spec that is not about Swarm, an expectation or defect whose case needs a Swarm, such as a node
+in a Swarm, a Swarm-scoped network, a service or a task, sits in a subsection titled "In a Swarm" at
+the end of the section that holds the expectations of its subject, with its exact and CLI forms.
+
 <a id="readme-nodes"></a>
 
 ## Nodes
@@ -401,7 +405,8 @@ lists such a requirement adds it to every expectation of the documents that its 
 cover, on its platform, other than the expectations that pin it and those whose *Applies to*
 describes a node that lacks it, whether or not the daemon starts without it. The requirements of
 [network-common.md](network-common.md) cover every networking spec, and those of
-[swarm-networking.md](swarm-networking.md) cover the three Swarm documents.
+[swarm-networking.md](swarm-networking.md) cover the three Swarm documents and the "In a Swarm"
+subsections of the other specs.
 
 Where the expectations that need a host requirement can be selected by their document, section,
 vantage point or ID, such as every expectation of a spec, a `needextend` directive next to the
@@ -423,6 +428,7 @@ internal plumbing, such as which kind of interface it creates or the rules it pr
 network namespace.
 
 * [Common networking surface area](network-common.md)
+  * [Requirements](network-common.md#network-common-requirements)
   * [Rationales](network-common.md#network-common-rationales)
   * [Host requirements](network-common.md#network-common-host-requirements)
   * [Network API](network-common.md#network-common-network-api)
@@ -431,7 +437,6 @@ network namespace.
   * [`/etc/hosts`](network-common.md#network-common-file-etc-hosts)
   * [Driver properties](network-common.md#network-common-driver-properties)
   * [Daemon restart](network-common.md#network-common-daemon-restart)
-  * [Known divergences & non-goals](network-common.md#network-common-known-divergences-non-goals)
 * [Bridge networking surface area](bridge-networking.md)
   * [Rationales](bridge-networking.md#bridge-networking-rationales)
   * [Host requirements](bridge-networking.md#bridge-networking-host-requirements)
@@ -455,6 +460,8 @@ network namespace.
   * [Known divergences & non-goals](container-dns.md#container-dns-known-divergences-non-goals)
   * [Deliberately not asserted](container-dns.md#container-dns-deliberately-not-asserted)
 * [Swarm networking surface area](swarm-networking.md)
+  * [Requirements](swarm-networking.md#swarm-networking-requirements)
+  * [Rationales](swarm-networking.md#swarm-networking-rationales)
   * [Host requirements](swarm-networking.md#swarm-networking-host-requirements)
   * [Interop premise](swarm-networking.md#swarm-networking-interop-premise)
   * [Cluster & node configuration](swarm-networking.md#swarm-networking-cluster-node-configuration)
@@ -462,6 +469,7 @@ network namespace.
   * [Known divergences & non-goals](swarm-networking.md#swarm-networking-known-divergences-non-goals)
   * [Deliberately not asserted](swarm-networking.md#swarm-networking-deliberately-not-asserted)
 * [Swarm networking: traffic](swarm-traffic.md)
+  * [Requirements](swarm-traffic.md#swarm-traffic-requirements)
   * [Observable state inside a container](swarm-traffic.md#swarm-traffic-observable-state-inside-a-container)
   * [East-west reachability](swarm-traffic.md#swarm-traffic-east-west-reachability)
   * [Service discovery](swarm-traffic.md#swarm-traffic-service-discovery)
