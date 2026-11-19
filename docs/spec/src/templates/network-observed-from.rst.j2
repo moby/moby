@@ -1,0 +1,8 @@
+.. list-table::
+    :header-rows: 1
+
+    - - Code
+      - Vantage point
+{% for k, v in network_observed_from|items %}    - - ``{{ k }}``
+      - {{ v }}
+{% endfor %}

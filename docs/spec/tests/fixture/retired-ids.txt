@@ -1,0 +1,3 @@
+# The retired IDs of the fixture.
+    # An indented comment, which is not an ID.
+NET-TEST-RETIRED  # retired, with a note

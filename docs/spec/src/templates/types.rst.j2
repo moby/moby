@@ -1,0 +1,10 @@
+.. list-table::
+    :header-rows: 1
+
+    - - Type
+      - Directive
+      - What it is
+{% for t in types %}    - - {{ t.title }}
+      - ``{{ t.directive }}``
+      - {{ type_docs[t.directive] }}
+{% endfor %}
