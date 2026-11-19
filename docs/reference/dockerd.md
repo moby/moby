@@ -811,7 +811,13 @@ For information about how to create an authorization plugin, refer to the
 
 The `--apparmor-profile` option sets the path to an AppArmor profile definition
 for Docker's default `docker-default` container profile. This option is only
-supported on Linux hosts. The file can be a static profile or a Go template.
+supported on Linux hosts.
+
+The file can be a static AppArmor profile or a Go template. A file without Go
+template actions renders unchanged, so you can use an existing static profile
+without converting it to a template. A static profile must declare
+`docker-default`, and provide declarations and includes that are valid on the
+host.
 
 The equivalent `daemon.json` configuration is:
 
@@ -821,8 +827,33 @@ The equivalent `daemon.json` configuration is:
 }
 ```
 
-Restart the daemon to apply changes. For template values, safe file placement,
-security considerations, and verification, see
+Go templates can use the following values to adapt a profile to the host:
+
+- `.Name` is the required profile name, `docker-default`.
+- `.Abi` is `abi/3.0` when that AppArmor ABI is available, or an empty string
+  otherwise.
+- `.Imports` contains global-scope host declarations. It contains
+  `#include <tunables/global>` when available, or `@{PROC}=/proc/` otherwise.
+- `.InnerImports` contains `#include <abstractions/base>` when that
+  profile-scope abstraction is available.
+- `.DaemonProfile` is the AppArmor profile applied to the daemon, or
+  `unconfined`.
+
+Use the [built-in profile template](https://github.com/moby/profiles/blob/main/apparmor/template.go)
+as the starting point for a portable custom policy.
+
+The daemon reads and parses the file at startup. If AppArmor is enabled, the
+daemon renders the file and loads the result with `apparmor_parser`, replacing
+the loaded `docker-default` profile. Restart the daemon to apply changes to the
+file. If the file can't be read or parsed, the daemon fails to start. If
+`apparmor_parser` rejects the rendered profile, the daemon logs an error and
+doesn't update the loaded profile.
+
+This option only changes Docker's default AppArmor profile. Containers
+configured with another profile, or with `unconfined`, continue to use that
+setting.
+
+For safe file placement, security considerations, and verification, see
 [Customize the default AppArmor profile](https://docs.docker.com/engine/security/apparmor/#customize-the-default-profile).
 
 ### Daemon user namespace options
