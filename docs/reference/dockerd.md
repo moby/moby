@@ -1561,6 +1561,9 @@ The list of currently supported options that can be reconfigured is this:
 | `max-concurrent-uploads`           | Configures the max concurrent uploads for each push.                                                        |
 | `max-download-attempts`            | Configures the max download attempts for each pull.                                                         |
 | `default-runtime`                  | Configures the runtime to be used if not is specified at container creation.                                |
+| `default-shm-size`                 | Configures the default shm size for new containers (Linux only).                                            |
+| `default-ipc-mode`                 | Configures the default IPC mode for new containers (Linux only).                                            |
+| `default-cgroupns-mode`            | Configures the default cgroup namespace mode for new containers (Linux only).                               |
 | `default-stop-timeout`             | Configures the timeout for stopping containers that have no container-specific timeout.                     |
 | `runtimes`                         | Configures the list of available OCI runtimes that can be used to run containers.                           |
 | `authorization-plugin`             | Specifies the authorization plugins to use.                                                                 |
