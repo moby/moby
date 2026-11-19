@@ -3,24 +3,53 @@
 # ipvlan networking surface area
 
 Scope: the ipvlan network driver, as observable from outside the daemon. Every expectation here
-holds on Linux nodes. An expectation about `POST /networks/create` or `docker network create` holds for a network that is not Swarm-scoped.
+holds on Linux nodes. An expectation about `POST /networks/create`, `DELETE /networks/{id}` or `docker network create` holds for a network that is not Swarm-scoped.
 
-This spec is a stub. It holds expectations that belong to the ipvlan driver. They come from reviews
-of the specs' coverage. It is not yet a complete account of the ipvlan driver. [../README.md](../README.md) gives the model that this spec follows: the items of a spec, their categories and what
-their verdicts depend on. [README.md](README.md) gives the conventions of the networking specs,
-such as vantage points, daemon settings, timing and convergence ceilings, and host requirements.
-[network-common.md](network-common.md) covers what every network driver must do, including the
-expectations for a driver that does not accept an endpoint MAC address.
+This spec holds expectations that belong to the ipvlan driver. It is not yet a complete account of
+the ipvlan driver. [../README.md](../README.md) gives the model that this spec follows: the items
+of a spec, their categories and what their verdicts depend on. [README.md](README.md) gives the
+conventions of the networking specs, such as vantage points, daemon settings, timing and convergence
+ceilings, and host requirements. [network-common.md](network-common.md) covers what every network
+driver must do, including the expectations for a driver that does not accept an endpoint MAC
+address.
+
+<a id="ipvlan-networking-requirements"></a>
+
+## Requirements
+
+<a id="REQ-IPVL-NO-PARENT-INTERNAL"></a>
+
+**Requirement REQ-IPVL-NO-PARENT-INTERNAL**: An ipvlan network without a parent is isolated as an internal network is
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/network/drivers/ipvlan/#ipvlan-l2-mode-example-usage
+
+*Refined by:* [IPVL-NETIF-NO-PARENT-ISOLATED](#IPVL-NETIF-NO-PARENT-ISOLATED), [IPVL-NETIF-NO-PARENT-SAME-NETWORK](#IPVL-NETIF-NO-PARENT-SAME-NETWORK) · *Violated by:* [IPVL-NETIF-NO-PARENT-OTHER-SUBNET](#IPVL-NETIF-NO-PARENT-OTHER-SUBNET)
+
+Leaving out the parent of an ipvlan network has the same result as --internal: it isolates the
+network completely. Containers attached to the network communicate with each other, and with
+nothing external to it.
+
+<a id="REQ-IPVL-VLAN-PARENT"></a>
+
+**Requirement REQ-IPVL-VLAN-PARENT**: A VLAN parent that the network create adds is deleted with the network
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/network/drivers/ipvlan/#ipvlan-8021q-trunk-l2-mode-example-usage
+
+*Refines:* [PRIN-OWNS-ONLY-ITS-OWN](../principles.md#PRIN-OWNS-ONLY-ITS-OWN) · *Refined by:* [IPVL-NETIF-VLAN-PARENT-CREATED](#IPVL-NETIF-VLAN-PARENT-CREATED), [IPVL-NETIF-VLAN-PARENT-KEPT](#IPVL-NETIF-VLAN-PARENT-KEPT), [IPVL-NETIF-VLAN-PARENT-REMOVED](#IPVL-NETIF-VLAN-PARENT-REMOVED) · *Violated by:* [IPVL-NETIF-STACKED-VLAN-PARENT-REFUSED](#IPVL-NETIF-STACKED-VLAN-PARENT-REFUSED)
+
+An ipvlan network's parent can be a VLAN sub-interface named \<interface>.\<VLAN ID>. If the
+sub-interface does not exist, docker network create creates it, and docker network rm deletes
+it. The operator can instead create and manage the sub-interface completely; docker network rm
+deletes only a sub-interface that Docker manages.
 
 <a id="ipvlan-networking-host-requirements"></a>
 
 ## Host requirements
 
 The conventions for this section are in [README.md](README.md#readme-host-requirements). The ipvlan
-driver also needs the requirements in [Host requirements](network-common.md#network-common-host-requirements). The daemon needs
-Linux 4.2 or later for an ipvlan network. It checks the kernel version, and does not probe for
-ipvlan links. The check guards against defects in the L2 mode of ipvlan before Linux 4.2, which a
-probe cannot detect.
+driver also needs the host requirements of [network-common.md](network-common.md#network-common-host-requirements). The daemon needs Linux 4.2 or later for an ipvlan network. It
+checks the kernel version, and does not probe for ipvlan links. The ipvlan driver documentation
+gives Linux 4.2 as the minimum, and says that support in earlier kernels is buggy.
 
 <a id="ipvlan-networking-kernel-facilities"></a>
 
@@ -32,11 +61,11 @@ probe cannot detect.
 
 *Platforms:* linux · *Kind:* os · *Kernel options:* `IPVLAN`
 
-*Pinned by:* [IPVL-NETIF-KERNEL-TOO-OLD](#IPVL-NETIF-KERNEL-TOO-OLD), [IPVL-NETIF-NO-IPVLAN](#IPVL-NETIF-NO-IPVLAN) · *Needed by:* [IPVL-NETIF-HTTP500-REFUSED](#IPVL-NETIF-HTTP500-REFUSED), [IPVL-NETIF-NO-VLAN](#IPVL-NETIF-NO-VLAN), [IPVL-OPT-MAC-ADDRESS-REFUSED-CONNECT-HTTP500](#IPVL-OPT-MAC-ADDRESS-REFUSED-CONNECT-HTTP500), [NET-DRVPROP-ADDS-INTERFACE](network-common.md#NET-DRVPROP-ADDS-INTERFACE), [NET-DRVPROP-ENDPOINT-MAC](network-common.md#NET-DRVPROP-ENDPOINT-MAC), [NET-IFACE-MACVLAN-VLAN-PARENT-REMOVED-IPVLAN](network-common.md#NET-IFACE-MACVLAN-VLAN-PARENT-REMOVED-IPVLAN)
+*Pinned by:* [IPVL-NETIF-KERNEL-TOO-OLD](#IPVL-NETIF-KERNEL-TOO-OLD), [IPVL-NETIF-NO-IPVLAN](#IPVL-NETIF-NO-IPVLAN) · *Needed by:* [IPVL-NETIF-HTTP500-REFUSED](#IPVL-NETIF-HTTP500-REFUSED), [IPVL-NETIF-MODE-FLAG-INVALID](#IPVL-NETIF-MODE-FLAG-INVALID), [IPVL-NETIF-MODE-FLAG-INVALID-HTTP500](#IPVL-NETIF-MODE-FLAG-INVALID-HTTP500), [IPVL-NETIF-NO-PARENT-ISOLATED](#IPVL-NETIF-NO-PARENT-ISOLATED), [IPVL-NETIF-NO-PARENT-OTHER-SUBNET](#IPVL-NETIF-NO-PARENT-OTHER-SUBNET), [IPVL-NETIF-NO-PARENT-REMOVED](#IPVL-NETIF-NO-PARENT-REMOVED), [IPVL-NETIF-NO-PARENT-SAME-NETWORK](#IPVL-NETIF-NO-PARENT-SAME-NETWORK), [IPVL-NETIF-NO-VLAN](#IPVL-NETIF-NO-VLAN), [IPVL-NETIF-PARENT-INVALID](#IPVL-NETIF-PARENT-INVALID), [IPVL-NETIF-STACKED-VLAN-PARENT-REFUSED](#IPVL-NETIF-STACKED-VLAN-PARENT-REFUSED), [IPVL-NETIF-VLAN-PARENT-CREATED](#IPVL-NETIF-VLAN-PARENT-CREATED), [IPVL-NETIF-VLAN-PARENT-KEPT](#IPVL-NETIF-VLAN-PARENT-KEPT), [IPVL-NETIF-VLAN-PARENT-REMOVED](#IPVL-NETIF-VLAN-PARENT-REMOVED), [IPVL-NETIF-VLAN-PARENT-REMOVED-MACVLAN](#IPVL-NETIF-VLAN-PARENT-REMOVED-MACVLAN), [IPVL-OPT-MAC-ADDRESS-REFUSED-CONNECT-HTTP500](#IPVL-OPT-MAC-ADDRESS-REFUSED-CONNECT-HTTP500), [IPVL-OPT-MAC-ADDRESS-REFUSED-START-HTTP500](#IPVL-OPT-MAC-ADDRESS-REFUSED-START-HTTP500), [IPVL-OPT-MAC-ADDRESS-UNCHECKED](#IPVL-OPT-MAC-ADDRESS-UNCHECKED), [NET-DRVPROP-ADDS-INTERFACE](network-common.md#NET-DRVPROP-ADDS-INTERFACE), [NET-DRVPROP-ENDPOINT-MAC](network-common.md#NET-DRVPROP-ENDPOINT-MAC), [NET-IFACE-MACVLAN-VLAN-PARENT-REMOVED-IPVLAN](network-common.md#NET-IFACE-MACVLAN-VLAN-PARENT-REMOVED-IPVLAN)
 
 *Facility:* ipvlan links, in Linux 4.2 or later
 
-*Needed when:* Always
+*Needed when:* An ipvlan network
 
 <a id="needextend-network-ipvlan-networking-0"></a>
 
@@ -45,6 +74,8 @@ probe cannot detect.
 **Host requirement IPVL-HOST-DUMMY**: Dummy links
 
 *Platforms:* linux · *Kind:* os · *Kernel options:* `DUMMY` · *Tags:* no-parent
+
+*Needed by:* [IPVL-NETIF-NO-PARENT-ISOLATED](#IPVL-NETIF-NO-PARENT-ISOLATED), [IPVL-NETIF-NO-PARENT-OTHER-SUBNET](#IPVL-NETIF-NO-PARENT-OTHER-SUBNET), [IPVL-NETIF-NO-PARENT-REMOVED](#IPVL-NETIF-NO-PARENT-REMOVED), [IPVL-NETIF-NO-PARENT-SAME-NETWORK](#IPVL-NETIF-NO-PARENT-SAME-NETWORK)
 
 *Needed when:* A network without a `parent`
 
@@ -56,7 +87,7 @@ Not pinned. The error for a missing dummy link does not name the facility.
 
 *Platforms:* linux · *Kind:* os · *Kernel options:* `VLAN_8021Q` · *Tags:* vlan-parent
 
-*Pinned by:* [IPVL-NETIF-NO-VLAN](#IPVL-NETIF-NO-VLAN) · *Needed by:* [NET-IFACE-MACVLAN-VLAN-PARENT-REMOVED-IPVLAN](network-common.md#NET-IFACE-MACVLAN-VLAN-PARENT-REMOVED-IPVLAN)
+*Pinned by:* [IPVL-NETIF-NO-VLAN](#IPVL-NETIF-NO-VLAN) · *Needed by:* [IPVL-NETIF-VLAN-PARENT-CREATED](#IPVL-NETIF-VLAN-PARENT-CREATED), [IPVL-NETIF-VLAN-PARENT-KEPT](#IPVL-NETIF-VLAN-PARENT-KEPT), [IPVL-NETIF-VLAN-PARENT-REMOVED](#IPVL-NETIF-VLAN-PARENT-REMOVED), [IPVL-NETIF-VLAN-PARENT-REMOVED-MACVLAN](#IPVL-NETIF-VLAN-PARENT-REMOVED-MACVLAN), [NET-IFACE-MACVLAN-VLAN-PARENT-REMOVED-IPVLAN](network-common.md#NET-IFACE-MACVLAN-VLAN-PARENT-REMOVED-IPVLAN)
 
 *Needed when:* A network with a `parent` of the form `<interface>.<VLAN ID>`
 
@@ -66,20 +97,45 @@ Not pinned. The error for a missing dummy link does not name the facility.
 
 <a id="IPVL-OPT-MAC-ADDRESS-REFUSED-CONNECT-HTTP500"></a>
 
-**Expectation (detector) IPVL-OPT-MAC-ADDRESS-REFUSED-CONNECT-HTTP500**: An ipvlan endpoint with a MacAddress responds 500 at start or connect
+**Expectation (detector) IPVL-OPT-MAC-ADDRESS-REFUSED-CONNECT-HTTP500**: An ipvlan connect with a MacAddress responds 500
 
 *Observed from:* api · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [IPVL-HOST-IPVLAN](#IPVL-HOST-IPVLAN), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Exact form of:* [NET-IFACE-MAC-ADDRESS-REFUSED-CONNECT](network-common.md#NET-IFACE-MAC-ADDRESS-REFUSED-CONNECT) · *Pins:* [IPVL-NETIF-HTTP500-REFUSED](#IPVL-NETIF-HTTP500-REFUSED) · *Needs:* [IPVL-HOST-IPVLAN](#IPVL-HOST-IPVLAN), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerned by:* [IPVL-NETIF-HTTP500-REFUSED](#IPVL-NETIF-HTTP500-REFUSED)
 
-*Applies to:* An ipvlan network
+*Applies to:* An ipvlan network, and a running container that is not attached to it
 
-`POST /containers/{id}/start` for a created or stopped container whose endpoint on that
-network sets `MacAddress`, created at API version 1.44 or later, responds 500.
-`POST /networks/{id}/connect` to that network for a running container, with
-`MacAddress` set, at API version 1.54 or later, also responds 500. Both messages
-contain `ipvlan interfaces do not support custom mac address assignment`. See
-[Known divergences & non-goals](#ipvlan-networking-known-divergences-non-goals).
+`POST /networks/{id}/connect` to that network, for the container, with
+`MacAddress` set, at API version 1.54 or later, responds 500, with a message that
+contains `ipvlan interfaces do not support custom mac address assignment`.
+
+<a id="IPVL-OPT-MAC-ADDRESS-REFUSED-START-HTTP500"></a>
+
+**Expectation (detector) IPVL-OPT-MAC-ADDRESS-REFUSED-START-HTTP500**: Starting an ipvlan container with a MacAddress responds 500
+
+*Observed from:* api · *Depends on:* none · *Platforms:* linux
+
+*Exact form of:* [NET-IFACE-MAC-ADDRESS-REFUSED-START](network-common.md#NET-IFACE-MAC-ADDRESS-REFUSED-START) · *Pins:* [IPVL-NETIF-HTTP500-REFUSED](#IPVL-NETIF-HTTP500-REFUSED) · *Needs:* [IPVL-HOST-IPVLAN](#IPVL-HOST-IPVLAN), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerned by:* [IPVL-NETIF-HTTP500-REFUSED](#IPVL-NETIF-HTTP500-REFUSED), [IPVL-OPT-MAC-ADDRESS-UNCHECKED](#IPVL-OPT-MAC-ADDRESS-UNCHECKED)
+
+*Applies to:* An ipvlan network, and a created or stopped container created at API version 1.44
+or later whose endpoint on that network sets `MacAddress`
+
+`POST /containers/{id}/start` for the container responds 500, with a message that
+contains `ipvlan interfaces do not support custom mac address assignment`.
+
+<a id="IPVL-OPT-MAC-ADDRESS-UNCHECKED"></a>
+
+**Expectation (defect) IPVL-OPT-MAC-ADDRESS-UNCHECKED**: MacAddress on ipvlan endpoints is not checked at create or connect
+
+*Observed from:* api · *Depends on:* none · *Platforms:* linux
+
+*Needs:* [IPVL-HOST-IPVLAN](#IPVL-HOST-IPVLAN), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerns:* [IPVL-OPT-MAC-ADDRESS-REFUSED-START-HTTP500](#IPVL-OPT-MAC-ADDRESS-REFUSED-START-HTTP500), [NET-IFACE-MAC-ADDRESS-REFUSED-START](network-common.md#NET-IFACE-MAC-ADDRESS-REFUSED-START) · *Violates:* [PRIN-FAIL-FAST](../principles.md#PRIN-FAIL-FAST)
+
+At API version 1.44 or later, `POST /containers/create` for a container whose endpoint
+on an ipvlan network sets `MacAddress` responds 201. At API version 1.54 or later,
+`POST /networks/{id}/connect` to an ipvlan network, for a created or stopped container,
+with `MacAddress` set, responds 200. Only `POST /containers/{id}/start` for
+the container refuses the endpoint.
 
 <a id="ipvlan-networking-networks-and-interfaces"></a>
 
@@ -96,8 +152,7 @@ contain `ipvlan interfaces do not support custom mac address assignment`. See
 *Applies to:* A Linux host whose kernel version is older than 4.2
 
 `POST /networks/create` for an ipvlan network responds 500, with a message that contains
-`kernel version failed to meet the minimum ipvlan kernel requirement`. See [Host
-requirements](#ipvlan-networking-host-requirements).
+`kernel version failed to meet the minimum ipvlan kernel requirement`.
 
 <a id="IPVL-NETIF-NO-IPVLAN"></a>
 
@@ -111,37 +166,222 @@ requirements](#ipvlan-networking-host-requirements).
 container with an endpoint on an ipvlan network
 
 `POST /containers/{id}/start` for the container responds 500, with a message that
-contains `failed to create the ipvlan port`. See [Host requirements](#ipvlan-networking-host-requirements).
+contains `failed to create the ipvlan port`.
 
 <a id="IPVL-NETIF-NO-VLAN"></a>
 
-**Expectation (detector) IPVL-NETIF-NO-VLAN**: Without VLAN links, an ipvlan network on a VLAN parent responds 500
+**Expectation (detector) IPVL-NETIF-NO-VLAN**: Without VLAN links, creating an ipvlan network on a VLAN parent responds 500
 
 *Observed from:* api · *Depends on:* none · *Platforms:* linux
 
-*Pins:* [IPVL-HOST-VLAN](#IPVL-HOST-VLAN) · *Needs:* [IPVL-HOST-IPVLAN](#IPVL-HOST-IPVLAN), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Pins:* [IPVL-HOST-VLAN](#IPVL-HOST-VLAN) · *Needs:* [IPVL-HOST-IPVLAN](#IPVL-HOST-IPVLAN), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Does not cover:* A VLAN parent on an interface whose name has a dot responds 500 ([IPVL-NETIF-STACKED-VLAN-PARENT-REFUSED](#IPVL-NETIF-STACKED-VLAN-PARENT-REFUSED))
 
-*Applies to:* A Linux host whose kernel does not offer VLAN links
+*Applies to:* A Linux host whose kernel does not offer VLAN links, an existing interface
+`<interface>`, and a VLAN ID from 1 to 4094, where `<interface>.<VLAN ID>` is not an
+interface of the node and is not the `parent` of another ipvlan network that is not
+Swarm-scoped, or of a Swarm-scoped ipvlan network that the node has a local attachment to
 
-`POST /networks/create` for an ipvlan network whose `parent` is
-`<interface>.<VLAN ID>`, for an existing interface `<interface>` that does not yet have that
-VLAN sub-interface, responds 500, with a message that contains `vlan link`. See
-[Host requirements](#ipvlan-networking-host-requirements).
+`POST /networks/create` for an ipvlan network that uses the default IPAM driver, whose
+`parent` is `<interface>.<VLAN ID>`, whose `ipvlan_mode` is unset, empty,
+`l2`, `l3` or `l3s`, and whose `ipvlan_flag` is unset, empty, `bridge`,
+`private` or `vepa`, responds 500, with a message that contains `vlan link`.
 
-<a id="ipvlan-networking-known-divergences-non-goals"></a>
+<a id="IPVL-NETIF-MODE-FLAG-INVALID"></a>
 
-## Known divergences & non-goals
+**Expectation (contract) IPVL-NETIF-MODE-FLAG-INVALID**: An ipvlan network with an unknown mode or flag is not created
+
+*Observed from:* api · *Depends on:* none · *Platforms:* linux
+
+*Refines:* [PRIN-FAILS-CLOSED](../principles.md#PRIN-FAILS-CLOSED), [REQ-NET-NETWORK-CREATE-ERRORS](network-common.md#REQ-NET-NETWORK-CREATE-ERRORS) · *Exact form:* [IPVL-NETIF-MODE-FLAG-INVALID-HTTP500](#IPVL-NETIF-MODE-FLAG-INVALID-HTTP500) · *Needs:* [IPVL-HOST-IPVLAN](#IPVL-HOST-IPVLAN), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerned by:* [IPVL-NETIF-HTTP500-REFUSED](#IPVL-NETIF-HTTP500-REFUSED)
+
+`POST /networks/create` for an ipvlan network with `ipvlan_mode` set to a
+non-empty value other than `l2`, `l3` or `l3s` responds with a 4xx or 5xx status. So does
+a request with `ipvlan_flag` set to a non-empty value other than `bridge`, `private`
+or `vepa`. `GET /networks` then does not list a network with the request's
+`Name`.
+
+<a id="IPVL-NETIF-MODE-FLAG-INVALID-HTTP500"></a>
+
+**Expectation (detector) IPVL-NETIF-MODE-FLAG-INVALID-HTTP500**: An unknown ipvlan mode or flag responds 500
+
+*Observed from:* api · *Depends on:* none · *Platforms:* linux
+
+*Exact form of:* [IPVL-NETIF-MODE-FLAG-INVALID](#IPVL-NETIF-MODE-FLAG-INVALID) · *Pins:* [IPVL-NETIF-HTTP500-REFUSED](#IPVL-NETIF-HTTP500-REFUSED) · *Needs:* [IPVL-HOST-IPVLAN](#IPVL-HOST-IPVLAN), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerned by:* [IPVL-NETIF-HTTP500-REFUSED](#IPVL-NETIF-HTTP500-REFUSED)
+
+`POST /networks/create` for an ipvlan network with `ipvlan_mode` set to a
+non-empty value other than `l2`, `l3` or `l3s` responds 500, with a message that contains
+`requested ipvlan mode`. A request with `ipvlan_flag` set to a non-empty
+value other than `bridge`, `private` or `vepa` responds 500, with a message that contains
+`requested ipvlan flag`.
+
+<a id="IPVL-NETIF-PARENT-INVALID"></a>
+
+**Expectation (contract) IPVL-NETIF-PARENT-INVALID**: An ipvlan network on a parent that the driver refuses is not created
+
+*Observed from:* api · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [PRIN-FAILS-CLOSED](../principles.md#PRIN-FAILS-CLOSED), [REQ-NET-NETWORK-CREATE-ERRORS](network-common.md#REQ-NET-NETWORK-CREATE-ERRORS) · *Needs:* [IPVL-HOST-IPVLAN](#IPVL-HOST-IPVLAN), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerned by:* [IPVL-NETIF-HTTP500-REFUSED](#IPVL-NETIF-HTTP500-REFUSED)
+
+`POST /networks/create` for an ipvlan network responds with a 4xx or 5xx status when its
+`parent` is `lo`, or is the `parent` of another ipvlan network that is
+not Swarm-scoped, or of a Swarm-scoped ipvlan network that the node has a local attachment to.
+So does a request whose `parent` is not an interface of the node and is one of these
+names: `lo.<VLAN ID>`; a name `<interface>.<VLAN ID>` of more than 15 characters; or
+`<interface>.<VLAN ID>` for an interface `<interface>` that already has an 802.1Q VLAN link
+with that VLAN ID under another name. So does a request whose `parent` is non-empty, is
+not an interface of the node, and is not `<interface>.<VLAN ID>` for an interface
+`<interface>` of the node and a VLAN ID from 1 to 4094. `GET /networks` then does not
+list a network with the request's `Name`.
 
 <a id="IPVL-NETIF-HTTP500-REFUSED"></a>
 
-**Expectation (detector) IPVL-NETIF-HTTP500-REFUSED**: HTTP 500 for refused requests
+**Expectation (defect) IPVL-NETIF-HTTP500-REFUSED**: Refused ipvlan MAC address, mode, flag and parent requests respond 500
+
+*Observed from:* api · *Depends on:* os-linux · *Platforms:* linux
+
+*Pinned by:* [IPVL-NETIF-MODE-FLAG-INVALID-HTTP500](#IPVL-NETIF-MODE-FLAG-INVALID-HTTP500), [IPVL-OPT-MAC-ADDRESS-REFUSED-CONNECT-HTTP500](#IPVL-OPT-MAC-ADDRESS-REFUSED-CONNECT-HTTP500), [IPVL-OPT-MAC-ADDRESS-REFUSED-START-HTTP500](#IPVL-OPT-MAC-ADDRESS-REFUSED-START-HTTP500) · *Needs:* [IPVL-HOST-IPVLAN](#IPVL-HOST-IPVLAN), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerns:* [IPVL-NETIF-MODE-FLAG-INVALID](#IPVL-NETIF-MODE-FLAG-INVALID), [IPVL-NETIF-MODE-FLAG-INVALID-HTTP500](#IPVL-NETIF-MODE-FLAG-INVALID-HTTP500), [IPVL-NETIF-PARENT-INVALID](#IPVL-NETIF-PARENT-INVALID), [IPVL-OPT-MAC-ADDRESS-REFUSED-CONNECT-HTTP500](#IPVL-OPT-MAC-ADDRESS-REFUSED-CONNECT-HTTP500), [IPVL-OPT-MAC-ADDRESS-REFUSED-START-HTTP500](#IPVL-OPT-MAC-ADDRESS-REFUSED-START-HTTP500), [NET-IFACE-MAC-ADDRESS-REFUSED-CONNECT](network-common.md#NET-IFACE-MAC-ADDRESS-REFUSED-CONNECT), [NET-IFACE-MAC-ADDRESS-REFUSED-START](network-common.md#NET-IFACE-MAC-ADDRESS-REFUSED-START) · *Violates:* [REQ-NET-API-ERROR-STATUS](network-common.md#REQ-NET-API-ERROR-STATUS)
+
+Each request below is refused, and responds 500. The first request is `POST /containers/{id}/start` for a container whose endpoint on an ipvlan network sets
+`MacAddress`. The second is `POST /networks/{id}/connect` to an ipvlan
+network for a running container, with `MacAddress` set, at API version 1.54 or later.
+The third is `POST /networks/create` for an ipvlan network with an `ipvlan_mode`
+or `ipvlan_flag` value that the driver does not accept, or with a `parent` that
+[*IPVL-NETIF-PARENT-INVALID*](#IPVL-NETIF-PARENT-INVALID) names.
+
+<a id="IPVL-NETIF-NO-PARENT-ISOLATED"></a>
+
+**Expectation (contract) IPVL-NETIF-NO-PARENT-ISOLATED**: A container on an ipvlan network without a parent reaches nothing outside it
+
+*Observed from:* ctr · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-IPVL-NO-PARENT-INTERNAL](#REQ-IPVL-NO-PARENT-INTERNAL) · *Needs:* [IPVL-HOST-DUMMY](#IPVL-HOST-DUMMY), [IPVL-HOST-IPVLAN](#IPVL-HOST-IPVLAN), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A container attached only to an ipvlan network that was created without a
+`parent`
+
+The container cannot reach addresses outside that network, including every address of the node.
+
+<a id="IPVL-NETIF-NO-PARENT-SAME-NETWORK"></a>
+
+**Expectation (contract) IPVL-NETIF-NO-PARENT-SAME-NETWORK**: Containers on an ipvlan network without a parent reach each other
+
+*Observed from:* ctr → ctr · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-IPVL-NO-PARENT-INTERNAL](#REQ-IPVL-NO-PARENT-INTERNAL) · *Needs:* [IPVL-HOST-DUMMY](#IPVL-HOST-DUMMY), [IPVL-HOST-IPVLAN](#IPVL-HOST-IPVLAN), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Does not cover:* Containers in different subnets of a no-parent ipvlan network do not reach each other ([IPVL-NETIF-NO-PARENT-OTHER-SUBNET](#IPVL-NETIF-NO-PARENT-OTHER-SUBNET))
+
+*Applies to:* Two containers on the same node attached to an ipvlan network that was created
+without a `parent`, with `ipvlan_flag` unset, empty or `bridge`
+
+Each container reaches the other at that container's address on the network.
+
+<a id="IPVL-NETIF-NO-PARENT-OTHER-SUBNET"></a>
+
+**Expectation (defect) IPVL-NETIF-NO-PARENT-OTHER-SUBNET**: Containers in different subnets of a no-parent ipvlan network do not reach each other
+
+*Observed from:* ctr → ctr · *Depends on:* os-linux · *Platforms:* linux
+
+*Needs:* [IPVL-HOST-DUMMY](#IPVL-HOST-DUMMY), [IPVL-HOST-IPVLAN](#IPVL-HOST-IPVLAN), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Narrows:* [IPVL-NETIF-NO-PARENT-SAME-NETWORK](#IPVL-NETIF-NO-PARENT-SAME-NETWORK) · *Violates:* [REQ-IPVL-NO-PARENT-INTERNAL](#REQ-IPVL-NO-PARENT-INTERNAL)
+
+*Applies to:* Two containers on the same node attached to an ipvlan network that was created
+without a `parent` and that has two or more subnets of one IP version, with addresses in
+different subnets of that version
+
+Neither container reaches the other at the other container's address in that version.
+
+<a id="IPVL-NETIF-VLAN-PARENT-CREATED"></a>
+
+**Expectation (contract) IPVL-NETIF-VLAN-PARENT-CREATED**: Creating a network on a missing VLAN parent creates the sub-interface
+
+*Observed from:* api, node · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-IPVL-VLAN-PARENT](#REQ-IPVL-VLAN-PARENT) · *Needs:* [IPVL-HOST-IPVLAN](#IPVL-HOST-IPVLAN), [IPVL-HOST-VLAN](#IPVL-HOST-VLAN), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Does not cover:* A VLAN parent on an interface whose name has a dot responds 500 ([IPVL-NETIF-STACKED-VLAN-PARENT-REFUSED](#IPVL-NETIF-STACKED-VLAN-PARENT-REFUSED))
+
+*Applies to:* An interface `<interface>` on the node other than `lo`, and a VLAN ID
+from 1 to 4094 that no 802.1Q VLAN link on `<interface>` has, where `<interface>.<VLAN ID>`
+has at most 15 characters, is not an interface of the node, and is not the `parent` of
+another ipvlan network that is not Swarm-scoped, or of a Swarm-scoped ipvlan network that the
+node has a local attachment to
+
+`POST /networks/create` for an ipvlan network that uses the default IPAM driver, whose
+`parent` is `<interface>.<VLAN ID>`, whose `ipvlan_mode` is unset, empty,
+`l2`, `l3` or `l3s`, and whose `ipvlan_flag` is unset, empty, `bridge`,
+`private` or `vepa`, responds 201. The node then has an interface `<interface>.<VLAN ID>`:
+a VLAN link on `<interface>` with that VLAN ID.
+
+<a id="IPVL-NETIF-STACKED-VLAN-PARENT-REFUSED"></a>
+
+**Expectation (defect) IPVL-NETIF-STACKED-VLAN-PARENT-REFUSED**: A VLAN parent on an interface whose name has a dot responds 500
 
 *Observed from:* api · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [IPVL-HOST-IPVLAN](#IPVL-HOST-IPVLAN), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Needs:* [IPVL-HOST-IPVLAN](#IPVL-HOST-IPVLAN), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Narrows:* [IPVL-NETIF-NO-VLAN](#IPVL-NETIF-NO-VLAN), [IPVL-NETIF-VLAN-PARENT-CREATED](#IPVL-NETIF-VLAN-PARENT-CREATED) · *Violates:* [REQ-IPVL-VLAN-PARENT](#REQ-IPVL-VLAN-PARENT), [REQ-NET-API-ERROR-STATUS](network-common.md#REQ-NET-API-ERROR-STATUS)
 
-The daemon refuses the requests below on purpose, but they respond 500. 500 is the status for a
-fault in the daemon. The first request is `POST /containers/{id}/start` for a container
-whose endpoint on an ipvlan network sets `MacAddress`. The second is `POST /networks/{id}/connect` to an ipvlan network for a running container, with
-`MacAddress` set, at API version 1.54 or later
-([Endpoint options](#ipvlan-networking-endpoint-options)).
+*Applies to:* An interface `<interface>` of the node whose name contains a dot, such as a VLAN
+sub-interface, and a name `<interface>.<VLAN ID>` that is not an interface of the node and is
+not the `parent` of another ipvlan network that is not Swarm-scoped, or of a
+Swarm-scoped ipvlan network that the node has a local attachment to
+
+`POST /networks/create` for an ipvlan network that uses the default IPAM driver, whose
+`parent` is `<interface>.<VLAN ID>`, whose `ipvlan_mode` is unset, empty,
+`l2`, `l3` or `l3s`, and whose `ipvlan_flag` is unset, empty, `bridge`,
+`private` or `vepa`, responds 500, with a message that contains `required interface name format is: name.vlan_id`. `GET /networks` then does not list a network
+with the request's `Name`.
+
+<a id="IPVL-NETIF-VLAN-PARENT-REMOVED"></a>
+
+**Expectation (contract) IPVL-NETIF-VLAN-PARENT-REMOVED**: Deleting the network deletes the VLAN parent that its create added
+
+*Observed from:* api, node · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [PRIN-NO-LEAKS](../principles.md#PRIN-NO-LEAKS), [REQ-IPVL-VLAN-PARENT](#REQ-IPVL-VLAN-PARENT) · *Needs:* [IPVL-HOST-IPVLAN](#IPVL-HOST-IPVLAN), [IPVL-HOST-VLAN](#IPVL-HOST-VLAN), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerned by:* [IPVL-NETIF-VLAN-PARENT-REMOVED-MACVLAN](#IPVL-NETIF-VLAN-PARENT-REMOVED-MACVLAN)
+
+*Applies to:* An ipvlan network without containers, whose create added its `parent`
+`<interface>.<VLAN ID>`, where no `macvlan` network on the node, including a
+Swarm-scoped one that the node has a local attachment to, has that `parent`
+
+`DELETE /networks/{id}` for the network responds 204. The node then does not have the
+interface `<interface>.<VLAN ID>`.
+
+<a id="IPVL-NETIF-VLAN-PARENT-REMOVED-MACVLAN"></a>
+
+**Expectation (defect) IPVL-NETIF-VLAN-PARENT-REMOVED-MACVLAN**: Deleting an ipvlan network removes a VLAN parent a macvlan network uses
+
+*Observed from:* api, node, ctr · *Depends on:* os-linux · *Platforms:* linux
+
+*Needs:* [IPVL-HOST-IPVLAN](#IPVL-HOST-IPVLAN), [IPVL-HOST-VLAN](#IPVL-HOST-VLAN), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-MACVLAN](network-common.md#NET-HOST-MACVLAN), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [NET-HOST-VLAN](network-common.md#NET-HOST-VLAN) · *Concerns:* [IPVL-NETIF-VLAN-PARENT-REMOVED](#IPVL-NETIF-VLAN-PARENT-REMOVED) · *Violates:* [PRIN-FAITHFUL](../principles.md#PRIN-FAITHFUL)
+
+*Applies to:* An ipvlan network that is not Swarm-scoped, without containers, whose create added
+its `parent` `<interface>.<VLAN ID>`, and a `macvlan` network that is not
+Swarm-scoped, with that `parent` and a running container
+
+`DELETE /networks/{id}` for the ipvlan network responds 204. The node then does not have
+the interface `<interface>.<VLAN ID>`, and the container has no interface on the macvlan
+network, while `GET /networks/{id}` for the macvlan network still lists the container.
+
+<a id="IPVL-NETIF-VLAN-PARENT-KEPT"></a>
+
+**Expectation (contract) IPVL-NETIF-VLAN-PARENT-KEPT**: Deleting the network keeps a VLAN parent that existed before it
+
+*Observed from:* api, node · *Depends on:* none · *Platforms:* linux
+
+*Refines:* [PRIN-OWNS-ONLY-ITS-OWN](../principles.md#PRIN-OWNS-ONLY-ITS-OWN), [REQ-IPVL-VLAN-PARENT](#REQ-IPVL-VLAN-PARENT) · *Needs:* [IPVL-HOST-IPVLAN](#IPVL-HOST-IPVLAN), [IPVL-HOST-VLAN](#IPVL-HOST-VLAN), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* An ipvlan network without containers, whose `parent` is a VLAN
+sub-interface `<interface>.<VLAN ID>` that existed before the network was created
+
+`DELETE /networks/{id}` for the network responds 204. The node then still has the
+interface `<interface>.<VLAN ID>`.
+
+<a id="IPVL-NETIF-NO-PARENT-REMOVED"></a>
+
+**Expectation (contract) IPVL-NETIF-NO-PARENT-REMOVED**: Deleting an ipvlan network without a parent removes what its create added
+
+*Observed from:* api, node · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [PRIN-NO-LEAKS](../principles.md#PRIN-NO-LEAKS) · *Needs:* [IPVL-HOST-DUMMY](#IPVL-HOST-DUMMY), [IPVL-HOST-IPVLAN](#IPVL-HOST-IPVLAN), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* An ipvlan network that is not Swarm-scoped, created without a `parent`,
+without containers
+
+`DELETE /networks/{id}` for the network responds 204. The node then has no interface
+that the network's create added.
