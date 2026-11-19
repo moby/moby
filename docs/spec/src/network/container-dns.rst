@@ -1525,7 +1525,7 @@ In a Swarm
     :observed_from: ctr
     :depends_on: none
     :platforms: linux, windows
-    :refines: REQ-DNS-NAMES-DYNAMIC
+    :refines: REQ-DNS-NAMES-DYNAMIC, REQ-SWARM-SD-CONTAINER-NAME
 
     *Applies to:* A node in a Swarm, and a running container whose hostname and network aliases
     differ from its name in more than the case of their letters, with an endpoint on a Swarm-scoped
