@@ -187,6 +187,17 @@ By default, a `unix` domain socket (or IPC socket) is created at
 `/var/run/docker.sock`, requiring either `root` permission, or `docker` group
 membership.
 
+Use the `group` option in the [daemon configuration file](#daemon-configuration-file),
+or the `--group` (`-G`) flag, to set the group that owns the `unix` socket.
+The default is `docker`. Use an empty string (`--group=""`) to keep the
+daemon's own group instead. On Windows, `--group` sets the users or groups that
+can access the named pipe.
+
+The `group` option only applies to `unix` sockets that the daemon creates. With
+systemd socket activation (`-H fd://`), systemd creates the socket, and the
+`SocketUser`, `SocketGroup`, and `SocketMode` settings of the socket unit set
+its ownership and permissions.
+
 If you need to access the Docker daemon remotely, you need to enable the tcp
 Socket. When using a TCP socket, the Docker daemon provides un-encrypted and
 un-authenticated direct access to the Docker daemon by default. You should secure
