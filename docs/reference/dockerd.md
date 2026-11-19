@@ -874,6 +874,36 @@ $ docker run -it --add-host host.docker.internal:host-gateway \
 PING host.docker.internal (2001:db8::1111): 56 data bytes
 ```
 
+### IP forwarding
+
+The `ip-forward` option in the [daemon configuration file](#daemon-configuration-file),
+or the `--ip-forward` flag, is enabled by default. How it behaves depends on
+the firewall backend:
+
+- With the `iptables` backend, the daemon enables IP forwarding in the host's
+  system configuration when a bridge network needs it. If IP forwarding is
+  already enabled on the host, this option has no effect.
+- With the `nftables` backend, the daemon doesn't enable IP forwarding.
+  Instead, it checks that IP forwarding is enabled on the host, and fails to
+  set up bridge networks if it isn't. Enable IP forwarding on the host, or set
+  `ip-forward` to `false` to disable the check.
+
+The same applies to IPv6 forwarding when there is an IPv6 enabled bridge
+network, for which both `net.ipv6.conf.all.forwarding` and
+`net.ipv6.conf.default.forwarding` must be enabled. Enabling IPv6 forwarding
+may cause the host to reject Router Advertisements, and interfere with its
+existing IPv6 configuration.
+
+When the daemon enables IP forwarding itself, and `iptables` or `ip6tables` is
+enabled, it also sets the default policy of the `FORWARD` chain in the
+iptables or ip6tables `filter` table to `DROP`. For IPv6, this happens if the
+daemon enables either of the two IPv6 forwarding settings.
+
+The `ip-forward-no-drop` option, or the `--ip-forward-no-drop` flag, tells the
+daemon to enable IP forwarding without modifying the default policy of the
+`FORWARD` chain. The daemon doesn't modify the policy either when IP
+forwarding is already enabled on the host, including both IPv6 settings.
+
 ### Configure CDI devices
 
 Container Device Interface (CDI) is a
@@ -1172,6 +1202,7 @@ The following is a full example of the allowed configuration options on Linux:
   "insecure-registries": [],
   "ip": "0.0.0.0",
   "ip-forward": false,
+  "ip-forward-no-drop": false,
   "ip-masq": false,
   "iptables": false,
   "ip6tables": false,
