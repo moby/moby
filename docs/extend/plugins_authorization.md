@@ -149,11 +149,19 @@ is the practical effect of this 64 KiB threshold combined with the
 is immediately drained to the client and is therefore no longer available
 for plugin inspection by the time the handler returns.
 
+### Additional queries to the daemon
+
 During request/response processing, some authorization flows might
 need to do additional queries to the Docker daemon. To complete such flows,
 plugins can call the daemon API similar to a regular user. To enable these
 additional queries, the plugin must provide the means for an administrator to
 configure proper authentication and security policies.
+
+![Requesting additional information from the daemon](images/authz_additional_info.png)
+
+Additional requests made by the authorization plugin go through the daemon's
+normal authentication and authorization flow. Plugins must account for these
+requests to avoid recursive authorization calls or deadlocks.
 
 ## Docker client flows
 
