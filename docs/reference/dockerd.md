@@ -1087,7 +1087,7 @@ The feature in enabled by default. To disable it, use the `cdi` options in the `
 
 To check the status of the CDI devices, run `docker info`.
 
-#### Daemon logging format {#log-format}
+### Daemon logging format {#log-format}
 
 The `--log-format` option or "log-format" option in the [daemon configuration file](#daemon-configuration-file)
 lets you set the format for logs produced by the daemon. The logging format should
