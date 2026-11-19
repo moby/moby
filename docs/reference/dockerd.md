@@ -1182,6 +1182,16 @@ Example of usage:
 }
 ```
 
+#### Swarm default advertise address
+
+The `swarm-default-advertise-addr` option in the
+[daemon configuration file](#daemon-configuration-file), or the
+`--swarm-default-advertise-addr` flag, sets the default address that the node
+advertises to other members of a Swarm cluster, when `docker swarm init` or
+`docker swarm join` doesn't specify `--advertise-addr`. The value is either an
+IP address or the name of a network interface, such as `eth0`. You can't
+specify a port with this option.
+
 ### Enable feature in the daemon (--feature) {#feature}
 
 The `--feature` option lets you enable or disable a feature in the daemon.
