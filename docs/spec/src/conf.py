@@ -392,8 +392,8 @@ def _local(props, required=()):
 # in SPEC_DOCS except those in LAX_DOCS, for which they are info,
 # reported without failing the build. A document leaves LAX_DOCS once
 # its items satisfy them.
-SPEC_DOCS = []
-LAX_DOCS = []
+SPEC_DOCS = ["network/network-common", "network/ipvlan-networking", "network/bridge-networking", "network/container-dns", "network/swarm-networking", "network/swarm-traffic", "network/swarm-lifecycle"]
+LAX_DOCS = ["network/network-common", "network/ipvlan-networking", "network/bridge-networking", "network/container-dns", "network/swarm-networking", "network/swarm-traffic", "network/swarm-lifecycle"]
 
 
 def _expected(rule):

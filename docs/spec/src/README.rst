@@ -18,6 +18,9 @@ read, and how the items link to each other. It covers these documents:
 
     - - Document
       - Scope
+    - - :doc:`network/README.md <network/README>`
+      - The networking specs, and the conventions that only they use: vantage points, daemon
+        settings and firewall backends, platforms, host requirements and convergence ceilings
     - - :doc:`principles.md <principles>`
       - The principles that the maintainers hold the daemon to, in every spec
     - - :doc:`id-style-guide.md <id-style-guide>`
@@ -547,3 +550,4 @@ every spec.
 
     principles
     id-style-guide
+    network/README
