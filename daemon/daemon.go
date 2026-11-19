@@ -1373,7 +1373,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			Registry:               d.registryService,
 			EventsService:          d.EventsService,
 			IDMapping:              idMapping,
-			RefCountMounter:        snapshotter.NewMounter(config.Root, driverName, idMapping),
+			RefCountMounter:        snapshotter.NewMounter(config.Root, driverName, idMapping, d.containerdClient),
 			PolicyVerifierProvider: verifierProvider(cfgStore.Root),
 			MaxConcurrentDownloads: config.MaxConcurrentDownloads,
 			MaxConcurrentUploads:   config.MaxConcurrentUploads,
