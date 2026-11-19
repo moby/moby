@@ -1923,7 +1923,8 @@ In a Swarm
     :observed_from: client, task → underlay
     :depends_on: os-linux
     :platforms: linux
-    :refines: REQ-NET-PRUNE-UNUSED
+    :refines: REQ-NET-PRUNE-UNUSED, REQ-SWARM-ROUTING-MESH
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
 
     *Applies to:* A Linux node in a Swarm that has an ingress network created with
     :api-field:`Ingress` set, a service that publishes a port in ingress mode, and a task on the

@@ -9,6 +9,17 @@ apply here.
 
 ## Requirements
 
+<a id="REQ-SWARM-DNSRR-NO-INGRESS-PORTS"></a>
+
+**Requirement REQ-SWARM-DNSRR-NO-INGRESS-PORTS**: A dnsrr service cannot publish ingress-mode ports
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/swarm/ingress/#without-the-routing-mesh; api/openapi.yaml: definition EndpointSpec (Ports)
+
+*Refined by:* [SWARM-INGPUB-DNSRR-REFUSED](#SWARM-INGPUB-DNSRR-REFUSED)
+
+The dnsrr endpoint mode cannot be combined with ports published in ingress mode; such a service
+publishes ports in host mode behind its own load balancer.
+
 <a id="swarm-traffic-observable-state-inside-a-container"></a>
 
 ## Observable state inside a container
@@ -29,7 +40,7 @@ interfaces on overlay networks, whatever other overlay networks the container is
 
 *Observed from:* task, ctr, api · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Concerned by:* [SWARM-OVL-V6-ADDRESSING](swarm-networking.md#SWARM-OVL-V6-ADDRESSING)
 
 The IPv4 address of a container's interface on an overlay network is the `IPAddress`
 that `GET /containers/{id}/json` reports for that network. For a task, it is also the
@@ -246,7 +257,7 @@ attach to the overlay differently.
 
 *Observed from:* task, ctr · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Concerned by:* [SWARM-EW-WINDOWS-V6-DATA-PATH](#SWARM-EW-WINDOWS-V6-DATA-PATH)
 
 A unicast frame that a container sends reaches the destination container on the same overlay
 subnet.
@@ -279,7 +290,7 @@ the same overlay subnet on its own node. It does not reach members on other node
 
 *Observed from:* task, ctr · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Concerned by:* [SWARM-EW-WINDOWS-V6-DATA-PATH](#SWARM-EW-WINDOWS-V6-DATA-PATH)
 
 A unicast packet that a container on subnet A sends reaches the destination container on subnet
 B of the same overlay network.
@@ -290,10 +301,20 @@ B of the same overlay network.
 
 *Observed from:* task, ctr · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Concerned by:* [SWARM-EW-WINDOWS-V6-DATA-PATH](#SWARM-EW-WINDOWS-V6-DATA-PATH)
 
 TCP, UDP and SCTP traffic that a container sends reaches the destination container on the same
 overlay.
+
+<a id="SWARM-EW-WINDOWS-V6-DATA-PATH"></a>
+
+**Expectation (defect) SWARM-EW-WINDOWS-V6-DATA-PATH**: Overlay traffic between Windows and Linux nodes fails over IPv6
+
+*Observed from:* task · *Depends on:* none · *Platforms:* windows
+
+*Needs:* [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY) · *Within:* [SWARM-CEIL-REASSIGNMENT](swarm-lifecycle.md#SWARM-CEIL-REASSIGNMENT), [SWARM-CEIL-REJOIN](swarm-lifecycle.md#SWARM-CEIL-REJOIN) · *Concerns:* [SWARM-CLUSTER-DATA-PATH-ADDRESS-V6](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-ADDRESS-V6), [SWARM-CLUSTER-DATA-PATH-PORT-DEFAULT](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-PORT-DEFAULT), [SWARM-EW-CROSS-SUBNET](#SWARM-EW-CROSS-SUBNET), [SWARM-EW-PROTOCOLS](#SWARM-EW-PROTOCOLS), [SWARM-EW-UNICAST](#SWARM-EW-UNICAST), [SWARM-WIRECLEAR-UDP-PORT](swarm-lifecycle.md#SWARM-WIRECLEAR-UDP-PORT) · *Violates:* [REQ-SWARM-CLUSTER-DATA-PATH-ADDRESS](swarm-networking.md#REQ-SWARM-CLUSTER-DATA-PATH-ADDRESS), [REQ-SWARM-OVERLAY-CONNECTIVITY](swarm-networking.md#REQ-SWARM-OVERLAY-CONNECTIVITY)
+
+Overlay traffic between Windows nodes and Linux nodes does not pass over an IPv6 underlay.
 
 <a id="SWARM-EW-OVERSIZE"></a>
 
@@ -1507,6 +1528,18 @@ a service with a task on that node that publishes a port in ingress mode
 
 The error that `GET /tasks` reports for the task contains `failed to add ingress redirect rules`.
 
+<a id="SWARM-INGPUB-DNSRR-REFUSED"></a>
+
+**Expectation (contract) SWARM-INGPUB-DNSRR-REFUSED**: A dnsrr service that publishes an ingress-mode port is refused
+
+*Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux
+
+*Refines:* [REQ-NET-API-ERROR-STATUS](network-common.md#REQ-NET-API-ERROR-STATUS), [REQ-SWARM-DNSRR-NO-INGRESS-PORTS](#REQ-SWARM-DNSRR-NO-INGRESS-PORTS) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+
+`POST /services/create` or `POST /services/{id}/update` with a spec in `dnsrr`
+endpoint mode that publishes a port in ingress mode responds with a 4xx status. This holds
+whether or not the port is chosen. The service is not created or not changed.
+
 <a id="SWARM-INGPUB-DNSRR-REFUSED-HTTP400"></a>
 
 **Expectation (detector) SWARM-INGPUB-DNSRR-REFUSED-HTTP400**: A dnsrr service that publishes an ingress-mode port responds 400
@@ -1797,7 +1830,7 @@ stopped container on any of its nodes that publishes the same port
 
 *Observed from:* api:mgr, api:wkr · *Depends on:* none · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Concerned by:* [SWARM-CLUSTER-HTTP500-REFUSED](swarm-networking.md#SWARM-CLUSTER-HTTP500-REFUSED)
 
 *Applies to:* A Swarm with a service that publishes a port in ingress mode, and a created or
 stopped container on any of its nodes that publishes the same port

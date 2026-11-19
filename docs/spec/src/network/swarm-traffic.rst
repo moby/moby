@@ -11,6 +11,14 @@ apply here.
  Requirements
 **************
 
+.. req:: A dnsrr service cannot publish ingress-mode ports
+    :id: REQ-SWARM-DNSRR-NO-INGRESS-PORTS
+    :source_kind: docs
+    :source: https://docs.docker.com/engine/swarm/ingress/#without-the-routing-mesh, api/openapi.yaml: definition EndpointSpec (Ports)
+
+    The dnsrr endpoint mode cannot be combined with ports published in ingress mode; such a service
+    publishes ports in host mode behind its own load balancer.
+
 .. _swarm-traffic-observable-state-inside-a-container:
 
 *************************************
@@ -267,6 +275,17 @@ attach to the overlay differently.
 
     TCP, UDP and SCTP traffic that a container sends reaches the destination container on the same
     overlay.
+
+.. expectation:: Overlay traffic between Windows and Linux nodes fails over IPv6
+    :id: SWARM-EW-WINDOWS-V6-DATA-PATH
+    :observed_from: task
+    :depends_on: none
+    :platforms: windows
+    :within: SWARM-CEIL-REJOIN, SWARM-CEIL-REASSIGNMENT
+    :concerns: SWARM-WIRECLEAR-UDP-PORT, SWARM-EW-UNICAST, SWARM-EW-CROSS-SUBNET, SWARM-EW-PROTOCOLS, SWARM-CLUSTER-DATA-PATH-PORT-DEFAULT, SWARM-CLUSTER-DATA-PATH-ADDRESS-V6
+    :violates: REQ-SWARM-CLUSTER-DATA-PATH-ADDRESS, REQ-SWARM-OVERLAY-CONNECTIVITY
+
+    Overlay traffic between Windows nodes and Linux nodes does not pass over an IPv6 underlay.
 
 .. expectation:: An oversized don't-fragment packet fails at the sender with EMSGSIZE
     :id: SWARM-EW-OVERSIZE
@@ -1367,6 +1386,17 @@ tasks. The expectations in this subsection hold with :daemon-json:`userland-prox
 
     The error that :api-op:`GET /tasks` reports for the task contains :api-error:`failed to add
     ingress redirect rules`.
+
+.. expectation:: A dnsrr service that publishes an ingress-mode port is refused
+    :id: SWARM-INGPUB-DNSRR-REFUSED
+    :observed_from: api:mgr
+    :depends_on: none
+    :platforms: linux
+    :refines: REQ-SWARM-DNSRR-NO-INGRESS-PORTS, REQ-NET-API-ERROR-STATUS
+
+    :api-op:`POST /services/create` or :api-op:`POST /services/{id}/update` with a spec in ``dnsrr``
+    endpoint mode that publishes a port in ingress mode responds with a 4xx status. This holds
+    whether or not the port is chosen. The service is not created or not changed.
 
 .. expectation:: A dnsrr service that publishes an ingress-mode port responds 400
     :id: SWARM-INGPUB-DNSRR-REFUSED-HTTP400
