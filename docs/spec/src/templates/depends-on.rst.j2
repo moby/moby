@@ -1,0 +1,10 @@
+.. list-table::
+    :header-rows: 1
+
+    - - Value
+      - Facility
+      - What varies
+{% for k, v in depends_on|items %}    - - ``{{ k }}``
+      - {{ v[0] }}
+      - {{ v[1] }}
+{% endfor %}
