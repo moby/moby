@@ -6,9 +6,11 @@ Scope: the bridge network driver, and the parts of the daemon's firewall integra
 specific to Swarm. This spec describes them as observable from outside the daemon. Every expectation
 here holds on Linux nodes. An expectation about :api-op:`POST /networks/create` or :cli:`docker
 network create` holds for a network that is not Swarm-scoped. For a Swarm-scoped network, the node
-in an expectation is the node of the container that the expectation names. An expectation about
-reaching a published port at an address of the node holds on a network whose gateway mode for that
-address's family is not ``routed``, and without
+in an expectation is the node of the container that the expectation names. An expectation about two
+containers on a Swarm-scoped network holds for containers on the same node. Each node has a bridge
+of its own, without a route to the bridges on other nodes, and their subnets can overlap. An
+expectation about reaching a published port at an address of the node holds on a network whose
+gateway mode for that address's family is not ``routed``, and without
 :drvopt:`com.docker.network.bridge.host_binding_ipv4`, unless the expectation names them. An
 expectation about IPv4 traffic through the network's gateway, such as egress, a published port or a
 default route, holds for a network without :drvopt:`com.docker.network.bridge.inhibit_ipv4`, unless
@@ -400,7 +402,8 @@ Cross-generation cleanup
 ========================
 
 This section is about a node that runs release *N−1* and is then upgraded to *N*. After the upgrade,
-the node can also use a different firewall backend. A generation is the firewall state that one
+the node can also use a different firewall backend. *N−1* offers both backends for bridge networks,
+so the previous generation can be of either backend. A generation is the firewall state that one
 release creates under one firewall backend. A previous generation is such state that a daemon left
 on the node before the current start of the daemon. After the upgrade, the node must not have two
 generations of live rules. The expectations in this section hold for each enabled IP version. The
@@ -412,9 +415,11 @@ needs these names, but they are not an interface for operators. A rename thus ne
 for the old name. Without one, an upgraded node keeps the rules of the previous generation.
 
 In this section, the daemon restores a network, endpoint or port binding when it sets it up again
-during its start. It restores each bridge network that exists at the start. With
-:daemon-json:`live-restore` true, it also restores the endpoints and port bindings of the containers
-that are still running.
+during its start. It restores each bridge network that exists at the start. It also restores the
+endpoints and port bindings of containers that the previous daemon left in place. Those are the
+endpoints and port bindings of the containers that :daemon-json:`live-restore` keeps running, and
+those of the containers that the daemon stops during its start, after it was killed or after a stop
+with :daemon-json:`live-restore` true.
 
 A daemon of one release does not show a rename of a previous release's names. The detector that pins
 the names that cleanup needs fails on such a rename.
@@ -436,18 +441,18 @@ the names that cleanup needs fails on such a rename.
     switch from nftables to iptables. It holds across a package upgrade from *N−1* to *N* and across
     a same-binary restart.
 
-.. expectation:: The DOCKER-ISOLATION chain of older releases does not remain
+.. expectation:: Neither the old DOCKER-ISOLATION chain nor its FORWARD rule remains
     :id: BR-CLEAN-ISOLATION-CHAIN
     :observed_from: node
     :depends_on: os-linux
     :platforms: linux
 
     *Applies to:* The :ipt-chain:`DOCKER-ISOLATION` chain, which releases older than *N−1* created
-    and *N* does not create, with the :ipt-chain:`FORWARD` jump to it that those releases installed,
-    beside the chains of *N−1*
+    and *N* does not create, with the rule :ipt-target:`-j DOCKER-ISOLATION` in the filter table's
+    :ipt-chain:`FORWARD` chain that those releases installed, beside the chains of *N−1*. The
+    expectation holds for that state whatever created it.
 
-    After the daemon has started, that chain or table does not remain. :ipt-chain:`DOCKER-INGRESS`
-    is an exception, and :ref:`swarm-lifecycle-cross-generation-cleanup` covers it.
+    After the daemon has started, the filter table contains neither that chain nor that rule.
 
 .. expectation:: Restoring a network, endpoint or binding removes its old built-in rules
     :id: BR-CLEAN-BUILTIN-RULES
@@ -511,8 +516,9 @@ the names that cleanup needs fails on such a rename.
 
     The names that cleanup needs are unchanged. They are the nftables table
     :nft-table:`docker-bridges`, and the iptables chains :ipt-chain:`DOCKER` (in the filter and nat
-    tables), :ipt-chain:`DOCKER-FORWARD`, :ipt-chain:`DOCKER-BRIDGE`, :ipt-chain:`DOCKER-CT` and
-    :ipt-chain:`DOCKER-INTERNAL`.
+    tables), :ipt-chain:`DOCKER-FORWARD`, :ipt-chain:`DOCKER-BRIDGE`, :ipt-chain:`DOCKER-CT`,
+    :ipt-chain:`DOCKER-INTERNAL`, :ipt-chain:`DOCKER-ISOLATION-STAGE-1`,
+    :ipt-chain:`DOCKER-ISOLATION-STAGE-2` and :ipt-chain:`DOCKER-ISOLATION`.
 
 .. expectation:: A start with nftables does not modify the FORWARD chain's policy
     :id: BR-CLEAN-FORWARD-POLICY-KEPT
@@ -908,7 +914,8 @@ to it is visible in review. A deliberate change to this content is not a breakag
     :depends_on: os-linux
     :platforms: linux
 
-    *Applies to:* A daemon configured with a positive :daemon-json:`mtu`
+    *Applies to:* A daemon configured with a positive :daemon-json:`mtu` that the kernel can apply
+    to the default bridge
 
     The interfaces of containers on the default bridge have that MTU. See
     :ref:`bridge-networking-known-divergences-non-goals`.
@@ -974,7 +981,22 @@ The expectations in this subsection hold with :daemon-json:`userland-proxy` true
     ``false``
 
     A container cannot reach another container on the network at that container's address, on any
-    port. It reaches the published ports of that container at the node's address.
+    port. This does not apply to two containers that a legacy link joins (see the next expectation).
+    It reaches the published ports of that container at the node's address.
+
+.. expectation:: Without ICC, a legacy link reaches only exposed ports over IPv4
+    :id: BR-ISO-NO-ICC-LEGACY-LINK
+    :observed_from: ctr → ctr
+    :depends_on: os-linux
+    :platforms: linux
+    :needs: BR-HOST-BR-NETFILTER
+
+    *Applies to:* A daemon with :daemon-json:`icc` false, and a container on the default bridge
+    network whose :api-field:`HostConfig.Links` names another container on that network
+
+    The container reaches the linked container at the linked container's IPv4 address, on each port
+    that the linked container exposes. It does not reach the linked container on any other port, or
+    at the linked container's IPv6 address.
 
 .. expectation:: The node does not forward traffic for an internal network
     :id: BR-ISO-INTERNAL-NO-FORWARD
@@ -1379,11 +1401,12 @@ Gateway modes
     :depends_on: os-linux
     :platforms: linux
 
-    *Applies to:* A bridge network with :drvopt:`com.docker.network.bridge.gateway_mode_ipv4` set to
-    ``routed``
+    *Applies to:* A container on a bridge network with
+    :drvopt:`com.docker.network.bridge.gateway_mode_ipv4` set to ``routed``, whose IPv4 default
+    route is through that network
 
-    A client that connects to the node's IPv4 address, on a published port of a container on the
-    network, does not reach the container.
+    A client that connects to the node's IPv4 address, on a published port of the container, does
+    not reach the container.
 
 .. expectation:: In nat-unprotected mode, a client with a route reaches every port
     :id: BR-GWMODE-NAT-UNPROTECTED
@@ -1483,12 +1506,13 @@ true and with :daemon-json:`userland-proxy` false, unless an expectation names a
     :platforms: linux
 
     *Applies to:* A container with endpoints on two or more bridge networks that are not
-    ``internal`` and whose :drvopt:`com.docker.network.bridge.gateway_mode_ipv4` is ``nat`` or not
-    set
+    ``internal``, whose IPv4 default route is through a network whose
+    :drvopt:`com.docker.network.bridge.gateway_mode_ipv4` is ``nat`` or not set
 
     An IPv4 client connects to a published port at the node's address. The connection reaches the
-    container at its address on the network of its IPv4 default route. This holds after a connect or
-    disconnect changes that network.
+    container at its address on the network of its IPv4 default route. This holds whatever the
+    gateway modes of the container's other networks. It holds after a connect or disconnect moves
+    the default route to another such network.
 
 .. _bridge-networking-hosts-without-ipv6:
 
@@ -1575,6 +1599,19 @@ stack, so it does not have :file:`/proc/sys/net/ipv6`.
     false; (3) one entry per endpoint that publishes a port that contains :log:`Failed to
     reconfigure NAT` and :log:`rule exists`. The daemon's tables do not change.
 
+.. expectation:: Published ports at the node's IPv6 addresses through docker-proxy, with firewalld running
+    :id: SWARM-PUB-FIREWALLD-V6-PROXY
+    :observed_from: client
+    :depends_on: os-linux
+    :platforms: linux
+
+    Refused. A port published on an endpoint without an IPv6 address can be reachable at the node's
+    IPv6 addresses through docker-proxy (:ref:`README.md <README-observed-from>`). With firewalld
+    running and its default zone in effect for the interface, a connection to such a port at an IPv6
+    address of the node does not answer, before and after a firewalld reload, with either firewall
+    backend. The daemon does not open the port in firewalld. The port answers at the node's IPv4
+    addresses (:ref:`bridge-networking-port-publishing`).
+
 .. expectation:: Out-of-range bridge MTU error
     :id: BR-OPT-MTU-OUT-OF-RANGE
     :observed_from: api
@@ -1650,8 +1687,8 @@ stack, so it does not have :file:`/proc/sys/net/ipv6`.
   names that :ref:`bridge-networking-cross-generation-cleanup` pins for cleanup. A backend change
   replaces exactly this content. A contract asserts the packet-level effect of the rules, or an
   anchor in :ref:`bridge-networking-firewall-anchors-host-integration`, and never the content.
-- Which packet-filtering technology is in use, except where
-  :ref:`bridge-networking-firewall-anchors-host-integration` pins a backend-specific anchor.
+- Which packet-filtering technology is in use, beyond what the expectations of this spec assert for
+  each backend.
 - Whether an operator's :ipt-chain:`DOCKER-USER` rules survive a firewalld reload. That is
   firewalld's behavior. After a reload, the daemon recreates the chain and the jump to it. It does
   not restore the chain's rules.
