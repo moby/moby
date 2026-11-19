@@ -99,7 +99,7 @@ Options:
       --node-generic-resource list            Advertise user-defined resource
   -p, --pidfile string                        Path to use for daemon PID file (default "/var/run/docker.pid")
       --raw-logs                              Full timestamps without ANSI coloring
-      --registry-mirror list                  Preferred registry mirror
+      --registry-mirror list                  Preferred Docker registry mirror
       --rootless                              Enable rootless mode; typically used with RootlessKit
       --seccomp-profile string                Path to seccomp profile. Set to "unconfined" to disable the default seccomp profile (default "builtin")
       --selinux-enabled                       Enable selinux support
