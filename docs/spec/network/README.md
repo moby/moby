@@ -466,7 +466,6 @@ network namespace.
   * [Interop premise](swarm-networking.md#swarm-networking-interop-premise)
   * [Cluster & node configuration](swarm-networking.md#swarm-networking-cluster-node-configuration)
   * [Network lifecycle & API surface](swarm-networking.md#swarm-networking-network-lifecycle-api-surface)
-  * [Known divergences & non-goals](swarm-networking.md#swarm-networking-known-divergences-non-goals)
   * [Deliberately not asserted](swarm-networking.md#swarm-networking-deliberately-not-asserted)
 * [Swarm networking: traffic](swarm-traffic.md)
   * [Requirements](swarm-traffic.md#swarm-traffic-requirements)

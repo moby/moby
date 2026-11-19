@@ -47,13 +47,6 @@ apply here.
     to 409; clients branch on the status to decide whether to try again, so the change should be
     deliberate.
 
-.. rationale:: Why a change to SWARM-SCOPED-NODE-LOCAL-V6-ONLY should be deliberate
-    :id: RAT-SWARM-SCOPED-NODE-LOCAL-V6-ONLY
-
-    It catches a change that lets a Swarm-scoped network of a node-local driver be created with
-    EnableIPv4 false; that adds a capability that allocation on every node must then support, so the
-    change should be deliberate.
-
 .. rationale:: Why a change to SWARM-CONVERGE-PARTIAL-BLOCK should be deliberate
     :id: RAT-SWARM-PEERS-FROM-GOSSIP
 
@@ -67,12 +60,6 @@ apply here.
     It catches a change that makes the daemon log a node's recovery from a failure to program Swarm
     networking at the default log level; that adds entries that operators' log monitoring sees, so
     the change should be deliberate.
-
-.. rationale:: Why a change to SWARM-SCOPED-WORKER-OVERLAY-CREATE-ERROR should be deliberate
-    :id: RAT-SWARM-SCOPED-WORKER-OVERLAY-CREATE-ERROR
-
-    It catches a change to the error that a worker gives for docker network create of an overlay
-    network; tools and users match this text, so a change to it should be deliberate.
 
 .. _swarm-lifecycle-encryption:
 
