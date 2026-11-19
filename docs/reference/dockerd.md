@@ -1098,6 +1098,11 @@ The following example shows a `daemon.json` configuration file with the
 }
 ```
 
+The `raw-logs` option in the [daemon configuration file](#daemon-configuration-file),
+or the `--raw-logs` flag, disables ANSI coloring of the `text` logging format.
+Without this option, the daemon outputs colorized logs if it detects a
+terminal.
+
 ### Miscellaneous options
 
 IP masquerading uses address translation to allow containers without a public
