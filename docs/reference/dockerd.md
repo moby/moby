@@ -143,17 +143,18 @@ Some of these environment variables are supported both by the Docker Daemon and
 the `docker` CLI. Refer to [Environment variables](https://docs.docker.com/reference/cli/docker/#environment-variables)
 to learn about environment variables supported by the `docker` CLI.
 
-| Variable            | Description                                                                                                                                                                             |
-| :------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DOCKER_CERT_PATH`  | Location of your authentication keys. This variable is used both by the [`docker` CLI](https://docs.docker.com/reference/cli/docker/) and the `dockerd` daemon.             |
-| `DOCKER_DRIVER`     | The storage driver to use.                                                                                                                                                              |
-| `DOCKER_RAMDISK`    | If set this disables `pivot_root`.                                                                                                                                                      |
-| `DOCKER_TLS_VERIFY` | When set Docker uses TLS and verifies the remote. This variable is used both by the [`docker` CLI](https://docs.docker.com/reference/cli/docker/) and the `dockerd` daemon. |
-| `DOCKER_TMPDIR`     | Location for temporary files created by the daemon.                                                                                                                                     |
-| `HTTP_PROXY`        | Proxy URL for HTTP requests unless overridden by NoProxy. See the [Go specification](https://pkg.go.dev/golang.org/x/net/http/httpproxy#Config) for details.                            |
-| `HTTPS_PROXY`       | Proxy URL for HTTPS requests unless overridden by NoProxy. See the [Go specification](https://pkg.go.dev/golang.org/x/net/http/httpproxy#Config) for details.                           |
-| `MOBY_DISABLE_PIGZ` | Disables the use of [`unpigz`](https://linux.die.net/man/1/pigz) to decompress layers in parallel when pulling images, even if it is installed.                                         |
-| `NO_PROXY`          | Comma-separated values specifying hosts that should be excluded from proxying. See the [Go specification](https://pkg.go.dev/golang.org/x/net/http/httpproxy#Config) for details.       |
+| Variable                 | Description                                                                                                                                                                             |
+| :----------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DOCKER_CERT_PATH`       | Location of your authentication keys. This variable is used both by the [`docker` CLI](https://docs.docker.com/reference/cli/docker/) and the `dockerd` daemon.             |
+| `DOCKER_DRIVER`          | The storage driver to use.                                                                                                                                                              |
+| `DOCKER_MIN_API_VERSION` | Minimum API version that the daemon supports. See [Minimum API version](#minimum-api-version).                                                                                          |
+| `DOCKER_RAMDISK`         | If set this disables `pivot_root`.                                                                                                                                                      |
+| `DOCKER_TLS_VERIFY`      | When set Docker uses TLS and verifies the remote. This variable is used both by the [`docker` CLI](https://docs.docker.com/reference/cli/docker/) and the `dockerd` daemon. |
+| `DOCKER_TMPDIR`          | Location for temporary files created by the daemon.                                                                                                                                     |
+| `HTTP_PROXY`             | Proxy URL for HTTP requests unless overridden by NoProxy. See the [Go specification](https://pkg.go.dev/golang.org/x/net/http/httpproxy#Config) for details.                            |
+| `HTTPS_PROXY`            | Proxy URL for HTTPS requests unless overridden by NoProxy. See the [Go specification](https://pkg.go.dev/golang.org/x/net/http/httpproxy#Config) for details.                           |
+| `MOBY_DISABLE_PIGZ`      | Disables the use of [`unpigz`](https://linux.die.net/man/1/pigz) to decompress layers in parallel when pulling images, even if it is installed.                                         |
+| `NO_PROXY`               | Comma-separated values specifying hosts that should be excluded from proxying. See the [Go specification](https://pkg.go.dev/golang.org/x/net/http/httpproxy#Config) for details.       |
 
 ## Examples
 
@@ -1399,6 +1400,7 @@ The following is a full example of the allowed configuration options on Linux:
   "max-concurrent-uploads": 5,
   "max-download-attempts": 5,
   "metrics-addr": "",
+  "min-api-version": "1.40",
   "mtu": 0,
   "network-control-plane-mtu": 1500,
   "no-new-privileges": false,
@@ -1566,6 +1568,25 @@ The list of currently supported options that can be reconfigured is this:
 | `registry-mirrors`                 | Specifies a list of registry mirrors.                                                                       |
 | `shutdown-timeout`                 | Configures the daemon's existing configuration timeout with a new timeout for shutting down all containers. |
 | `features`                         | Enables or disables specific features.                                                                      |
+
+### Minimum API version
+
+By default, the daemon rejects API requests with an API version older than
+`1.40`. To accept older API versions, set the `min-api-version` option in the
+[daemon configuration file](#daemon-configuration-file), or the
+`DOCKER_MIN_API_VERSION` environment variable. The value must be between `1.24`
+and the current API version, without a `v` prefix. If you set both, the
+configuration file takes precedence.
+
+```json
+{
+  "min-api-version": "1.24"
+}
+```
+
+API versions older than `1.40` are deprecated, and support for them will be
+removed in a future release. Only lower the minimum API version for clients
+that you can't upgrade.
 
 ### Run multiple daemons
 
