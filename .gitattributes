@@ -11,3 +11,4 @@ Dockerfile* linguist-language=Dockerfile
 
 /extpoints/**/*.proto linguist-generated=true
 /extpoints/**/protogen/** linguist-generated=true
+/docs/spec/**/*.md linguist-generated=true
