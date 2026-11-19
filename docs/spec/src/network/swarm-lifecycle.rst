@@ -488,6 +488,19 @@ an underlay host must decrypt it with a node's keys. This subsection holds on Li
 Restart and reclamation
 =======================
 
+.. expectation:: After a restart, GET /info reports the node active within the ceiling
+    :id: SWARM-RESTART-NODE-STATE-ACTIVE
+    :observed_from: api
+    :depends_on: none
+    :platforms: linux, windows
+    :within: SWARM-CEIL-REJOIN
+
+    *Applies to:* A node in a Swarm
+
+    After the node's daemon restarts, gracefully or after it is killed, :api-op:`GET /info` on the
+    node reports :api-field:`Swarm.LocalNodeState` as ``active`` within the :need:`[[title|lower]]
+    ceiling ([[seconds]] s) <SWARM-CEIL-REJOIN>` after the daemon's API responds again.
+
 .. expectation:: After a graceful restart, node tasks are reachable within the ceiling
     :id: SWARM-RESTART-GRACEFUL-TASKS
     :observed_from: task
@@ -512,56 +525,54 @@ Restart and reclamation
     After a graceful daemon restart, the node's published ports answer within the
     :need:`[[title|lower]] ceiling ([[seconds]] s) <SWARM-CEIL-REJOIN>`.
 
-.. expectation:: A graceful restart does not interrupt flows to tasks on other nodes
+.. expectation:: No event on a third node interrupts flows between other nodes
     :id: SWARM-RESTART-OTHER-NODES
     :observed_from: task, client
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
     :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND
 
-    A graceful daemon restart on one node does not interrupt flows between clients and tasks on
-    other nodes: no TCP flow is reset, and no TCP or UDP flow has a gap in delivery longer than 1
-    second. This holds for flows to a VIP and for flows that enter through a published port on
-    another node.
+    *Applies to:* A flow to a task, from a client on a node to a VIP or from a client outside the
+    Swarm to a port that a node publishes, and a third node that is neither that node nor the task's
+    node
 
-.. expectation:: A start on an overlay network removes what a killed daemon left for it
+    No event on the third node interrupts the flow: no TCP flow is reset, and no TCP or UDP flow has
+    a gap in delivery longer than 1 second. The events include a graceful restart of the third
+    node's daemon, a kill and restart of it, an upgrade of its daemon from the previous release to
+    the release under test, a node partition between the third node and the other nodes, the third
+    node leaving the Swarm or joining it, and a change of leader manager to or from the third node.
+    This holds in the Swarm of :need:`SWARM-WIRE-MIXED-VERSIONS`, whose workers mix releases, when
+    the client's node and the task's node run the release under test.
+
+.. expectation:: What a killed daemon left for overlays goes within the rejoin ceiling
     :id: SWARM-RESTART-STALE-OVERLAY
     :observed_from: node
     :depends_on: os-linux
     :platforms: linux
+    :within: SWARM-CEIL-REJOIN
 
-    *Applies to:* A Linux node whose daemon was killed and started again, and a namespace, bridge or
-    VXLAN device that the killed daemon left for an overlay network
+    *Applies to:* A Linux node in a Swarm with an ingress network, whose daemon was killed and
+    started again, and a namespace, bridge or VXLAN device that the killed daemon left for an
+    overlay network or the ingress network
 
-    Once a task or standalone container on that network starts on the node, no such namespace,
-    bridge or VXLAN device remains on the node. See
-    :ref:`swarm-lifecycle-known-divergences-non-goals`.
+    Within the :need:`[[title|lower]] ceiling ([[seconds]] s) <SWARM-CEIL-REJOIN>` after
+    the daemon's API responds again, no such namespace, bridge or VXLAN device remains on the node.
+    A namespace remains while a mount of it remains on the node.
 
-.. expectation:: A start on a network sharing a VNI removes what a killed daemon left
-    :id: SWARM-RESTART-STALE-OVERLAY-SHARED-VNI
-    :observed_from: node
-    :depends_on: os-linux
-    :platforms: linux
-
-    *Applies to:* A Linux node whose daemon was killed and started again, and a namespace, bridge or
-    VXLAN device that the killed daemon left for an overlay network
-
-    Once a task or standalone container starts on the node on another overlay network that has one
-    of that network's VNIs, no such namespace, bridge or VXLAN device remains on the node. See
-    :ref:`swarm-lifecycle-known-divergences-non-goals`.
-
-.. expectation:: A stale overlay namespace and its devices go when a task starts there
+.. expectation:: The first overlay programmed or deleted removes all stale namespaces
     :id: SWARM-RESTART-STALE-OVERLAY-REMOVAL
     :observed_from: node
     :depends_on: os-linux
     :platforms: linux
+    :exact_form_of: SWARM-RESTART-STALE-OVERLAY
+    :within: SWARM-CEIL-REJOIN, SWARM-CEIL-REASSIGNMENT
 
-    *Applies to:* A Linux node whose daemon was killed and started again, and a namespace that the
-    killed daemon left for an overlay network
+    *Applies to:* A Linux node whose daemon was killed
 
-    When a task or standalone container starts on the node on that network, or on another overlay
-    network that has one of that network's VNIs, the daemon removes the namespace with its bridge
-    and VXLAN device. See :ref:`swarm-lifecycle-known-divergences-non-goals`.
+    The daemon is started again. The first time after the start that an overlay network or the
+    ingress network is programmed on the node, or that the node deletes one, the daemon removes
+    every namespace that the killed daemon left for an overlay network or the ingress network, with
+    its bridge and VXLAN device. Until then, they stay.
 
 .. expectation:: A start on the overlay network removes a killed daemon's HNS network
     :id: SWARM-RESTART-STALE-OVERLAY-WINDOWS
@@ -728,16 +739,18 @@ Each ceiling starts when the change is complete. For any other effect of :api-op
 mode, networks, published ports or aliases replaces its tasks and sets :api-field:`UpdateStatus`. An
 update that does not replace a task is complete when the request responds. For a removal, the change
 is complete when the request that removes the object responds. For a restart of a node's daemon, the
-change is complete when the daemon's API answers again and :api-op:`GET /info` on the node reports
-:api-field:`Swarm.LocalNodeState` as ``active``. For a change in a task's health, or the exit of its
-container, the change is complete when the task's node emits the container's
-:api-event:`health_status` or :api-event:`die` event. For a change of a task's desired state away
-from ``running``, the change is complete when :api-op:`GET /tasks` first reports the new
-:api-field:`DesiredState`. For a change of leader, the change is complete when :api-op:`GET /nodes`
-on a manager reports :api-field:`ManagerStatus.Leader` as true for the new leader. For an
-expectation about what holds once no container of a service is running, the change is complete when
-the last of those containers emits its :api-event:`die` event. For an expectation about a removal
-that reaches a node late, the ceiling starts when the removal can reach the node.
+change is complete when the daemon's API responds again and :api-op:`GET /info` on the node reports
+:api-field:`Swarm.LocalNodeState` as ``active``. How long a node takes to be ``active`` again is
+bounded too: an expectation of :ref:`swarm-lifecycle-restart-and-reclamation` times it from when the
+daemon's API responds again. For a change in a task's health, or the exit of its container, the
+change is complete when the task's node emits the container's :api-event:`health_status` or
+:api-event:`die` event. For a change of a task's desired state away from ``running``, the change is
+complete when :api-op:`GET /tasks` first reports the new :api-field:`DesiredState`. For a change of
+leader, the change is complete when :api-op:`GET /nodes` on a manager reports
+:api-field:`ManagerStatus.Leader` as true for the new leader. For an expectation about what holds
+once no container of a service is running, the change is complete when the last of those containers
+emits its :api-event:`die` event. For an expectation about a removal that reaches a node late, the
+ceiling starts when the removal can reach the node.
 
 A node partition divides the nodes of a Swarm into two sides, and blocks all traffic between the
 nodes of one side and the nodes of the other, in both directions. The managers that hold a quorum
@@ -1370,19 +1383,25 @@ Scale and exhaustion
 Firewall-backend transition
 ===========================
 
-This subsection is empty until moby/moby#53125. A switch of a node in a Swarm to or from the
-nftables backend is not asserted (:ref:`swarm-lifecycle-known-divergences-non-goals`).
+A switch of a node in a Swarm to or from the nftables backend is not asserted
+(:ref:`swarm-lifecycle-known-divergences-non-goals`).
 
 .. _swarm-lifecycle-failure-reporting:
 
 Failure reporting
 =================
 
-When a node cannot program cluster-scoped configuration, no API surface reports it. Examples of such
-configuration are encryption parameters for a peer, a load-balancer backend, a firewall rule and an
-FDB entry. The affected service continues to look healthy from ``api:mgr`` while that node's data
-plane is wrong. The daemon log is the only channel that reports the failure. This makes the daemon
-log part of the observable contract.
+When a node cannot program cluster-scoped configuration, no API surface reports it. Cluster-scoped
+configuration is what a node programs for the Swarm outside the network namespace of any one task or
+container. Examples are encryption parameters for a peer, a load-balancer backend, the firewall
+rules that publish an ingress port, and an FDB entry. The affected service continues to look healthy
+from ``api:mgr`` while that node's data plane is wrong. The daemon log is the only channel that
+reports the failure. This makes the daemon log part of the observable contract. A failure to add a
+task's ingress rules in its own network namespace is not such a failure: the task does not start,
+and :api-op:`GET /tasks` reports the error (:ref:`swarm-traffic-api-value-mode-ingress`). A failure
+to add or remove a VIP alias on a load-balancer endpoint, or to find that endpoint's interface, is a
+failure to program the load-balancer service. Under the iptables backend, so is a failure to add the
+service's firewall-mark rule.
 
 .. expectation:: A node-local load-balancer programming failure is logged at error level
     :id: SWARM-FAILREP-LB
@@ -1393,15 +1412,16 @@ log part of the observable contract.
     The daemon log of a node reports a node-local failure to program a load-balancer service or
     backend at error level. See :ref:`swarm-lifecycle-known-divergences-non-goals`.
 
-.. expectation:: A Linux load-balancer failure entry contains a Failed to create message
+.. expectation:: A Linux load-balancer failure entry contains one of seven messages
     :id: SWARM-FAILREP-LB-MSG-IPT
     :observed_from: log
     :depends_on: none
     :platforms: linux
 
     A daemon log entry for a node-local failure to program a load-balancer service or backend
-    contains :log:`Failed to create an ipvs handle`, :log:`Failed to create a new service for vip`
-    or :log:`Failed to create real server`.
+    contains :log:`Failed to create an ipvs handle`, :log:`Failed find interface name for endpoint`,
+    :log:`Failed add IP alias`, :log:`Failed to remove IP alias`, :log:`Failed to add firewall mark
+    rule`, :log:`Failed to create a new service for vip` or :log:`Failed to create real server`.
 
 .. expectation:: A Windows load-balancer failure entry has Failed to add ILB/ELB policy
     :id: SWARM-FAILREP-LB-MSG-WINDOWS
@@ -1432,14 +1452,16 @@ log part of the observable contract.
     The daemon log of the node reports the node-local failure to publish that port at error level.
     The entry contains the port number.
 
-.. expectation:: A failure to publish an ingress port logs Failed to add ingress
+.. expectation:: The daemon logs that it failed to publish a service's ingress ports
     :id: SWARM-FAILREP-INGRESS-PORT-MSG
     :observed_from: log
     :depends_on: none
     :platforms: linux
+    :exact_form_of: SWARM-FAILREP-INGRESS-PORT
+    :within: SWARM-CEIL-REASSIGNMENT
 
     The daemon log entry for a node-local failure to publish an ingress port contains :log:`Failed
-    to add ingress`.
+    to publish this service's Swarm ingress ports on this node`.
 
 .. expectation:: A failed overlay peer entry is logged as a warning with its addresses
     :id: SWARM-FAILREP-PEER
@@ -1471,7 +1493,7 @@ log part of the observable contract.
     :log:`Failed Adding fSA{` or :log:`Failed Adding rSA{`. For a policy, it contains :log:`Adding
     fSP{`. See :ref:`swarm-lifecycle-known-divergences-non-goals`.
 
-.. expectation:: A recurring load-balancer failure is logged again for each new task
+.. expectation:: Each new task retries the load balancer and logs the failure again
     :id: SWARM-FAILREP-LB-REPEATED
     :observed_from: log
     :depends_on: none
@@ -1480,8 +1502,9 @@ log part of the observable contract.
     *Applies to:* A node where a node-local failure to program the load-balancer service or a
     backend for a service occurred, and its cause still holds
 
-    A task is then added to the service. If the failure occurs again, the daemon log of the node
-    reports it again. The report is not suppressed after the first one.
+    A task is then added to the service. The node tries again to program the load-balancer service
+    or backend for that task, and the daemon log of the node reports the failure again. The report
+    is not suppressed after the first one.
 
 .. expectation:: After a load-balancer failure clears, a new task gets the node's flows
     :id: SWARM-FAILREP-LB-RECOVERY
@@ -1556,7 +1579,7 @@ known divergences:
 
 - An unchanged condition is not reported again.
 - Recovery is not reported at all.
-- None of the entries names the service.
+- None of the load-balancer entries names the service.
 - Recovery is incomplete.
 
 .. _swarm-lifecycle-firewall-anchors-host-integration:
@@ -1577,8 +1600,8 @@ among them. This section holds on Linux nodes.
 nftables
 ========
 
-This subsection is empty until moby/moby#53125. The overlay driver's nftables table on a node in a
-Swarm is not asserted (:ref:`swarm-lifecycle-known-divergences-non-goals`).
+The overlay driver's nftables table on a node in a Swarm is not asserted
+(:ref:`swarm-lifecycle-known-divergences-non-goals`).
 
 .. _swarm-lifecycle-iptables:
 
@@ -1634,11 +1657,12 @@ overlay driver.
     :platforms: linux
 
     *Applies to:* A node with the state that a daemon of release 28.0.0 or earlier left with the
-    iptables backend: a :ipt-chain:`DOCKER-INGRESS` chain in the filter and nat tables, jumps to it
-    from the nat table's :ipt-chain:`PREROUTING` and :ipt-chain:`OUTPUT` chains for packets with a
-    local destination address, a jump to it from the filter table's :ipt-chain:`FORWARD` chain, and
-    a jump from the filter table's :ipt-chain:`FORWARD` chain to
-    :ipt-chain:`DOCKER-ISOLATION-STAGE-1`. The expectation holds whatever created that state.
+    iptables backend: a :ipt-chain:`DOCKER-INGRESS` chain in the filter and nat tables, the rule
+    :ipt-target:`-m addrtype --dst-type LOCAL -j DOCKER-INGRESS` in the nat table's
+    :ipt-chain:`PREROUTING` and :ipt-chain:`OUTPUT` chains, the rule :ipt-target:`-j DOCKER-INGRESS`
+    in the filter table's :ipt-chain:`FORWARD` chain, and the rule :ipt-target:`-j
+    DOCKER-ISOLATION-STAGE-1` in the filter table's :ipt-chain:`FORWARD` chain. The expectation
+    holds for that state whatever created it.
 
     After the daemon starts, the filter and nat tables do not contain that chain.
 
@@ -1697,18 +1721,6 @@ behavior change. Make such a change only on purpose.
     can reach the node's data-path port. The frames reach the network's containers. For an encrypted
     network, the node drops VXLAN for the network's VNI that did not arrive under IPsec
     (:ref:`swarm-lifecycle-encryption`).
-
-.. expectation:: Overlay namespaces after a killed daemon
-    :id: SWARM-KILLED-OVERLAY-NS
-    :observed_from: api
-    :depends_on: none
-    :platforms: linux, windows
-
-    Not reclaimed at start. On Linux, the daemon is killed and then started again. Take an overlay
-    network that is not programmed on the node again after the start. Its namespace stays in place.
-    The namespace's bridge, VXLAN device and bind mount under the exec root also stay. They stay
-    until the host reboots, or until another network that uses one of that network's VNIs is
-    programmed on the node (:ref:`swarm-lifecycle-restart-and-reclamation`).
 
 .. expectation:: IPv6 data path on Windows
     :id: SWARM-CLUSTER-WINDOWS-V6-DATA-PATH
@@ -1851,10 +1863,9 @@ behavior change. Make such a change only on purpose.
     :depends_on: none
     :platforms: linux
 
-    Not asserted. With :daemon-json:`features.swarm-nftables` set, a node in a Swarm can run the
-    nftables backend, but the implementation is incomplete. No expectation of these specs is
+    Not asserted. A node in a Swarm can run the nftables backend. No expectation of these specs is
     asserted on such a node, and a switch of a node in a Swarm to or from the nftables backend is
-    not asserted either. moby/moby#53125 completes the implementation.
+    not asserted either.
 
 .. expectation:: Node-local attachable networks on Swarm leave
     :id: SWARM-RESTART-LEAVE-LOCAL-ATTACHABLE

@@ -13,8 +13,8 @@ apply here.
 
 :ref:`network-common-endpoint-interfaces` covers the name and MAC address of an endpoint's interface
 and a static address, for every network driver. :ref:`network-common-default-gateway` covers the
-default route. Their expectations hold for overlay endpoints. An overlay endpoint does not give the
-container a gateway or default route, whatever its :api-field:`GwPriority`.
+default route. Their expectations hold for overlay endpoints. On Linux nodes, an overlay endpoint
+does not give the container a gateway or default route, whatever its :api-field:`GwPriority`.
 
 In this section, the inner MTU is the MTU of a container's interface on an overlay network. ``base``
 is the value of the network's :drvopt:`com.docker.network.driver.mtu` option, or 1500 when the
@@ -117,7 +117,8 @@ interfaces on overlay networks, whatever other overlay networks the container is
     :depends_on: os-windows
     :platforms: linux, windows
 
-    *Applies to:* A node with an IPv4 data-path address, and a cleartext network
+    *Applies to:* A node with an IPv4 data-path address, and a cleartext network that, on a Windows
+    node, does not have :drvopt:`com.docker.network.driver.mtu`
 
     The inner MTU is ``base − 50``. By default, the inner MTU is 1450.
 
@@ -318,7 +319,9 @@ for the names and addresses of the endpoints in this section, including endpoint
 Each expectation keeps the type and dependencies that it has in container-dns.md. This section
 covers the names that Swarm adds, on overlay networks unless an expectation says otherwise. For the
 expectations in container-dns.md that depend on a container's DNS options, a service task is created
-with those options in the service's DNS config.
+with those options in the service's DNS config. On Linux nodes, a :api-field:`Links` alias of the
+querying container takes precedence over the names in this section
+(:ref:`container-dns-names-and-answers`).
 
 In this section, a service's running tasks are the tasks that :api-op:`GET /tasks` reports with
 :api-field:`Status.State` and :api-field:`DesiredState` both ``running``. If a task has a
@@ -329,7 +332,12 @@ aliases.
 
 Where an expectation says that a name resolves to the addresses of tasks, these are the tasks'
 addresses on one of the overlay networks, other than the ingress network, that the querier shares
-with the service. The answer holds the addresses on one such network only.
+with the service. The answer holds the addresses on one such network only. In vip mode, a service's
+name and aliases have records for its VIP while the service has a running task. In dnsrr mode, they
+have records for its running tasks. The :dns-name:`tasks.` names have records for the running tasks.
+An expectation about a name holds where, on the querier's networks, no service, task or container
+other than the one that the expectation names has records for that name, unless the expectation
+names that case.
 
 .. expectation:: A service name resolves to its VIP while a task runs
     :id: SWARM-SD-VIP
@@ -389,13 +397,14 @@ with the service. The answer holds the addresses on one such network only.
     :dns-name:`tasks.<alias>` resolves to the addresses of the running tasks of every service that
     has that alias.
 
-.. expectation:: A task's container name resolves to its overlay address
+.. expectation:: A running task's container name resolves to its shared overlay address
     :id: SWARM-SD-TASK-NAME
     :observed_from: task, ctr
     :depends_on: none
     :platforms: linux, windows
 
-    A task's container name resolves to its overlay address.
+    A running task's container name resolves to its address on an overlay network that it shares
+    with the querier.
 
 .. expectation:: A replicated task's container name is <service>.<slot>.<taskID>
     :id: SWARM-SD-TASK-NAME-REPLICATED
@@ -426,9 +435,11 @@ with the service. The answer holds the addresses on one such network only.
 
     *Applies to:* A task with a healthcheck whose container has not yet reported healthy
 
-    The task's container name does not resolve. :dns-name:`tasks.<service>` and
-    :dns-name:`tasks.<alias>` do not resolve to the task's address. In dnsrr mode,
-    :dns-name:`<service>` and the service's aliases do not resolve to the task's address either.
+    The task's container name does not resolve to its address on an overlay network.
+    :dns-name:`tasks.<service>` and :dns-name:`tasks.<alias>` do not resolve to the task's address.
+    In dnsrr mode, :dns-name:`<service>` and the service's aliases do not resolve to the task's
+    address either. A reverse lookup of the task's address on an overlay network does not return the
+    task's container name.
 
 .. expectation:: A task stops resolving once it stops or reports unhealthy
     :id: SWARM-SD-TASK-STOPPED
@@ -437,17 +448,18 @@ with the service. The answer holds the addresses on one such network only.
     :platforms: linux, windows
 
     Once a task's desired state is not ``running``, or its container has stopped or has reported
-    unhealthy at any time, its container name stops resolving. :dns-name:`tasks.<service>` and, in
-    dnsrr mode, :dns-name:`<service>` then stop resolving to the task's address.
+    unhealthy at any time, its container name stops resolving to its addresses on overlay networks.
+    :dns-name:`tasks.<service>` and, in dnsrr mode, :dns-name:`<service>` then stop resolving to the
+    task's address, and a reverse lookup of that address stops returning the task's container name.
 
-.. expectation:: A removed service's names stop resolving
+.. expectation:: A removed service's names stop resolving to its VIP and tasks
     :id: SWARM-SD-SERVICE-REMOVED
     :observed_from: task, ctr
     :depends_on: none
     :platforms: linux, windows
 
-    Once no container of a removed service is running, the service's name and aliases stop
-    resolving.
+    Once no container of a removed service is running, the service's name and aliases stop resolving
+    to the service's VIP and to the addresses of its tasks.
 
 .. expectation:: A vip service with no running task is forwarded upstream
     :id: SWARM-SD-VIP-NO-TASKS
@@ -457,9 +469,8 @@ with the service. The answer holds the addresses on one such network only.
 
     *Applies to:* A service in vip mode that still exists, such as one scaled to 0 replicas
 
-    Once no container of the service is running, the embedded resolver forwards a query for
-    :dns-name:`<service>` upstream. It handles the query as it handles a name that it does not have
-    a record for.
+    Once no container of the service is running, the embedded resolver handles a query for
+    :dns-name:`<service>` as it handles a name that it does not have a record for.
 
 .. expectation:: A vip service created with no replicas is forwarded upstream
     :id: SWARM-SD-VIP-NO-REPLICAS
@@ -469,8 +480,8 @@ with the service. The answer holds the addresses on one such network only.
 
     *Applies to:* A service in vip mode that was created with no replicas
 
-    The embedded resolver forwards a query for :dns-name:`<service>` upstream. It handles the query
-    as it handles a name that it does not have a record for.
+    The embedded resolver handles a query for :dns-name:`<service>` as it handles a name that it
+    does not have a record for.
 
 .. expectation:: A vip service with no healthy container is forwarded upstream
     :id: SWARM-SD-VIP-NONE-HEALTHY
@@ -481,8 +492,8 @@ with the service. The answer holds the addresses on one such network only.
     *Applies to:* A service in vip mode with running containers, each with a healthcheck, none of
     which has reported healthy
 
-    The embedded resolver forwards a query for :dns-name:`<service>` upstream. It handles the query
-    as it handles a name that it does not have a record for.
+    The embedded resolver handles a query for :dns-name:`<service>` as it handles a name that it
+    does not have a record for.
 
 .. expectation:: The VIP of a service without running tasks gives EHOSTUNREACH
     :id: SWARM-SD-VIP-UNREACHABLE
@@ -507,8 +518,8 @@ with the service. The answer holds the addresses on one such network only.
 
     Once :api-op:`POST /containers/{id}/rename` for the container responds 204, its new name
     resolves for containers on other nodes within the :need:`[[title|lower]] ceiling ([[seconds]] s)
-    <SWARM-CEIL-REASSIGNMENT>`. Within the same ceiling, its old name stops resolving for those
-    containers.
+    <SWARM-CEIL-REASSIGNMENT>`. Within the same ceiling, its old name stops resolving to its address
+    for those containers.
 
 .. expectation:: A service alias keeps resolving through a rolling update
     :id: SWARM-SD-ALIAS-ROLLING-UPDATE
@@ -531,7 +542,8 @@ with the service. The answer holds the addresses on one such network only.
     :platforms: linux, windows
 
     *Applies to:* A container attached to a Swarm-scoped network and a local network, such as a
-    user-defined bridge network, and an endpoint with the same name on each of those networks
+    user-defined bridge network, and records for the same name on each of those networks
+    (:ref:`container-dns-names-and-answers`)
 
     A query from that container for the name gets the address on the Swarm-scoped network, and not
     the address on the local network.
@@ -1068,7 +1080,8 @@ is set on the overlay networks that a service is attached to, other than the ing
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
 
-    *Applies to:* A removed service whose tasks are all stopped
+    *Applies to:* A removed service whose tasks are all stopped, and no other service or container
+    that publishes one of its ports
 
     The service's published ports do not answer. See
     :ref:`swarm-lifecycle-known-divergences-non-goals`.
@@ -1080,7 +1093,7 @@ is set on the overlay networks that a service is attached to, other than the ing
     :platforms: linux, windows
 
     *Applies to:* A service whose published port was changed, and whose tasks from before the change
-    are all stopped
+    are all stopped, and no other service or container that publishes the old port
 
     The old port does not answer. See :ref:`swarm-lifecycle-known-divergences-non-goals`.
 
@@ -1323,6 +1336,32 @@ tasks. The expectations in this subsection hold with :daemon-json:`userland-prox
     :platforms: linux, windows
 
     A task's default route is not on the ingress network.
+
+.. expectation:: A task fails with an error when its node cannot add its ingress rules
+    :id: SWARM-INGPUB-INGRESS-RULES-FAILED
+    :observed_from: api:mgr
+    :depends_on: none
+    :platforms: linux
+    :pins: SWARM-HOST-IPTABLES-COMMAND
+
+    *Applies to:* A Linux node that cannot add the ingress rules of a task's network namespace, and
+    a service with a task on that node that publishes a port in ingress mode
+
+    The task does not reach the ``running`` state. :api-op:`GET /tasks` reports an error for the
+    task.
+
+.. expectation:: The task's error contains failed to add ingress redirect rules
+    :id: SWARM-INGPUB-INGRESS-RULES-FAILED-MSG
+    :observed_from: api:mgr
+    :depends_on: none
+    :platforms: linux
+    :pins: SWARM-HOST-IPTABLES-COMMAND
+
+    *Applies to:* A Linux node that cannot add the ingress rules of a task's network namespace, and
+    a service with a task on that node that publishes a port in ingress mode
+
+    The error that :api-op:`GET /tasks` reports for the task contains :api-error:`failed to add
+    ingress redirect rules`.
 
 .. expectation:: A dnsrr service that publishes an ingress-mode port responds 400
     :id: SWARM-INGPUB-DNSRR-REFUSED-HTTP400
@@ -1611,10 +1650,10 @@ responds.
 .. expectation:: A service that publishes a node's in-use port is unreachable there
     :id: SWARM-PORTALLOC-PORT-IN-USE-UNREACHABLE
     :observed_from: client
-    :depends_on: os-linux, os-windows
-    :platforms: linux, windows
+    :depends_on: os-linux
+    :platforms: linux
 
-    *Applies to:* A node where a port is in use by a process or container
+    *Applies to:* A Linux node where a port is in use by a process or container
 
     Once a service is created or updated to publish that port in ingress mode, and no task from an
     earlier version of the service's spec remains, a client that connects to the node's address on
@@ -1676,7 +1715,8 @@ The expectations in this subsection hold with :daemon-json:`userland-proxy` true
     :platforms: linux
     :needs: SWARM-HOST-IPV6
 
-    *Applies to:* A daemon with :daemon-json:`userland-proxy` true
+    *Applies to:* A daemon with :daemon-json:`userland-proxy` true, and a task whose gateway network
+    is :network:`docker_gwbridge`
 
     The task does not observe an IPv6 client's real source address.
 
@@ -1834,6 +1874,19 @@ The expectations in this subsection hold with :daemon-json:`userland-proxy` true
 
     A container on both an internal and a non-internal overlay has egress. Its default route is not
     on the internal overlay.
+
+.. expectation:: A task of a service with no network is on the default bridge only
+    :id: SWARM-EGRESS-NO-NETWORK-DEFAULT-BRIDGE
+    :observed_from: api:mgr, api:wkr (on the task's node)
+    :depends_on: none
+    :platforms: linux
+
+    *Applies to:* A Linux node that runs a task of a service whose spec names no network and that
+    publishes no port in ingress mode
+
+    On that node, :api-op:`GET /containers/{id}/json` for the task's container reports the default
+    bridge network, :network:`bridge`, and no other network in
+    :api-field:`NetworkSettings.Networks`.
 
 .. _swarm-traffic-gateway-network:
 
@@ -2061,6 +2114,33 @@ physical network through it. This subsection holds on Linux nodes.
     answers only from the records of its network. The network whose answer the container gets
     depends on which adapter's resolver the Windows DNS client asks
     (:ref:`swarm-traffic-service-discovery`).
+
+.. expectation:: Ingress ports at the node's IPv6 addresses through docker-proxy, with firewalld running
+    :id: SWARM-PUB-FIREWALLD-V6-INGRESS
+    :observed_from: client
+    :depends_on: os-linux
+    :platforms: linux
+
+    Refused. With :daemon-json:`userland-proxy` true, an ingress-mode port is also reachable at the
+    node's IPv6 addresses through docker-proxy (:ref:`README.md <README-observed-from>`). With
+    firewalld running and its default zone in effect for the interface, a connection to the port at
+    an IPv6 address of the node does not answer, before and after a firewalld reload. The daemon
+    does not open the port in firewalld. The port answers at the node's IPv4 addresses
+    (:ref:`swarm-traffic-api-value-mode-ingress`).
+
+.. expectation:: Ingress ports already in use on Linux
+    :id: SWARM-PUB-INGRESS-PORT-IN-USE
+    :observed_from: client
+    :depends_on: os-linux, os-windows
+    :platforms: linux, windows
+
+    Not published on that node. On a Linux node where a process or container uses a port when a
+    service is created or updated to publish it in ingress mode, the node does not publish any of
+    the service's ports in ingress mode. The process or container keeps serving the port. A client
+    that connects to the node's address on any of the service's published ports does not reach the
+    service's tasks. The daemon log reports the failure, and the node tries again on each of the
+    service's later backend events (:ref:`swarm-traffic-port-allocation`,
+    :ref:`swarm-lifecycle-failure-reporting`).
 
 .. expectation:: Ingress port reservation on Windows
     :id: SWARM-PORTALLOC-WINDOWS-INGRESS-PORT-RESERVATION

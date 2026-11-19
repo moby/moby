@@ -4,14 +4,25 @@
 
 Scope: name resolution inside a container on a user-defined network, whatever the network's driver.
 This covers the :file:`/etc/resolv.conf` that the daemon writes for the container and the embedded
-DNS resolver behind it, as observable from outside the daemon.
+DNS resolver behind it, as observable from outside the daemon. In this spec, the user-defined
+networks are the networks other than the predefined networks, ingress networks and
+:network:`docker_gwbridge`. The embedded resolver does not have records for endpoints on an ingress
+network. On a Swarm-scoped network of a node-local driver, such as :driver:`bridge`, the
+expectations hold for containers on the same node. Each node attaches its containers to a network of
+its own, whose subnet can overlap the subnets on other nodes, and the embedded resolver has records
+only for the endpoints on its node. On Linux nodes, a :api-field:`Links` alias of the querying
+container takes precedence over the records of its networks, and over forwarding, as the
+:ref:`container-dns-names-and-answers` expectations about :api-field:`Links` say. The other
+expectations of this spec, and the expectations of :ref:`swarm-traffic-service-discovery`, hold for
+a name, and for the ``<name>`` of a :dns-name:`<name>.<network>` query, that is not such an alias.
 
 This is a stub. It holds expectations that do not depend on any one driver. They come from the work
 on the :doc:`swarm-networking` and from reviews of the specs' coverage. It is not yet a complete
 account. :doc:`../README.md <../README>` gives the model that this spec follows: the items of a
 spec, their categories and what their verdicts depend on. :doc:`README.md <README>` gives the
 conventions of the networking specs, such as vantage points, daemon settings, timing and convergence
-ceilings, and host requirements.
+ceilings, and host requirements. Where an expectation of :ref:`swarm-traffic-service-discovery` says
+something different about the endpoint of a service's task, that expectation holds.
 
 A container sends its DNS queries to the embedded DNS resolver, which is a DNS server that the
 daemon runs for the container. The expectations state what the embedded resolver answers, and what
@@ -25,7 +36,8 @@ the :file:`/etc/resolv.conf` that the daemon reads, even on a host that runs sys
 On Linux nodes, the containers that follow do not use the embedded resolver, and nothing here
 applies to them, other than the expectations whose state names the default bridge:
 
-- A container attached only to the default bridge network.
+- A container attached only to the default bridge network, that has not had an endpoint on a
+  user-defined network since it started.
 - A container that uses the host's network.
 
 .. _container-dns-rationales:
@@ -33,6 +45,14 @@ applies to them, other than the expectations whose state names the default bridg
 ************
  Rationales
 ************
+
+.. rationale:: Why a change to DNS-FWD-HOST-RESOLV-NOT-REGULAR should be deliberate
+    :id: RAT-DNS-HOST-RESOLV-UNREADABLE
+
+    It catches a change in how the daemon treats a host /etc/resolv.conf that is a directory, a
+    socket or a FIFO, such as treating it as a file without nameservers; that decides whether
+    containers on such a host start, and with which upstream servers, so the change should be
+    deliberate.
 
 .. rationale:: Why a change to DNS-RESOLV-NOT-UPDATED should be deliberate
     :id: RAT-DNS-RESOLV-WRITTEN-ONCE
@@ -172,7 +192,9 @@ Host configuration
  :file:`resolv.conf`
 *********************
 
-This section holds on Linux nodes.
+This section holds on Linux nodes. Its expectations, other than the expectation about a process's
+changes to the file, hold for a :file:`/etc/resolv.conf` that has not changed since the daemon wrote
+it.
 
 .. expectation:: The resolv.conf nameserver is 127.0.0.11
     :id: DNS-RESOLV-NAMESERVER
@@ -234,7 +256,8 @@ This section holds on Linux nodes.
 
     *Applies to:* A container created with search domains
 
-    :file:`/etc/resolv.conf` has the search domains that the container was created with.
+    :file:`/etc/resolv.conf` has the search domains that the container was created with, other than
+    ``.``.
 
 .. expectation:: Without its own search domains, resolv.conf has the daemon's dns-search
     :id: DNS-RESOLV-SEARCH-DAEMON
@@ -245,7 +268,8 @@ This section holds on Linux nodes.
     *Applies to:* A container created without search domains, and a daemon with
     :daemon-json:`dns-search` set
 
-    :file:`/etc/resolv.conf` has the daemon's :daemon-json:`dns-search`.
+    :file:`/etc/resolv.conf` has the search domains in the daemon's :daemon-json:`dns-search`, other
+    than ``.``.
 
 .. expectation:: Without any dns-search, resolv.conf has the host's search list
     :id: DNS-RESOLV-SEARCH-HOST
@@ -306,12 +330,14 @@ This section holds on Linux nodes.
     :platforms: linux
 
     *Applies to:* A host whose :file:`/etc/resolv.conf` names a nameserver other than 127.0.0.53,
-    and a running container attached only to the default bridge whose :file:`/etc/resolv.conf` has
-    not changed since the daemon wrote it
+    and a running container attached only to the default bridge, created without :cli-flag:`--dns`
+    nameservers, whose daemon does not have a :daemon-json:`dns` setting, and whose
+    :file:`/etc/resolv.conf` has not changed since the daemon wrote it
 
     After :api-op:`POST /networks/{id}/connect` to a user-defined network responds 200, the
-    container resolves the names of the containers on that network. It resolves other names through
-    the nameservers in the host's :file:`resolv.conf`, loopback nameservers included. See
+    container resolves the names of the containers on that network. It forwards the queries that
+    :ref:`container-dns-forwarding` says it forwards upstream to the nameservers in the host's
+    :file:`resolv.conf`, loopback nameservers included. See
     :ref:`container-dns-known-divergences-non-goals`.
 
 .. expectation:: After a connect from the default bridge, the nameserver is 127.0.0.11
@@ -374,10 +400,11 @@ valid :resolv-opt:`ndots` is an integer of 0 or more. :file:`/etc/resolv.conf` k
 *******************
 
 In this section, the querying container is the container that sends the DNS query. The embedded
-resolver has records for a name on a network when an endpoint on that network has that name. An
-endpoint's names are its container's name, short ID and hostname, and its network aliases. In
-:dns-name:`<name>.<network>`, ``<name>`` stands for a name and ``<network>`` for the name of a
-network. Both are placeholders, not literal text.
+resolver has records for a name on a network when an endpoint on that network has that name. On an
+overlay network, the endpoint of a service's task counts only while the task is running, as
+:ref:`swarm-traffic-service-discovery` defines it. An endpoint's names are its container's name,
+short ID and hostname, and its network aliases. In :dns-name:`<name>.<network>`, ``<name>`` stands
+for a name and ``<network>`` for the name of a network. Both are placeholders, not literal text.
 
 An expectation in this section names ``none`` when the embedded DNS resolver answers the query from
 its own records. It does this the same way on every platform.
@@ -388,8 +415,11 @@ its own records. It does this the same way on every platform.
     :depends_on: none
     :platforms: linux, windows
 
-    A container's name resolves to its address on a network it shares with the querying container.
-    See :ref:`container-dns-known-divergences-non-goals`.
+    *Applies to:* A container on a user-defined network that it shares with the querying container,
+    where no other network of the querying container has an endpoint with that container's name
+
+    The container's name resolves to its address on the shared network. See
+    :ref:`container-dns-known-divergences-non-goals`.
 
 .. expectation:: Names and aliases resolve whatever the case of the query
     :id: DNS-NAMES-CASE
@@ -397,8 +427,10 @@ its own records. It does this the same way on every platform.
     :depends_on: none
     :platforms: linux, windows
 
-    A container's name and its network aliases resolve whatever the case of the query: a container
-    named :dns-name:`Web` resolves as :dns-name:`web` and as :dns-name:`WEB`.
+    *Applies to:* A container on a user-defined network that it shares with the querying container
+
+    Its name and its network aliases resolve whatever the case of the query: a container named
+    :dns-name:`Web` resolves as :dns-name:`web` and as :dns-name:`WEB`.
 
 .. expectation:: A network alias resolves on its network only
     :id: DNS-NAMES-ALIAS
@@ -406,8 +438,11 @@ its own records. It does this the same way on every platform.
     :depends_on: none
     :platforms: linux, windows
 
-    A network alias given to a container's endpoint resolves to the container's address on that
-    network, for containers on that network only.
+    *Applies to:* A network alias given to a container's endpoint, where no other network of the
+    querying container has an endpoint with that alias
+
+    The alias resolves to the container's address on that network, for containers on that network
+    only.
 
 .. expectation:: An alias that several containers share resolves to all of them
     :id: DNS-NAMES-ALIAS-SHARED
@@ -496,8 +531,8 @@ its own records. It does this the same way on every platform.
     :depends_on: none
     :platforms: linux, windows
 
-    A name resolves when an endpoint with that name exists on any network that the querying
-    container is attached to.
+    A name resolves when an endpoint with that name exists on any user-defined network that the
+    querying container is attached to.
 
 .. expectation:: A query gets no address from a network the querying container is not on
     :id: DNS-NAMES-OTHER-NETWORK
@@ -517,8 +552,8 @@ its own records. It does this the same way on every platform.
     *Applies to:* A created or stopped standalone container
 
     After :api-op:`POST /containers/{id}/start` for the container responds 204, its name and its
-    aliases on each of its networks resolve for the other containers on that network. This holds
-    whether or not the container has a healthcheck.
+    aliases on each of its user-defined networks resolve for the other containers on that network.
+    This holds whether or not the container has a healthcheck.
 
 .. expectation:: After a connect, a container's name and aliases resolve on the network
     :id: DNS-NAMES-CONNECT
@@ -528,9 +563,9 @@ its own records. It does this the same way on every platform.
 
     *Applies to:* A running standalone container
 
-    After :api-op:`POST /networks/{id}/connect` for the container responds 200, its name and its
-    aliases on that network resolve for the other containers on the network. This holds whether or
-    not the container has a healthcheck.
+    After :api-op:`POST /networks/{id}/connect` to a user-defined network for the container responds
+    200, its name and its aliases on that network resolve for the other containers on the network.
+    This holds whether or not the container has a healthcheck.
 
 .. expectation:: After a disconnect, a container's name and aliases stop resolving there
     :id: DNS-NAMES-DISCONNECT
@@ -565,7 +600,8 @@ its own records. It does this the same way on every platform.
     name
 
     After :api-op:`POST /containers/{id}/rename` for the container responds 204, its new name
-    resolves and its old name does not, for containers on each of its networks.
+    resolves and its old name does not resolve to its address, for containers on each of its
+    networks.
 
 .. expectation:: In a Swarm, a rename applies on a multi-host network on its own node
     :id: DNS-NAMES-RENAME-SWARM
@@ -577,9 +613,9 @@ its own records. It does this the same way on every platform.
     endpoint on a Swarm-scoped network of a multi-host driver, such as :driver:`overlay`
 
     After :api-op:`POST /containers/{id}/rename` for the container responds 204, its new name
-    resolves and its old name does not, for containers on that network on its node. See
-    :ref:`container-dns-known-divergences-non-goals`. :need:`SWARM-SD-RENAME` covers containers on
-    other nodes.
+    resolves and its old name does not resolve to its address, for containers on that network on its
+    node. See :ref:`container-dns-known-divergences-non-goals`. :need:`SWARM-SD-RENAME` covers
+    containers on other nodes.
 
 .. expectation:: A and AAAA queries for a known name are answered from its records
     :id: DNS-NAMES-ADDRESS-RECORDS
@@ -656,9 +692,9 @@ its own records. It does this the same way on every platform.
     :platforms: linux, windows
 
     Over UDP, an answer from the embedded resolver's own records lists all of the name's addresses
-    when it fits in a size limit. The limit is the larger of 512 bytes and the query's EDNS0 buffer
-    size. When the answer does not fit, the embedded resolver truncates it and sets the TC bit. Over
-    TCP, the answer lists all of the name's addresses.
+    on the network that it answers from when it fits in a size limit. The limit is the larger of 512
+    bytes and the query's EDNS0 buffer size. When the answer does not fit, the embedded resolver
+    truncates it and sets the TC bit. Over TCP, the answer lists all of those addresses.
 
 .. expectation:: The order of a name's addresses varies from one answer to the next
     :id: DNS-NAMES-ADDRESS-ORDER
@@ -685,16 +721,18 @@ its own records. It does this the same way on every platform.
     :platforms: linux, windows
 
     Reverse (PTR) lookups resolve for the IPv4 and IPv6 addresses of containers on the querying
-    container's networks.
+    container's user-defined networks.
 
-.. expectation:: A forward lookup of a reverse lookup's answer returns the address
+.. expectation:: A reverse lookup's <name>.<network> resolves forward to the address
     :id: DNS-NAMES-PTR-ROUND-TRIP
     :observed_from: ctr
     :depends_on: none
     :platforms: linux, windows
 
-    A forward lookup of the name that a reverse lookup returns for a container's address returns
-    that address.
+    *Applies to:* A container's address whose reverse lookup returns :dns-name:`<name>.<network>.`,
+    where no network of the querying container has records for :dns-name:`<name>.<network>`
+
+    A forward lookup of :dns-name:`<name>.<network>` returns that address.
 
 .. expectation:: A reverse lookup answers <name>.<network>. with the container name
     :id: DNS-NAMES-PTR-FORM
@@ -713,7 +751,8 @@ its own records. It does this the same way on every platform.
     :platforms: linux, windows
 
     *Applies to:* A querying container attached to the network ``<network>``, and records for
-    ``<name>`` on that network
+    ``<name>`` on that network, where no network of the querying container has records for
+    :dns-name:`<name>.<network>`
 
     A query for :dns-name:`<name>.<network>` resolves to the addresses of ``<name>`` on that network
     only. See :ref:`container-dns-known-divergences-non-goals`.
@@ -734,7 +773,7 @@ its own records. It does this the same way on every platform.
     :platforms: linux, windows
 
     *Applies to:* A network whose name is a valid DNS label and that the querying container is not
-    attached to, where no network of the querying container has an endpoint named
+    attached to, where no network of the querying container has records for
     :dns-name:`<name>.<network>`, ``<network>`` being that network's name
 
     The embedded resolver forwards a query for :dns-name:`<name>.<network>` upstream.
@@ -746,11 +785,11 @@ its own records. It does this the same way on every platform.
     :platforms: linux, windows
 
     *Applies to:* A querying container attached to the network ``<network>``, where an endpoint is
-    named ``<name>``, and an endpoint named :dns-name:`<name>.<network>` on one of the querying
+    named ``<name>``, and records for :dns-name:`<name>.<network>` on one of the querying
     container's networks
 
-    :dns-name:`<name>.<network>` resolves to the address of the endpoint with the whole name. It
-    does not resolve to the address of ``<name>`` on the network ``<network>``.
+    :dns-name:`<name>.<network>` resolves from the records for the whole name. It does not resolve
+    to the address of ``<name>`` on the network ``<network>``.
 
 .. expectation:: A link alias resolves to the linked container for the linking one only
     :id: DNS-NAMES-LINK-ALIAS
@@ -786,7 +825,8 @@ its own records. It does this the same way on every platform.
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
 
-    *Applies to:* A container that has external access
+    *Applies to:* A container that has external access and was created without :cli-flag:`--dns`
+    nameservers, whose daemon does not have a :daemon-json:`dns` setting
 
     Public DNS names resolve.
 
@@ -825,8 +865,8 @@ its own records. It does this the same way on every platform.
     *Applies to:* A container that has external access and was created with :cli-flag:`--dns`
     nameservers
 
-    The embedded resolver forwards to the nameservers set with :cli-flag:`--dns`, in place of the
-    host's nameservers.
+    The embedded resolver forwards to the nameservers set with :cli-flag:`--dns`, other than
+    ``127.0.0.11``, in place of the host's nameservers.
 
 .. expectation:: Without --dns, the embedded resolver forwards to the daemon's dns
     :id: DNS-FWD-DAEMON-NAMESERVERS
@@ -837,8 +877,8 @@ its own records. It does this the same way on every platform.
     *Applies to:* A daemon with a :daemon-json:`dns` setting, and a container that has external
     access and was created without :cli-flag:`--dns` nameservers
 
-    The embedded resolver forwards to the nameservers in the daemon's :daemon-json:`dns` setting, in
-    place of the host's nameservers.
+    The embedded resolver forwards to the nameservers in the daemon's :daemon-json:`dns` setting,
+    other than ``127.0.0.11``, in place of the host's nameservers.
 
 .. expectation:: An internal-only container resolves through a --dns nameserver
     :id: DNS-FWD-INTERNAL-CTR-NAMESERVER
@@ -871,12 +911,29 @@ its own records. It does this the same way on every platform.
     :depends_on: os-linux
     :platforms: linux
 
-    *Applies to:* Linux nodes with a container that started with an endpoint on a user-defined
-    network, has external access and was created without :cli-flag:`--dns` nameservers, whose daemon
-    does not have a :daemon-json:`dns` setting
+    *Applies to:* Linux nodes with a host :file:`resolv.conf` that names a nameserver by a valid IP
+    address, and a container that started with an endpoint on a user-defined network, has external
+    access and was created without :cli-flag:`--dns` nameservers, whose daemon does not have a
+    :daemon-json:`dns` setting
 
     The embedded resolver forwards to the nameservers in the host's :file:`resolv.conf`, loopback
     nameservers included. It queries them from the host's network namespace.
+
+.. expectation:: With no host nameserver, the embedded resolver uses 127.0.0.1 and ::1
+    :id: DNS-FWD-HOST-NAMESERVERS-NONE
+    :observed_from: ctr
+    :depends_on: os-linux
+    :platforms: linux
+
+    *Applies to:* Linux nodes with a host :file:`resolv.conf` that does not name a nameserver by a
+    valid IP address, whether the file does not have a :resolv-opt:`nameserver` line with one, is
+    missing, or is not a regular file, such as a broken symlink, a directory or a FIFO, and a
+    container that started with an endpoint on a user-defined network, has external access and was
+    created without :cli-flag:`--dns` nameservers, whose daemon does not have a :daemon-json:`dns`
+    setting
+
+    The embedded resolver forwards to ``127.0.0.1`` and ``::1``. It queries them from the host's
+    network namespace.
 
 .. expectation:: Configured nameservers are queried from the container's namespace
     :id: DNS-FWD-CONFIGURED-NAMESERVERS-CTR-NS
@@ -1090,8 +1147,8 @@ This section holds on Linux nodes.
     Lost. Take a node in a Swarm, whether it created the Swarm with :api-op:`POST /swarm/init` or
     joined it, that leaves it with :api-op:`POST /swarm/leave`. After the leave, the names of the
     containers that were running on the node's user-defined networks before the leave stop resolving
-    there. A container that starts after the leave gets records that resolve
-    (:ref:`container-dns-names-and-answers`).
+    there, and so do reverse lookups of their addresses. A container that starts after the leave
+    gets records that resolve (:ref:`container-dns-names-and-answers`).
 
 .. expectation:: resolv.conf after the embedded resolver starts
     :id: DNS-RESOLV-NOT-UPDATED
@@ -1105,15 +1162,32 @@ This section holds on Linux nodes.
     network keeps :resolv-opt:`nameserver 127.0.0.11` and the embedded resolver. A container started
     on the default bridge alone gets the host's nameservers (:ref:`container-dns-file-resolv-conf`).
 
-.. expectation:: Upstream nameservers after a connect from the default bridge
+.. expectation:: Host resolv.conf that is a directory, a socket or a FIFO
+    :id: DNS-FWD-HOST-RESOLV-NOT-REGULAR
+    :observed_from: api
+    :depends_on: none
+    :platforms: linux, windows
+    :rationale: RAT-DNS-HOST-RESOLV-UNREADABLE
+
+    Not handled as a file without nameservers. On a Linux node whose :file:`/etc/resolv.conf` is a
+    directory, :api-op:`POST /containers/{id}/start` for a container that uses the embedded resolver
+    fails with an error that contains :api-error:`is a directory`. When the file is a socket, the
+    error contains :api-error:`no such device or address`. When it is a FIFO, the daemon does not
+    finish starting: its API does not respond (:ref:`container-dns-forwarding`).
+
+.. expectation:: Upstream nameservers for a container whose NetworkMode is the default bridge
     :id: DNS-FWD-DEFAULT-BRIDGE-CONNECT-UPSTREAM
     :observed_from: ctr
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
 
-    On a Linux node whose :file:`/etc/resolv.conf` names only 127.0.0.53, take a container that
-    started attached only to the default bridge and later connects to a user-defined network. It
-    forwards to the nameservers in :file:`/run/systemd/resolve/resolv.conf`, not to 127.0.0.53
+    On a Linux node whose :file:`/etc/resolv.conf` names only 127.0.0.53, take a container whose
+    :api-field:`HostConfig.NetworkMode` is the default bridge, created without :cli-flag:`--dns`
+    nameservers, whose daemon does not have a :daemon-json:`dns` setting, and that has an endpoint
+    on a user-defined network, from its start or after a connect. :api-op:`POST /containers/create`
+    sets that :api-field:`NetworkMode` when the request does not give one, even when
+    :api-field:`EndpointsConfig` names only a user-defined network. The container forwards to the
+    nameservers in :file:`/run/systemd/resolve/resolv.conf`, not to 127.0.0.53
     (:ref:`container-dns-file-resolv-conf`, :ref:`container-dns-forwarding`).
 
 .. expectation:: DNSNames on the default bridge after a rename

@@ -24,17 +24,36 @@ standalone container or the node's load-balancer endpoint on that network is on 
 is programmed on a node while the node has a local attachment to it. A node creates its
 load-balancer endpoint on a network with the network, and deletes it with the network. Except on the
 ingress network, the node deletes the network once no task or standalone container of the node is on
-it, so the load-balancer endpoint does not outlast them.
+it, so the load-balancer endpoint does not outlast them. Unless an expectation or its section names
+other values, an expectation holds in a Swarm with the cluster settings that :api-op:`POST
+/swarm/init` sets by default. An expectation holds whatever data-path, advertise and listen
+addresses each node gives in :api-op:`POST /swarm/init` or :api-op:`POST /swarm/join`, when the
+data-path addresses of the Swarm's nodes are all of one IP version, and when each node's route for
+its VXLAN traffic to the other nodes selects its data-path address as the source address
+(:ref:`swarm-lifecycle-known-divergences-non-goals`), unless the expectation names that case.
 
-An expectation that involves the ingress network holds for an ingress network that is not
-``internal`` and does not have the option :drvopt:`dsr`. An expectation that involves a node's
-gateway network holds for one that the daemon created, or that the operator created with no options
-other than a subnet and a gateway (:ref:`swarm-traffic-gateway-network`). On an overlay network with
+An expectation that involves the ingress network holds for an ingress network that was created with
+:api-field:`Ingress` set, that is not ``internal`` and that does not have the option :drvopt:`dsr`.
+Only an expectation that names an ingress network without :api-field:`Ingress` covers such a network
+(:ref:`swarm-networking-the-ingress-network`). An expectation that involves a node's gateway network
+holds for one that the daemon created, or that the operator created with the options of one that the
+daemon creates and no others but a subnet and a gateway (:ref:`swarm-traffic-gateway-network`),
+unless the expectation names other options. The daemon creates its gateway network with
+:drvopt:`com.docker.network.bridge.name` set to :network:`docker_gwbridge`,
+:drvopt:`com.docker.network.bridge.enable_icc` set to ``false`` and
+:drvopt:`com.docker.network.bridge.enable_ip_masquerade` set to ``true``. On an overlay network with
 more than one subnet, an expectation about traffic to a VIP holds for the VIP and a backend task
 only when both are in the subnet of the load-balancer endpoint of the client's node on that network
 (:ref:`swarm-lifecycle-known-divergences-non-goals`). On Linux nodes, an expectation about a
 :api-value:`mode=host` published port holds for a service that is attached to at least one network
-that is not ``internal``.
+that is not ``internal``, and for a service whose spec names no network and that publishes no port
+in ingress mode, since its tasks run on the default bridge network
+(:ref:`swarm-traffic-egress-the-gateway-network`). An expectation about reaching a
+:api-value:`mode=host` published port at an address of the node holds on a network whose gateway
+mode for that address's family is not ``routed``, without
+:drvopt:`com.docker.network.bridge.host_binding_ipv4` and
+:drvopt:`com.docker.network.bridge.inhibit_ipv4`, unless the expectation names them
+(:doc:`bridge-networking.md <bridge-networking>`).
 
 .. _swarm-networking-host-requirements:
 
@@ -652,46 +671,6 @@ These expectations cover cluster configuration. The accepted range of the data-p
 
     The daemon log contains an error that contains :log:`incompatible with swarm mode`.
 
-.. expectation:: docker swarm init and join fail with nftables and no swarm-nftables
-    :id: SWARM-CLUSTER-NFT-REFUSED-CLI
-    :observed_from: api:solo
-    :depends_on: cli
-    :platforms: linux
-    :cli_for: SWARM-CLUSTER-NFT-REFUSED
-
-    *Applies to:* A Linux node that is not yet in a Swarm, with :daemon-json:`firewall-backend` set
-    to ``nftables``, with :daemon-json:`iptables` true, and without
-    :daemon-json:`features.swarm-nftables`
-
-    :cli:`docker swarm init` and :cli:`docker swarm join` exit non-zero. The node is then still not
-    in a Swarm.
-
-.. expectation:: Swarm init and join respond 500 under nftables without swarm-nftables
-    :id: SWARM-CLUSTER-NFT-REFUSED
-    :observed_from: api:solo
-    :depends_on: none
-    :platforms: linux
-
-    *Applies to:* A Linux node that is not yet in a Swarm, with :daemon-json:`firewall-backend` set
-    to ``nftables``, with :daemon-json:`iptables` true, and without
-    :daemon-json:`features.swarm-nftables`
-
-    :api-op:`POST /swarm/init` and :api-op:`POST /swarm/join` respond 500. See
-    :ref:`swarm-lifecycle-known-divergences-non-goals`.
-
-.. expectation:: A Swarm node with nftables and no swarm-nftables does not start
-    :id: SWARM-CLUSTER-NFT-NO-START
-    :observed_from: log
-    :depends_on: none
-    :platforms: linux
-
-    *Applies to:* A Linux node that is already in a Swarm, with :daemon-json:`firewall-backend` set
-    to ``nftables``, with :daemon-json:`iptables` true, and without
-    :daemon-json:`features.swarm-nftables`
-
-    The daemon does not start on that node. The daemon log contains an error that contains
-    :log:`incompatible with swarm mode`.
-
 .. _swarm-networking-network-lifecycle-api-surface:
 
 *********************************
@@ -782,7 +761,7 @@ The expectations in this subsection hold for any Swarm-scoped network, whatever 
     :depends_on: none
     :platforms: linux, windows
 
-    *Applies to:* A manager
+    *Applies to:* A manager, and a network driver that is built in or that a managed plugin provides
 
     On that manager, :api-op:`POST /networks/create` with a name that no Swarm-scoped network has,
     and no network on that manager has, responds 201 when it sets :api-field:`Scope` to ``swarm`` or
@@ -1680,6 +1659,30 @@ The expectations in this subsection hold for any Swarm-scoped network, whatever 
     On that manager, :api-op:`POST /networks/create` for a Swarm-scoped network whose driver is that
     plugin responds 404, with a message that contains :api-error:`plugin "<name>" not found`.
 
+.. expectation:: A Swarm-scoped network on a legacy v1 driver plugin responds 400
+    :id: SWARM-SCOPED-PLUGIN-LEGACY-HTTP400
+    :observed_from: api:mgr
+    :depends_on: none
+    :platforms: linux, windows
+
+    *Applies to:* A manager with a legacy network plugin, a v1 plugin that the daemon finds in its
+    plugin directories
+
+    On that manager, :api-op:`POST /networks/create` for a Swarm-scoped network whose driver is that
+    plugin responds 400.
+
+.. expectation:: A legacy plugin's refusal says it is not supported in swarm mode
+    :id: SWARM-SCOPED-PLUGIN-LEGACY-MSG
+    :observed_from: api:mgr
+    :depends_on: none
+    :platforms: linux, windows
+
+    *Applies to:* A manager with a legacy network plugin, a v1 plugin that the daemon finds in its
+    plugin directories
+
+    On that manager, :api-op:`POST /networks/create` for a Swarm-scoped network whose driver is that
+    plugin responds 400, with a message that contains :api-error:`is not supported in swarm mode`.
+
 .. expectation:: Without the plugin on the leader, another manager's create responds 400
     :id: SWARM-SCOPED-PLUGIN-LEADER-MISSING
     :observed_from: api:mgr
@@ -2127,16 +2130,19 @@ allocation ceiling (:ref:`swarm-lifecycle-convergence`) after the request respon
     The VIP that :api-op:`GET /networks/{id}?verbose=true` reports for a service is the address that
     load-balances to its tasks.
 
-.. expectation:: Verbose network inspect lists a service's running tasks
+.. expectation:: Verbose network inspect lists running tasks and no stopped task
     :id: SWARM-OVL-VERBOSE-TASKS
-    :observed_from: api:mgr, api:wkr (on a node with a local attachment to the network)
+    :observed_from: api:mgr, api:wkr
     :depends_on: none
     :platforms: linux, windows
 
+    *Applies to:* A node with a local attachment to an overlay network, and a service on that
+    network
+
     Within the ceiling of the convergence class (:ref:`swarm-lifecycle-convergence`) of a change to
-    a service's tasks, two lists of tasks for the service are equal. The first list is the tasks
-    that :api-op:`GET /networks/{id}?verbose=true` reports. The second list is the service's running
-    tasks, as :ref:`swarm-traffic-service-discovery` defines them.
+    the service's tasks, the tasks that :api-op:`GET /networks/{id}?verbose=true` reports for the
+    service include each of its running tasks, as :ref:`swarm-traffic-service-discovery` defines
+    them. They do not include a task whose container has stopped.
 
 .. expectation:: Verbose network inspect on an attached node reports Services
     :id: SWARM-OVL-VERBOSE-SERVICES
@@ -3100,16 +3106,19 @@ expectation.
   :ref:`bridge-networking-rule-content` pins the bridge driver's rules. The content includes
   individual match/target lines and their order in a chain. A backend change replaces exactly these
   rules. A contract asserts their effect on packets, and never the content.
-- Which packet-filtering technology is in use, except where
-  :ref:`swarm-lifecycle-firewall-anchors-host-integration` pins a backend-specific anchor.
+- Which packet-filtering technology is in use, beyond what the
+  :ref:`swarm-lifecycle-firewall-anchors-host-integration` expectations about anchors and cleanup
+  assert for each backend.
 - The existence, name or topology of internal sandboxes (per-network load-balancer sandbox, ingress
   sandbox), network-namespace paths, and generated :link-kind:`veth` / bridge / VXLAN interface
   names. One exception is the name ``ingress-sbox`` in :api-field:`Containers` of :api-op:`GET
-  /networks/docker_gwbridge`, which :ref:`network-common-network-api` pins. The other exception is a
+  /networks/docker_gwbridge`, which :ref:`network-common-network-api` pins. Another exception is a
   node's load-balancer endpoint on a network. :api-op:`GET /networks/{id}` on that node lists this
   endpoint. :ref:`swarm-networking-overlay-networks` asserts where its address falls, and
   :ref:`swarm-traffic-load-balancing-east-west-vip` asserts that a task observes it as the source
   address in NAT mode. The key and the name of this endpoint are not asserted.
+  :ref:`network-common-daemon-restart` asserts that the namespaces of these sandboxes are removed
+  after a kill and restart.
 - The load-balancer implementation and its scheduler, beyond the distribution property in
   :ref:`swarm-traffic-distribution`.
 - Internal refcounting, gossip timers, and reap and rejoin intervals. The surface for these is the

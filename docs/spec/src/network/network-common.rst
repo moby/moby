@@ -140,7 +140,10 @@ Host configuration
     node, its containers and its published ports. The rules and the firewalld configuration that the
     daemon programs are not part of the host's firewall.
 
-    *Needed when:* Always, except in an expectation whose state names firewalld
+    *Needed when:* Always. In an expectation whose state names firewalld, the host's firewall is
+    firewalld, and it passes only the traffic that a host configuration expectation of the
+    expectation's spec names, such as the Swarm ports in :ref:`swarm-networking-host-configuration`,
+    with configuration that a firewalld reload keeps.
 
 .. needextend:: type == "expectation" and docname in ['network/network-common', 'network/bridge-networking', 'network/ipvlan-networking', 'network/container-dns', 'network/swarm-networking', 'network/swarm-traffic', 'network/swarm-lifecycle'] and ("linux" in platforms) and "NET-HOST-FIREWALL-PASSES-TRAFFIC" not in pins
     :+needs: NET-HOST-FIREWALL-PASSES-TRAFFIC
@@ -410,8 +413,8 @@ Host configuration
     :depends_on: none
     :platforms: linux, windows
 
-    *Applies to:* A running container with an endpoint on a network, from its start or from a later
-    connect
+    *Applies to:* A running container with an endpoint on a network other than :network:`host`, from
+    its start or from a later connect
 
     :api-op:`POST /networks/{id}/disconnect` for the container responds 200. :api-op:`GET
     /containers/{id}/json` then does not list the network in :api-field:`NetworkSettings.Networks`,
@@ -423,8 +426,8 @@ Host configuration
     :depends_on: os-linux, os-windows
     :platforms: linux, windows
 
-    *Applies to:* A running container with an endpoint on a network, from its start or from a later
-    connect
+    *Applies to:* A running container with an endpoint on a network other than :network:`host`, from
+    its start or from a later connect
 
     After :api-op:`POST /networks/{id}/disconnect` for the container responds 200, the container
     does not have its interface on that network.
@@ -436,8 +439,8 @@ Host configuration
     :platforms: linux, windows
     :cli_for: NET-API-DISCONNECT-RUNNING
 
-    *Applies to:* A running container with an endpoint on a network, from its start or from a later
-    connect
+    *Applies to:* A running container with an endpoint on a network other than :network:`host`, from
+    its start or from a later connect
 
     :cli:`docker network disconnect` for the container exits zero. :cli:`docker inspect` for the
     container then does not list the network in :api-field:`NetworkSettings.Networks`.
@@ -481,9 +484,8 @@ Host configuration
 
     :api-op:`POST /networks/{id}/connect` to that network, for the container, with
     :api-field:`MacAddress` set, at API version 1.54 or later, fails. :api-op:`GET
-    /containers/{id}/json` then lists the network in :api-field:`NetworkSettings.Networks`, and
-    :api-op:`GET /networks/{id}` does not list the container. See
-    :ref:`network-common-known-divergences-non-goals`.
+    /containers/{id}/json` then does not list the network in :api-field:`NetworkSettings.Networks`,
+    and :api-op:`GET /networks/{id}` does not list the container.
 
 .. expectation:: A network is found by its full ID, its name or a unique ID prefix
     :id: NET-API-INSPECT-ID-NAME-PREFIX
@@ -556,23 +558,34 @@ Host configuration
     :api-op:`GET /networks` with the filter :api-query:`type=custom` lists the networks that the
     filter :api-query:`type=builtin` does not list.
 
-.. expectation:: The filter type=builtin lists bridge, host and none
+.. expectation:: type=builtin lists host and none, and bridge while it exists
+    :id: NET-API-FILTER-TYPE-BUILTIN-PREDEFINED
+    :observed_from: api
+    :depends_on: none
+    :platforms: linux
+
+    :api-op:`GET /networks` with the filter :api-query:`type=builtin` lists :network:`host` and
+    :network:`none`. It also lists :driver:`bridge` while the default bridge network exists.
+
+.. expectation:: The filter type=builtin lists only bridge, host and none
     :id: NET-API-FILTER-TYPE-BUILTIN
     :observed_from: api
     :depends_on: none
     :platforms: linux
 
     :api-op:`GET /networks` with the filter :api-query:`type=builtin` lists :driver:`bridge`,
-    :network:`host` and ``none``.
+    :network:`host` and ``none``, and no other network.
 
-.. expectation:: An unsupported filter term or value responds 400
+.. expectation:: An unknown filter term or a bad type or dangling value responds 400
     :id: NET-API-FILTER-INVALID
     :observed_from: api
     :depends_on: none
     :platforms: linux, windows
 
-    :api-op:`GET /networks` with a filter term that it does not support responds 400. :api-op:`GET
-    /networks` with a value that a filter term does not accept also responds 400.
+    :api-op:`GET /networks` with a filter term that it does not support responds 400. It also
+    responds 400 for a value of the :api-query:`type` or :api-query:`dangling` term that the term
+    does not accept, and for more than one value for :api-query:`dangling`. A value of another
+    supported term that matches no network gets a 200 response that lists no network.
 
 .. expectation:: docker network ls with an unsupported filter term or value fails
     :id: NET-API-FILTER-INVALID-CLI
@@ -582,27 +595,27 @@ Host configuration
     :cli_for: NET-API-FILTER-INVALID
 
     :cli:`docker network ls --filter` exits non-zero and prints the daemon's error for a filter term
-    that the daemon does not support. It does the same for a value that a filter term does not
-    accept.
+    that the daemon does not support. It does the same for a value of the :api-query:`type` or
+    :api-query:`dangling` term that the term does not accept.
 
-.. expectation:: The type filter accepts the values builtin and custom
+.. expectation:: The type and dangling filter terms each accept a fixed set of values
     :id: NET-API-FILTER-TYPE-VALUES
     :observed_from: api
     :depends_on: none
     :platforms: linux, windows
 
     The :api-query:`type` filter term of :api-op:`GET /networks` accepts the values ``builtin`` and
-    ``custom``.
+    ``custom``. The :api-query:`dangling` term accepts one value: ``true``, ``1``, ``false`` or
+    ``0``.
 
-.. expectation:: With both type values, the network list is a varying subset
+.. expectation:: With both type values, the filter lists every network
     :id: NET-API-FILTER-TYPE-BOTH
     :observed_from: api
     :depends_on: none
     :platforms: linux, windows
 
-    :api-op:`GET /networks` with both :api-query:`type=builtin` and :api-query:`type=custom` lists a
-    subset of the networks. The subset can differ from one request to the next. See
-    :ref:`network-common-known-divergences-non-goals`.
+    :api-op:`GET /networks` with both :api-query:`type=builtin` and :api-query:`type=custom` lists
+    every network.
 
 .. expectation:: The filter dangling=true lists a network with no running container
     :id: NET-API-FILTER-DANGLING-TRUE
@@ -612,7 +625,7 @@ Host configuration
 
     *Applies to:* A network that is not Swarm-scoped and not predefined, with no running container
     attached to it, other than :network:`docker_gwbridge` on a Linux node in a Swarm that has an
-    ingress network
+    ingress network created with :api-field:`Ingress` set
 
     :api-op:`GET /networks` with the filter :api-query:`dangling=true` lists the network.
 
@@ -669,7 +682,8 @@ Host configuration
     :depends_on: none
     :platforms: linux
 
-    *Applies to:* A Linux node in a Swarm that has an ingress network
+    *Applies to:* A Linux node in a Swarm that has an ingress network created with
+    :api-field:`Ingress` set
 
     :api-op:`POST /networks/prune` does not delete :network:`docker_gwbridge`. :api-op:`GET
     /networks/docker_gwbridge` lists ``ingress-sbox`` in :api-field:`Containers`.
@@ -850,8 +864,22 @@ Host configuration
     *Applies to:* A running container, and a config-only network
 
     After :api-op:`POST /networks/{id}/connect` to that network, for the container, fails,
-    :api-op:`GET /containers/{id}/json` lists the network in :api-field:`NetworkSettings.Networks`.
-    See :ref:`network-common-known-divergences-non-goals`.
+    :api-op:`GET /containers/{id}/json` does not list the network in
+    :api-field:`NetworkSettings.Networks`.
+
+.. expectation:: A failed connect leaves the network out of the container's settings
+    :id: NET-API-CONNECT-FAILED-NOT-LISTED
+    :observed_from: api
+    :depends_on: none
+    :platforms: linux, windows
+
+    *Applies to:* A running container, and a network that it is not attached to
+
+    After :api-op:`POST /networks/{id}/connect` to that network, for the container, fails, whatever
+    the reason, :api-op:`GET /containers/{id}/json` does not list the network in
+    :api-field:`NetworkSettings.Networks`, and :api-op:`GET /networks/{id}` does not list the
+    container. :need:`A known divergence <NET-API-FAILED-CONNECT-IFACE-LEFT>` covers the interface
+    that a failure at the rename leaves in the container.
 
 .. expectation:: docker network connect of a running container to config-only fails
     :id: NET-API-CONFIG-ONLY-CONNECT-RUNNING-CLI
@@ -1179,7 +1207,7 @@ when its :drvopt:`com.docker.network.endpoint.ifname` is set to that name.
  Default gateway
 *****************
 
-.. expectation:: A container on internal networks only has no default route
+.. expectation:: The daemon gives a container on internal networks only no default route
     :id: NET-GW-INTERNAL-ONLY
     :observed_from: task, ctr
     :depends_on: os-linux, os-windows
@@ -1187,7 +1215,7 @@ when its :drvopt:`com.docker.network.endpoint.ifname` is set to that name.
 
     *Applies to:* A container attached only to ``internal`` networks
 
-    The container does not have a default route. See
+    The daemon does not give the container a default route. See
     :ref:`network-common-known-divergences-non-goals`.
 
 .. expectation:: The default route goes through the endpoint with the highest GwPriority
@@ -1274,10 +1302,12 @@ This section holds on Linux nodes.
     :depends_on: none
     :platforms: linux
 
-    *Applies to:* A running container
+    *Applies to:* A running container, and a network other than the ingress network and
+    :network:`docker_gwbridge`
 
-    After :api-op:`POST /networks/{id}/connect` for the container responds 200, :file:`/etc/hosts`
-    has the lines for the container's addresses on that network.
+    After :api-op:`POST /networks/{id}/connect` to that network for the container responds 200,
+    :file:`/etc/hosts` has the lines for the container's addresses on that network. IPv6 addresses
+    are exceptions while IPv6 is disabled in the container, as for the expectation above.
 
 .. expectation:: A disconnect removes the network's addresses from /etc/hosts
     :id: NET-HOSTS-DISCONNECT
@@ -1301,7 +1331,8 @@ This section holds on Linux nodes.
 
     An entry ``<name>:host-gateway`` in :api-field:`HostConfig.ExtraHosts` adds a line to
     :file:`/etc/hosts` for each address in :daemon-json:`host-gateway-ips`. Each line maps the
-    address to ``<name>``.
+    address to ``<name>``. IPv6 addresses are exceptions while IPv6 is disabled in the container, as
+    for the expectation about the container's addresses.
 
 .. expectation:: Without host-gateway-ips, host-gateway is the default bridge's gateways
     :id: NET-HOSTS-HOST-GATEWAY-DEFAULT-BRIDGE
@@ -1313,7 +1344,8 @@ This section holds on Linux nodes.
 
     An entry ``<name>:host-gateway`` in :api-field:`HostConfig.ExtraHosts` adds a line to
     :file:`/etc/hosts` for each gateway address of the default bridge. This holds whatever networks
-    the container is attached to.
+    the container is attached to. IPv6 addresses are exceptions while IPv6 is disabled in the
+    container, as for the expectation about the container's addresses.
 
 .. expectation:: Without a host-gateway address, starting the container responds 500
     :id: NET-HOSTS-HOST-GATEWAY-NO-BRIDGE
@@ -1413,9 +1445,11 @@ drivers. A plugin driver has the properties that it implements. The :driver:`l2t
     live-restore keeps running. This includes the namespaces of load-balancer and ingress sandboxes,
     and of containers that the daemon does not keep running. An overlay network's namespace is the
     one that holds the network's VXLAN device. A namespace that the daemon creates after the restart
-    is a different namespace, even at the same path. The expectation is checked as soon as the
-    daemon's API answers again, without a ceiling, on a node in a Swarm too. See
-    :ref:`swarm-lifecycle-known-divergences-non-goals`.
+    is a different namespace, even at the same path. A namespace is removed once no mount of it
+    remains on the node, even while a process still runs in it. The expectation is checked as soon
+    as the daemon's API responds again, without a ceiling, on a node in a Swarm too.
+    :need:`SWARM-RESTART-STALE-OVERLAY` and :need:`SWARM-RESTART-STALE-OVERLAY-REMOVAL` say when an
+    overlay network's namespace is removed.
 
 .. expectation:: With live-restore, a container keeps its namespace and interfaces
     :id: NET-RESTART-LIVE-RESTORE
@@ -1491,17 +1525,6 @@ drivers. A plugin driver has the properties that it implements. The :driver:`l2t
     exist responds 404. 404 is the status for a request whose own resource does not exist. Here the
     request is valid, and its body names the missing network (:ref:`network-common-network-api`).
 
-.. expectation:: Several values for the type filter
-    :id: NET-FILTER-TYPE-SEVERAL-VALUES
-    :observed_from: api
-    :depends_on: none
-    :platforms: linux, windows
-
-    Not combined. With both :api-query:`type=builtin` and :api-query:`type=custom` given,
-    :api-op:`GET /networks` tests each network against one of the two values, chosen at random. The
-    response lists a different subset of the networks each time. As with other filter terms, a
-    network is meant to match when it matches either value (:ref:`network-common-network-api`).
-
 .. expectation:: Default route on internal overlays on Windows
     :id: NET-GW-WINDOWS-INTERNAL-OVERLAY-ROUTE
     :observed_from: ctr
@@ -1555,19 +1578,6 @@ drivers. A plugin driver has the properties that it implements. The :driver:`l2t
     endpoints are attached. This order is random. The endpoint that asks for the name is meant to
     get it, whatever the order (:ref:`network-common-endpoint-interfaces`).
 
-.. expectation:: Network listed after a failed connect
-    :id: NET-FAILED-CONNECT-NETWORK-LISTED
-    :observed_from: api
-    :depends_on: none
-    :platforms: linux, windows
-
-    Left in place. :api-op:`POST /networks/{id}/connect` for a running container can fail when the
-    daemon creates the endpoint. For example, it fails when the network's driver does not accept the
-    endpoint, or when the network is config-only. After such a failure, :api-op:`GET
-    /containers/{id}/json` lists the network in :api-field:`NetworkSettings.Networks`, but the
-    container does not have an endpoint on it. A failed connect is meant to leave nothing in place
-    (:ref:`network-common-network-api`).
-
 .. expectation:: docker_gwbridge outside a Swarm
     :id: NET-API-GWBRIDGE-PRUNED
     :observed_from: api:solo
@@ -1575,8 +1585,8 @@ drivers. A plugin driver has the properties that it implements. The :driver:`l2t
     :platforms: linux, windows
     :rationale: RAT-NET-GWBRIDGE-NOT-PREDEFINED
 
-    Pruned. On a node that is not in a Swarm, :network:`docker_gwbridge` is not a predefined
-    network. :api-op:`POST /networks/prune` deletes it while no running container is attached to it.
+    Pruned. :network:`docker_gwbridge` is not a predefined network. On a node that is not in a
+    Swarm, :api-op:`POST /networks/prune` deletes it while no running container is attached to it.
     This includes a :network:`docker_gwbridge` that an operator creates before the node joins a
     Swarm, to configure the gateway network (:ref:`network-common-network-api`,
     :ref:`swarm-traffic-gateway-network`).
