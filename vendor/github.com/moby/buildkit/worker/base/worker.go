@@ -70,30 +70,31 @@ const labelCreatedAt = "buildkit/createdat"
 // WorkerOpt is specific to a worker.
 // See also CommonOpt.
 type WorkerOpt struct {
-	ID               string
-	Root             string
-	Labels           map[string]string
-	Platforms        []ocispecs.Platform
-	GCPolicy         []client.PruneInfo
-	BuildkitVersion  client.BuildkitVersion
-	NetworkProviders map[pb.NetMode]network.Provider
-	ProxyProvider    network.ProxyProvider
-	Executor         executor.Executor
-	Snapshotter      snapshot.Snapshotter
-	ContentStore     *containerdsnapshot.Store
-	Applier          diff.Applier
-	Differ           diff.Comparer
-	ImageStore       images.Store // optional
-	RegistryHosts    docker.RegistryHosts
-	IdentityMapping  *user.IdentityMapping
-	LeaseManager     *leaseutil.Manager
-	GarbageCollect   func(context.Context) (gc.Stats, error)
-	ParallelismSem   *semaphore.Weighted
-	MetadataStore    *metadata.Store
-	ContentMetadata  io.Closer
-	MountPoolRoot    string
-	ResourceMonitor  *resources.Monitor
-	CDIManager       *cdidevices.Manager
+	ID                   string
+	Root                 string
+	Labels               map[string]string
+	Platforms            []ocispecs.Platform
+	GCPolicy             []client.PruneInfo
+	BuildkitVersion      client.BuildkitVersion
+	NetworkProviders     map[pb.NetMode]network.Provider
+	ProxyProvider        network.ProxyProvider
+	Executor             executor.Executor
+	Snapshotter          snapshot.Snapshotter
+	ContentStore         *containerdsnapshot.Store
+	Applier              diff.Applier
+	Differ               diff.Comparer
+	ImageStore           images.Store // optional
+	RegistryHosts        docker.RegistryHosts
+	IdentityMapping      *user.IdentityMapping
+	LeaseManager         *leaseutil.Manager
+	GarbageCollect       func(context.Context) (gc.Stats, error)
+	ParallelismSem       *semaphore.Weighted
+	MetadataStore        *metadata.Store
+	ContentMetadata      io.Closer
+	MountPoolRoot        string
+	ResourceMonitor      *resources.Monitor
+	CDIManager           *cdidevices.Manager
+	UseCommonSnapshotIDs bool
 }
 
 // Worker is a local worker instance with dedicated snapshotter, cache, and so on.
@@ -118,16 +119,17 @@ func NewWorker(ctx context.Context, opt WorkerOpt) (*Worker, error) {
 	})
 
 	cm, err := cache.NewManager(cache.ManagerOpt{
-		Snapshotter:     opt.Snapshotter,
-		PruneRefChecker: imageRefChecker,
-		Applier:         opt.Applier,
-		GarbageCollect:  opt.GarbageCollect,
-		LeaseManager:    opt.LeaseManager,
-		ContentStore:    opt.ContentStore,
-		Differ:          opt.Differ,
-		MetadataStore:   opt.MetadataStore,
-		Root:            opt.Root,
-		MountPoolRoot:   opt.MountPoolRoot,
+		Snapshotter:          opt.Snapshotter,
+		PruneRefChecker:      imageRefChecker,
+		Applier:              opt.Applier,
+		GarbageCollect:       opt.GarbageCollect,
+		LeaseManager:         opt.LeaseManager,
+		ContentStore:         opt.ContentStore,
+		Differ:               opt.Differ,
+		MetadataStore:        opt.MetadataStore,
+		Root:                 opt.Root,
+		MountPoolRoot:        opt.MountPoolRoot,
+		UseCommonSnapshotIDs: opt.UseCommonSnapshotIDs,
 	})
 	if err != nil {
 		return nil, err

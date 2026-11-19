@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -17,7 +18,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel/trace"
-	"golang.org/x/net/http2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -63,14 +63,66 @@ func serve(ctx context.Context, grpcServer *grpc.Server, conn net.Conn) {
 		conn.Close()
 	}()
 	bklog.G(ctx).Debugf("serving grpc connection")
-	(&http2.Server{}).ServeConn(conn, &http2.ServeConnOpts{Handler: grpcServer}) //nolint:staticcheck // This existing HTTP/2 connection is already established.
+	// grpc's own transport rather than ServeHTTP: the ServeHTTP transport reads
+	// request bodies eagerly into an unbounded buffer, so a stream the handler
+	// consumes slowly (an exporter writing to a slow destination) never pushes
+	// back on the sender and piles up in memory.
+	l := newSingleConnListener(conn)
+	go func() {
+		<-ctx.Done()
+		l.Close()
+	}()
+	_ = grpcServer.Serve(l)
+}
+
+// singleConnListener hands out one established connection, then blocks until
+// it is closed, so grpc.Server.Serve can serve a connection it did not accept.
+type singleConnListener struct {
+	conn      net.Conn
+	accept    sync.Once
+	closeOnce sync.Once
+	done      chan struct{}
+}
+
+func newSingleConnListener(conn net.Conn) *singleConnListener {
+	return &singleConnListener{conn: conn, done: make(chan struct{})}
+}
+
+func (l *singleConnListener) Accept() (net.Conn, error) {
+	var c net.Conn
+	l.accept.Do(func() { c = &listenerConn{Conn: l.conn, l: l} })
+	if c != nil {
+		return c, nil
+	}
+	<-l.done
+	return nil, net.ErrClosed
+}
+
+func (l *singleConnListener) Close() error {
+	l.closeOnce.Do(func() { close(l.done) })
+	return nil
+}
+
+func (l *singleConnListener) Addr() net.Addr { return l.conn.LocalAddr() }
+
+// listenerConn closes its listener with it, so Serve returns once the session
+// connection ends, as ServeConn did.
+type listenerConn struct {
+	net.Conn
+	l *singleConnListener
+}
+
+func (c *listenerConn) Close() error {
+	err := c.Conn.Close()
+	c.l.Close()
+	return err
 }
 
 func grpcClientConn(ctx context.Context, conn net.Conn, opts map[string][]string) (context.Context, *grpc.ClientConn, error) {
 	var dialCount atomic.Int64
 	dialer := grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
 		if c := dialCount.Add(1); c > 1 {
-			return nil, errors.New("only one connection allowed")
+			return nil, errors.New("session connection cannot be re-established")
 		}
 		return conn, nil
 	})

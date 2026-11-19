@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"net"
+	"net/http"
 	"sync"
 
 	"github.com/moby/buildkit/identity"
@@ -53,6 +54,10 @@ func NewSession(ctx context.Context, sharedKey string) (*Session, error) {
 	id := identity.NewID()
 
 	serverOpts := []grpc.ServerOption{
+		// Filesync sends each include/exclude pattern as a metadata value.
+		// Preserve the previous HTTP/2 server's header-size budget rather
+		// than relying on gRPC's default, which is moving to 8 KiB.
+		grpc.MaxHeaderListSize(http.DefaultMaxHeaderBytes),
 		grpc.UnaryInterceptor(grpcerrors.UnaryServerInterceptor),
 		grpc.StreamInterceptor(grpcerrors.StreamServerInterceptor),
 	}

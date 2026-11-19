@@ -313,3 +313,6 @@ require (
 replace github.com/moby/moby/api => ./api
 
 replace github.com/moby/moby/client => ./client
+
+// https://github.com/moby/buildkit/pull/7448
+replace github.com/moby/buildkit => github.com/crazy-max/buildkit v0.7.1-0.20261119102716-5635c0c5b998
