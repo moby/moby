@@ -874,6 +874,21 @@ $ docker run -it --add-host host.docker.internal:host-gateway \
 PING host.docker.internal (2001:db8::1111): 56 data bytes
 ```
 
+### IPv6 on the default bridge network
+
+The `ipv6` option in the [daemon configuration file](#daemon-configuration-file),
+or the `--ipv6` flag, enables IPv6 on the default bridge network.
+
+By default, the daemon allocates an IPv6 subnet for the default bridge network
+from its default address pools. Unless the `default-address-pools` option
+includes an IPv6 pool, the daemon adds a Unique Local Address (ULA) prefix,
+derived from its host ID, to these pools. Use `default-address-pools` or
+`fixed-cidr-v6` to override the subnet.
+
+Unless you set `ip-forward` to `false`, the daemon also enables IPv6
+forwarding, or checks that it's enabled with the `nftables` firewall backend.
+See [IP forwarding](#ip-forwarding).
+
 ### IP forwarding
 
 The `ip-forward` option in the [daemon configuration file](#daemon-configuration-file),
