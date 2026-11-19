@@ -922,7 +922,44 @@ $ docker run -it --add-host host.docker.internal:host-gateway \
 PING host.docker.internal (2001:db8::1111): 56 data bytes
 ```
 
-### IPv6 on the default bridge network
+### Default bridge network
+
+By default, the daemon creates the `docker0` bridge for the default bridge
+network. The following options in the
+[daemon configuration file](#daemon-configuration-file), or the equivalent
+flags, configure the default bridge network:
+
+| Option               | Flag                   | Description                                                                                                                                         |
+| :------------------- | :--------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bridge`             | `-b`, `--bridge`       | Attach containers to a pre-existing bridge instead of `docker0`. Use `none` to disable the default bridge network.                                  |
+| `bip`                | `--bip`                | IPv4 address of the bridge, in CIDR notation. You can't use it together with `bridge`.                                                              |
+| `bip6`               | `--bip6`               | IPv6 address of the bridge, in CIDR notation. You can't use it together with `bridge`.                                                              |
+| `fixed-cidr`         | `--fixed-cidr`         | IPv4 subnet that containers get addresses from, for example `10.20.0.0/16`. It must be nested in the bridge subnet, defined by `bridge` or `bip`.   |
+| `fixed-cidr-v6`      | `--fixed-cidr-v6`      | IPv6 subnet that containers get addresses from, for example `2001:db8::/64`.                                                                        |
+| `default-gateway`    | `--default-gateway`    | IPv4 default gateway for containers. It must be part of the bridge subnet.                                                                          |
+| `default-gateway-v6` | `--default-gateway-v6` | IPv6 default gateway for containers.                                                                                                                |
+| `icc`                | `--icc`                | Allow unrestricted inter-container communication. The default is `true`. If disabled, containers can still communicate using `docker run --link`.   |
+| `ip`                 | `--ip`                 | Default host IP address to use when publishing container ports. The default is `0.0.0.0`.                                                           |
+| `ipv6`               | `--ipv6`               | Enable IPv6. See [IPv6 on the default bridge network](#ipv6-on-the-default-bridge-network).                                                         |
+| `mtu`                | `--mtu`                | Network MTU.                                                                                                                                        |
+
+For example, the following configuration assigns `192.168.1.1/24` to the
+bridge, and allocates container addresses from `192.168.1.0/25`:
+
+```json
+{
+  "bip": "192.168.1.1/24",
+  "fixed-cidr": "192.168.1.0/25"
+}
+```
+
+The equivalent command line is:
+
+```console
+$ sudo dockerd --bip 192.168.1.1/24 --fixed-cidr 192.168.1.0/25
+```
+
+#### IPv6 on the default bridge network
 
 The `ipv6` option in the [daemon configuration file](#daemon-configuration-file),
 or the `--ipv6` flag, enables IPv6 on the default bridge network.
