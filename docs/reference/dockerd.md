@@ -1134,6 +1134,20 @@ $ export DOCKER_TMPDIR=/mnt/disk2/tmp
 $ sudo -E dockerd --data-root /var/lib/docker -H unix://
 ````
 
+#### Live restore
+
+The `live-restore` option in the [daemon configuration file](#daemon-configuration-file),
+or the `--live-restore` flag, keeps containers running while the daemon is
+down, so that the daemon restores them when it starts instead of restarting
+them. This option is only supported on Linux hosts.
+
+Live restore is supported when upgrading the daemon to a new patch release.
+It may work when upgrading to a new minor or major release, but this isn't
+guaranteed.
+
+For more information, see
+[Live restore](https://docs.docker.com/engine/daemon/live-restore/).
+
 #### Default cgroup parent
 
 The `--cgroup-parent` option lets you set the default cgroup parent
