@@ -162,6 +162,7 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 	wo.GCPolicy = policy
 	wo.RegistryHosts = opt.RegistryHosts
 	wo.Labels = getLabels(opt, wo.Labels)
+	wo.UseCommonSnapshotIDs = true
 
 	exec, proxyProvider, err := newExecutor(executorOpts{
 		root:                opt.Root,
