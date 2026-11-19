@@ -1154,7 +1154,7 @@ is set on the overlay networks that a service is attached to, other than the ing
     :observed_from: client, node
     :depends_on: os-linux
     :platforms: linux
-    :needs: BR-HOST-BR-NETFILTER
+    :needs: BR-HOST-BR-NETFILTER-NO-PROXY
 
     *Applies to:* A daemon with :daemon-json:`userland-proxy` false, and a port published in ingress
     mode, or in :api-value:`mode=host` by a task whose gateway network is :network:`docker_gwbridge`
@@ -1255,7 +1255,7 @@ that connects to the node's address must be attached to at least one network tha
     :observed_from: node, ctr, task
     :depends_on: os-linux
     :platforms: linux
-    :needs: BR-HOST-BR-NETFILTER, SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND
+    :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND
 
     Each other expectation of the table in §7.1 holds with :daemon-json:`userland-proxy` true and
     with :daemon-json:`userland-proxy` false.
