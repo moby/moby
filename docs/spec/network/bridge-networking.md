@@ -10,52 +10,579 @@ in an expectation is the node of the container that the expectation names. An ex
 containers on a Swarm-scoped network holds for containers on the same node. Each node has a bridge
 of its own, without a route to the bridges on other nodes, and their subnets can overlap. An
 expectation about reaching a published port at an address of the node holds on a network whose
-gateway mode for that address's family is not `routed`, and without
-`com.docker.network.bridge.host_binding_ipv4`, unless the expectation names them. An
-expectation about IPv4 traffic through the network's gateway, such as egress, a published port or a
-default route, holds for a network without `com.docker.network.bridge.inhibit_ipv4`, unless
-the expectation names it. [Swarm networking surface area](swarm-networking.md) covers what is specific to Swarm-scoped bridge
-networks ([Swarm-scoped networks](swarm-networking.md#swarm-networking-swarm-scoped-networks)) and to `docker_gwbridge`
-([Gateway network](swarm-traffic.md#swarm-traffic-gateway-network)).
+gateway mode for that address's family is not `routed`, and whose
+`com.docker.network.bridge.host_binding_ipv4` is unset or `0.0.0.0`, unless the
+expectation names them. An expectation about IPv4 traffic through the network's gateway, such as
+egress, a published port or a default route, holds for a network without
+`com.docker.network.bridge.inhibit_ipv4`, unless the expectation names it. An expectation
+about egress from a container on a network, or from a network's containers, holds for a container
+whose default route for that traffic's IP version is through that network. An expectation about
+reaching a container's published ports at the container's own address on a network whose gateway
+mode for that address's family is `nat` or not set holds for a container whose default route for
+that IP version is through that network. [Swarm-scoped networks](swarm-networking.md#swarm-networking-swarm-scoped-networks) in
+[swarm-networking.md](swarm-networking.md) covers what is specific to Swarm-scoped bridge
+networks, and [Gateway network](swarm-traffic.md#swarm-traffic-gateway-network) in [swarm-traffic.md](swarm-traffic.md) covers
+what is specific to `docker_gwbridge`.
 
-This spec is a stub. It holds expectations that belong to the bridge driver. They come from the work
-on the [Swarm networking surface area](swarm-networking.md) and from reviews of the specs' coverage. This spec is not yet a
-complete account of the bridge driver. [../README.md](../README.md) gives the model that this
-spec follows: the items of a spec, their categories and what their verdicts depend on.
-[README.md](README.md) gives the conventions of the networking specs, such as vantage points,
-daemon settings, timing and convergence ceilings, and host requirements. [network-common.md](network-common.md) covers what every network driver must do, such as naming an endpoint's interface.
+This spec holds expectations that belong to the bridge driver. This spec is not yet a complete
+account of the bridge driver. [../README.md](../README.md) gives the model that this spec
+follows: the items of a spec, their categories and what their verdicts depend on. [README.md](README.md) gives the conventions of the networking specs, such as vantage points, daemon settings,
+timing and convergence ceilings, and host requirements. [network-common.md](network-common.md)
+covers what every network driver must do, such as naming an endpoint's interface.
+
+<a id="bridge-networking-requirements"></a>
+
+## Requirements
+
+<a id="REQ-BR-ACCEPT-FWMARK"></a>
+
+**Requirement REQ-BR-ACCEPT-FWMARK**: Forwarded packets with the bridge-accept-fwmark mark are not dropped
+
+*Source kind:* docs · *Source:* https://docs.docker.com/reference/cli/dockerd/; https://docs.docker.com/engine/network/firewall-nftables/#migrating-accept-rules
+
+*Refined by:* [BR-ISO-ACCEPT-FWMARK](#BR-ISO-ACCEPT-FWMARK), [BR-ISO-ACCEPT-FWMARK-UNTRUSTED](#BR-ISO-ACCEPT-FWMARK-UNTRUSTED)
+
+The daemon option bridge-accept-fwmark gives a firewall mark, with an optional mask. In bridge
+networks, Docker accepts packets that carry the mark, so an operator who marks packets before
+Docker's rules run stops Docker from dropping them. The mark does not affect the drop of packets
+routed directly to a container from a host that is not allowed direct routing.
+
+<a id="REQ-BR-BRIDGE-NAME"></a>
+
+**Requirement REQ-BR-BRIDGE-NAME**: The bridge name option names the network's Linux bridge
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/network/drivers/bridge/#options
+
+*Refined by:* [BR-OPT-BRIDGE-NAME](#BR-OPT-BRIDGE-NAME)
+
+The bridge option com.docker.network.bridge.name is the interface name to use when Docker
+creates the network's Linux bridge.
+
+<a id="REQ-BR-DAEMON-BRIDGE-NONE"></a>
+
+**Requirement REQ-BR-DAEMON-BRIDGE-NONE**: The daemon option bridge set to none leaves out the default bridge
+
+*Source kind:* docs · *Source:* https://docs.docker.com/reference/cli/dockerd/#run-multiple-daemons: the --bridge entry that can be set to none and the example of a daemon without network; https://docs.docker.com/engine/release-notes/prior-releases/#171-2015-07-14: --bridge=none does not configure the network bridge
+
+*Refined by:* [BR-OPT-DAEMON-BRIDGE-NONE](#BR-OPT-DAEMON-BRIDGE-NONE) · *Violated by:* [BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED)
+
+With the daemon option bridge set to none, the daemon does not configure the default bridge
+network.
+
+<a id="REQ-BR-DAEMON-MTU"></a>
+
+**Requirement REQ-BR-DAEMON-MTU**: The daemon mtu option sets the MTU of the default bridge
+
+*Source kind:* docs · *Source:* https://docs.docker.com/reference/cli/dockerd/; https://docs.docker.com/engine/network/drivers/bridge/#configure-the-default-bridge-network; https://docs.docker.com/engine/network/drivers/bridge/#options
+
+*Refined by:* [BR-OPT-DAEMON-MTU-APPLIED](#BR-OPT-DAEMON-MTU-APPLIED), [BR-OPT-DAEMON-MTU-DEFAULT](#BR-OPT-DAEMON-MTU-DEFAULT), [BR-OPT-DAEMON-MTU-ZERO-FLAG](#BR-OPT-DAEMON-MTU-ZERO-FLAG) · *Violated by:* [BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED), [BR-OPT-DAEMON-MTU-ZERO-REPLACED](#BR-OPT-DAEMON-MTU-ZERO-REPLACED), [BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO)
+
+The daemon option mtu (flag --mtu) sets the MTU for the default bridge network, with a default
+of 1500. It is the default bridge's equivalent of com.docker.network.driver.mtu. The option
+table of the bridge driver gives that option's 0 as no limit: a value of 0 leaves the MTU
+unlimited.
+
+<a id="REQ-BR-DEFAULT-BRIDGE-ADDRESSING"></a>
+
+**Requirement REQ-BR-DEFAULT-BRIDGE-ADDRESSING**: Daemon options set the default bridge's subnets, ranges and gateways
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/network/drivers/bridge/#configure-the-default-bridge-network; https://docs.docker.com/engine/network/drivers/bridge/#use-ipv6-with-the-default-bridge-network; https://docs.docker.com/reference/cli/dockerd/; https://docs.docker.com/engine/release-notes/prior-releases/#170-2015-06-16: the daemon-wide default gateway for containers
+
+*Refined by:* [BR-OPT-DAEMON-BIP](#BR-OPT-DAEMON-BIP), [BR-OPT-DAEMON-BIP6](#BR-OPT-DAEMON-BIP6) · *Violated by:* [BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED)
+
+The daemon options bip and fixed-cidr configure the default bridge network: bip gives the
+bridge's address and the network's subnet, and fixed-cidr the range that container addresses are
+allocated from. The daemon option default-gateway gives the IPv4 default gateway of the
+containers on the default bridge network. The daemon option ipv6 enables IPv6 on the default
+bridge. bip6 gives the bridge's IPv6 address and the network's IPv6 subnet, and containers use
+that address as their default gateway unless default-gateway-v6 gives another. fixed-cidr-v6
+gives the range that the daemon allocates IPv6 container addresses from.
+
+<a id="REQ-BR-DIRECT-ROUTING-OPT-IN"></a>
+
+**Requirement REQ-BR-DIRECT-ROUTING-OPT-IN**: Direct routing to published ports can be allowed per daemon or interface
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/network/port-publishing/#direct-routing-to-containers-in-bridge-networks; https://docs.docker.com/engine/network/firewall-iptables/#add-iptables-policies-before-dockers-rules; https://docs.docker.com/engine/release-notes/28/#2820: the option's colon-separated list of interface names
+
+*Refined by:* [BR-EGRESS-REPLY-DIRECT-ROUTING-ON](#BR-EGRESS-REPLY-DIRECT-ROUTING-ON), [BR-EGRESS-REPLY-TRUSTED-IFACE](#BR-EGRESS-REPLY-TRUSTED-IFACE), [BR-ISO-DIRECT-ROUTING-ON](#BR-ISO-DIRECT-ROUTING-ON), [BR-ISO-DIRECT-ROUTING-ON-FIREWALLD](#BR-ISO-DIRECT-ROUTING-ON-FIREWALLD), [BR-ISO-TRUSTED-IFACE](#BR-ISO-TRUSTED-IFACE), [BR-ISO-TRUSTED-IFACE-LIST](#BR-ISO-TRUSTED-IFACE-LIST) · *Violated by:* [BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING](#BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING)
+
+The daemon option allow-direct-routing allows direct access to any published port on any
+container in a bridge network. It turns off the filtering of packets from outside the host that
+are addressed directly to containers, other than packets that open a connection to an
+unpublished port. The network option trusted_host_interfaces, a colon-separated list of
+interface names, allows direct routing to the network through the named host interfaces.
+Unpublished ports stay protected under both options.
+
+<a id="REQ-BR-DOCKER-USER"></a>
+
+**Requirement REQ-BR-DOCKER-USER**: Operator rules in DOCKER-USER filter forwarded traffic before Docker's
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/network/firewall-iptables/#docker-and-iptables-chains; https://docs.docker.com/engine/network/firewall-iptables/#add-iptables-policies-before-dockers-rules; https://docs.docker.com/engine/network/firewall-iptables/#restrict-external-connections-to-containers: examples that restrict access to published ports with DROP rules; https://docs.docker.com/engine/release-notes/29/#2980
+
+*Refined by:* [BR-USER-CHAIN-JUMP](#BR-USER-CHAIN-JUMP), [BR-USER-CHAIN-JUMP-FIREWALLD](#BR-USER-CHAIN-JUMP-FIREWALLD), [BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START](#BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START), [BR-USER-CHAIN-JUMP-FIREWALLD-STOP](#BR-USER-CHAIN-JUMP-FIREWALLD-STOP), [BR-USER-DROP-RULE](#BR-USER-DROP-RULE)
+
+Under the iptables backend, Docker creates the filter chain DOCKER-USER and makes FORWARD jump
+to it before its own chains, so that operators can filter container traffic there, including
+traffic to published ports. A DROP rule that an operator inserts in DOCKER-USER drops the
+forwarded traffic that it matches, traffic to published ports included. The published ports of
+Swarm services use the same port-publishing rules as containers' published ports, so these rules
+apply to them too.
+
+<a id="REQ-BR-DOCKER-USER-KEPT"></a>
+
+**Requirement REQ-BR-DOCKER-USER-KEPT**: Docker never deletes or modifies an operator's rules in DOCKER-USER
+
+*Source kind:* issue · *Source:* https://github.com/moby/moby/issues/29184; https://github.com/moby/moby/issues/23987; https://docs.docker.com/engine/release-notes/28/#2822
+
+*Refines:* [PRIN-OWNS-ONLY-ITS-OWN](../principles.md#PRIN-OWNS-ONLY-ITS-OWN) · *Refined by:* [BR-CLEAN-OTHER-BACKEND](#BR-CLEAN-OTHER-BACKEND), [BR-USER-RULES-KEPT](#BR-USER-RULES-KEPT)
+
+Docker does not delete or modify rules that already exist in DOCKER-USER, across Docker
+operations and restarts, also with iptables disabled.
+
+<a id="REQ-BR-EGRESS-NAT"></a>
+
+**Requirement REQ-BR-EGRESS-NAT**: Egress is masqueraded by default, with options to disable it or set SNAT
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/network/drivers/bridge/; https://docs.docker.com/engine/network/port-publishing/#masquerade-or-snat-for-outgoing-packets
+
+*Refined by:* [BR-EGRESS-DAEMON-NO-MASQUERADE](#BR-EGRESS-DAEMON-NO-MASQUERADE), [BR-EGRESS-HOST-IPV4](#BR-EGRESS-HOST-IPV4), [BR-EGRESS-HOST-IPV6](#BR-EGRESS-HOST-IPV6), [BR-EGRESS-MASQUERADE](#BR-EGRESS-MASQUERADE), [BR-EGRESS-MASQUERADE-V6](#BR-EGRESS-MASQUERADE-V6), [BR-EGRESS-NO-MASQUERADE](#BR-EGRESS-NO-MASQUERADE), [BR-EGRESS-NO-MASQUERADE-V6](#BR-EGRESS-NO-MASQUERADE-V6), [BR-EGRESS-UNDERLAY-REACH](#BR-EGRESS-UNDERLAY-REACH), [BR-FW-FIREWALLD-LATE-START-EGRESS](#BR-FW-FIREWALLD-LATE-START-EGRESS), [BR-FW-FIREWALLD-RELOAD-EGRESS](#BR-FW-FIREWALLD-RELOAD-EGRESS), [BR-FW-FIREWALLD-STOP-EGRESS](#BR-FW-FIREWALLD-STOP-EGRESS) · *Violated by:* [BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED)
+
+By default outgoing packets from bridge networks are masqueraded, so external hosts see a host
+address. enable_ip_masquerade=false disables this, and com.docker.network.host_ipv4 and
+com.docker.network.host_ipv6 set the source address to use instead of masquerading. The daemon
+option ip-masq sets enable_ip_masquerade for the default bridge.
+
+<a id="REQ-BR-NAT-OPERATOR-RULES-FIRST"></a>
+
+**Requirement REQ-BR-NAT-OPERATOR-RULES-FIRST**: Operator rules ahead of a network's masquerading keep running first
+
+*Source kind:* observable · *Source:* IPsec and VPN setups that send container traffic to a remote subnet through a tunnel whose policy selects traffic by its source subnet; and that insert a rule into the nat table's POSTROUTING chain so that this traffic is not masqueraded; as strongSwan's forwarding guide (https://docs.strongswan.org/docs/latest/howtos/forwarding.html) and the mberner/strongswan image (https://hub.docker.com/r/mberner/strongswan) direct
+
+*Refined by:* [BR-EGRESS-OPERATOR-NAT-RULE-FIRST](#BR-EGRESS-OPERATOR-NAT-RULE-FIRST) · *Violated by:* [BR-EGRESS-OPERATOR-RULE-DEFAULT-BRIDGE](#BR-EGRESS-OPERATOR-RULE-DEFAULT-BRIDGE)
+
+With the iptables backend, a rule that an operator inserts into the nat table's POSTROUTING
+chain ahead of a network's masquerading keeps running before it, also after the daemon restarts.
+
+<a id="REQ-BR-FIREWALL-BACKEND-INFO"></a>
+
+**Requirement REQ-BR-FIREWALL-BACKEND-INFO**: GET /info reports the firewall backend driver
+
+*Source kind:* api · *Source:* api/openapi.yaml: definition SystemInfo (FirewallBackend); api/openapi.yaml: definition FirewallInfo (Driver); https://docs.docker.com/reference/api/engine/version-history/#v149-api-changes
+
+*Refined by:* [BR-FW-BACKEND-INFO](#BR-FW-BACKEND-INFO)
+
+From API 1.49, GET /info on a Linux daemon reports the daemon's firewall configuration in
+FirewallBackend, whose Driver is the name of the firewall backend driver.
+
+<a id="REQ-BR-FIREWALL-BACKEND-OPTION"></a>
+
+**Requirement REQ-BR-FIREWALL-BACKEND-OPTION**: The firewall-backend option selects iptables or nftables
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/network/packet-filtering-firewalls/#firewall-backend; https://docs.docker.com/reference/cli/dockerd/
+
+*Refined by:* [BR-FW-BACKEND-INFO](#BR-FW-BACKEND-INFO), [BR-FW-BACKEND-INVALID](#BR-FW-BACKEND-INVALID)
+
+The daemon option firewall-backend selects whether Docker creates its firewall rules with
+iptables, the default, or nftables.
+
+<a id="REQ-BR-FIREWALLD-RELOAD"></a>
+
+**Requirement REQ-BR-FIREWALLD-RELOAD**: A firewalld reload, start or stop does not break container networking
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/network/packet-filtering-firewalls/#integration-with-firewalld; https://docs.docker.com/engine/release-notes/prior-releases/#1110-2016-04-13; https://docs.docker.com/engine/release-notes/28/#2833; https://github.com/moby/moby/issues/35043; https://github.com/moby/moby/pull/54012
+
+*Refined by:* [BR-FW-FIREWALLD-LATE-START-EGRESS](#BR-FW-FIREWALLD-LATE-START-EGRESS), [BR-FW-FIREWALLD-LATE-START-PORT](#BR-FW-FIREWALLD-LATE-START-PORT), [BR-FW-FIREWALLD-LATE-START-ZONE](#BR-FW-FIREWALLD-LATE-START-ZONE), [BR-FW-FIREWALLD-RELOAD-EGRESS](#BR-FW-FIREWALLD-RELOAD-EGRESS), [BR-FW-FIREWALLD-RELOAD-PORT](#BR-FW-FIREWALLD-RELOAD-PORT), [BR-FW-FIREWALLD-STOP-EGRESS](#BR-FW-FIREWALLD-STOP-EGRESS), [BR-FW-FIREWALLD-STOP-PORT](#BR-FW-FIREWALLD-STOP-PORT), [BR-FW-FORWARD-DROP-FIREWALLD](#BR-FW-FORWARD-DROP-FIREWALLD), [BR-FW-FORWARD-DROP-FIREWALLD-LATE-START](#BR-FW-FORWARD-DROP-FIREWALLD-LATE-START), [BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6](#BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6), [BR-FW-FORWARD-DROP-FIREWALLD-STOP](#BR-FW-FORWARD-DROP-FIREWALLD-STOP), [BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6](#BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6), [BR-FW-FORWARD-DROP-FIREWALLD-V6](#BR-FW-FORWARD-DROP-FIREWALLD-V6), [BR-ISO-DIRECT-ROUTING-OFF-FIREWALLD](#BR-ISO-DIRECT-ROUTING-OFF-FIREWALLD), [BR-ISO-DIRECT-ROUTING-ON-FIREWALLD](#BR-ISO-DIRECT-ROUTING-ON-FIREWALLD), [BR-PUB-LOOPBACK-CLIENT-FIREWALLD](#BR-PUB-LOOPBACK-CLIENT-FIREWALLD), [BR-USER-CHAIN-JUMP-FIREWALLD](#BR-USER-CHAIN-JUMP-FIREWALLD), [BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START](#BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START), [BR-USER-CHAIN-JUMP-FIREWALLD-STOP](#BR-USER-CHAIN-JUMP-FIREWALLD-STOP), [BR-USER-DROP-RULE](#BR-USER-DROP-RULE)
+
+When firewalld is running, Docker integrates with it, and a firewalld reload must not break
+container networking: Docker recreates its chains and rules, including DOCKER-USER and the rules
+for published ports, after the reload.
+
+Firewalld starting or stopping while the daemon runs must not break container networking either.
+When firewalld starts, Docker integrates with it as it does when the daemon starts. When
+firewalld stops and deletes Docker's rules, Docker restores them.
+
+<a id="REQ-BR-FIREWALLD-ZONE"></a>
+
+**Requirement REQ-BR-FIREWALLD-ZONE**: Docker puts its bridges in a firewalld zone docker with a forwarding policy
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/network/packet-filtering-firewalls/#integration-with-firewalld; https://docs.docker.com/engine/network/firewall-nftables/#ip-forwarding; https://docs.docker.com/engine/release-notes/29/#2991
+
+*Refines:* [PRIN-OWNS-ONLY-ITS-OWN](../principles.md#PRIN-OWNS-ONLY-ITS-OWN) · *Refined by:* [BR-FW-FIREWALLD-LATE-START-ZONE](#BR-FW-FIREWALLD-LATE-START-ZONE), [BR-FW-FIREWALLD-ZONE](#BR-FW-FIREWALLD-ZONE), [BR-FW-FIREWALLD-ZONE-USER-BOUND](#BR-FW-FIREWALLD-ZONE-USER-BOUND)
+
+When firewalld is running and the daemon option iptables or ip6tables is true, Docker creates a
+firewalld zone called docker, with target ACCEPT, and inserts the bridge interfaces that it
+creates into that zone. It also creates a policy called docker-forwarding that allows forwarding
+from any zone to the docker zone.
+
+A bridge interface that the user binds to another firewalld zone stays in that zone, and the
+daemon still sets up and restores its network.
+
+<a id="REQ-BR-GWMODE-DIRECT-ROUTING"></a>
+
+**Requirement REQ-BR-GWMODE-DIRECT-ROUTING**: Routed and nat-unprotected networks accept direct routing
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/network/port-publishing/#gateway-modes; https://docs.docker.com/engine/release-notes/29/#2900: containers in other networks reach every port of a nat-unprotected network
+
+*Refined by:* [BR-GWMODE-NAT-UNPROTECTED](#BR-GWMODE-NAT-UNPROTECTED), [BR-GWMODE-ROUTED-INBOUND](#BR-GWMODE-ROUTED-INBOUND), [BR-GWMODE-ROUTED-INBOUND-V6](#BR-GWMODE-ROUTED-INBOUND-V6), [BR-ISO-SEPARATE-NETWORKS-NAT-UNPROTECTED](#BR-ISO-SEPARATE-NETWORKS-NAT-UNPROTECTED)
+
+In routed mode, remote hosts with a route reach a container's published ports at its address and
+nothing else. In nat-unprotected mode, no port filtering is set up, so direct routing, from
+remote hosts and from containers in other bridge networks, reaches every container port.
+
+<a id="REQ-BR-GWMODE-ROUTED-NO-NAT"></a>
+
+**Requirement REQ-BR-GWMODE-ROUTED-NO-NAT**: A routed network uses no NAT in either direction
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/network/port-publishing/#gateway-modes
+
+*Refined by:* [BR-GWMODE-ROUTED-EGRESS](#BR-GWMODE-ROUTED-EGRESS), [BR-GWMODE-ROUTED-EGRESS-V6](#BR-GWMODE-ROUTED-EGRESS-V6), [BR-GWMODE-ROUTED-NODE-ADDRESS](#BR-GWMODE-ROUTED-NODE-ADDRESS)
+
+In routed mode, no NAT or masquerading rules are set up: outgoing packets keep the container's
+address, and the host port of a mapping is not used, so the port is not opened on the host's
+addresses.
+
+<a id="REQ-BR-GWMODE-VALUES"></a>
+
+**Requirement REQ-BR-GWMODE-VALUES**: Gateway mode is nat, nat-unprotected, routed or isolated (internal only)
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/network/port-publishing/#gateway-modes
+
+*Refined by:* [BR-EGRESS-MASQUERADE](#BR-EGRESS-MASQUERADE), [BR-EGRESS-MASQUERADE-V6](#BR-EGRESS-MASQUERADE-V6), [BR-GWMODE-ISOLATED-NOT-INTERNAL](#BR-GWMODE-ISOLATED-NOT-INTERNAL), [BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI](#BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI), [BR-GWMODE-UNKNOWN](#BR-GWMODE-UNKNOWN), [BR-GWMODE-UNKNOWN-CLI](#BR-GWMODE-UNKNOWN-CLI)
+
+The bridge options gateway_mode_ipv4 and gateway_mode_ipv6 take one of nat (the default),
+nat-unprotected, routed and isolated. Mode isolated can only be used on a network created as
+internal.
+
+<a id="REQ-BR-HOST-BINDING-ADDRESS"></a>
+
+**Requirement REQ-BR-HOST-BINDING-ADDRESS**: host_binding_ipv4 sets the address of ports published without one
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/network/drivers/bridge/#default-host-binding-address; https://docs.docker.com/engine/network/drivers/bridge/#options
+
+*Refined by:* [BR-PUB-HOST-BINDING-ADDRESS](#BR-PUB-HOST-BINDING-ADDRESS), [BR-PUB-HOST-BINDING-ADDRESS-DAEMON](#BR-PUB-HOST-BINDING-ADDRESS-DAEMON) · *Violated by:* [BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED)
+
+The bridge option com.docker.network.bridge.host_binding_ipv4 sets the default host address of
+the port mappings that give none. The daemon option ip sets it for the default bridge. When it
+is an address assigned to a specific interface, a port published without a host address is
+accessible only at that address.
+
+<a id="REQ-BR-ICC"></a>
+
+**Requirement REQ-BR-ICC**: Disabling ICC stops inter-container connectivity on a network
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/network/drivers/bridge/#options; https://docs.docker.com/reference/cli/dockerd/
+
+*Refined by:* [BR-ISO-DAEMON-NO-ICC](#BR-ISO-DAEMON-NO-ICC), [BR-ISO-NO-ICC](#BR-ISO-NO-ICC), [BR-ISO-NO-ICC-LEGACY-LINK](#BR-ISO-NO-ICC-LEGACY-LINK), [BR-ISO-SAME-NETWORK](#BR-ISO-SAME-NETWORK) · *Violated by:* [BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED)
+
+The bridge option com.docker.network.bridge.enable_icc, and the daemon flag --icc for the
+default bridge, enable or disable inter-container connectivity on the network.
+
+<a id="REQ-BR-INTERNAL"></a>
+
+**Requirement REQ-BR-INTERNAL**: An internal network reaches only the node, through its gateway
+
+*Source kind:* docs · *Source:* https://docs.docker.com/reference/cli/docker/network/create/#internal; https://docs.docker.com/engine/network/port-publishing/#gateway-modes
+
+*Refined by:* [BR-ISO-INTERNAL-CTR-TO-HOST](#BR-ISO-INTERNAL-CTR-TO-HOST), [BR-ISO-INTERNAL-HOST-TO-CTR](#BR-ISO-INTERNAL-HOST-TO-CTR), [BR-ISO-INTERNAL-NO-FORWARD](#BR-ISO-INTERNAL-NO-FORWARD), [BR-ISO-SAME-NETWORK](#BR-ISO-SAME-NETWORK) · *Violates:* [PRIN-LEAST-ACCESS](../principles.md#PRIN-LEAST-ACCESS)
+
+Containers on an internal network may communicate with each other but not with other networks.
+Containers can still reach host services at the gateway address, and the host can reach any
+container address directly.
+
+<a id="REQ-BR-IP-FORWARDING-DROP"></a>
+
+**Requirement REQ-BR-IP-FORWARDING-DROP**: With iptables, Docker enables forwarding and sets FORWARD to DROP
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/network/packet-filtering-firewalls/#docker-on-a-router; https://docs.docker.com/engine/network/firewall-iptables/#docker-and-iptables-chains; https://docs.docker.com/engine/release-notes/28/#2800
+
+*Refined by:* [BR-FW-FORWARD-DROP-FIREWALLD](#BR-FW-FORWARD-DROP-FIREWALLD), [BR-FW-FORWARD-DROP-FIREWALLD-LATE-START](#BR-FW-FORWARD-DROP-FIREWALLD-LATE-START), [BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6](#BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6), [BR-FW-FORWARD-DROP-FIREWALLD-STOP](#BR-FW-FORWARD-DROP-FIREWALLD-STOP), [BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6](#BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6), [BR-FW-FORWARD-DROP-FIREWALLD-V6](#BR-FW-FORWARD-DROP-FIREWALLD-V6), [BR-FW-FORWARDING-ALREADY-ENABLED](#BR-FW-FORWARDING-ALREADY-ENABLED), [BR-FW-FORWARDING-ALREADY-ENABLED-V6](#BR-FW-FORWARDING-ALREADY-ENABLED-V6), [BR-FW-FORWARDING-ENABLED](#BR-FW-FORWARDING-ENABLED), [BR-FW-FORWARDING-ENABLED-V6](#BR-FW-FORWARDING-ENABLED-V6), [BR-FW-FORWARDING-NO-DROP](#BR-FW-FORWARDING-NO-DROP), [BR-FW-FORWARDING-NO-DROP-V6](#BR-FW-FORWARDING-NO-DROP-V6) · *Violates:* [PRIN-OWNS-ONLY-ITS-OWN](../principles.md#PRIN-OWNS-ONLY-ITS-OWN)
+
+Under the iptables backend, Docker enables net.ipv4.ip_forward and IPv6 forwarding if they are
+not already enabled, and when it does so it sets the filter FORWARD policy to DROP, unless
+ip-forward-no-drop is set. It sets the ip6tables policy only when it enabled IPv6 forwarding
+itself.
+
+<a id="REQ-BR-IPV6-UNAVAILABLE"></a>
+
+**Requirement REQ-BR-IPV6-UNAVAILABLE**: Without IPv6 or ip6tables, the daemon runs but refuses IPv6 networks
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/release-notes/27/#2701; https://docs.docker.com/engine/release-notes/28/#2801; https://github.com/moby/moby/issues/49504; https://github.com/moby/moby/issues/42288
+
+*Refined by:* [BR-FW-IP6TABLES-MISSING](#BR-FW-IP6TABLES-MISSING), [BR-FW-IP6TABLES-MISSING-NETWORK](#BR-FW-IP6TABLES-MISSING-NETWORK), [BR-FW-IP6TABLES-MISSING-PUBLISHED-PORT](#BR-FW-IP6TABLES-MISSING-PUBLISHED-PORT), [BR-NOV6-CTR-START](#BR-NOV6-CTR-START), [BR-NOV6-DAEMON-START](#BR-NOV6-DAEMON-START), [BR-NOV6-PUBLISHED-PORT](#BR-NOV6-PUBLISHED-PORT), [BR-NOV6-V6-NETWORK-REFUSED](#BR-NOV6-V6-NETWORK-REFUSED)
+
+On a host where IPv6 is disabled, or ip6tables does not work, the daemon starts with ip6tables
+enabled and IPv4 bridge networking keeps working, including published ports; only the creation
+of an IPv6-enabled network fails.
+
+<a id="REQ-BR-ISOLATED"></a>
+
+**Requirement REQ-BR-ISOLATED**: An isolated internal network has no address on the node
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/network/port-publishing/#gateway-modes; https://docs.docker.com/engine/release-notes/28/#2800
+
+*Refined by:* [BR-ISO-INTERNAL-CTR-TO-HOST](#BR-ISO-INTERNAL-CTR-TO-HOST), [BR-ISO-INTERNAL-HOST-TO-CTR](#BR-ISO-INTERNAL-HOST-TO-CTR), [BR-ISO-ISOLATED-CTR-TO-HOST](#BR-ISO-ISOLATED-CTR-TO-HOST), [BR-ISO-ISOLATED-NO-GATEWAY](#BR-ISO-ISOLATED-NO-GATEWAY)
+
+Gateway mode isolated, which needs an internal network, assigns no address to the bridge, so the
+host has no address in the network. An internal network otherwise lets the host and its
+containers reach each other through the bridge address.
+
+<a id="REQ-BR-LEGACY-LINKS"></a>
+
+**Requirement REQ-BR-LEGACY-LINKS**: Without ICC, a legacy link opens the linked container's exposed ports
+
+*Source kind:* docs-history · *Source:* https://github.com/moby/moby/blob/8658748ef716e43a5f6d834825d818012ed6e2c4/docs/userguide/networking/default_network/container-communication.md; https://docs.docker.com/engine/network/links/
+
+*Refined by:* [BR-ISO-NO-ICC-LEGACY-LINK](#BR-ISO-NO-ICC-LEGACY-LINK)
+
+With --icc=false, a legacy link (--link) between containers on the default bridge lets the
+linking container reach the ports that the linked container exposes.
+
+<a id="REQ-BR-NETWORK-MTU"></a>
+
+**Requirement REQ-BR-NETWORK-MTU**: The network MTU option sets the MTU of the network's containers
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/network/drivers/bridge/#options
+
+*Refined by:* [BR-OPT-MTU-APPLIED](#BR-OPT-MTU-APPLIED), [BR-OPT-MTU-INVALID](#BR-OPT-MTU-INVALID), [BR-OPT-MTU-INVALID-CLI](#BR-OPT-MTU-INVALID-CLI), [BR-OPT-MTU-REFUSED](#BR-OPT-MTU-REFUSED), [BR-OPT-MTU-REFUSED-CLI](#BR-OPT-MTU-REFUSED-CLI), [BR-OPT-MTU-ZERO](#BR-OPT-MTU-ZERO) · *Violated by:* [BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO)
+
+The bridge option com.docker.network.driver.mtu sets the MTU of the network's container
+interfaces. Its documented default is 0, described as no limit.
+
+<a id="REQ-BR-NFT-BASE-CHAIN-PRIORITIES"></a>
+
+**Requirement REQ-BR-NFT-BASE-CHAIN-PRIORITIES**: Docker's nftables base chains use the well-known priority values
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/network/firewall-nftables/#dockers-nftables-tables; https://docs.docker.com/engine/network/firewall-nftables/#replacing-docker-user-with-an-nftables-table
+
+*Provisional basis of:* [BR-PRIO-WELL-KNOWN](#BR-PRIO-WELL-KNOWN) · *Violates:* [PRIN-STABLE](../principles.md#PRIN-STABLE)
+
+Docker's nftables base chains use the well-known priority values for their hooks, so that an
+operator's base chain on the same hook can be ordered before or after Docker's by its priority.
+The page says that support for nftables is experimental: its configuration options, behavior and
+implementation may all change in future releases.
+
+<a id="REQ-BR-NFT-IP-FORWARDING"></a>
+
+**Requirement REQ-BR-NFT-IP-FORWARDING**: With the nftables backend, Docker does not enable IP forwarding
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/network/firewall-nftables/#ip-forwarding; https://docs.docker.com/engine/network/firewall-nftables/#migrating-from-iptables-to-nftables
+
+*Provisional basis of:* [BR-FW-NFT-FORWARDING-UNCHECKED](#BR-FW-NFT-FORWARDING-UNCHECKED), [BR-FW-NFT-NO-FORWARDING](#BR-FW-NFT-NO-FORWARDING), [BR-FW-NFT-NO-FORWARDING-NETWORK](#BR-FW-NFT-NO-FORWARDING-NETWORK), [BR-FW-NFT-NO-FORWARDING-V6](#BR-FW-NFT-NO-FORWARDING-V6) · *Violates:* [PRIN-STABLE](../principles.md#PRIN-STABLE)
+
+With its nftables firewall backend, Docker does not enable IP forwarding on the host. It reports
+an error if forwarding is needed and is not enabled. It reports the error when it creates a
+bridge network that needs forwarding. Because of the default bridge, it reports disabled IPv4
+forwarding when the daemon starts. With the daemon option ip-forward false, Docker does not
+check: it starts and creates networks while forwarding is disabled. The page says that support
+for nftables is experimental: its configuration options, behavior and implementation may all
+change in future releases.
+
+<a id="REQ-BR-NFT-MIGRATION"></a>
+
+**Requirement REQ-BR-NFT-MIGRATION**: A restart with the nftables backend replaces most of Docker's iptables rules
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/network/firewall-nftables/#migrating-from-iptables-to-nftables; https://docs.docker.com/engine/network/firewall-nftables/#migrating-docker-user
+
+*Provisional basis of:* [BR-CLEAN-BUILTIN-RULES](#BR-CLEAN-BUILTIN-RULES), [BR-CLEAN-FORWARD-POLICY-KEPT](#BR-CLEAN-FORWARD-POLICY-KEPT), [BR-CLEAN-OTHER-BACKEND](#BR-CLEAN-OTHER-BACKEND), [BR-CLEAN-USER-DROP-RULE](#BR-CLEAN-USER-DROP-RULE) · *Violates:* [PRIN-STABLE](../principles.md#PRIN-STABLE) · *Violated by:* [BR-CLEAN-NO-FORWARD-JUMP](#BR-CLEAN-NO-FORWARD-JUMP)
+
+Restarting the daemon with the nftables backend after it ran with iptables deletes most of
+Docker's iptables chains and rules and creates nftables rules instead. The daemon does not
+remove the jump from FORWARD to DOCKER-USER, so the rules in DOCKER-USER keep running until the
+jump is removed. The daemon does not change the policy of the iptables FORWARD chain. The page
+says that support for nftables is experimental: its configuration options, behavior and
+implementation may all change in future releases.
+
+<a id="REQ-BR-NO-DIRECT-ROUTING"></a>
+
+**Requirement REQ-BR-NO-DIRECT-ROUTING**: By default, remote hosts cannot route directly to container addresses
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/network/port-publishing/#direct-routing-to-containers-in-bridge-networks; https://docs.docker.com/engine/network/firewall-iptables/#add-iptables-policies-before-dockers-rules; https://docs.docker.com/engine/release-notes/28/#2800
+
+*Refines:* [PRIN-LEAST-ACCESS](../principles.md#PRIN-LEAST-ACCESS) · *Refined by:* [BR-EGRESS-REPLY-DIRECT-ROUTING-OFF](#BR-EGRESS-REPLY-DIRECT-ROUTING-OFF), [BR-ISO-ACCEPT-FWMARK-UNTRUSTED](#BR-ISO-ACCEPT-FWMARK-UNTRUSTED), [BR-ISO-DIRECT-ROUTING-OFF](#BR-ISO-DIRECT-ROUTING-OFF), [BR-ISO-DIRECT-ROUTING-OFF-FIREWALLD](#BR-ISO-DIRECT-ROUTING-OFF-FIREWALLD), [BR-ISO-DIRECT-ROUTING-OFF-V6](#BR-ISO-DIRECT-ROUTING-OFF-V6), [BR-USER-ACCEPT-NO-DIRECT-ROUTING](#BR-USER-ACCEPT-NO-DIRECT-ROUTING)
+
+By default remote hosts are not allowed direct access to container addresses in bridge networks,
+only to ports published on host addresses. Any packet that reaches the host already addressed to
+a container is dropped, and a DOCKER-USER rule cannot allow it.
+
+<a id="REQ-BR-PUBLISH-DEFAULTS"></a>
+
+**Requirement REQ-BR-PUBLISH-DEFAULTS**: Without a host address or port, a port is published on all addresses
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/network/drivers/bridge/#default-host-binding-address; https://docs.docker.com/engine/daemon/ipv6/#create-an-ipv6-network; https://docs.docker.com/reference/cli/docker/container/run/#publish-all
+
+*Refined by:* [BR-FW-IP6TABLES-MISSING-PUBLISHED-PORT](#BR-FW-IP6TABLES-MISSING-PUBLISHED-PORT), [BR-NOV6-PUBLISHED-PORT](#BR-NOV6-PUBLISHED-PORT), [BR-PUB-HOST-PORT-ASSIGNED](#BR-PUB-HOST-PORT-ASSIGNED), [BR-PUB-HOST-PORT-ASSIGNED-CLI](#BR-PUB-HOST-PORT-ASSIGNED-CLI), [BR-PUB-V6-REACHABLE](#BR-PUB-V6-REACHABLE) · *Violated by:* [BR-PUB-V6-LINK-LOCAL](#BR-PUB-V6-LINK-LOCAL)
+
+A mapping without a host address publishes the port on all host addresses, IPv4 and IPv6. A
+mapping without a host port gets a random port from the ephemeral range, which docker port and
+inspect report.
+
+<a id="REQ-BR-PUBLISH-SKIP-RESERVED-PORTS"></a>
+
+**Requirement REQ-BR-PUBLISH-SKIP-RESERVED-PORTS**: An automatically assigned host port is not a reserved port
+
+*Source kind:* issue · *Source:* https://github.com/moby/moby/pull/52818
+
+*Refined by:* [BR-PUB-HOST-PORT-ASSIGNED](#BR-PUB-HOST-PORT-ASSIGNED), [BR-PUB-HOST-PORT-RESERVED-REQUESTED](#BR-PUB-HOST-PORT-RESERVED-REQUESTED)
+
+When the daemon assigns a host port automatically, from the default ephemeral range, it skips
+the ports in net.ipv4.ip_local_reserved_ports, as the kernel does for its own automatic port
+assignment. A request for a specific host port or host port range is not affected.
+
+<a id="REQ-BR-PUBLISH-GATEWAY-ENDPOINT"></a>
+
+**Requirement REQ-BR-PUBLISH-GATEWAY-ENDPOINT**: Port mappings follow the container's gateway endpoint
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/release-notes/28/#2800; https://docs.docker.com/engine/release-notes/29/#2900; https://docs.docker.com/engine/network/#container-networks
+
+*Refined by:* [BR-GW-DEFAULT-ROUTE-NETWORK](#BR-GW-DEFAULT-ROUTE-NETWORK)
+
+Port mappings are applied through the container's gateway endpoint, which can change as networks
+are connected or disconnected. Published ports in a nat network are thus reached at the network
+that gives the container its default route.
+
+<a id="REQ-BR-PUBLISH-HOST-IP"></a>
+
+**Requirement REQ-BR-PUBLISH-HOST-IP**: A port published on a host address is reachable only at that address
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/network/port-publishing/#publishing-ports; https://docs.docker.com/engine/network/drivers/bridge/#default-host-binding-address
+
+*Refined by:* [BR-PUB-HOST-ADDRESS](#BR-PUB-HOST-ADDRESS), [BR-PUB-LOOPBACK-CLIENT](#BR-PUB-LOOPBACK-CLIENT), [BR-PUB-LOOPBACK-CLIENT-FIREWALLD](#BR-PUB-LOOPBACK-CLIENT-FIREWALLD), [BR-PUB-LOOPBACK-NODE](#BR-PUB-LOOPBACK-NODE)
+
+A port mapping that names a host address publishes the port on that address only. A port
+published on a loopback address is accessible only from the Docker host.
+
+<a id="REQ-BR-PUBLISH-SCTP"></a>
+
+**Requirement REQ-BR-PUBLISH-SCTP**: A port mapping can name the SCTP protocol
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/network/links/; https://docs.docker.com/engine/release-notes/18.03/#18030-ce
+
+*Refined by:* [BR-PUB-SCTP](#BR-PUB-SCTP)
+
+A port mapping can bind an SCTP port by adding a trailing /sctp to the container port.
+
+<a id="REQ-BR-SAME-NETWORK"></a>
+
+**Requirement REQ-BR-SAME-NETWORK**: Containers on one bridge network reach each other on every port
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/network/drivers/bridge/; https://docs.docker.com/engine/network/drivers/bridge/#options
+
+*Refined by:* [BR-ISO-SAME-NETWORK](#BR-ISO-SAME-NETWORK)
+
+By default, a bridge network allows unrestricted access between the containers connected to it:
+they expose all their ports to each other. The option com.docker.network.bridge.enable_icc,
+which controls inter-container connectivity, is true by default.
+
+<a id="REQ-BR-PUBLISH-V4-CLIENT-SOURCE"></a>
+
+**Requirement REQ-BR-PUBLISH-V4-CLIENT-SOURCE**: Over IPv4, a container sees a remote client's own address
+
+*Source kind:* observable · *Source:* Services in containers that log or filter or rate-limit clients by source address and that IPv4 clients reach at a published port
+
+*Refined by:* [BR-PUB-V4-CLIENT-SOURCE](#BR-PUB-V4-CLIENT-SOURCE)
+
+A container that serves a port published without a host address sees the IPv4 address of a
+remote client as the source address of the client's connections.
+
+<a id="REQ-BR-PUBLISH-V6-CLIENT-SOURCE"></a>
+
+**Requirement REQ-BR-PUBLISH-V6-CLIENT-SOURCE**: Over IPv6, a container sees a remote client's own address
+
+*Source kind:* observable · *Source:* Services in containers that log or filter or rate-limit clients by source address and that IPv6 clients reach at a published port. The daemon enables ip6tables by default since release 27.0
+
+*Refined by:* [BR-PUB-V6-CLIENT-SOURCE](#BR-PUB-V6-CLIENT-SOURCE)
+
+With ip6tables enabled, a container that serves a port published without a host address sees the
+IPv6 address of a remote client as the source address of the client's connections.
+
+<a id="REQ-BR-SEPARATE-NETWORKS"></a>
+
+**Requirement REQ-BR-SEPARATE-NETWORKS**: Other networks reach only the published ports of nat and routed networks
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/network/drivers/bridge/; https://docs.docker.com/engine/network/port-publishing/#gateway-modes; https://docs.docker.com/engine/release-notes/29/#2900: containers in other networks reach every port of a nat-unprotected network; https://github.com/moby/moby/pull/49981: the merged change whose commit message says that direct routing between bridge networks follows the rules for direct routing from outside the host
+
+*Refines:* [PRIN-LEAST-ACCESS](../principles.md#PRIN-LEAST-ACCESS) · *Refined by:* [BR-ISO-SEPARATE-NETWORKS](#BR-ISO-SEPARATE-NETWORKS), [BR-ISO-SEPARATE-NETWORKS-ROUTED](#BR-ISO-SEPARATE-NETWORKS-ROUTED), [BR-ISO-SEPARATE-NETWORKS-V6](#BR-ISO-SEPARATE-NETWORKS-V6)
+
+The bridge driver installs rules so that a container in another bridge network reaches a
+container in a network whose gateway mode is nat, the default, only on that container's
+published ports. It reaches them only at the host address that a port is published to, unless
+the daemon option allow-direct-routing, or the network option trusted_host_interfaces, allows
+direct routing to the network. In routed mode, a container in another network reaches the
+published ports directly at the container's address.
+
+<a id="REQ-BR-UNPUBLISHED-PORTS"></a>
+
+**Requirement REQ-BR-UNPUBLISHED-PORTS**: Unpublished container ports are not reachable from outside the node
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/network/port-publishing/; https://docs.docker.com/engine/network/#published-ports; https://docs.docker.com/engine/network/port-publishing/#direct-routing-to-containers-in-bridge-networks
+
+*Refines:* [PRIN-LEAST-ACCESS](../principles.md#PRIN-LEAST-ACCESS) · *Refined by:* [BR-GWMODE-ROUTED-INBOUND](#BR-GWMODE-ROUTED-INBOUND), [BR-GWMODE-ROUTED-INBOUND-V6](#BR-GWMODE-ROUTED-INBOUND-V6), [BR-ISO-DIRECT-ROUTING-ON](#BR-ISO-DIRECT-ROUTING-ON), [BR-ISO-DIRECT-ROUTING-ON-FIREWALLD](#BR-ISO-DIRECT-ROUTING-ON-FIREWALLD), [BR-ISO-SAME-NETWORK](#BR-ISO-SAME-NETWORK), [BR-ISO-SEPARATE-NETWORKS-ROUTED](#BR-ISO-SEPARATE-NETWORKS-ROUTED), [BR-ISO-TRUSTED-IFACE](#BR-ISO-TRUSTED-IFACE), [BR-PUB-UNPUBLISHED-PORT](#BR-PUB-UNPUBLISHED-PORT), [BR-PUB-UNPUBLISHED-PORT-NODE](#BR-PUB-UNPUBLISHED-PORT-NODE)
+
+By default the daemon blocks access to ports that have not been published; they are accessible
+from the host and the same network, but not from outside the host. Opening direct routing to
+published ports leaves unpublished ports protected.
 
 <a id="bridge-networking-rationales"></a>
 
 ## Rationales
 
-<a id="RAT-BR-OPT-DAEMON-MTU-ERROR"></a>
+<a id="RAT-BR-FIREWALLD-ZONE-FOLLOWS-IPTABLES"></a>
 
-**Rationale RAT-BR-OPT-DAEMON-MTU-ERROR**: Why a change to BR-OPT-DAEMON-MTU-ERROR should be deliberate
+**Rationale RAT-BR-FIREWALLD-ZONE-FOLLOWS-IPTABLES**: Without the daemon's rules, its bridges stay out of an accepting firewalld zone
 
-*Rationale of:* [BR-OPT-DAEMON-MTU-ERROR](#BR-OPT-DAEMON-MTU-ERROR)
+*Rationale of:* [BR-FW-FIREWALLD-ZONE-IPTABLES-DISABLED](#BR-FW-FIREWALLD-ZONE-IPTABLES-DISABLED)
 
-It catches a change to the error that a daemon-wide mtu the kernel refuses gives at start;
-operators and tools match it, so it should be deliberate.
+With the daemon options `iptables` and `ip6tables` false, the daemon
+creates none of its rules, and it does not put its bridge interfaces in firewalld's
+`docker` zone, whose target is `ACCEPT`
+([*BR-FW-FIREWALLD-ZONE-IPTABLES-DISABLED*](#BR-FW-FIREWALLD-ZONE-IPTABLES-DISABLED)). Firewalld then applies to them the zone that
+the operator binds or its default zone. A change that put the bridges in the `docker`
+zone with both options false would make firewalld accept traffic that the operator's own
+filtering drops. It should be deliberate.
+
+<a id="RAT-BR-INTERNAL-NODE-ADDRESSES"></a>
+
+**Rationale RAT-BR-INTERNAL-NODE-ADDRESSES**: Only a container's routes keep it from the node's other addresses on an internal network
+
+*Rationale of:* [BR-ISO-INTERNAL-CTR-ROUTE](#BR-ISO-INTERNAL-CTR-ROUTE)
+
+[*REQ-BR-INTERNAL*](#REQ-BR-INTERNAL) says that a container on an internal network reaches host services at
+the gateway address. It does not say whether the node's other addresses are reachable. A
+container on such a network has no route to them, and no rule of the daemon's drops the traffic:
+a container with `NET_ADMIN` that adds the route reaches them. Whether the daemon filters
+that traffic decides what `internal` means for the node's own services. A rule change in
+either direction moves the line between an internal network and the `isolated` gateway mode
+([*BR-ISO-ISOLATED-CTR-TO-HOST*](#BR-ISO-ISOLATED-CTR-TO-HOST)), and should be made as a decision about that line.
+
+<a id="RAT-BR-RELOAD-COMPLETION-REPORTED"></a>
+
+**Rationale RAT-BR-RELOAD-COMPLETION-REPORTED**: ReloadedAt is the only report that the daemon has reapplied its rules after a firewalld reload
+
+*Rationale of:* [BR-FW-FIREWALLD-RELOADED-AT](#BR-FW-FIREWALLD-RELOADED-AT)
+
+A firewalld reload can remove the daemon's rules, and the daemon applies them again some time
+later. What [*BR-FW-FIREWALLD-RELOAD-PORT*](#BR-FW-FIREWALLD-RELOAD-PORT) and [*BR-FW-FIREWALLD-RELOAD-EGRESS*](#BR-FW-FIREWALLD-RELOAD-EGRESS)
+promise holds from that point. The `ReloadedAt` entry is the only thing the daemon
+reports that says the point has passed. The API reference says that the labels and values of
+`FirewallBackend.Info` are not stable, so the entry is not promised. If the entry
+went away, changed its name, or was set before the rules were back, an operator debugging a
+reload could no longer tell rules that are not yet reapplied from rules that were reapplied
+wrongly, so a change to the entry should be deliberate.
 
 <a id="RAT-BR-RELOAD-NFT-WARNINGS"></a>
 
-**Rationale RAT-BR-RELOAD-NFT-WARNINGS**: Why a change to BR-FW-FIREWALLD-RELOAD-NFT should be deliberate
+**Rationale RAT-BR-RELOAD-NFT-WARNINGS**: Under nftables, the warnings that a firewalld reload logs report no fault
 
-*Rationale of:* [BR-FW-FIREWALLD-RELOAD-NFT](#BR-FW-FIREWALLD-RELOAD-NFT)
+*Rationale of:* [BR-FW-NFT-FIREWALLD-RELOAD](#BR-FW-NFT-FIREWALLD-RELOAD)
 
-It catches a change to the warnings logged on a firewalld reload, start or stop under the
-nftables backend; operators' log alerts see them, so a change should be deliberate.
-
-<a id="RAT-BR-OPT-MTU-OUT-OF-RANGE"></a>
-
-**Rationale RAT-BR-OPT-MTU-OUT-OF-RANGE**: Why a change to BR-OPT-MTU-OUT-OF-RANGE should be deliberate
-
-*Rationale of:* [BR-OPT-MTU-OUT-OF-RANGE](#BR-OPT-MTU-OUT-OF-RANGE)
-
-It catches a change to the error message that network create gives for an MTU that the kernel
-refuses, such as a message that names the option; clients and scripts match the message, so the
-change should be deliberate.
+Under the nftables backend, a firewalld reload does not remove the daemon's tables, so the
+daemon has no rules to apply again. It still runs the steps that apply its endpoint and
+port-mapping rules again, as under the iptables backend, and its own nftables layer refuses each
+of those rules because its table already holds it. The warnings that these steps log report no
+fault: the daemon's tables are the same before and after. An operator's log alerts see the
+warnings on every reload, and each time firewalld starts or stops. A change to the entries, to
+their level or to their number changes what those alerts report. A change that makes one of the
+steps succeed changes the daemon's tables on a reload. Each should be deliberate.
 
 <a id="bridge-networking-host-requirements"></a>
 
@@ -74,7 +601,7 @@ requirement: [Hosts without IPv6](#bridge-networking-hosts-without-ipv6) states 
 
 *Platforms:* linux · *Kind:* os · *Kernel options:* `NET_NS`, `VETH`, `BRIDGE`
 
-*Pinned by:* [BR-ISO-NO-VETH](#BR-ISO-NO-VETH) · *Needed by:* [BR-CLEAN-BUILTIN-CHAIN-RULES](#BR-CLEAN-BUILTIN-CHAIN-RULES), [BR-CLEAN-BUILTIN-RULES](#BR-CLEAN-BUILTIN-RULES), [BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED](#BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED), [BR-CLEAN-FORWARD-DROP-WARNING](#BR-CLEAN-FORWARD-DROP-WARNING), [BR-CLEAN-FORWARD-POLICY-KEPT](#BR-CLEAN-FORWARD-POLICY-KEPT), [BR-CLEAN-ISOLATION-CHAIN](#BR-CLEAN-ISOLATION-CHAIN), [BR-CLEAN-NAMES-UNCHANGED](#BR-CLEAN-NAMES-UNCHANGED), [BR-CLEAN-OTHER-BACKEND](#BR-CLEAN-OTHER-BACKEND), [BR-CLEAN-OTHER-BACKEND-IPT](#BR-CLEAN-OTHER-BACKEND-IPT), [BR-CLEAN-OTHER-BACKEND-NFT](#BR-CLEAN-OTHER-BACKEND-NFT), [BR-CLEAN-USER-DROP-RULE](#BR-CLEAN-USER-DROP-RULE), [BR-EGRESS-HOST-IPV4](#BR-EGRESS-HOST-IPV4), [BR-EGRESS-MASQUERADE](#BR-EGRESS-MASQUERADE), [BR-EGRESS-NO-MASQUERADE](#BR-EGRESS-NO-MASQUERADE), [BR-EGRESS-REPLY-DIRECT-ROUTING-OFF](#BR-EGRESS-REPLY-DIRECT-ROUTING-OFF), [BR-EGRESS-REPLY-DIRECT-ROUTING-ON](#BR-EGRESS-REPLY-DIRECT-ROUTING-ON), [BR-EGRESS-REPLY-TRUSTED-IFACE](#BR-EGRESS-REPLY-TRUSTED-IFACE), [BR-FW-BACKEND-INVALID](#BR-FW-BACKEND-INVALID), [BR-FW-BACKEND-INVALID-MSG](#BR-FW-BACKEND-INVALID-MSG), [BR-FW-FIREWALLD-RELOAD-EGRESS](#BR-FW-FIREWALLD-RELOAD-EGRESS), [BR-FW-FIREWALLD-RELOAD-NFT](#BR-FW-FIREWALLD-RELOAD-NFT), [BR-FW-FIREWALLD-RELOAD-PORT](#BR-FW-FIREWALLD-RELOAD-PORT), [BR-FW-FIREWALLD-RELOADED-AT](#BR-FW-FIREWALLD-RELOADED-AT), [BR-FW-FORWARD-DROP-FIREWALLD](#BR-FW-FORWARD-DROP-FIREWALLD), [BR-FW-FORWARD-DROP-FIREWALLD-V6](#BR-FW-FORWARD-DROP-FIREWALLD-V6), [BR-FW-FORWARDING-ENABLED](#BR-FW-FORWARDING-ENABLED), [BR-FW-FORWARDING-ENABLED-V6](#BR-FW-FORWARDING-ENABLED-V6), [BR-FW-HTTP500-REFUSED](#BR-FW-HTTP500-REFUSED), [BR-FW-IP6TABLES-MISSING](#BR-FW-IP6TABLES-MISSING), [BR-FW-IP6TABLES-MISSING-NETWORK](#BR-FW-IP6TABLES-MISSING-NETWORK), [BR-FW-IPTABLES-MISSING](#BR-FW-IPTABLES-MISSING), [BR-FW-NFT-MISSING](#BR-FW-NFT-MISSING), [BR-FW-NFT-NO-FORWARDING](#BR-FW-NFT-NO-FORWARDING), [BR-FW-NFT-NO-FORWARDING-V6](#BR-FW-NFT-NO-FORWARDING-V6), [BR-GW-DEFAULT-ROUTE-NETWORK](#BR-GW-DEFAULT-ROUTE-NETWORK), [BR-GWMODE-ISOLATED-NOT-INTERNAL](#BR-GWMODE-ISOLATED-NOT-INTERNAL), [BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI](#BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI), [BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500](#BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500), [BR-GWMODE-NAT-UNPROTECTED](#BR-GWMODE-NAT-UNPROTECTED), [BR-GWMODE-ROUTED-EGRESS](#BR-GWMODE-ROUTED-EGRESS), [BR-GWMODE-ROUTED-INBOUND](#BR-GWMODE-ROUTED-INBOUND), [BR-GWMODE-ROUTED-NODE-ADDRESS](#BR-GWMODE-ROUTED-NODE-ADDRESS), [BR-GWMODE-UNKNOWN](#BR-GWMODE-UNKNOWN), [BR-GWMODE-UNKNOWN-CLI](#BR-GWMODE-UNKNOWN-CLI), [BR-GWMODE-UNKNOWN-MSG](#BR-GWMODE-UNKNOWN-MSG), [BR-ISO-BRIDGE-NF-CALL](#BR-ISO-BRIDGE-NF-CALL), [BR-ISO-DIRECT-ROUTING-OFF](#BR-ISO-DIRECT-ROUTING-OFF), [BR-ISO-DIRECT-ROUTING-ON](#BR-ISO-DIRECT-ROUTING-ON), [BR-ISO-INTERNAL-CTR-ROUTE](#BR-ISO-INTERNAL-CTR-ROUTE), [BR-ISO-INTERNAL-CTR-TO-HOST](#BR-ISO-INTERNAL-CTR-TO-HOST), [BR-ISO-INTERNAL-HOST-TO-CTR](#BR-ISO-INTERNAL-HOST-TO-CTR), [BR-ISO-INTERNAL-NO-FORWARD](#BR-ISO-INTERNAL-NO-FORWARD), [BR-ISO-ISOLATED-CTR-TO-HOST](#BR-ISO-ISOLATED-CTR-TO-HOST), [BR-ISO-ISOLATED-NO-GATEWAY](#BR-ISO-ISOLATED-NO-GATEWAY), [BR-ISO-NO-ICC](#BR-ISO-NO-ICC), [BR-ISO-NO-ICC-LEGACY-LINK](#BR-ISO-NO-ICC-LEGACY-LINK), [BR-ISO-SEPARATE-NETWORKS](#BR-ISO-SEPARATE-NETWORKS), [BR-ISO-TRUSTED-IFACE](#BR-ISO-TRUSTED-IFACE), [BR-ISO-TRUSTED-IFACE-LIST](#BR-ISO-TRUSTED-IFACE-LIST), [BR-NOV6-CTR-START](#BR-NOV6-CTR-START), [BR-NOV6-DAEMON-START](#BR-NOV6-DAEMON-START), [BR-NOV6-PUBLISHED-PORT](#BR-NOV6-PUBLISHED-PORT), [BR-NOV6-V6-NETWORK-REFUSED](#BR-NOV6-V6-NETWORK-REFUSED), [BR-OPT-DAEMON-MTU-APPLIED](#BR-OPT-DAEMON-MTU-APPLIED), [BR-OPT-DAEMON-MTU-ERROR](#BR-OPT-DAEMON-MTU-ERROR), [BR-OPT-DAEMON-MTU-MODULO](#BR-OPT-DAEMON-MTU-MODULO), [BR-OPT-DAEMON-MTU-NEGATIVE](#BR-OPT-DAEMON-MTU-NEGATIVE), [BR-OPT-DAEMON-MTU-NEGATIVE-MSG](#BR-OPT-DAEMON-MTU-NEGATIVE-MSG), [BR-OPT-DAEMON-MTU-REFUSED](#BR-OPT-DAEMON-MTU-REFUSED), [BR-OPT-DAEMON-MTU-REFUSED-LIVE-RESTORE](#BR-OPT-DAEMON-MTU-REFUSED-LIVE-RESTORE), [BR-OPT-DAEMON-MTU-ZERO](#BR-OPT-DAEMON-MTU-ZERO), [BR-OPT-DAEMON-MTU-ZERO-REPLACED](#BR-OPT-DAEMON-MTU-ZERO-REPLACED), [BR-OPT-MTU-APPLIED](#BR-OPT-MTU-APPLIED), [BR-OPT-MTU-INVALID](#BR-OPT-MTU-INVALID), [BR-OPT-MTU-INVALID-CLI](#BR-OPT-MTU-INVALID-CLI), [BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO), [BR-OPT-MTU-OUT-OF-RANGE](#BR-OPT-MTU-OUT-OF-RANGE), [BR-OPT-MTU-REFUSED](#BR-OPT-MTU-REFUSED), [BR-OPT-MTU-REFUSED-CLI](#BR-OPT-MTU-REFUSED-CLI), [BR-OPT-MTU-REFUSED-HTTP500](#BR-OPT-MTU-REFUSED-HTTP500), [BR-OPT-MTU-ZERO](#BR-OPT-MTU-ZERO), [BR-PRIO-BASE-CHAINS](#BR-PRIO-BASE-CHAINS), [BR-PUB-HOST-ADDRESS](#BR-PUB-HOST-ADDRESS), [BR-PUB-HOST-PORT-ASSIGNED](#BR-PUB-HOST-PORT-ASSIGNED), [BR-PUB-LOOPBACK-CLIENT](#BR-PUB-LOOPBACK-CLIENT), [BR-PUB-LOOPBACK-NODE](#BR-PUB-LOOPBACK-NODE), [BR-PUB-NO-SCTP](#BR-PUB-NO-SCTP), [BR-PUB-ROUTE-LOCALNET](#BR-PUB-ROUTE-LOCALNET), [BR-PUB-UNPUBLISHED-PORT](#BR-PUB-UNPUBLISHED-PORT), [BR-PUB-V6-CLIENT-SOURCE](#BR-PUB-V6-CLIENT-SOURCE), [BR-PUB-V6-LINK-LOCAL](#BR-PUB-V6-LINK-LOCAL), [BR-PUB-V6-REACHABLE](#BR-PUB-V6-REACHABLE), [BR-RULES-REFERENCE](#BR-RULES-REFERENCE), [BR-RULES-REFERENCE-NFT](#BR-RULES-REFERENCE-NFT), [BR-USER-CHAIN-JUMP](#BR-USER-CHAIN-JUMP), [BR-USER-CHAIN-JUMP-FIREWALLD](#BR-USER-CHAIN-JUMP-FIREWALLD), [BR-USER-DROP-RULE](#BR-USER-DROP-RULE), [BR-USER-RULES-KEPT](#BR-USER-RULES-KEPT), [NET-DRVPROP-ADDS-INTERFACE](network-common.md#NET-DRVPROP-ADDS-INTERFACE), [NET-DRVPROP-ENDPOINT-MAC](network-common.md#NET-DRVPROP-ENDPOINT-MAC), [SWARM-PUB-FIREWALLD-V6-PROXY](#SWARM-PUB-FIREWALLD-V6-PROXY)
+*Pinned by:* [BR-ISO-NO-VETH](#BR-ISO-NO-VETH), [BR-ISO-NO-VETH-CONNECT](#BR-ISO-NO-VETH-CONNECT), [BR-ISO-NO-VETH-CREATE](#BR-ISO-NO-VETH-CREATE), [BR-ISO-NO-VETH-HTTP500](#BR-ISO-NO-VETH-HTTP500) · *Needed by:* [BR-CLEAN-BUILTIN-CHAIN-RULES](#BR-CLEAN-BUILTIN-CHAIN-RULES), [BR-CLEAN-BUILTIN-RULES](#BR-CLEAN-BUILTIN-RULES), [BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED](#BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED), [BR-CLEAN-FORWARD-DROP-WARNING](#BR-CLEAN-FORWARD-DROP-WARNING), [BR-CLEAN-FORWARD-POLICY-KEPT](#BR-CLEAN-FORWARD-POLICY-KEPT), [BR-CLEAN-ISOLATION-CHAIN](#BR-CLEAN-ISOLATION-CHAIN), [BR-CLEAN-NO-FORWARD-JUMP](#BR-CLEAN-NO-FORWARD-JUMP), [BR-CLEAN-OTHER-BACKEND](#BR-CLEAN-OTHER-BACKEND), [BR-CLEAN-OTHER-BACKEND-IPT](#BR-CLEAN-OTHER-BACKEND-IPT), [BR-CLEAN-OTHER-BACKEND-NFT](#BR-CLEAN-OTHER-BACKEND-NFT), [BR-CLEAN-USER-DROP-RULE](#BR-CLEAN-USER-DROP-RULE), [BR-EGRESS-DAEMON-NO-MASQUERADE](#BR-EGRESS-DAEMON-NO-MASQUERADE), [BR-EGRESS-HOST-IPV4](#BR-EGRESS-HOST-IPV4), [BR-EGRESS-HOST-IPV6](#BR-EGRESS-HOST-IPV6), [BR-EGRESS-MASQUERADE](#BR-EGRESS-MASQUERADE), [BR-EGRESS-MASQUERADE-V6](#BR-EGRESS-MASQUERADE-V6), [BR-EGRESS-NO-MASQUERADE](#BR-EGRESS-NO-MASQUERADE), [BR-EGRESS-NO-MASQUERADE-V6](#BR-EGRESS-NO-MASQUERADE-V6), [BR-EGRESS-OPERATOR-NAT-RULE-FIRST](#BR-EGRESS-OPERATOR-NAT-RULE-FIRST), [BR-EGRESS-OPERATOR-RULE-DEFAULT-BRIDGE](#BR-EGRESS-OPERATOR-RULE-DEFAULT-BRIDGE), [BR-EGRESS-REPLY-DIRECT-ROUTING-OFF](#BR-EGRESS-REPLY-DIRECT-ROUTING-OFF), [BR-EGRESS-REPLY-DIRECT-ROUTING-ON](#BR-EGRESS-REPLY-DIRECT-ROUTING-ON), [BR-EGRESS-REPLY-TRUSTED-IFACE](#BR-EGRESS-REPLY-TRUSTED-IFACE), [BR-EGRESS-UNDERLAY-REACH](#BR-EGRESS-UNDERLAY-REACH), [BR-FW-BACKEND-INFO](#BR-FW-BACKEND-INFO), [BR-FW-BACKEND-INVALID](#BR-FW-BACKEND-INVALID), [BR-FW-BACKEND-INVALID-MSG](#BR-FW-BACKEND-INVALID-MSG), [BR-FW-FIREWALLD-LATE-START-EGRESS](#BR-FW-FIREWALLD-LATE-START-EGRESS), [BR-FW-FIREWALLD-LATE-START-PORT](#BR-FW-FIREWALLD-LATE-START-PORT), [BR-FW-FIREWALLD-LATE-START-ZONE](#BR-FW-FIREWALLD-LATE-START-ZONE), [BR-FW-FIREWALLD-RELOAD-EGRESS](#BR-FW-FIREWALLD-RELOAD-EGRESS), [BR-FW-FIREWALLD-RELOAD-PORT](#BR-FW-FIREWALLD-RELOAD-PORT), [BR-FW-FIREWALLD-RELOADED-AT](#BR-FW-FIREWALLD-RELOADED-AT), [BR-FW-FIREWALLD-STOP-EGRESS](#BR-FW-FIREWALLD-STOP-EGRESS), [BR-FW-FIREWALLD-STOP-PORT](#BR-FW-FIREWALLD-STOP-PORT), [BR-FW-FIREWALLD-ZONE](#BR-FW-FIREWALLD-ZONE), [BR-FW-FIREWALLD-ZONE-IPTABLES-DISABLED](#BR-FW-FIREWALLD-ZONE-IPTABLES-DISABLED), [BR-FW-FIREWALLD-ZONE-USER-BOUND](#BR-FW-FIREWALLD-ZONE-USER-BOUND), [BR-FW-FORWARD-DROP-FIREWALLD](#BR-FW-FORWARD-DROP-FIREWALLD), [BR-FW-FORWARD-DROP-FIREWALLD-LATE-START](#BR-FW-FORWARD-DROP-FIREWALLD-LATE-START), [BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6](#BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6), [BR-FW-FORWARD-DROP-FIREWALLD-STOP](#BR-FW-FORWARD-DROP-FIREWALLD-STOP), [BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6](#BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6), [BR-FW-FORWARD-DROP-FIREWALLD-V6](#BR-FW-FORWARD-DROP-FIREWALLD-V6), [BR-FW-FORWARDING-ALREADY-ENABLED](#BR-FW-FORWARDING-ALREADY-ENABLED), [BR-FW-FORWARDING-ALREADY-ENABLED-V6](#BR-FW-FORWARDING-ALREADY-ENABLED-V6), [BR-FW-FORWARDING-ENABLED](#BR-FW-FORWARDING-ENABLED), [BR-FW-FORWARDING-ENABLED-V6](#BR-FW-FORWARDING-ENABLED-V6), [BR-FW-FORWARDING-NO-DROP](#BR-FW-FORWARDING-NO-DROP), [BR-FW-FORWARDING-NO-DROP-V6](#BR-FW-FORWARDING-NO-DROP-V6), [BR-FW-IP6TABLES-MISSING](#BR-FW-IP6TABLES-MISSING), [BR-FW-IP6TABLES-MISSING-MSG](#BR-FW-IP6TABLES-MISSING-MSG), [BR-FW-IP6TABLES-MISSING-NETWORK](#BR-FW-IP6TABLES-MISSING-NETWORK), [BR-FW-IP6TABLES-MISSING-PUBLISHED-PORT](#BR-FW-IP6TABLES-MISSING-PUBLISHED-PORT), [BR-FW-IPTABLES-MISSING](#BR-FW-IPTABLES-MISSING), [BR-FW-IPTABLES-MISSING-MSG](#BR-FW-IPTABLES-MISSING-MSG), [BR-FW-NFT-FIREWALLD-RELOAD](#BR-FW-NFT-FIREWALLD-RELOAD), [BR-FW-NFT-FORWARDING-UNCHECKED](#BR-FW-NFT-FORWARDING-UNCHECKED), [BR-FW-NFT-IPV6-MISSING](#BR-FW-NFT-IPV6-MISSING), [BR-FW-NFT-IPV6-MISSING-NETWORK](#BR-FW-NFT-IPV6-MISSING-NETWORK), [BR-FW-NFT-MISSING](#BR-FW-NFT-MISSING), [BR-FW-NFT-MISSING-MSG](#BR-FW-NFT-MISSING-MSG), [BR-FW-NFT-NO-FORWARDING](#BR-FW-NFT-NO-FORWARDING), [BR-FW-NFT-NO-FORWARDING-NETWORK](#BR-FW-NFT-NO-FORWARDING-NETWORK), [BR-FW-NFT-NO-FORWARDING-V6](#BR-FW-NFT-NO-FORWARDING-V6), [BR-FW-NFT-NO-FORWARDING-V6-HTTP500](#BR-FW-NFT-NO-FORWARDING-V6-HTTP500), [BR-GW-DEFAULT-ROUTE-NETWORK](#BR-GW-DEFAULT-ROUTE-NETWORK), [BR-GWMODE-HTTP500-REFUSED](#BR-GWMODE-HTTP500-REFUSED), [BR-GWMODE-ISOLATED-NOT-INTERNAL](#BR-GWMODE-ISOLATED-NOT-INTERNAL), [BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI](#BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI), [BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500](#BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500), [BR-GWMODE-NAT-UNPROTECTED](#BR-GWMODE-NAT-UNPROTECTED), [BR-GWMODE-ROUTED-EGRESS](#BR-GWMODE-ROUTED-EGRESS), [BR-GWMODE-ROUTED-EGRESS-V6](#BR-GWMODE-ROUTED-EGRESS-V6), [BR-GWMODE-ROUTED-INBOUND](#BR-GWMODE-ROUTED-INBOUND), [BR-GWMODE-ROUTED-INBOUND-V6](#BR-GWMODE-ROUTED-INBOUND-V6), [BR-GWMODE-ROUTED-NODE-ADDRESS](#BR-GWMODE-ROUTED-NODE-ADDRESS), [BR-GWMODE-UNKNOWN](#BR-GWMODE-UNKNOWN), [BR-GWMODE-UNKNOWN-CLI](#BR-GWMODE-UNKNOWN-CLI), [BR-GWMODE-UNKNOWN-MSG](#BR-GWMODE-UNKNOWN-MSG), [BR-ISO-ACCEPT-FWMARK](#BR-ISO-ACCEPT-FWMARK), [BR-ISO-ACCEPT-FWMARK-UNTRUSTED](#BR-ISO-ACCEPT-FWMARK-UNTRUSTED), [BR-ISO-BRIDGE-NF-CALL](#BR-ISO-BRIDGE-NF-CALL), [BR-ISO-BRIDGE-NF-CALL-V6](#BR-ISO-BRIDGE-NF-CALL-V6), [BR-ISO-DAEMON-NO-ICC](#BR-ISO-DAEMON-NO-ICC), [BR-ISO-DIRECT-ROUTING-OFF](#BR-ISO-DIRECT-ROUTING-OFF), [BR-ISO-DIRECT-ROUTING-OFF-FIREWALLD](#BR-ISO-DIRECT-ROUTING-OFF-FIREWALLD), [BR-ISO-DIRECT-ROUTING-OFF-V6](#BR-ISO-DIRECT-ROUTING-OFF-V6), [BR-ISO-DIRECT-ROUTING-ON](#BR-ISO-DIRECT-ROUTING-ON), [BR-ISO-DIRECT-ROUTING-ON-FIREWALLD](#BR-ISO-DIRECT-ROUTING-ON-FIREWALLD), [BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING](#BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING), [BR-ISO-INTERNAL-CTR-ROUTE](#BR-ISO-INTERNAL-CTR-ROUTE), [BR-ISO-INTERNAL-CTR-TO-HOST](#BR-ISO-INTERNAL-CTR-TO-HOST), [BR-ISO-INTERNAL-HOST-TO-CTR](#BR-ISO-INTERNAL-HOST-TO-CTR), [BR-ISO-INTERNAL-NO-FORWARD](#BR-ISO-INTERNAL-NO-FORWARD), [BR-ISO-ISOLATED-CTR-TO-HOST](#BR-ISO-ISOLATED-CTR-TO-HOST), [BR-ISO-ISOLATED-NO-GATEWAY](#BR-ISO-ISOLATED-NO-GATEWAY), [BR-ISO-NO-BR-NETFILTER-DAEMON-ICC](#BR-ISO-NO-BR-NETFILTER-DAEMON-ICC), [BR-ISO-NO-BR-NETFILTER-NO-ICC](#BR-ISO-NO-BR-NETFILTER-NO-ICC), [BR-ISO-NO-BR-NETFILTER-NO-ICC-MSG](#BR-ISO-NO-BR-NETFILTER-NO-ICC-MSG), [BR-ISO-NO-ICC](#BR-ISO-NO-ICC), [BR-ISO-NO-ICC-LEGACY-LINK](#BR-ISO-NO-ICC-LEGACY-LINK), [BR-ISO-SAME-NETWORK](#BR-ISO-SAME-NETWORK), [BR-ISO-SEPARATE-NETWORKS](#BR-ISO-SEPARATE-NETWORKS), [BR-ISO-SEPARATE-NETWORKS-NAT-UNPROTECTED](#BR-ISO-SEPARATE-NETWORKS-NAT-UNPROTECTED), [BR-ISO-SEPARATE-NETWORKS-ROUTED](#BR-ISO-SEPARATE-NETWORKS-ROUTED), [BR-ISO-SEPARATE-NETWORKS-V6](#BR-ISO-SEPARATE-NETWORKS-V6), [BR-ISO-TRUSTED-IFACE](#BR-ISO-TRUSTED-IFACE), [BR-ISO-TRUSTED-IFACE-LIST](#BR-ISO-TRUSTED-IFACE-LIST), [BR-NOV6-CTR-START](#BR-NOV6-CTR-START), [BR-NOV6-DAEMON-START](#BR-NOV6-DAEMON-START), [BR-NOV6-PUBLISHED-PORT](#BR-NOV6-PUBLISHED-PORT), [BR-NOV6-V6-NETWORK-REFUSED](#BR-NOV6-V6-NETWORK-REFUSED), [BR-NOV6-V6-NETWORK-REFUSED-MSG](#BR-NOV6-V6-NETWORK-REFUSED-MSG), [BR-OPT-BRIDGE-NAME](#BR-OPT-BRIDGE-NAME), [BR-OPT-DAEMON-BIP](#BR-OPT-DAEMON-BIP), [BR-OPT-DAEMON-BIP6](#BR-OPT-DAEMON-BIP6), [BR-OPT-DAEMON-BRIDGE-NONE](#BR-OPT-DAEMON-BRIDGE-NONE), [BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED), [BR-OPT-DAEMON-MTU-APPLIED](#BR-OPT-DAEMON-MTU-APPLIED), [BR-OPT-DAEMON-MTU-DEFAULT](#BR-OPT-DAEMON-MTU-DEFAULT), [BR-OPT-DAEMON-MTU-ERROR](#BR-OPT-DAEMON-MTU-ERROR), [BR-OPT-DAEMON-MTU-INVALID](#BR-OPT-DAEMON-MTU-INVALID), [BR-OPT-DAEMON-MTU-MODULO](#BR-OPT-DAEMON-MTU-MODULO), [BR-OPT-DAEMON-MTU-NEGATIVE](#BR-OPT-DAEMON-MTU-NEGATIVE), [BR-OPT-DAEMON-MTU-NEGATIVE-MSG](#BR-OPT-DAEMON-MTU-NEGATIVE-MSG), [BR-OPT-DAEMON-MTU-REFUSED](#BR-OPT-DAEMON-MTU-REFUSED), [BR-OPT-DAEMON-MTU-ZERO](#BR-OPT-DAEMON-MTU-ZERO), [BR-OPT-DAEMON-MTU-ZERO-FLAG](#BR-OPT-DAEMON-MTU-ZERO-FLAG), [BR-OPT-DAEMON-MTU-ZERO-REPLACED](#BR-OPT-DAEMON-MTU-ZERO-REPLACED), [BR-OPT-HTTP500-REFUSED](#BR-OPT-HTTP500-REFUSED), [BR-OPT-IPV4-DISABLED](#BR-OPT-IPV4-DISABLED), [BR-OPT-MTU-APPLIED](#BR-OPT-MTU-APPLIED), [BR-OPT-MTU-INVALID](#BR-OPT-MTU-INVALID), [BR-OPT-MTU-INVALID-CLI](#BR-OPT-MTU-INVALID-CLI), [BR-OPT-MTU-INVALID-MSG](#BR-OPT-MTU-INVALID-MSG), [BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO), [BR-OPT-MTU-OUT-OF-RANGE](#BR-OPT-MTU-OUT-OF-RANGE), [BR-OPT-MTU-REFUSED](#BR-OPT-MTU-REFUSED), [BR-OPT-MTU-REFUSED-CLI](#BR-OPT-MTU-REFUSED-CLI), [BR-OPT-MTU-REFUSED-HTTP500](#BR-OPT-MTU-REFUSED-HTTP500), [BR-OPT-MTU-ZERO](#BR-OPT-MTU-ZERO), [BR-PRIO-BASE-CHAINS](#BR-PRIO-BASE-CHAINS), [BR-PRIO-WELL-KNOWN](#BR-PRIO-WELL-KNOWN), [BR-PUB-HOST-ADDRESS](#BR-PUB-HOST-ADDRESS), [BR-PUB-HOST-BINDING-ADDRESS](#BR-PUB-HOST-BINDING-ADDRESS), [BR-PUB-HOST-BINDING-ADDRESS-DAEMON](#BR-PUB-HOST-BINDING-ADDRESS-DAEMON), [BR-PUB-HOST-PORT-ASSIGNED](#BR-PUB-HOST-PORT-ASSIGNED), [BR-PUB-HOST-PORT-ASSIGNED-CLI](#BR-PUB-HOST-PORT-ASSIGNED-CLI), [BR-PUB-HOST-PORT-RESERVED-REQUESTED](#BR-PUB-HOST-PORT-RESERVED-REQUESTED), [BR-PUB-LOOPBACK-CLIENT](#BR-PUB-LOOPBACK-CLIENT), [BR-PUB-LOOPBACK-CLIENT-FIREWALLD](#BR-PUB-LOOPBACK-CLIENT-FIREWALLD), [BR-PUB-LOOPBACK-NODE](#BR-PUB-LOOPBACK-NODE), [BR-PUB-NO-SCTP](#BR-PUB-NO-SCTP), [BR-PUB-NO-SCTP-CONNECT](#BR-PUB-NO-SCTP-CONNECT), [BR-PUB-NO-SCTP-CREATE](#BR-PUB-NO-SCTP-CREATE), [BR-PUB-NO-SCTP-JOIN-ORDER](#BR-PUB-NO-SCTP-JOIN-ORDER), [BR-PUB-NO-SCTP-MSG](#BR-PUB-NO-SCTP-MSG), [BR-PUB-ROUTE-LOCALNET](#BR-PUB-ROUTE-LOCALNET), [BR-PUB-SCTP](#BR-PUB-SCTP), [BR-PUB-UNPUBLISHED-PORT](#BR-PUB-UNPUBLISHED-PORT), [BR-PUB-UNPUBLISHED-PORT-NODE](#BR-PUB-UNPUBLISHED-PORT-NODE), [BR-PUB-V4-CLIENT-SOURCE](#BR-PUB-V4-CLIENT-SOURCE), [BR-PUB-V6-CLIENT-SOURCE](#BR-PUB-V6-CLIENT-SOURCE), [BR-PUB-V6-LINK-LOCAL](#BR-PUB-V6-LINK-LOCAL), [BR-PUB-V6-REACHABLE](#BR-PUB-V6-REACHABLE), [BR-RULES-REFERENCE](#BR-RULES-REFERENCE), [BR-RULES-REFERENCE-NFT](#BR-RULES-REFERENCE-NFT), [BR-USER-ACCEPT-NO-DIRECT-ROUTING](#BR-USER-ACCEPT-NO-DIRECT-ROUTING), [BR-USER-CHAIN-JUMP](#BR-USER-CHAIN-JUMP), [BR-USER-CHAIN-JUMP-FIREWALLD](#BR-USER-CHAIN-JUMP-FIREWALLD), [BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START](#BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START), [BR-USER-CHAIN-JUMP-FIREWALLD-STOP](#BR-USER-CHAIN-JUMP-FIREWALLD-STOP), [BR-USER-DROP-RULE](#BR-USER-DROP-RULE), [BR-USER-RULES-KEPT](#BR-USER-RULES-KEPT), [NET-DRVPROP-ADDS-INTERFACE](network-common.md#NET-DRVPROP-ADDS-INTERFACE), [NET-DRVPROP-ENDPOINT-MAC](network-common.md#NET-DRVPROP-ENDPOINT-MAC)
 
 *Needed when:* Always
 
@@ -84,33 +611,66 @@ requirement: [Hosts without IPv6](#bridge-networking-hosts-without-ipv6) states 
 
 **Host requirement BR-HOST-NFTABLES**: nftables with NAT, masquerade, connection-tracking and FIB expressions
 
-*Platforms:* linux · *When:* nftables-backend · *Kind:* os · *Kernel options:* `NF_TABLES`, `NF_TABLES_IPV4`, `NF_TABLES_IPV6`, `NFT_NAT`, `NFT_MASQ`, `NFT_CT`, `NFT_FIB_IPV4`, `NFT_FIB_IPV6`, `NFT_CHAIN_NAT_IPV4`, `NFT_CHAIN_NAT_IPV6`, `NFT_MASQ_IPV4`, `NFT_MASQ_IPV6`
+*Platforms:* linux · *When:* nftables-backend · *Kind:* os · *Kernel options:* `NF_TABLES`, `NF_TABLES_IPV4`, `NFT_NAT`, `NFT_MASQ`, `NFT_CT`, `NFT_FIB_IPV4`, `NFT_CHAIN_NAT_IPV4`, `NFT_MASQ_IPV4`
 
-*Needed by:* [BR-CLEAN-BUILTIN-CHAIN-RULES](#BR-CLEAN-BUILTIN-CHAIN-RULES), [BR-CLEAN-BUILTIN-RULES](#BR-CLEAN-BUILTIN-RULES), [BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED](#BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED), [BR-CLEAN-FORWARD-DROP-WARNING](#BR-CLEAN-FORWARD-DROP-WARNING), [BR-CLEAN-FORWARD-POLICY-KEPT](#BR-CLEAN-FORWARD-POLICY-KEPT), [BR-CLEAN-ISOLATION-CHAIN](#BR-CLEAN-ISOLATION-CHAIN), [BR-CLEAN-NAMES-UNCHANGED](#BR-CLEAN-NAMES-UNCHANGED), [BR-CLEAN-OTHER-BACKEND](#BR-CLEAN-OTHER-BACKEND), [BR-CLEAN-OTHER-BACKEND-IPT](#BR-CLEAN-OTHER-BACKEND-IPT), [BR-CLEAN-OTHER-BACKEND-NFT](#BR-CLEAN-OTHER-BACKEND-NFT), [BR-CLEAN-USER-DROP-RULE](#BR-CLEAN-USER-DROP-RULE), [BR-EGRESS-HOST-IPV4](#BR-EGRESS-HOST-IPV4), [BR-EGRESS-MASQUERADE](#BR-EGRESS-MASQUERADE), [BR-EGRESS-NO-MASQUERADE](#BR-EGRESS-NO-MASQUERADE), [BR-EGRESS-REPLY-DIRECT-ROUTING-OFF](#BR-EGRESS-REPLY-DIRECT-ROUTING-OFF), [BR-EGRESS-REPLY-DIRECT-ROUTING-ON](#BR-EGRESS-REPLY-DIRECT-ROUTING-ON), [BR-EGRESS-REPLY-TRUSTED-IFACE](#BR-EGRESS-REPLY-TRUSTED-IFACE), [BR-FW-BACKEND-INVALID](#BR-FW-BACKEND-INVALID), [BR-FW-BACKEND-INVALID-MSG](#BR-FW-BACKEND-INVALID-MSG), [BR-FW-FIREWALLD-RELOAD-EGRESS](#BR-FW-FIREWALLD-RELOAD-EGRESS), [BR-FW-FIREWALLD-RELOAD-NFT](#BR-FW-FIREWALLD-RELOAD-NFT), [BR-FW-FIREWALLD-RELOAD-PORT](#BR-FW-FIREWALLD-RELOAD-PORT), [BR-FW-FIREWALLD-RELOADED-AT](#BR-FW-FIREWALLD-RELOADED-AT), [BR-FW-FORWARD-DROP-FIREWALLD](#BR-FW-FORWARD-DROP-FIREWALLD), [BR-FW-FORWARD-DROP-FIREWALLD-V6](#BR-FW-FORWARD-DROP-FIREWALLD-V6), [BR-FW-FORWARDING-ENABLED](#BR-FW-FORWARDING-ENABLED), [BR-FW-FORWARDING-ENABLED-V6](#BR-FW-FORWARDING-ENABLED-V6), [BR-FW-HTTP500-REFUSED](#BR-FW-HTTP500-REFUSED), [BR-FW-IP6TABLES-MISSING](#BR-FW-IP6TABLES-MISSING), [BR-FW-IP6TABLES-MISSING-NETWORK](#BR-FW-IP6TABLES-MISSING-NETWORK), [BR-FW-IPTABLES-MISSING](#BR-FW-IPTABLES-MISSING), [BR-FW-NFT-MISSING](#BR-FW-NFT-MISSING), [BR-FW-NFT-NO-FORWARDING](#BR-FW-NFT-NO-FORWARDING), [BR-FW-NFT-NO-FORWARDING-V6](#BR-FW-NFT-NO-FORWARDING-V6), [BR-GW-DEFAULT-ROUTE-NETWORK](#BR-GW-DEFAULT-ROUTE-NETWORK), [BR-GWMODE-ISOLATED-NOT-INTERNAL](#BR-GWMODE-ISOLATED-NOT-INTERNAL), [BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI](#BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI), [BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500](#BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500), [BR-GWMODE-NAT-UNPROTECTED](#BR-GWMODE-NAT-UNPROTECTED), [BR-GWMODE-ROUTED-EGRESS](#BR-GWMODE-ROUTED-EGRESS), [BR-GWMODE-ROUTED-INBOUND](#BR-GWMODE-ROUTED-INBOUND), [BR-GWMODE-ROUTED-NODE-ADDRESS](#BR-GWMODE-ROUTED-NODE-ADDRESS), [BR-GWMODE-UNKNOWN](#BR-GWMODE-UNKNOWN), [BR-GWMODE-UNKNOWN-CLI](#BR-GWMODE-UNKNOWN-CLI), [BR-GWMODE-UNKNOWN-MSG](#BR-GWMODE-UNKNOWN-MSG), [BR-ISO-BRIDGE-NF-CALL](#BR-ISO-BRIDGE-NF-CALL), [BR-ISO-DIRECT-ROUTING-OFF](#BR-ISO-DIRECT-ROUTING-OFF), [BR-ISO-DIRECT-ROUTING-ON](#BR-ISO-DIRECT-ROUTING-ON), [BR-ISO-INTERNAL-CTR-ROUTE](#BR-ISO-INTERNAL-CTR-ROUTE), [BR-ISO-INTERNAL-CTR-TO-HOST](#BR-ISO-INTERNAL-CTR-TO-HOST), [BR-ISO-INTERNAL-HOST-TO-CTR](#BR-ISO-INTERNAL-HOST-TO-CTR), [BR-ISO-INTERNAL-NO-FORWARD](#BR-ISO-INTERNAL-NO-FORWARD), [BR-ISO-ISOLATED-CTR-TO-HOST](#BR-ISO-ISOLATED-CTR-TO-HOST), [BR-ISO-ISOLATED-NO-GATEWAY](#BR-ISO-ISOLATED-NO-GATEWAY), [BR-ISO-NO-ICC](#BR-ISO-NO-ICC), [BR-ISO-NO-ICC-LEGACY-LINK](#BR-ISO-NO-ICC-LEGACY-LINK), [BR-ISO-NO-VETH](#BR-ISO-NO-VETH), [BR-ISO-SEPARATE-NETWORKS](#BR-ISO-SEPARATE-NETWORKS), [BR-ISO-TRUSTED-IFACE](#BR-ISO-TRUSTED-IFACE), [BR-ISO-TRUSTED-IFACE-LIST](#BR-ISO-TRUSTED-IFACE-LIST), [BR-NOV6-CTR-START](#BR-NOV6-CTR-START), [BR-NOV6-DAEMON-START](#BR-NOV6-DAEMON-START), [BR-NOV6-PUBLISHED-PORT](#BR-NOV6-PUBLISHED-PORT), [BR-NOV6-V6-NETWORK-REFUSED](#BR-NOV6-V6-NETWORK-REFUSED), [BR-OPT-DAEMON-MTU-APPLIED](#BR-OPT-DAEMON-MTU-APPLIED), [BR-OPT-DAEMON-MTU-ERROR](#BR-OPT-DAEMON-MTU-ERROR), [BR-OPT-DAEMON-MTU-MODULO](#BR-OPT-DAEMON-MTU-MODULO), [BR-OPT-DAEMON-MTU-NEGATIVE](#BR-OPT-DAEMON-MTU-NEGATIVE), [BR-OPT-DAEMON-MTU-NEGATIVE-MSG](#BR-OPT-DAEMON-MTU-NEGATIVE-MSG), [BR-OPT-DAEMON-MTU-REFUSED](#BR-OPT-DAEMON-MTU-REFUSED), [BR-OPT-DAEMON-MTU-REFUSED-LIVE-RESTORE](#BR-OPT-DAEMON-MTU-REFUSED-LIVE-RESTORE), [BR-OPT-DAEMON-MTU-ZERO](#BR-OPT-DAEMON-MTU-ZERO), [BR-OPT-DAEMON-MTU-ZERO-REPLACED](#BR-OPT-DAEMON-MTU-ZERO-REPLACED), [BR-OPT-MTU-APPLIED](#BR-OPT-MTU-APPLIED), [BR-OPT-MTU-INVALID](#BR-OPT-MTU-INVALID), [BR-OPT-MTU-INVALID-CLI](#BR-OPT-MTU-INVALID-CLI), [BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO), [BR-OPT-MTU-OUT-OF-RANGE](#BR-OPT-MTU-OUT-OF-RANGE), [BR-OPT-MTU-REFUSED](#BR-OPT-MTU-REFUSED), [BR-OPT-MTU-REFUSED-CLI](#BR-OPT-MTU-REFUSED-CLI), [BR-OPT-MTU-REFUSED-HTTP500](#BR-OPT-MTU-REFUSED-HTTP500), [BR-OPT-MTU-ZERO](#BR-OPT-MTU-ZERO), [BR-PRIO-BASE-CHAINS](#BR-PRIO-BASE-CHAINS), [BR-PUB-HOST-ADDRESS](#BR-PUB-HOST-ADDRESS), [BR-PUB-HOST-PORT-ASSIGNED](#BR-PUB-HOST-PORT-ASSIGNED), [BR-PUB-LOOPBACK-CLIENT](#BR-PUB-LOOPBACK-CLIENT), [BR-PUB-LOOPBACK-NODE](#BR-PUB-LOOPBACK-NODE), [BR-PUB-NO-SCTP](#BR-PUB-NO-SCTP), [BR-PUB-ROUTE-LOCALNET](#BR-PUB-ROUTE-LOCALNET), [BR-PUB-UNPUBLISHED-PORT](#BR-PUB-UNPUBLISHED-PORT), [BR-PUB-V6-CLIENT-SOURCE](#BR-PUB-V6-CLIENT-SOURCE), [BR-PUB-V6-LINK-LOCAL](#BR-PUB-V6-LINK-LOCAL), [BR-PUB-V6-REACHABLE](#BR-PUB-V6-REACHABLE), [BR-RULES-REFERENCE](#BR-RULES-REFERENCE), [BR-RULES-REFERENCE-NFT](#BR-RULES-REFERENCE-NFT), [BR-USER-CHAIN-JUMP](#BR-USER-CHAIN-JUMP), [BR-USER-CHAIN-JUMP-FIREWALLD](#BR-USER-CHAIN-JUMP-FIREWALLD), [BR-USER-DROP-RULE](#BR-USER-DROP-RULE), [BR-USER-RULES-KEPT](#BR-USER-RULES-KEPT), [SWARM-CLEAN-INGRESS-CHAIN-NFT](swarm-lifecycle.md#SWARM-CLEAN-INGRESS-CHAIN-NFT), [SWARM-PUB-FIREWALLD-V6-PROXY](#SWARM-PUB-FIREWALLD-V6-PROXY), [SWARM-WIRE-MIXED-VERSIONS](swarm-lifecycle.md#SWARM-WIRE-MIXED-VERSIONS)
+*Pinned by:* [BR-PRIO-BASE-CHAINS](#BR-PRIO-BASE-CHAINS), [BR-RULES-REFERENCE-NFT](#BR-RULES-REFERENCE-NFT) · *Needed by:* [BR-CLEAN-BUILTIN-CHAIN-RULES](#BR-CLEAN-BUILTIN-CHAIN-RULES), [BR-CLEAN-BUILTIN-RULES](#BR-CLEAN-BUILTIN-RULES), [BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED](#BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED), [BR-CLEAN-FORWARD-DROP-WARNING](#BR-CLEAN-FORWARD-DROP-WARNING), [BR-CLEAN-FORWARD-POLICY-KEPT](#BR-CLEAN-FORWARD-POLICY-KEPT), [BR-CLEAN-ISOLATION-CHAIN](#BR-CLEAN-ISOLATION-CHAIN), [BR-CLEAN-NO-FORWARD-JUMP](#BR-CLEAN-NO-FORWARD-JUMP), [BR-CLEAN-OTHER-BACKEND](#BR-CLEAN-OTHER-BACKEND), [BR-CLEAN-OTHER-BACKEND-IPT](#BR-CLEAN-OTHER-BACKEND-IPT), [BR-CLEAN-OTHER-BACKEND-NFT](#BR-CLEAN-OTHER-BACKEND-NFT), [BR-CLEAN-USER-DROP-RULE](#BR-CLEAN-USER-DROP-RULE), [BR-EGRESS-DAEMON-NO-MASQUERADE](#BR-EGRESS-DAEMON-NO-MASQUERADE), [BR-EGRESS-HOST-IPV4](#BR-EGRESS-HOST-IPV4), [BR-EGRESS-HOST-IPV6](#BR-EGRESS-HOST-IPV6), [BR-EGRESS-MASQUERADE](#BR-EGRESS-MASQUERADE), [BR-EGRESS-MASQUERADE-V6](#BR-EGRESS-MASQUERADE-V6), [BR-EGRESS-NO-MASQUERADE](#BR-EGRESS-NO-MASQUERADE), [BR-EGRESS-NO-MASQUERADE-V6](#BR-EGRESS-NO-MASQUERADE-V6), [BR-EGRESS-OPERATOR-NAT-RULE-FIRST](#BR-EGRESS-OPERATOR-NAT-RULE-FIRST), [BR-EGRESS-OPERATOR-RULE-DEFAULT-BRIDGE](#BR-EGRESS-OPERATOR-RULE-DEFAULT-BRIDGE), [BR-EGRESS-REPLY-DIRECT-ROUTING-OFF](#BR-EGRESS-REPLY-DIRECT-ROUTING-OFF), [BR-EGRESS-REPLY-DIRECT-ROUTING-ON](#BR-EGRESS-REPLY-DIRECT-ROUTING-ON), [BR-EGRESS-REPLY-TRUSTED-IFACE](#BR-EGRESS-REPLY-TRUSTED-IFACE), [BR-EGRESS-UNDERLAY-REACH](#BR-EGRESS-UNDERLAY-REACH), [BR-FW-BACKEND-INFO](#BR-FW-BACKEND-INFO), [BR-FW-BACKEND-INVALID](#BR-FW-BACKEND-INVALID), [BR-FW-BACKEND-INVALID-MSG](#BR-FW-BACKEND-INVALID-MSG), [BR-FW-FIREWALLD-LATE-START-EGRESS](#BR-FW-FIREWALLD-LATE-START-EGRESS), [BR-FW-FIREWALLD-LATE-START-PORT](#BR-FW-FIREWALLD-LATE-START-PORT), [BR-FW-FIREWALLD-LATE-START-ZONE](#BR-FW-FIREWALLD-LATE-START-ZONE), [BR-FW-FIREWALLD-RELOAD-EGRESS](#BR-FW-FIREWALLD-RELOAD-EGRESS), [BR-FW-FIREWALLD-RELOAD-PORT](#BR-FW-FIREWALLD-RELOAD-PORT), [BR-FW-FIREWALLD-RELOADED-AT](#BR-FW-FIREWALLD-RELOADED-AT), [BR-FW-FIREWALLD-STOP-EGRESS](#BR-FW-FIREWALLD-STOP-EGRESS), [BR-FW-FIREWALLD-STOP-PORT](#BR-FW-FIREWALLD-STOP-PORT), [BR-FW-FIREWALLD-ZONE](#BR-FW-FIREWALLD-ZONE), [BR-FW-FIREWALLD-ZONE-IPTABLES-DISABLED](#BR-FW-FIREWALLD-ZONE-IPTABLES-DISABLED), [BR-FW-FIREWALLD-ZONE-USER-BOUND](#BR-FW-FIREWALLD-ZONE-USER-BOUND), [BR-FW-FORWARD-DROP-FIREWALLD](#BR-FW-FORWARD-DROP-FIREWALLD), [BR-FW-FORWARD-DROP-FIREWALLD-LATE-START](#BR-FW-FORWARD-DROP-FIREWALLD-LATE-START), [BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6](#BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6), [BR-FW-FORWARD-DROP-FIREWALLD-STOP](#BR-FW-FORWARD-DROP-FIREWALLD-STOP), [BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6](#BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6), [BR-FW-FORWARD-DROP-FIREWALLD-V6](#BR-FW-FORWARD-DROP-FIREWALLD-V6), [BR-FW-FORWARDING-ALREADY-ENABLED](#BR-FW-FORWARDING-ALREADY-ENABLED), [BR-FW-FORWARDING-ALREADY-ENABLED-V6](#BR-FW-FORWARDING-ALREADY-ENABLED-V6), [BR-FW-FORWARDING-ENABLED](#BR-FW-FORWARDING-ENABLED), [BR-FW-FORWARDING-ENABLED-V6](#BR-FW-FORWARDING-ENABLED-V6), [BR-FW-FORWARDING-NO-DROP](#BR-FW-FORWARDING-NO-DROP), [BR-FW-FORWARDING-NO-DROP-V6](#BR-FW-FORWARDING-NO-DROP-V6), [BR-FW-IP6TABLES-MISSING](#BR-FW-IP6TABLES-MISSING), [BR-FW-IP6TABLES-MISSING-MSG](#BR-FW-IP6TABLES-MISSING-MSG), [BR-FW-IP6TABLES-MISSING-NETWORK](#BR-FW-IP6TABLES-MISSING-NETWORK), [BR-FW-IP6TABLES-MISSING-PUBLISHED-PORT](#BR-FW-IP6TABLES-MISSING-PUBLISHED-PORT), [BR-FW-IPTABLES-MISSING](#BR-FW-IPTABLES-MISSING), [BR-FW-IPTABLES-MISSING-MSG](#BR-FW-IPTABLES-MISSING-MSG), [BR-FW-NFT-FIREWALLD-RELOAD](#BR-FW-NFT-FIREWALLD-RELOAD), [BR-FW-NFT-FORWARDING-UNCHECKED](#BR-FW-NFT-FORWARDING-UNCHECKED), [BR-FW-NFT-IPV6-MISSING](#BR-FW-NFT-IPV6-MISSING), [BR-FW-NFT-IPV6-MISSING-NETWORK](#BR-FW-NFT-IPV6-MISSING-NETWORK), [BR-FW-NFT-MISSING](#BR-FW-NFT-MISSING), [BR-FW-NFT-MISSING-MSG](#BR-FW-NFT-MISSING-MSG), [BR-FW-NFT-NO-FORWARDING](#BR-FW-NFT-NO-FORWARDING), [BR-FW-NFT-NO-FORWARDING-NETWORK](#BR-FW-NFT-NO-FORWARDING-NETWORK), [BR-FW-NFT-NO-FORWARDING-V6](#BR-FW-NFT-NO-FORWARDING-V6), [BR-FW-NFT-NO-FORWARDING-V6-HTTP500](#BR-FW-NFT-NO-FORWARDING-V6-HTTP500), [BR-GW-DEFAULT-ROUTE-NETWORK](#BR-GW-DEFAULT-ROUTE-NETWORK), [BR-GWMODE-HTTP500-REFUSED](#BR-GWMODE-HTTP500-REFUSED), [BR-GWMODE-ISOLATED-NOT-INTERNAL](#BR-GWMODE-ISOLATED-NOT-INTERNAL), [BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI](#BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI), [BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500](#BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500), [BR-GWMODE-NAT-UNPROTECTED](#BR-GWMODE-NAT-UNPROTECTED), [BR-GWMODE-ROUTED-EGRESS](#BR-GWMODE-ROUTED-EGRESS), [BR-GWMODE-ROUTED-EGRESS-V6](#BR-GWMODE-ROUTED-EGRESS-V6), [BR-GWMODE-ROUTED-INBOUND](#BR-GWMODE-ROUTED-INBOUND), [BR-GWMODE-ROUTED-INBOUND-V6](#BR-GWMODE-ROUTED-INBOUND-V6), [BR-GWMODE-ROUTED-NODE-ADDRESS](#BR-GWMODE-ROUTED-NODE-ADDRESS), [BR-GWMODE-UNKNOWN](#BR-GWMODE-UNKNOWN), [BR-GWMODE-UNKNOWN-CLI](#BR-GWMODE-UNKNOWN-CLI), [BR-GWMODE-UNKNOWN-MSG](#BR-GWMODE-UNKNOWN-MSG), [BR-ISO-ACCEPT-FWMARK](#BR-ISO-ACCEPT-FWMARK), [BR-ISO-ACCEPT-FWMARK-UNTRUSTED](#BR-ISO-ACCEPT-FWMARK-UNTRUSTED), [BR-ISO-BRIDGE-NF-CALL](#BR-ISO-BRIDGE-NF-CALL), [BR-ISO-BRIDGE-NF-CALL-V6](#BR-ISO-BRIDGE-NF-CALL-V6), [BR-ISO-DAEMON-NO-ICC](#BR-ISO-DAEMON-NO-ICC), [BR-ISO-DIRECT-ROUTING-OFF](#BR-ISO-DIRECT-ROUTING-OFF), [BR-ISO-DIRECT-ROUTING-OFF-FIREWALLD](#BR-ISO-DIRECT-ROUTING-OFF-FIREWALLD), [BR-ISO-DIRECT-ROUTING-OFF-V6](#BR-ISO-DIRECT-ROUTING-OFF-V6), [BR-ISO-DIRECT-ROUTING-ON](#BR-ISO-DIRECT-ROUTING-ON), [BR-ISO-DIRECT-ROUTING-ON-FIREWALLD](#BR-ISO-DIRECT-ROUTING-ON-FIREWALLD), [BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING](#BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING), [BR-ISO-INTERNAL-CTR-ROUTE](#BR-ISO-INTERNAL-CTR-ROUTE), [BR-ISO-INTERNAL-CTR-TO-HOST](#BR-ISO-INTERNAL-CTR-TO-HOST), [BR-ISO-INTERNAL-HOST-TO-CTR](#BR-ISO-INTERNAL-HOST-TO-CTR), [BR-ISO-INTERNAL-NO-FORWARD](#BR-ISO-INTERNAL-NO-FORWARD), [BR-ISO-ISOLATED-CTR-TO-HOST](#BR-ISO-ISOLATED-CTR-TO-HOST), [BR-ISO-ISOLATED-NO-GATEWAY](#BR-ISO-ISOLATED-NO-GATEWAY), [BR-ISO-NO-BR-NETFILTER-DAEMON-ICC](#BR-ISO-NO-BR-NETFILTER-DAEMON-ICC), [BR-ISO-NO-BR-NETFILTER-NO-ICC](#BR-ISO-NO-BR-NETFILTER-NO-ICC), [BR-ISO-NO-BR-NETFILTER-NO-ICC-MSG](#BR-ISO-NO-BR-NETFILTER-NO-ICC-MSG), [BR-ISO-NO-ICC](#BR-ISO-NO-ICC), [BR-ISO-NO-ICC-LEGACY-LINK](#BR-ISO-NO-ICC-LEGACY-LINK), [BR-ISO-NO-VETH](#BR-ISO-NO-VETH), [BR-ISO-NO-VETH-CONNECT](#BR-ISO-NO-VETH-CONNECT), [BR-ISO-NO-VETH-CREATE](#BR-ISO-NO-VETH-CREATE), [BR-ISO-NO-VETH-HTTP500](#BR-ISO-NO-VETH-HTTP500), [BR-ISO-SAME-NETWORK](#BR-ISO-SAME-NETWORK), [BR-ISO-SEPARATE-NETWORKS](#BR-ISO-SEPARATE-NETWORKS), [BR-ISO-SEPARATE-NETWORKS-NAT-UNPROTECTED](#BR-ISO-SEPARATE-NETWORKS-NAT-UNPROTECTED), [BR-ISO-SEPARATE-NETWORKS-ROUTED](#BR-ISO-SEPARATE-NETWORKS-ROUTED), [BR-ISO-SEPARATE-NETWORKS-V6](#BR-ISO-SEPARATE-NETWORKS-V6), [BR-ISO-TRUSTED-IFACE](#BR-ISO-TRUSTED-IFACE), [BR-ISO-TRUSTED-IFACE-LIST](#BR-ISO-TRUSTED-IFACE-LIST), [BR-NOV6-CTR-START](#BR-NOV6-CTR-START), [BR-NOV6-DAEMON-START](#BR-NOV6-DAEMON-START), [BR-NOV6-PUBLISHED-PORT](#BR-NOV6-PUBLISHED-PORT), [BR-NOV6-V6-NETWORK-REFUSED](#BR-NOV6-V6-NETWORK-REFUSED), [BR-NOV6-V6-NETWORK-REFUSED-MSG](#BR-NOV6-V6-NETWORK-REFUSED-MSG), [BR-OPT-BRIDGE-NAME](#BR-OPT-BRIDGE-NAME), [BR-OPT-DAEMON-BIP](#BR-OPT-DAEMON-BIP), [BR-OPT-DAEMON-BIP6](#BR-OPT-DAEMON-BIP6), [BR-OPT-DAEMON-BRIDGE-NONE](#BR-OPT-DAEMON-BRIDGE-NONE), [BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED), [BR-OPT-DAEMON-MTU-APPLIED](#BR-OPT-DAEMON-MTU-APPLIED), [BR-OPT-DAEMON-MTU-DEFAULT](#BR-OPT-DAEMON-MTU-DEFAULT), [BR-OPT-DAEMON-MTU-ERROR](#BR-OPT-DAEMON-MTU-ERROR), [BR-OPT-DAEMON-MTU-INVALID](#BR-OPT-DAEMON-MTU-INVALID), [BR-OPT-DAEMON-MTU-MODULO](#BR-OPT-DAEMON-MTU-MODULO), [BR-OPT-DAEMON-MTU-NEGATIVE](#BR-OPT-DAEMON-MTU-NEGATIVE), [BR-OPT-DAEMON-MTU-NEGATIVE-MSG](#BR-OPT-DAEMON-MTU-NEGATIVE-MSG), [BR-OPT-DAEMON-MTU-REFUSED](#BR-OPT-DAEMON-MTU-REFUSED), [BR-OPT-DAEMON-MTU-ZERO](#BR-OPT-DAEMON-MTU-ZERO), [BR-OPT-DAEMON-MTU-ZERO-FLAG](#BR-OPT-DAEMON-MTU-ZERO-FLAG), [BR-OPT-DAEMON-MTU-ZERO-REPLACED](#BR-OPT-DAEMON-MTU-ZERO-REPLACED), [BR-OPT-HTTP500-REFUSED](#BR-OPT-HTTP500-REFUSED), [BR-OPT-IPV4-DISABLED](#BR-OPT-IPV4-DISABLED), [BR-OPT-MTU-APPLIED](#BR-OPT-MTU-APPLIED), [BR-OPT-MTU-INVALID](#BR-OPT-MTU-INVALID), [BR-OPT-MTU-INVALID-CLI](#BR-OPT-MTU-INVALID-CLI), [BR-OPT-MTU-INVALID-MSG](#BR-OPT-MTU-INVALID-MSG), [BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO), [BR-OPT-MTU-OUT-OF-RANGE](#BR-OPT-MTU-OUT-OF-RANGE), [BR-OPT-MTU-REFUSED](#BR-OPT-MTU-REFUSED), [BR-OPT-MTU-REFUSED-CLI](#BR-OPT-MTU-REFUSED-CLI), [BR-OPT-MTU-REFUSED-HTTP500](#BR-OPT-MTU-REFUSED-HTTP500), [BR-OPT-MTU-ZERO](#BR-OPT-MTU-ZERO), [BR-PRIO-BASE-CHAINS](#BR-PRIO-BASE-CHAINS), [BR-PRIO-WELL-KNOWN](#BR-PRIO-WELL-KNOWN), [BR-PUB-HOST-ADDRESS](#BR-PUB-HOST-ADDRESS), [BR-PUB-HOST-BINDING-ADDRESS](#BR-PUB-HOST-BINDING-ADDRESS), [BR-PUB-HOST-BINDING-ADDRESS-DAEMON](#BR-PUB-HOST-BINDING-ADDRESS-DAEMON), [BR-PUB-HOST-PORT-ASSIGNED](#BR-PUB-HOST-PORT-ASSIGNED), [BR-PUB-HOST-PORT-ASSIGNED-CLI](#BR-PUB-HOST-PORT-ASSIGNED-CLI), [BR-PUB-HOST-PORT-RESERVED-REQUESTED](#BR-PUB-HOST-PORT-RESERVED-REQUESTED), [BR-PUB-LOOPBACK-CLIENT](#BR-PUB-LOOPBACK-CLIENT), [BR-PUB-LOOPBACK-CLIENT-FIREWALLD](#BR-PUB-LOOPBACK-CLIENT-FIREWALLD), [BR-PUB-LOOPBACK-NODE](#BR-PUB-LOOPBACK-NODE), [BR-PUB-NO-SCTP](#BR-PUB-NO-SCTP), [BR-PUB-NO-SCTP-CONNECT](#BR-PUB-NO-SCTP-CONNECT), [BR-PUB-NO-SCTP-CREATE](#BR-PUB-NO-SCTP-CREATE), [BR-PUB-NO-SCTP-JOIN-ORDER](#BR-PUB-NO-SCTP-JOIN-ORDER), [BR-PUB-NO-SCTP-MSG](#BR-PUB-NO-SCTP-MSG), [BR-PUB-ROUTE-LOCALNET](#BR-PUB-ROUTE-LOCALNET), [BR-PUB-SCTP](#BR-PUB-SCTP), [BR-PUB-UNPUBLISHED-PORT](#BR-PUB-UNPUBLISHED-PORT), [BR-PUB-UNPUBLISHED-PORT-NODE](#BR-PUB-UNPUBLISHED-PORT-NODE), [BR-PUB-V4-CLIENT-SOURCE](#BR-PUB-V4-CLIENT-SOURCE), [BR-PUB-V6-CLIENT-SOURCE](#BR-PUB-V6-CLIENT-SOURCE), [BR-PUB-V6-LINK-LOCAL](#BR-PUB-V6-LINK-LOCAL), [BR-PUB-V6-REACHABLE](#BR-PUB-V6-REACHABLE), [BR-RULES-REFERENCE](#BR-RULES-REFERENCE), [BR-RULES-REFERENCE-NFT](#BR-RULES-REFERENCE-NFT), [BR-USER-ACCEPT-NO-DIRECT-ROUTING](#BR-USER-ACCEPT-NO-DIRECT-ROUTING), [BR-USER-CHAIN-JUMP](#BR-USER-CHAIN-JUMP), [BR-USER-CHAIN-JUMP-FIREWALLD](#BR-USER-CHAIN-JUMP-FIREWALLD), [BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START](#BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START), [BR-USER-CHAIN-JUMP-FIREWALLD-STOP](#BR-USER-CHAIN-JUMP-FIREWALLD-STOP), [BR-USER-DROP-RULE](#BR-USER-DROP-RULE), [BR-USER-RULES-KEPT](#BR-USER-RULES-KEPT), [SWARM-CLEAN-INGRESS-CHAIN-NFT](swarm-lifecycle.md#SWARM-CLEAN-INGRESS-CHAIN-NFT), [SWARM-WIRE-MIXED-VERSIONS](swarm-lifecycle.md#SWARM-WIRE-MIXED-VERSIONS)
 
 *Facility:* nftables with the NAT, masquerade, connection-tracking and FIB expressions
 
-*Needed when:* The nftables backend
+*Needed when:* The nftables backend. Without it, the daemon does not start: the bridge driver
+sets up its nftables table, and the default bridge network, when the daemon starts.
 
-*Kernel options:* `NF_TABLES`, `NF_TABLES_IPV4`, `NF_TABLES_IPV6`,
-`NFT_NAT`, `NFT_MASQ`, `NFT_CT`, `NFT_FIB_IPV4`,
-`NFT_FIB_IPV6`. `NFT_CHAIN_NAT_IPV4`, `NFT_CHAIN_NAT_IPV6`,
-`NFT_MASQ_IPV4` and `NFT_MASQ_IPV6` on kernels that have them.
+*Kernel options:* `NF_TABLES`, `NF_TABLES_IPV4`, `NFT_NAT`,
+`NFT_MASQ`, `NFT_CT`, `NFT_FIB_IPV4`. `NFT_CHAIN_NAT_IPV4`
+and `NFT_MASQ_IPV4` on kernels that have them.
 
 <a id="needextend-network-bridge-networking-1"></a>
 
-<a id="BR-HOST-BR-NETFILTER"></a>
+<a id="BR-HOST-NFTABLES-V6"></a>
 
-**Host requirement BR-HOST-BR-NETFILTER**: Netfilter hooks for bridged traffic
+**Host requirement BR-HOST-NFTABLES-V6**: nftables for IPv6 with NAT, masquerade and FIB expressions
 
-*Platforms:* linux · *When:* iptables-backend, userland-proxy · *Kind:* os · *Kernel options:* `BRIDGE_NETFILTER`
+*Platforms:* linux · *When:* nftables-backend, ip6tables · *Kind:* os · *Kernel options:* `NF_TABLES_IPV6`, `NFT_FIB_IPV6`, `NFT_CHAIN_NAT_IPV6`, `NFT_MASQ_IPV6` · *Tags:* ipv6
 
-*Needed by:* [BR-ISO-BRIDGE-NF-CALL](#BR-ISO-BRIDGE-NF-CALL), [BR-ISO-NO-ICC](#BR-ISO-NO-ICC), [BR-ISO-NO-ICC-LEGACY-LINK](#BR-ISO-NO-ICC-LEGACY-LINK), [BR-PUB-ROUTE-LOCALNET](#BR-PUB-ROUTE-LOCALNET), [BR-PUB-V6-LINK-LOCAL](#BR-PUB-V6-LINK-LOCAL), [SWARM-HAIRPIN-USERLAND-PROXY](swarm-traffic.md#SWARM-HAIRPIN-USERLAND-PROXY), [SWARM-PUB-V6-NO-USERLAND-PROXY](swarm-traffic.md#SWARM-PUB-V6-NO-USERLAND-PROXY)
+*Pinned by:* [BR-FW-NFT-IPV6-MISSING](#BR-FW-NFT-IPV6-MISSING), [BR-FW-NFT-IPV6-MISSING-NETWORK](#BR-FW-NFT-IPV6-MISSING-NETWORK) · *Needed by:* [BR-EGRESS-HOST-IPV6](#BR-EGRESS-HOST-IPV6), [BR-EGRESS-MASQUERADE-V6](#BR-EGRESS-MASQUERADE-V6), [BR-EGRESS-NO-MASQUERADE-V6](#BR-EGRESS-NO-MASQUERADE-V6), [BR-FW-NFT-FORWARDING-UNCHECKED](#BR-FW-NFT-FORWARDING-UNCHECKED), [BR-GWMODE-ROUTED-EGRESS-V6](#BR-GWMODE-ROUTED-EGRESS-V6), [BR-GWMODE-ROUTED-INBOUND-V6](#BR-GWMODE-ROUTED-INBOUND-V6), [BR-ISO-BRIDGE-NF-CALL-V6](#BR-ISO-BRIDGE-NF-CALL-V6), [BR-ISO-DIRECT-ROUTING-OFF-V6](#BR-ISO-DIRECT-ROUTING-OFF-V6), [BR-ISO-SEPARATE-NETWORKS-V6](#BR-ISO-SEPARATE-NETWORKS-V6), [BR-OPT-DAEMON-BIP6](#BR-OPT-DAEMON-BIP6), [BR-OPT-IPV4-DISABLED](#BR-OPT-IPV4-DISABLED), [BR-PRIO-BASE-CHAINS](#BR-PRIO-BASE-CHAINS), [BR-PRIO-WELL-KNOWN](#BR-PRIO-WELL-KNOWN), [BR-PUB-NO-SCTP-JOIN-ORDER](#BR-PUB-NO-SCTP-JOIN-ORDER), [BR-PUB-V6-CLIENT-SOURCE](#BR-PUB-V6-CLIENT-SOURCE), [BR-PUB-V6-LINK-LOCAL](#BR-PUB-V6-LINK-LOCAL), [BR-PUB-V6-REACHABLE](#BR-PUB-V6-REACHABLE)
+
+*Facility:* nftables in the `ip6` family, with the NAT, masquerade and FIB expressions
+
+*Needed when:* The nftables backend, with the daemon option `ip6tables` true, for a
+bridge network with IPv6 and for the daemon's IPv6 table
+
+*Kernel options:* `NF_TABLES_IPV6`, `NFT_FIB_IPV6`.
+`NFT_CHAIN_NAT_IPV6` and `NFT_MASQ_IPV6` on kernels that have them.
+
+<a id="BR-HOST-BR-NETFILTER-NO-ICC"></a>
+
+**Host requirement BR-HOST-BR-NETFILTER-NO-ICC**: Netfilter hooks for bridged traffic, without inter-container communication
+
+*Platforms:* linux · *When:* iptables · *Kind:* os · *Kernel options:* `BRIDGE_NETFILTER`
+
+*Pinned by:* [BR-ISO-BRIDGE-NF-CALL](#BR-ISO-BRIDGE-NF-CALL), [BR-ISO-BRIDGE-NF-CALL-V6](#BR-ISO-BRIDGE-NF-CALL-V6), [BR-ISO-NO-BR-NETFILTER-DAEMON-ICC](#BR-ISO-NO-BR-NETFILTER-DAEMON-ICC), [BR-ISO-NO-BR-NETFILTER-NO-ICC](#BR-ISO-NO-BR-NETFILTER-NO-ICC), [BR-ISO-NO-BR-NETFILTER-NO-ICC-MSG](#BR-ISO-NO-BR-NETFILTER-NO-ICC-MSG) · *Needed by:* [BR-ISO-BRIDGE-NF-CALL](#BR-ISO-BRIDGE-NF-CALL), [BR-ISO-BRIDGE-NF-CALL-V6](#BR-ISO-BRIDGE-NF-CALL-V6), [BR-ISO-DAEMON-NO-ICC](#BR-ISO-DAEMON-NO-ICC), [BR-ISO-NO-ICC](#BR-ISO-NO-ICC), [BR-ISO-NO-ICC-LEGACY-LINK](#BR-ISO-NO-ICC-LEGACY-LINK)
 
 *Facility:* Netfilter hooks for bridged traffic (`br_netfilter`)
 
-*Needed when:* The daemon option `iptables` true, and either a network that does
-not allow inter-container communication or the daemon option `userland-proxy` false
+*Needed when:* The daemon option `iptables` true, and a bridge network that does
+not allow inter-container communication. With `ip6tables` true, an IPv6 network of
+that kind needs it too. Without it, a daemon with `icc` false does not start with
+its default bridge network.
+
+<a id="BR-HOST-BR-NETFILTER-NO-PROXY"></a>
+
+**Host requirement BR-HOST-BR-NETFILTER-NO-PROXY**: Netfilter hooks for bridged traffic, without the userland proxy
+
+*Platforms:* linux · *When:* iptables, no-userland-proxy · *Kind:* os · *Kernel options:* `BRIDGE_NETFILTER`
+
+*Pinned by:* [BR-ISO-BRIDGE-NF-CALL](#BR-ISO-BRIDGE-NF-CALL), [BR-ISO-BRIDGE-NF-CALL-V6](#BR-ISO-BRIDGE-NF-CALL-V6), [BR-ISO-NO-BR-NETFILTER-DAEMON-ICC](#BR-ISO-NO-BR-NETFILTER-DAEMON-ICC), [BR-ISO-NO-BR-NETFILTER-NO-ICC](#BR-ISO-NO-BR-NETFILTER-NO-ICC), [BR-ISO-NO-BR-NETFILTER-NO-ICC-MSG](#BR-ISO-NO-BR-NETFILTER-NO-ICC-MSG) · *Needed by:* [BR-CLEAN-BUILTIN-CHAIN-RULES](#BR-CLEAN-BUILTIN-CHAIN-RULES), [BR-CLEAN-BUILTIN-RULES](#BR-CLEAN-BUILTIN-RULES), [BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED](#BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED), [BR-CLEAN-FORWARD-DROP-WARNING](#BR-CLEAN-FORWARD-DROP-WARNING), [BR-CLEAN-FORWARD-POLICY-KEPT](#BR-CLEAN-FORWARD-POLICY-KEPT), [BR-CLEAN-ISOLATION-CHAIN](#BR-CLEAN-ISOLATION-CHAIN), [BR-CLEAN-NO-FORWARD-JUMP](#BR-CLEAN-NO-FORWARD-JUMP), [BR-CLEAN-OTHER-BACKEND](#BR-CLEAN-OTHER-BACKEND), [BR-CLEAN-OTHER-BACKEND-IPT](#BR-CLEAN-OTHER-BACKEND-IPT), [BR-CLEAN-OTHER-BACKEND-NFT](#BR-CLEAN-OTHER-BACKEND-NFT), [BR-CLEAN-USER-DROP-RULE](#BR-CLEAN-USER-DROP-RULE), [BR-EGRESS-DAEMON-NO-MASQUERADE](#BR-EGRESS-DAEMON-NO-MASQUERADE), [BR-EGRESS-HOST-IPV4](#BR-EGRESS-HOST-IPV4), [BR-EGRESS-HOST-IPV6](#BR-EGRESS-HOST-IPV6), [BR-EGRESS-MASQUERADE](#BR-EGRESS-MASQUERADE), [BR-EGRESS-MASQUERADE-V6](#BR-EGRESS-MASQUERADE-V6), [BR-EGRESS-NO-MASQUERADE](#BR-EGRESS-NO-MASQUERADE), [BR-EGRESS-NO-MASQUERADE-V6](#BR-EGRESS-NO-MASQUERADE-V6), [BR-EGRESS-OPERATOR-NAT-RULE-FIRST](#BR-EGRESS-OPERATOR-NAT-RULE-FIRST), [BR-EGRESS-OPERATOR-RULE-DEFAULT-BRIDGE](#BR-EGRESS-OPERATOR-RULE-DEFAULT-BRIDGE), [BR-EGRESS-REPLY-DIRECT-ROUTING-OFF](#BR-EGRESS-REPLY-DIRECT-ROUTING-OFF), [BR-EGRESS-REPLY-DIRECT-ROUTING-ON](#BR-EGRESS-REPLY-DIRECT-ROUTING-ON), [BR-EGRESS-REPLY-TRUSTED-IFACE](#BR-EGRESS-REPLY-TRUSTED-IFACE), [BR-EGRESS-UNDERLAY-REACH](#BR-EGRESS-UNDERLAY-REACH), [BR-FW-BACKEND-INFO](#BR-FW-BACKEND-INFO), [BR-FW-BACKEND-INVALID](#BR-FW-BACKEND-INVALID), [BR-FW-BACKEND-INVALID-MSG](#BR-FW-BACKEND-INVALID-MSG), [BR-FW-FIREWALLD-LATE-START-EGRESS](#BR-FW-FIREWALLD-LATE-START-EGRESS), [BR-FW-FIREWALLD-LATE-START-PORT](#BR-FW-FIREWALLD-LATE-START-PORT), [BR-FW-FIREWALLD-LATE-START-ZONE](#BR-FW-FIREWALLD-LATE-START-ZONE), [BR-FW-FIREWALLD-RELOAD-EGRESS](#BR-FW-FIREWALLD-RELOAD-EGRESS), [BR-FW-FIREWALLD-RELOAD-PORT](#BR-FW-FIREWALLD-RELOAD-PORT), [BR-FW-FIREWALLD-RELOADED-AT](#BR-FW-FIREWALLD-RELOADED-AT), [BR-FW-FIREWALLD-STOP-EGRESS](#BR-FW-FIREWALLD-STOP-EGRESS), [BR-FW-FIREWALLD-STOP-PORT](#BR-FW-FIREWALLD-STOP-PORT), [BR-FW-FIREWALLD-ZONE](#BR-FW-FIREWALLD-ZONE), [BR-FW-FIREWALLD-ZONE-IPTABLES-DISABLED](#BR-FW-FIREWALLD-ZONE-IPTABLES-DISABLED), [BR-FW-FIREWALLD-ZONE-USER-BOUND](#BR-FW-FIREWALLD-ZONE-USER-BOUND), [BR-FW-FORWARD-DROP-FIREWALLD](#BR-FW-FORWARD-DROP-FIREWALLD), [BR-FW-FORWARD-DROP-FIREWALLD-LATE-START](#BR-FW-FORWARD-DROP-FIREWALLD-LATE-START), [BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6](#BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6), [BR-FW-FORWARD-DROP-FIREWALLD-STOP](#BR-FW-FORWARD-DROP-FIREWALLD-STOP), [BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6](#BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6), [BR-FW-FORWARD-DROP-FIREWALLD-V6](#BR-FW-FORWARD-DROP-FIREWALLD-V6), [BR-FW-FORWARDING-ALREADY-ENABLED](#BR-FW-FORWARDING-ALREADY-ENABLED), [BR-FW-FORWARDING-ALREADY-ENABLED-V6](#BR-FW-FORWARDING-ALREADY-ENABLED-V6), [BR-FW-FORWARDING-ENABLED](#BR-FW-FORWARDING-ENABLED), [BR-FW-FORWARDING-ENABLED-V6](#BR-FW-FORWARDING-ENABLED-V6), [BR-FW-FORWARDING-NO-DROP](#BR-FW-FORWARDING-NO-DROP), [BR-FW-FORWARDING-NO-DROP-V6](#BR-FW-FORWARDING-NO-DROP-V6), [BR-FW-IP6TABLES-MISSING](#BR-FW-IP6TABLES-MISSING), [BR-FW-IP6TABLES-MISSING-MSG](#BR-FW-IP6TABLES-MISSING-MSG), [BR-FW-IP6TABLES-MISSING-NETWORK](#BR-FW-IP6TABLES-MISSING-NETWORK), [BR-FW-IP6TABLES-MISSING-PUBLISHED-PORT](#BR-FW-IP6TABLES-MISSING-PUBLISHED-PORT), [BR-FW-IPTABLES-MISSING](#BR-FW-IPTABLES-MISSING), [BR-FW-IPTABLES-MISSING-MSG](#BR-FW-IPTABLES-MISSING-MSG), [BR-FW-NFT-FIREWALLD-RELOAD](#BR-FW-NFT-FIREWALLD-RELOAD), [BR-FW-NFT-FORWARDING-UNCHECKED](#BR-FW-NFT-FORWARDING-UNCHECKED), [BR-FW-NFT-IPV6-MISSING](#BR-FW-NFT-IPV6-MISSING), [BR-FW-NFT-IPV6-MISSING-NETWORK](#BR-FW-NFT-IPV6-MISSING-NETWORK), [BR-FW-NFT-MISSING](#BR-FW-NFT-MISSING), [BR-FW-NFT-MISSING-MSG](#BR-FW-NFT-MISSING-MSG), [BR-FW-NFT-NO-FORWARDING](#BR-FW-NFT-NO-FORWARDING), [BR-FW-NFT-NO-FORWARDING-NETWORK](#BR-FW-NFT-NO-FORWARDING-NETWORK), [BR-FW-NFT-NO-FORWARDING-V6](#BR-FW-NFT-NO-FORWARDING-V6), [BR-FW-NFT-NO-FORWARDING-V6-HTTP500](#BR-FW-NFT-NO-FORWARDING-V6-HTTP500), [BR-GW-DEFAULT-ROUTE-NETWORK](#BR-GW-DEFAULT-ROUTE-NETWORK), [BR-GWMODE-HTTP500-REFUSED](#BR-GWMODE-HTTP500-REFUSED), [BR-GWMODE-ISOLATED-NOT-INTERNAL](#BR-GWMODE-ISOLATED-NOT-INTERNAL), [BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI](#BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI), [BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500](#BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500), [BR-GWMODE-NAT-UNPROTECTED](#BR-GWMODE-NAT-UNPROTECTED), [BR-GWMODE-ROUTED-EGRESS](#BR-GWMODE-ROUTED-EGRESS), [BR-GWMODE-ROUTED-EGRESS-V6](#BR-GWMODE-ROUTED-EGRESS-V6), [BR-GWMODE-ROUTED-INBOUND](#BR-GWMODE-ROUTED-INBOUND), [BR-GWMODE-ROUTED-INBOUND-V6](#BR-GWMODE-ROUTED-INBOUND-V6), [BR-GWMODE-ROUTED-NODE-ADDRESS](#BR-GWMODE-ROUTED-NODE-ADDRESS), [BR-GWMODE-UNKNOWN](#BR-GWMODE-UNKNOWN), [BR-GWMODE-UNKNOWN-CLI](#BR-GWMODE-UNKNOWN-CLI), [BR-GWMODE-UNKNOWN-MSG](#BR-GWMODE-UNKNOWN-MSG), [BR-ISO-ACCEPT-FWMARK](#BR-ISO-ACCEPT-FWMARK), [BR-ISO-ACCEPT-FWMARK-UNTRUSTED](#BR-ISO-ACCEPT-FWMARK-UNTRUSTED), [BR-ISO-BRIDGE-NF-CALL](#BR-ISO-BRIDGE-NF-CALL), [BR-ISO-BRIDGE-NF-CALL-V6](#BR-ISO-BRIDGE-NF-CALL-V6), [BR-ISO-DAEMON-NO-ICC](#BR-ISO-DAEMON-NO-ICC), [BR-ISO-DIRECT-ROUTING-OFF](#BR-ISO-DIRECT-ROUTING-OFF), [BR-ISO-DIRECT-ROUTING-OFF-FIREWALLD](#BR-ISO-DIRECT-ROUTING-OFF-FIREWALLD), [BR-ISO-DIRECT-ROUTING-OFF-V6](#BR-ISO-DIRECT-ROUTING-OFF-V6), [BR-ISO-DIRECT-ROUTING-ON](#BR-ISO-DIRECT-ROUTING-ON), [BR-ISO-DIRECT-ROUTING-ON-FIREWALLD](#BR-ISO-DIRECT-ROUTING-ON-FIREWALLD), [BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING](#BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING), [BR-ISO-INTERNAL-CTR-ROUTE](#BR-ISO-INTERNAL-CTR-ROUTE), [BR-ISO-INTERNAL-CTR-TO-HOST](#BR-ISO-INTERNAL-CTR-TO-HOST), [BR-ISO-INTERNAL-HOST-TO-CTR](#BR-ISO-INTERNAL-HOST-TO-CTR), [BR-ISO-INTERNAL-NO-FORWARD](#BR-ISO-INTERNAL-NO-FORWARD), [BR-ISO-ISOLATED-CTR-TO-HOST](#BR-ISO-ISOLATED-CTR-TO-HOST), [BR-ISO-ISOLATED-NO-GATEWAY](#BR-ISO-ISOLATED-NO-GATEWAY), [BR-ISO-NO-ICC](#BR-ISO-NO-ICC), [BR-ISO-NO-ICC-LEGACY-LINK](#BR-ISO-NO-ICC-LEGACY-LINK), [BR-ISO-NO-VETH](#BR-ISO-NO-VETH), [BR-ISO-NO-VETH-CONNECT](#BR-ISO-NO-VETH-CONNECT), [BR-ISO-NO-VETH-CREATE](#BR-ISO-NO-VETH-CREATE), [BR-ISO-NO-VETH-HTTP500](#BR-ISO-NO-VETH-HTTP500), [BR-ISO-SAME-NETWORK](#BR-ISO-SAME-NETWORK), [BR-ISO-SEPARATE-NETWORKS](#BR-ISO-SEPARATE-NETWORKS), [BR-ISO-SEPARATE-NETWORKS-NAT-UNPROTECTED](#BR-ISO-SEPARATE-NETWORKS-NAT-UNPROTECTED), [BR-ISO-SEPARATE-NETWORKS-ROUTED](#BR-ISO-SEPARATE-NETWORKS-ROUTED), [BR-ISO-SEPARATE-NETWORKS-V6](#BR-ISO-SEPARATE-NETWORKS-V6), [BR-ISO-TRUSTED-IFACE](#BR-ISO-TRUSTED-IFACE), [BR-ISO-TRUSTED-IFACE-LIST](#BR-ISO-TRUSTED-IFACE-LIST), [BR-NOV6-CTR-START](#BR-NOV6-CTR-START), [BR-NOV6-DAEMON-START](#BR-NOV6-DAEMON-START), [BR-NOV6-PUBLISHED-PORT](#BR-NOV6-PUBLISHED-PORT), [BR-NOV6-V6-NETWORK-REFUSED](#BR-NOV6-V6-NETWORK-REFUSED), [BR-NOV6-V6-NETWORK-REFUSED-MSG](#BR-NOV6-V6-NETWORK-REFUSED-MSG), [BR-OPT-BRIDGE-NAME](#BR-OPT-BRIDGE-NAME), [BR-OPT-DAEMON-BIP](#BR-OPT-DAEMON-BIP), [BR-OPT-DAEMON-BIP6](#BR-OPT-DAEMON-BIP6), [BR-OPT-DAEMON-BRIDGE-NONE](#BR-OPT-DAEMON-BRIDGE-NONE), [BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED), [BR-OPT-DAEMON-MTU-APPLIED](#BR-OPT-DAEMON-MTU-APPLIED), [BR-OPT-DAEMON-MTU-DEFAULT](#BR-OPT-DAEMON-MTU-DEFAULT), [BR-OPT-DAEMON-MTU-ERROR](#BR-OPT-DAEMON-MTU-ERROR), [BR-OPT-DAEMON-MTU-INVALID](#BR-OPT-DAEMON-MTU-INVALID), [BR-OPT-DAEMON-MTU-MODULO](#BR-OPT-DAEMON-MTU-MODULO), [BR-OPT-DAEMON-MTU-NEGATIVE](#BR-OPT-DAEMON-MTU-NEGATIVE), [BR-OPT-DAEMON-MTU-NEGATIVE-MSG](#BR-OPT-DAEMON-MTU-NEGATIVE-MSG), [BR-OPT-DAEMON-MTU-REFUSED](#BR-OPT-DAEMON-MTU-REFUSED), [BR-OPT-DAEMON-MTU-ZERO](#BR-OPT-DAEMON-MTU-ZERO), [BR-OPT-DAEMON-MTU-ZERO-FLAG](#BR-OPT-DAEMON-MTU-ZERO-FLAG), [BR-OPT-DAEMON-MTU-ZERO-REPLACED](#BR-OPT-DAEMON-MTU-ZERO-REPLACED), [BR-OPT-HTTP500-REFUSED](#BR-OPT-HTTP500-REFUSED), [BR-OPT-IPV4-DISABLED](#BR-OPT-IPV4-DISABLED), [BR-OPT-MTU-APPLIED](#BR-OPT-MTU-APPLIED), [BR-OPT-MTU-INVALID](#BR-OPT-MTU-INVALID), [BR-OPT-MTU-INVALID-CLI](#BR-OPT-MTU-INVALID-CLI), [BR-OPT-MTU-INVALID-MSG](#BR-OPT-MTU-INVALID-MSG), [BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO), [BR-OPT-MTU-OUT-OF-RANGE](#BR-OPT-MTU-OUT-OF-RANGE), [BR-OPT-MTU-REFUSED](#BR-OPT-MTU-REFUSED), [BR-OPT-MTU-REFUSED-CLI](#BR-OPT-MTU-REFUSED-CLI), [BR-OPT-MTU-REFUSED-HTTP500](#BR-OPT-MTU-REFUSED-HTTP500), [BR-OPT-MTU-ZERO](#BR-OPT-MTU-ZERO), [BR-PRIO-BASE-CHAINS](#BR-PRIO-BASE-CHAINS), [BR-PRIO-WELL-KNOWN](#BR-PRIO-WELL-KNOWN), [BR-PUB-HOST-ADDRESS](#BR-PUB-HOST-ADDRESS), [BR-PUB-HOST-BINDING-ADDRESS](#BR-PUB-HOST-BINDING-ADDRESS), [BR-PUB-HOST-BINDING-ADDRESS-DAEMON](#BR-PUB-HOST-BINDING-ADDRESS-DAEMON), [BR-PUB-HOST-PORT-ASSIGNED](#BR-PUB-HOST-PORT-ASSIGNED), [BR-PUB-HOST-PORT-ASSIGNED-CLI](#BR-PUB-HOST-PORT-ASSIGNED-CLI), [BR-PUB-HOST-PORT-RESERVED-REQUESTED](#BR-PUB-HOST-PORT-RESERVED-REQUESTED), [BR-PUB-LOOPBACK-CLIENT](#BR-PUB-LOOPBACK-CLIENT), [BR-PUB-LOOPBACK-CLIENT-FIREWALLD](#BR-PUB-LOOPBACK-CLIENT-FIREWALLD), [BR-PUB-LOOPBACK-NODE](#BR-PUB-LOOPBACK-NODE), [BR-PUB-NO-SCTP](#BR-PUB-NO-SCTP), [BR-PUB-NO-SCTP-CONNECT](#BR-PUB-NO-SCTP-CONNECT), [BR-PUB-NO-SCTP-CREATE](#BR-PUB-NO-SCTP-CREATE), [BR-PUB-NO-SCTP-JOIN-ORDER](#BR-PUB-NO-SCTP-JOIN-ORDER), [BR-PUB-NO-SCTP-MSG](#BR-PUB-NO-SCTP-MSG), [BR-PUB-ROUTE-LOCALNET](#BR-PUB-ROUTE-LOCALNET), [BR-PUB-SCTP](#BR-PUB-SCTP), [BR-PUB-UNPUBLISHED-PORT](#BR-PUB-UNPUBLISHED-PORT), [BR-PUB-UNPUBLISHED-PORT-NODE](#BR-PUB-UNPUBLISHED-PORT-NODE), [BR-PUB-V4-CLIENT-SOURCE](#BR-PUB-V4-CLIENT-SOURCE), [BR-PUB-V6-CLIENT-SOURCE](#BR-PUB-V6-CLIENT-SOURCE), [BR-PUB-V6-LINK-LOCAL](#BR-PUB-V6-LINK-LOCAL), [BR-PUB-V6-REACHABLE](#BR-PUB-V6-REACHABLE), [BR-RULES-REFERENCE](#BR-RULES-REFERENCE), [BR-RULES-REFERENCE-NFT](#BR-RULES-REFERENCE-NFT), [BR-USER-ACCEPT-NO-DIRECT-ROUTING](#BR-USER-ACCEPT-NO-DIRECT-ROUTING), [BR-USER-CHAIN-JUMP](#BR-USER-CHAIN-JUMP), [BR-USER-CHAIN-JUMP-FIREWALLD](#BR-USER-CHAIN-JUMP-FIREWALLD), [BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START](#BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START), [BR-USER-CHAIN-JUMP-FIREWALLD-STOP](#BR-USER-CHAIN-JUMP-FIREWALLD-STOP), [BR-USER-DROP-RULE](#BR-USER-DROP-RULE), [BR-USER-RULES-KEPT](#BR-USER-RULES-KEPT), [SWARM-PUB-V6-NO-USERLAND-PROXY](swarm-traffic.md#SWARM-PUB-V6-NO-USERLAND-PROXY)
+
+*Facility:* Netfilter hooks for bridged traffic (`br_netfilter`)
+
+*Needed when:* The daemon options `iptables` true and `userland-proxy`
+false. Without it, the daemon does not start with its default bridge network.
+
+<a id="needextend-network-bridge-networking-2"></a>
 
 <a id="BR-HOST-SCTP"></a>
 
@@ -118,7 +678,7 @@ not allow inter-container communication or the daemon option `userland-proxy` fa
 
 *Platforms:* linux · *Kind:* os · *Kernel options:* `IP_SCTP`, `NF_CT_PROTO_SCTP` · *Tags:* sctp
 
-*Pinned by:* [BR-PUB-NO-SCTP](#BR-PUB-NO-SCTP)
+*Pinned by:* [BR-PUB-NO-SCTP](#BR-PUB-NO-SCTP), [BR-PUB-NO-SCTP-CONNECT](#BR-PUB-NO-SCTP-CONNECT), [BR-PUB-NO-SCTP-CREATE](#BR-PUB-NO-SCTP-CREATE), [BR-PUB-NO-SCTP-JOIN-ORDER](#BR-PUB-NO-SCTP-JOIN-ORDER), [BR-PUB-NO-SCTP-MSG](#BR-PUB-NO-SCTP-MSG) · *Needed by:* [BR-PUB-SCTP](#BR-PUB-SCTP)
 
 *Facility:* SCTP
 
@@ -136,15 +696,16 @@ not allow inter-container communication or the daemon option `userland-proxy` fa
 
 *Platforms:* linux · *When:* iptables-backend, iptables · *Kind:* program
 
-*Pinned by:* [BR-FW-IPTABLES-MISSING](#BR-FW-IPTABLES-MISSING), [DNS-PORT53-NO-IPTABLES](container-dns.md#DNS-PORT53-NO-IPTABLES), [DNS-PORT53-NO-IPTABLES-LOG](container-dns.md#DNS-PORT53-NO-IPTABLES-LOG) · *Needed by:* [BR-CLEAN-BUILTIN-CHAIN-RULES](#BR-CLEAN-BUILTIN-CHAIN-RULES), [BR-CLEAN-BUILTIN-RULES](#BR-CLEAN-BUILTIN-RULES), [BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED](#BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED), [BR-CLEAN-FORWARD-DROP-WARNING](#BR-CLEAN-FORWARD-DROP-WARNING), [BR-CLEAN-FORWARD-POLICY-KEPT](#BR-CLEAN-FORWARD-POLICY-KEPT), [BR-CLEAN-ISOLATION-CHAIN](#BR-CLEAN-ISOLATION-CHAIN), [BR-CLEAN-NAMES-UNCHANGED](#BR-CLEAN-NAMES-UNCHANGED), [BR-CLEAN-OTHER-BACKEND](#BR-CLEAN-OTHER-BACKEND), [BR-CLEAN-OTHER-BACKEND-IPT](#BR-CLEAN-OTHER-BACKEND-IPT), [BR-CLEAN-OTHER-BACKEND-NFT](#BR-CLEAN-OTHER-BACKEND-NFT), [BR-CLEAN-USER-DROP-RULE](#BR-CLEAN-USER-DROP-RULE), [BR-EGRESS-HOST-IPV4](#BR-EGRESS-HOST-IPV4), [BR-EGRESS-MASQUERADE](#BR-EGRESS-MASQUERADE), [BR-EGRESS-NO-MASQUERADE](#BR-EGRESS-NO-MASQUERADE), [BR-EGRESS-REPLY-DIRECT-ROUTING-OFF](#BR-EGRESS-REPLY-DIRECT-ROUTING-OFF), [BR-EGRESS-REPLY-DIRECT-ROUTING-ON](#BR-EGRESS-REPLY-DIRECT-ROUTING-ON), [BR-EGRESS-REPLY-TRUSTED-IFACE](#BR-EGRESS-REPLY-TRUSTED-IFACE), [BR-FW-BACKEND-INVALID](#BR-FW-BACKEND-INVALID), [BR-FW-BACKEND-INVALID-MSG](#BR-FW-BACKEND-INVALID-MSG), [BR-FW-FIREWALLD-RELOAD-EGRESS](#BR-FW-FIREWALLD-RELOAD-EGRESS), [BR-FW-FIREWALLD-RELOAD-NFT](#BR-FW-FIREWALLD-RELOAD-NFT), [BR-FW-FIREWALLD-RELOAD-PORT](#BR-FW-FIREWALLD-RELOAD-PORT), [BR-FW-FIREWALLD-RELOADED-AT](#BR-FW-FIREWALLD-RELOADED-AT), [BR-FW-FORWARD-DROP-FIREWALLD](#BR-FW-FORWARD-DROP-FIREWALLD), [BR-FW-FORWARD-DROP-FIREWALLD-V6](#BR-FW-FORWARD-DROP-FIREWALLD-V6), [BR-FW-FORWARDING-ENABLED](#BR-FW-FORWARDING-ENABLED), [BR-FW-FORWARDING-ENABLED-V6](#BR-FW-FORWARDING-ENABLED-V6), [BR-FW-HTTP500-REFUSED](#BR-FW-HTTP500-REFUSED), [BR-FW-IP6TABLES-MISSING](#BR-FW-IP6TABLES-MISSING), [BR-FW-IP6TABLES-MISSING-NETWORK](#BR-FW-IP6TABLES-MISSING-NETWORK), [BR-FW-NFT-MISSING](#BR-FW-NFT-MISSING), [BR-FW-NFT-NO-FORWARDING](#BR-FW-NFT-NO-FORWARDING), [BR-FW-NFT-NO-FORWARDING-V6](#BR-FW-NFT-NO-FORWARDING-V6), [BR-GW-DEFAULT-ROUTE-NETWORK](#BR-GW-DEFAULT-ROUTE-NETWORK), [BR-GWMODE-ISOLATED-NOT-INTERNAL](#BR-GWMODE-ISOLATED-NOT-INTERNAL), [BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI](#BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI), [BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500](#BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500), [BR-GWMODE-NAT-UNPROTECTED](#BR-GWMODE-NAT-UNPROTECTED), [BR-GWMODE-ROUTED-EGRESS](#BR-GWMODE-ROUTED-EGRESS), [BR-GWMODE-ROUTED-INBOUND](#BR-GWMODE-ROUTED-INBOUND), [BR-GWMODE-ROUTED-NODE-ADDRESS](#BR-GWMODE-ROUTED-NODE-ADDRESS), [BR-GWMODE-UNKNOWN](#BR-GWMODE-UNKNOWN), [BR-GWMODE-UNKNOWN-CLI](#BR-GWMODE-UNKNOWN-CLI), [BR-GWMODE-UNKNOWN-MSG](#BR-GWMODE-UNKNOWN-MSG), [BR-ISO-BRIDGE-NF-CALL](#BR-ISO-BRIDGE-NF-CALL), [BR-ISO-DIRECT-ROUTING-OFF](#BR-ISO-DIRECT-ROUTING-OFF), [BR-ISO-DIRECT-ROUTING-ON](#BR-ISO-DIRECT-ROUTING-ON), [BR-ISO-INTERNAL-CTR-ROUTE](#BR-ISO-INTERNAL-CTR-ROUTE), [BR-ISO-INTERNAL-CTR-TO-HOST](#BR-ISO-INTERNAL-CTR-TO-HOST), [BR-ISO-INTERNAL-HOST-TO-CTR](#BR-ISO-INTERNAL-HOST-TO-CTR), [BR-ISO-INTERNAL-NO-FORWARD](#BR-ISO-INTERNAL-NO-FORWARD), [BR-ISO-ISOLATED-CTR-TO-HOST](#BR-ISO-ISOLATED-CTR-TO-HOST), [BR-ISO-ISOLATED-NO-GATEWAY](#BR-ISO-ISOLATED-NO-GATEWAY), [BR-ISO-NO-ICC](#BR-ISO-NO-ICC), [BR-ISO-NO-ICC-LEGACY-LINK](#BR-ISO-NO-ICC-LEGACY-LINK), [BR-ISO-NO-VETH](#BR-ISO-NO-VETH), [BR-ISO-SEPARATE-NETWORKS](#BR-ISO-SEPARATE-NETWORKS), [BR-ISO-TRUSTED-IFACE](#BR-ISO-TRUSTED-IFACE), [BR-ISO-TRUSTED-IFACE-LIST](#BR-ISO-TRUSTED-IFACE-LIST), [BR-NOV6-CTR-START](#BR-NOV6-CTR-START), [BR-NOV6-DAEMON-START](#BR-NOV6-DAEMON-START), [BR-NOV6-PUBLISHED-PORT](#BR-NOV6-PUBLISHED-PORT), [BR-NOV6-V6-NETWORK-REFUSED](#BR-NOV6-V6-NETWORK-REFUSED), [BR-OPT-DAEMON-MTU-APPLIED](#BR-OPT-DAEMON-MTU-APPLIED), [BR-OPT-DAEMON-MTU-ERROR](#BR-OPT-DAEMON-MTU-ERROR), [BR-OPT-DAEMON-MTU-MODULO](#BR-OPT-DAEMON-MTU-MODULO), [BR-OPT-DAEMON-MTU-NEGATIVE](#BR-OPT-DAEMON-MTU-NEGATIVE), [BR-OPT-DAEMON-MTU-NEGATIVE-MSG](#BR-OPT-DAEMON-MTU-NEGATIVE-MSG), [BR-OPT-DAEMON-MTU-REFUSED](#BR-OPT-DAEMON-MTU-REFUSED), [BR-OPT-DAEMON-MTU-REFUSED-LIVE-RESTORE](#BR-OPT-DAEMON-MTU-REFUSED-LIVE-RESTORE), [BR-OPT-DAEMON-MTU-ZERO](#BR-OPT-DAEMON-MTU-ZERO), [BR-OPT-DAEMON-MTU-ZERO-REPLACED](#BR-OPT-DAEMON-MTU-ZERO-REPLACED), [BR-OPT-MTU-APPLIED](#BR-OPT-MTU-APPLIED), [BR-OPT-MTU-INVALID](#BR-OPT-MTU-INVALID), [BR-OPT-MTU-INVALID-CLI](#BR-OPT-MTU-INVALID-CLI), [BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO), [BR-OPT-MTU-OUT-OF-RANGE](#BR-OPT-MTU-OUT-OF-RANGE), [BR-OPT-MTU-REFUSED](#BR-OPT-MTU-REFUSED), [BR-OPT-MTU-REFUSED-CLI](#BR-OPT-MTU-REFUSED-CLI), [BR-OPT-MTU-REFUSED-HTTP500](#BR-OPT-MTU-REFUSED-HTTP500), [BR-OPT-MTU-ZERO](#BR-OPT-MTU-ZERO), [BR-PRIO-BASE-CHAINS](#BR-PRIO-BASE-CHAINS), [BR-PUB-HOST-ADDRESS](#BR-PUB-HOST-ADDRESS), [BR-PUB-HOST-PORT-ASSIGNED](#BR-PUB-HOST-PORT-ASSIGNED), [BR-PUB-LOOPBACK-CLIENT](#BR-PUB-LOOPBACK-CLIENT), [BR-PUB-LOOPBACK-NODE](#BR-PUB-LOOPBACK-NODE), [BR-PUB-NO-SCTP](#BR-PUB-NO-SCTP), [BR-PUB-ROUTE-LOCALNET](#BR-PUB-ROUTE-LOCALNET), [BR-PUB-UNPUBLISHED-PORT](#BR-PUB-UNPUBLISHED-PORT), [BR-PUB-V6-CLIENT-SOURCE](#BR-PUB-V6-CLIENT-SOURCE), [BR-PUB-V6-LINK-LOCAL](#BR-PUB-V6-LINK-LOCAL), [BR-PUB-V6-REACHABLE](#BR-PUB-V6-REACHABLE), [BR-RULES-REFERENCE](#BR-RULES-REFERENCE), [BR-RULES-REFERENCE-NFT](#BR-RULES-REFERENCE-NFT), [BR-USER-CHAIN-JUMP](#BR-USER-CHAIN-JUMP), [BR-USER-CHAIN-JUMP-FIREWALLD](#BR-USER-CHAIN-JUMP-FIREWALLD), [BR-USER-DROP-RULE](#BR-USER-DROP-RULE), [BR-USER-RULES-KEPT](#BR-USER-RULES-KEPT), [SWARM-PUB-FIREWALLD-V6-PROXY](#SWARM-PUB-FIREWALLD-V6-PROXY)
+*Pinned by:* [BR-FW-IPTABLES-MISSING](#BR-FW-IPTABLES-MISSING), [BR-FW-IPTABLES-MISSING-MSG](#BR-FW-IPTABLES-MISSING-MSG), [BR-RULES-REFERENCE](#BR-RULES-REFERENCE), [DNS-PORT53-NO-IPTABLES](container-dns.md#DNS-PORT53-NO-IPTABLES), [DNS-PORT53-NO-IPTABLES-LOG](container-dns.md#DNS-PORT53-NO-IPTABLES-LOG) · *Needed by:* [BR-CLEAN-BUILTIN-CHAIN-RULES](#BR-CLEAN-BUILTIN-CHAIN-RULES), [BR-CLEAN-BUILTIN-RULES](#BR-CLEAN-BUILTIN-RULES), [BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED](#BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED), [BR-CLEAN-FORWARD-DROP-WARNING](#BR-CLEAN-FORWARD-DROP-WARNING), [BR-CLEAN-FORWARD-POLICY-KEPT](#BR-CLEAN-FORWARD-POLICY-KEPT), [BR-CLEAN-ISOLATION-CHAIN](#BR-CLEAN-ISOLATION-CHAIN), [BR-CLEAN-NO-FORWARD-JUMP](#BR-CLEAN-NO-FORWARD-JUMP), [BR-CLEAN-OTHER-BACKEND](#BR-CLEAN-OTHER-BACKEND), [BR-CLEAN-OTHER-BACKEND-IPT](#BR-CLEAN-OTHER-BACKEND-IPT), [BR-CLEAN-OTHER-BACKEND-NFT](#BR-CLEAN-OTHER-BACKEND-NFT), [BR-CLEAN-USER-DROP-RULE](#BR-CLEAN-USER-DROP-RULE), [BR-EGRESS-DAEMON-NO-MASQUERADE](#BR-EGRESS-DAEMON-NO-MASQUERADE), [BR-EGRESS-HOST-IPV4](#BR-EGRESS-HOST-IPV4), [BR-EGRESS-HOST-IPV6](#BR-EGRESS-HOST-IPV6), [BR-EGRESS-MASQUERADE](#BR-EGRESS-MASQUERADE), [BR-EGRESS-MASQUERADE-V6](#BR-EGRESS-MASQUERADE-V6), [BR-EGRESS-NO-MASQUERADE](#BR-EGRESS-NO-MASQUERADE), [BR-EGRESS-NO-MASQUERADE-V6](#BR-EGRESS-NO-MASQUERADE-V6), [BR-EGRESS-OPERATOR-NAT-RULE-FIRST](#BR-EGRESS-OPERATOR-NAT-RULE-FIRST), [BR-EGRESS-OPERATOR-RULE-DEFAULT-BRIDGE](#BR-EGRESS-OPERATOR-RULE-DEFAULT-BRIDGE), [BR-EGRESS-REPLY-DIRECT-ROUTING-OFF](#BR-EGRESS-REPLY-DIRECT-ROUTING-OFF), [BR-EGRESS-REPLY-DIRECT-ROUTING-ON](#BR-EGRESS-REPLY-DIRECT-ROUTING-ON), [BR-EGRESS-REPLY-TRUSTED-IFACE](#BR-EGRESS-REPLY-TRUSTED-IFACE), [BR-EGRESS-UNDERLAY-REACH](#BR-EGRESS-UNDERLAY-REACH), [BR-FW-BACKEND-INFO](#BR-FW-BACKEND-INFO), [BR-FW-BACKEND-INVALID](#BR-FW-BACKEND-INVALID), [BR-FW-BACKEND-INVALID-MSG](#BR-FW-BACKEND-INVALID-MSG), [BR-FW-FIREWALLD-LATE-START-EGRESS](#BR-FW-FIREWALLD-LATE-START-EGRESS), [BR-FW-FIREWALLD-LATE-START-PORT](#BR-FW-FIREWALLD-LATE-START-PORT), [BR-FW-FIREWALLD-LATE-START-ZONE](#BR-FW-FIREWALLD-LATE-START-ZONE), [BR-FW-FIREWALLD-RELOAD-EGRESS](#BR-FW-FIREWALLD-RELOAD-EGRESS), [BR-FW-FIREWALLD-RELOAD-PORT](#BR-FW-FIREWALLD-RELOAD-PORT), [BR-FW-FIREWALLD-RELOADED-AT](#BR-FW-FIREWALLD-RELOADED-AT), [BR-FW-FIREWALLD-STOP-EGRESS](#BR-FW-FIREWALLD-STOP-EGRESS), [BR-FW-FIREWALLD-STOP-PORT](#BR-FW-FIREWALLD-STOP-PORT), [BR-FW-FIREWALLD-ZONE](#BR-FW-FIREWALLD-ZONE), [BR-FW-FIREWALLD-ZONE-IPTABLES-DISABLED](#BR-FW-FIREWALLD-ZONE-IPTABLES-DISABLED), [BR-FW-FIREWALLD-ZONE-USER-BOUND](#BR-FW-FIREWALLD-ZONE-USER-BOUND), [BR-FW-FORWARD-DROP-FIREWALLD](#BR-FW-FORWARD-DROP-FIREWALLD), [BR-FW-FORWARD-DROP-FIREWALLD-LATE-START](#BR-FW-FORWARD-DROP-FIREWALLD-LATE-START), [BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6](#BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6), [BR-FW-FORWARD-DROP-FIREWALLD-STOP](#BR-FW-FORWARD-DROP-FIREWALLD-STOP), [BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6](#BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6), [BR-FW-FORWARD-DROP-FIREWALLD-V6](#BR-FW-FORWARD-DROP-FIREWALLD-V6), [BR-FW-FORWARDING-ALREADY-ENABLED](#BR-FW-FORWARDING-ALREADY-ENABLED), [BR-FW-FORWARDING-ALREADY-ENABLED-V6](#BR-FW-FORWARDING-ALREADY-ENABLED-V6), [BR-FW-FORWARDING-ENABLED](#BR-FW-FORWARDING-ENABLED), [BR-FW-FORWARDING-ENABLED-V6](#BR-FW-FORWARDING-ENABLED-V6), [BR-FW-FORWARDING-NO-DROP](#BR-FW-FORWARDING-NO-DROP), [BR-FW-FORWARDING-NO-DROP-V6](#BR-FW-FORWARDING-NO-DROP-V6), [BR-FW-IP6TABLES-MISSING](#BR-FW-IP6TABLES-MISSING), [BR-FW-IP6TABLES-MISSING-MSG](#BR-FW-IP6TABLES-MISSING-MSG), [BR-FW-IP6TABLES-MISSING-NETWORK](#BR-FW-IP6TABLES-MISSING-NETWORK), [BR-FW-IP6TABLES-MISSING-PUBLISHED-PORT](#BR-FW-IP6TABLES-MISSING-PUBLISHED-PORT), [BR-FW-NFT-FIREWALLD-RELOAD](#BR-FW-NFT-FIREWALLD-RELOAD), [BR-FW-NFT-FORWARDING-UNCHECKED](#BR-FW-NFT-FORWARDING-UNCHECKED), [BR-FW-NFT-IPV6-MISSING](#BR-FW-NFT-IPV6-MISSING), [BR-FW-NFT-IPV6-MISSING-NETWORK](#BR-FW-NFT-IPV6-MISSING-NETWORK), [BR-FW-NFT-MISSING](#BR-FW-NFT-MISSING), [BR-FW-NFT-MISSING-MSG](#BR-FW-NFT-MISSING-MSG), [BR-FW-NFT-NO-FORWARDING](#BR-FW-NFT-NO-FORWARDING), [BR-FW-NFT-NO-FORWARDING-NETWORK](#BR-FW-NFT-NO-FORWARDING-NETWORK), [BR-FW-NFT-NO-FORWARDING-V6](#BR-FW-NFT-NO-FORWARDING-V6), [BR-FW-NFT-NO-FORWARDING-V6-HTTP500](#BR-FW-NFT-NO-FORWARDING-V6-HTTP500), [BR-GW-DEFAULT-ROUTE-NETWORK](#BR-GW-DEFAULT-ROUTE-NETWORK), [BR-GWMODE-HTTP500-REFUSED](#BR-GWMODE-HTTP500-REFUSED), [BR-GWMODE-ISOLATED-NOT-INTERNAL](#BR-GWMODE-ISOLATED-NOT-INTERNAL), [BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI](#BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI), [BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500](#BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500), [BR-GWMODE-NAT-UNPROTECTED](#BR-GWMODE-NAT-UNPROTECTED), [BR-GWMODE-ROUTED-EGRESS](#BR-GWMODE-ROUTED-EGRESS), [BR-GWMODE-ROUTED-EGRESS-V6](#BR-GWMODE-ROUTED-EGRESS-V6), [BR-GWMODE-ROUTED-INBOUND](#BR-GWMODE-ROUTED-INBOUND), [BR-GWMODE-ROUTED-INBOUND-V6](#BR-GWMODE-ROUTED-INBOUND-V6), [BR-GWMODE-ROUTED-NODE-ADDRESS](#BR-GWMODE-ROUTED-NODE-ADDRESS), [BR-GWMODE-UNKNOWN](#BR-GWMODE-UNKNOWN), [BR-GWMODE-UNKNOWN-CLI](#BR-GWMODE-UNKNOWN-CLI), [BR-GWMODE-UNKNOWN-MSG](#BR-GWMODE-UNKNOWN-MSG), [BR-ISO-ACCEPT-FWMARK](#BR-ISO-ACCEPT-FWMARK), [BR-ISO-ACCEPT-FWMARK-UNTRUSTED](#BR-ISO-ACCEPT-FWMARK-UNTRUSTED), [BR-ISO-BRIDGE-NF-CALL](#BR-ISO-BRIDGE-NF-CALL), [BR-ISO-BRIDGE-NF-CALL-V6](#BR-ISO-BRIDGE-NF-CALL-V6), [BR-ISO-DAEMON-NO-ICC](#BR-ISO-DAEMON-NO-ICC), [BR-ISO-DIRECT-ROUTING-OFF](#BR-ISO-DIRECT-ROUTING-OFF), [BR-ISO-DIRECT-ROUTING-OFF-FIREWALLD](#BR-ISO-DIRECT-ROUTING-OFF-FIREWALLD), [BR-ISO-DIRECT-ROUTING-OFF-V6](#BR-ISO-DIRECT-ROUTING-OFF-V6), [BR-ISO-DIRECT-ROUTING-ON](#BR-ISO-DIRECT-ROUTING-ON), [BR-ISO-DIRECT-ROUTING-ON-FIREWALLD](#BR-ISO-DIRECT-ROUTING-ON-FIREWALLD), [BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING](#BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING), [BR-ISO-INTERNAL-CTR-ROUTE](#BR-ISO-INTERNAL-CTR-ROUTE), [BR-ISO-INTERNAL-CTR-TO-HOST](#BR-ISO-INTERNAL-CTR-TO-HOST), [BR-ISO-INTERNAL-HOST-TO-CTR](#BR-ISO-INTERNAL-HOST-TO-CTR), [BR-ISO-INTERNAL-NO-FORWARD](#BR-ISO-INTERNAL-NO-FORWARD), [BR-ISO-ISOLATED-CTR-TO-HOST](#BR-ISO-ISOLATED-CTR-TO-HOST), [BR-ISO-ISOLATED-NO-GATEWAY](#BR-ISO-ISOLATED-NO-GATEWAY), [BR-ISO-NO-BR-NETFILTER-DAEMON-ICC](#BR-ISO-NO-BR-NETFILTER-DAEMON-ICC), [BR-ISO-NO-BR-NETFILTER-NO-ICC](#BR-ISO-NO-BR-NETFILTER-NO-ICC), [BR-ISO-NO-BR-NETFILTER-NO-ICC-MSG](#BR-ISO-NO-BR-NETFILTER-NO-ICC-MSG), [BR-ISO-NO-ICC](#BR-ISO-NO-ICC), [BR-ISO-NO-ICC-LEGACY-LINK](#BR-ISO-NO-ICC-LEGACY-LINK), [BR-ISO-NO-VETH](#BR-ISO-NO-VETH), [BR-ISO-NO-VETH-CONNECT](#BR-ISO-NO-VETH-CONNECT), [BR-ISO-NO-VETH-CREATE](#BR-ISO-NO-VETH-CREATE), [BR-ISO-NO-VETH-HTTP500](#BR-ISO-NO-VETH-HTTP500), [BR-ISO-SAME-NETWORK](#BR-ISO-SAME-NETWORK), [BR-ISO-SEPARATE-NETWORKS](#BR-ISO-SEPARATE-NETWORKS), [BR-ISO-SEPARATE-NETWORKS-NAT-UNPROTECTED](#BR-ISO-SEPARATE-NETWORKS-NAT-UNPROTECTED), [BR-ISO-SEPARATE-NETWORKS-ROUTED](#BR-ISO-SEPARATE-NETWORKS-ROUTED), [BR-ISO-SEPARATE-NETWORKS-V6](#BR-ISO-SEPARATE-NETWORKS-V6), [BR-ISO-TRUSTED-IFACE](#BR-ISO-TRUSTED-IFACE), [BR-ISO-TRUSTED-IFACE-LIST](#BR-ISO-TRUSTED-IFACE-LIST), [BR-NOV6-CTR-START](#BR-NOV6-CTR-START), [BR-NOV6-DAEMON-START](#BR-NOV6-DAEMON-START), [BR-NOV6-PUBLISHED-PORT](#BR-NOV6-PUBLISHED-PORT), [BR-NOV6-V6-NETWORK-REFUSED](#BR-NOV6-V6-NETWORK-REFUSED), [BR-NOV6-V6-NETWORK-REFUSED-MSG](#BR-NOV6-V6-NETWORK-REFUSED-MSG), [BR-OPT-BRIDGE-NAME](#BR-OPT-BRIDGE-NAME), [BR-OPT-DAEMON-BIP](#BR-OPT-DAEMON-BIP), [BR-OPT-DAEMON-BIP6](#BR-OPT-DAEMON-BIP6), [BR-OPT-DAEMON-BRIDGE-NONE](#BR-OPT-DAEMON-BRIDGE-NONE), [BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED), [BR-OPT-DAEMON-MTU-APPLIED](#BR-OPT-DAEMON-MTU-APPLIED), [BR-OPT-DAEMON-MTU-DEFAULT](#BR-OPT-DAEMON-MTU-DEFAULT), [BR-OPT-DAEMON-MTU-ERROR](#BR-OPT-DAEMON-MTU-ERROR), [BR-OPT-DAEMON-MTU-INVALID](#BR-OPT-DAEMON-MTU-INVALID), [BR-OPT-DAEMON-MTU-MODULO](#BR-OPT-DAEMON-MTU-MODULO), [BR-OPT-DAEMON-MTU-NEGATIVE](#BR-OPT-DAEMON-MTU-NEGATIVE), [BR-OPT-DAEMON-MTU-NEGATIVE-MSG](#BR-OPT-DAEMON-MTU-NEGATIVE-MSG), [BR-OPT-DAEMON-MTU-REFUSED](#BR-OPT-DAEMON-MTU-REFUSED), [BR-OPT-DAEMON-MTU-ZERO](#BR-OPT-DAEMON-MTU-ZERO), [BR-OPT-DAEMON-MTU-ZERO-FLAG](#BR-OPT-DAEMON-MTU-ZERO-FLAG), [BR-OPT-DAEMON-MTU-ZERO-REPLACED](#BR-OPT-DAEMON-MTU-ZERO-REPLACED), [BR-OPT-HTTP500-REFUSED](#BR-OPT-HTTP500-REFUSED), [BR-OPT-IPV4-DISABLED](#BR-OPT-IPV4-DISABLED), [BR-OPT-MTU-APPLIED](#BR-OPT-MTU-APPLIED), [BR-OPT-MTU-INVALID](#BR-OPT-MTU-INVALID), [BR-OPT-MTU-INVALID-CLI](#BR-OPT-MTU-INVALID-CLI), [BR-OPT-MTU-INVALID-MSG](#BR-OPT-MTU-INVALID-MSG), [BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO), [BR-OPT-MTU-OUT-OF-RANGE](#BR-OPT-MTU-OUT-OF-RANGE), [BR-OPT-MTU-REFUSED](#BR-OPT-MTU-REFUSED), [BR-OPT-MTU-REFUSED-CLI](#BR-OPT-MTU-REFUSED-CLI), [BR-OPT-MTU-REFUSED-HTTP500](#BR-OPT-MTU-REFUSED-HTTP500), [BR-OPT-MTU-ZERO](#BR-OPT-MTU-ZERO), [BR-PRIO-BASE-CHAINS](#BR-PRIO-BASE-CHAINS), [BR-PRIO-WELL-KNOWN](#BR-PRIO-WELL-KNOWN), [BR-PUB-HOST-ADDRESS](#BR-PUB-HOST-ADDRESS), [BR-PUB-HOST-BINDING-ADDRESS](#BR-PUB-HOST-BINDING-ADDRESS), [BR-PUB-HOST-BINDING-ADDRESS-DAEMON](#BR-PUB-HOST-BINDING-ADDRESS-DAEMON), [BR-PUB-HOST-PORT-ASSIGNED](#BR-PUB-HOST-PORT-ASSIGNED), [BR-PUB-HOST-PORT-ASSIGNED-CLI](#BR-PUB-HOST-PORT-ASSIGNED-CLI), [BR-PUB-HOST-PORT-RESERVED-REQUESTED](#BR-PUB-HOST-PORT-RESERVED-REQUESTED), [BR-PUB-LOOPBACK-CLIENT](#BR-PUB-LOOPBACK-CLIENT), [BR-PUB-LOOPBACK-CLIENT-FIREWALLD](#BR-PUB-LOOPBACK-CLIENT-FIREWALLD), [BR-PUB-LOOPBACK-NODE](#BR-PUB-LOOPBACK-NODE), [BR-PUB-NO-SCTP](#BR-PUB-NO-SCTP), [BR-PUB-NO-SCTP-CONNECT](#BR-PUB-NO-SCTP-CONNECT), [BR-PUB-NO-SCTP-CREATE](#BR-PUB-NO-SCTP-CREATE), [BR-PUB-NO-SCTP-JOIN-ORDER](#BR-PUB-NO-SCTP-JOIN-ORDER), [BR-PUB-NO-SCTP-MSG](#BR-PUB-NO-SCTP-MSG), [BR-PUB-ROUTE-LOCALNET](#BR-PUB-ROUTE-LOCALNET), [BR-PUB-SCTP](#BR-PUB-SCTP), [BR-PUB-UNPUBLISHED-PORT](#BR-PUB-UNPUBLISHED-PORT), [BR-PUB-UNPUBLISHED-PORT-NODE](#BR-PUB-UNPUBLISHED-PORT-NODE), [BR-PUB-V4-CLIENT-SOURCE](#BR-PUB-V4-CLIENT-SOURCE), [BR-PUB-V6-CLIENT-SOURCE](#BR-PUB-V6-CLIENT-SOURCE), [BR-PUB-V6-LINK-LOCAL](#BR-PUB-V6-LINK-LOCAL), [BR-PUB-V6-REACHABLE](#BR-PUB-V6-REACHABLE), [BR-RULES-REFERENCE](#BR-RULES-REFERENCE), [BR-RULES-REFERENCE-NFT](#BR-RULES-REFERENCE-NFT), [BR-USER-ACCEPT-NO-DIRECT-ROUTING](#BR-USER-ACCEPT-NO-DIRECT-ROUTING), [BR-USER-CHAIN-JUMP](#BR-USER-CHAIN-JUMP), [BR-USER-CHAIN-JUMP-FIREWALLD](#BR-USER-CHAIN-JUMP-FIREWALLD), [BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START](#BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START), [BR-USER-CHAIN-JUMP-FIREWALLD-STOP](#BR-USER-CHAIN-JUMP-FIREWALLD-STOP), [BR-USER-DROP-RULE](#BR-USER-DROP-RULE), [BR-USER-RULES-KEPT](#BR-USER-RULES-KEPT)
 
 *Facility:* **iptables**, accepting the filter, nat and raw tables, the
 `MASQUERADE`, `DNAT` and `SNAT` targets, and the
-`addrtype`, `conntrack` and `sctp` matches
+`addrtype` and `conntrack` matches
 
-*Needed when:* The iptables backend, with the daemon option `iptables` true
+*Needed when:* The iptables backend, with the daemon option `iptables` true.
+Without it, the daemon does not start ([*BR-FW-IPTABLES-MISSING*](#BR-FW-IPTABLES-MISSING)).
 
-<a id="needextend-network-bridge-networking-2"></a>
+<a id="needextend-network-bridge-networking-3"></a>
 
 <a id="BR-HOST-IP6TABLES-COMMAND"></a>
 
@@ -152,11 +713,12 @@ not allow inter-container communication or the daemon option `userland-proxy` fa
 
 *Platforms:* linux · *When:* iptables-backend, ip6tables · *Kind:* program
 
-*Pinned by:* [BR-FW-IP6TABLES-MISSING](#BR-FW-IP6TABLES-MISSING), [BR-FW-IP6TABLES-MISSING-NETWORK](#BR-FW-IP6TABLES-MISSING-NETWORK)
+*Pinned by:* [BR-FW-IP6TABLES-MISSING](#BR-FW-IP6TABLES-MISSING), [BR-FW-IP6TABLES-MISSING-MSG](#BR-FW-IP6TABLES-MISSING-MSG), [BR-FW-IP6TABLES-MISSING-NETWORK](#BR-FW-IP6TABLES-MISSING-NETWORK), [BR-FW-IP6TABLES-MISSING-PUBLISHED-PORT](#BR-FW-IP6TABLES-MISSING-PUBLISHED-PORT) · *Needed by:* [BR-CLEAN-ISOLATION-CHAIN](#BR-CLEAN-ISOLATION-CHAIN), [BR-EGRESS-HOST-IPV6](#BR-EGRESS-HOST-IPV6), [BR-EGRESS-MASQUERADE-V6](#BR-EGRESS-MASQUERADE-V6), [BR-EGRESS-NO-MASQUERADE-V6](#BR-EGRESS-NO-MASQUERADE-V6), [BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6](#BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6), [BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6](#BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6), [BR-FW-FORWARD-DROP-FIREWALLD-V6](#BR-FW-FORWARD-DROP-FIREWALLD-V6), [BR-FW-FORWARDING-ALREADY-ENABLED-V6](#BR-FW-FORWARDING-ALREADY-ENABLED-V6), [BR-FW-FORWARDING-ENABLED-V6](#BR-FW-FORWARDING-ENABLED-V6), [BR-FW-FORWARDING-NO-DROP-V6](#BR-FW-FORWARDING-NO-DROP-V6), [BR-GWMODE-ROUTED-EGRESS-V6](#BR-GWMODE-ROUTED-EGRESS-V6), [BR-GWMODE-ROUTED-INBOUND-V6](#BR-GWMODE-ROUTED-INBOUND-V6), [BR-ISO-BRIDGE-NF-CALL-V6](#BR-ISO-BRIDGE-NF-CALL-V6), [BR-ISO-DIRECT-ROUTING-OFF-V6](#BR-ISO-DIRECT-ROUTING-OFF-V6), [BR-ISO-SEPARATE-NETWORKS-V6](#BR-ISO-SEPARATE-NETWORKS-V6), [BR-OPT-DAEMON-BIP6](#BR-OPT-DAEMON-BIP6), [BR-OPT-IPV4-DISABLED](#BR-OPT-IPV4-DISABLED), [BR-PUB-NO-SCTP-JOIN-ORDER](#BR-PUB-NO-SCTP-JOIN-ORDER), [BR-PUB-V6-CLIENT-SOURCE](#BR-PUB-V6-CLIENT-SOURCE), [BR-PUB-V6-LINK-LOCAL](#BR-PUB-V6-LINK-LOCAL), [BR-PUB-V6-REACHABLE](#BR-PUB-V6-REACHABLE), [BR-USER-CHAIN-JUMP](#BR-USER-CHAIN-JUMP), [BR-USER-CHAIN-JUMP-FIREWALLD](#BR-USER-CHAIN-JUMP-FIREWALLD), [BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START](#BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START), [BR-USER-CHAIN-JUMP-FIREWALLD-STOP](#BR-USER-CHAIN-JUMP-FIREWALLD-STOP)
 
 *Facility:* **ip6tables**, accepting the same tables, targets and matches
 
-*Needed when:* The iptables backend, with the daemon option `ip6tables` true
+*Needed when:* The iptables backend, with the daemon option `ip6tables` true, for a
+bridge network with IPv6 and for the daemon's IPv6 chains, such as `DOCKER-USER`
 
 <a id="BR-HOST-NFT-COMMAND"></a>
 
@@ -164,13 +726,44 @@ not allow inter-container communication or the daemon option `userland-proxy` fa
 
 *Platforms:* linux · *When:* nftables-backend · *Kind:* program
 
-*Pinned by:* [BR-FW-NFT-MISSING](#BR-FW-NFT-MISSING) · *Needed by:* [BR-CLEAN-BUILTIN-CHAIN-RULES](#BR-CLEAN-BUILTIN-CHAIN-RULES), [BR-CLEAN-BUILTIN-RULES](#BR-CLEAN-BUILTIN-RULES), [BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED](#BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED), [BR-CLEAN-FORWARD-DROP-WARNING](#BR-CLEAN-FORWARD-DROP-WARNING), [BR-CLEAN-FORWARD-POLICY-KEPT](#BR-CLEAN-FORWARD-POLICY-KEPT), [BR-CLEAN-ISOLATION-CHAIN](#BR-CLEAN-ISOLATION-CHAIN), [BR-CLEAN-NAMES-UNCHANGED](#BR-CLEAN-NAMES-UNCHANGED), [BR-CLEAN-OTHER-BACKEND](#BR-CLEAN-OTHER-BACKEND), [BR-CLEAN-OTHER-BACKEND-IPT](#BR-CLEAN-OTHER-BACKEND-IPT), [BR-CLEAN-OTHER-BACKEND-NFT](#BR-CLEAN-OTHER-BACKEND-NFT), [BR-CLEAN-USER-DROP-RULE](#BR-CLEAN-USER-DROP-RULE), [BR-EGRESS-HOST-IPV4](#BR-EGRESS-HOST-IPV4), [BR-EGRESS-MASQUERADE](#BR-EGRESS-MASQUERADE), [BR-EGRESS-NO-MASQUERADE](#BR-EGRESS-NO-MASQUERADE), [BR-EGRESS-REPLY-DIRECT-ROUTING-OFF](#BR-EGRESS-REPLY-DIRECT-ROUTING-OFF), [BR-EGRESS-REPLY-DIRECT-ROUTING-ON](#BR-EGRESS-REPLY-DIRECT-ROUTING-ON), [BR-EGRESS-REPLY-TRUSTED-IFACE](#BR-EGRESS-REPLY-TRUSTED-IFACE), [BR-FW-BACKEND-INVALID](#BR-FW-BACKEND-INVALID), [BR-FW-BACKEND-INVALID-MSG](#BR-FW-BACKEND-INVALID-MSG), [BR-FW-FIREWALLD-RELOAD-EGRESS](#BR-FW-FIREWALLD-RELOAD-EGRESS), [BR-FW-FIREWALLD-RELOAD-NFT](#BR-FW-FIREWALLD-RELOAD-NFT), [BR-FW-FIREWALLD-RELOAD-PORT](#BR-FW-FIREWALLD-RELOAD-PORT), [BR-FW-FIREWALLD-RELOADED-AT](#BR-FW-FIREWALLD-RELOADED-AT), [BR-FW-FORWARD-DROP-FIREWALLD](#BR-FW-FORWARD-DROP-FIREWALLD), [BR-FW-FORWARD-DROP-FIREWALLD-V6](#BR-FW-FORWARD-DROP-FIREWALLD-V6), [BR-FW-FORWARDING-ENABLED](#BR-FW-FORWARDING-ENABLED), [BR-FW-FORWARDING-ENABLED-V6](#BR-FW-FORWARDING-ENABLED-V6), [BR-FW-HTTP500-REFUSED](#BR-FW-HTTP500-REFUSED), [BR-FW-IP6TABLES-MISSING](#BR-FW-IP6TABLES-MISSING), [BR-FW-IP6TABLES-MISSING-NETWORK](#BR-FW-IP6TABLES-MISSING-NETWORK), [BR-FW-IPTABLES-MISSING](#BR-FW-IPTABLES-MISSING), [BR-FW-NFT-NO-FORWARDING](#BR-FW-NFT-NO-FORWARDING), [BR-FW-NFT-NO-FORWARDING-V6](#BR-FW-NFT-NO-FORWARDING-V6), [BR-GW-DEFAULT-ROUTE-NETWORK](#BR-GW-DEFAULT-ROUTE-NETWORK), [BR-GWMODE-ISOLATED-NOT-INTERNAL](#BR-GWMODE-ISOLATED-NOT-INTERNAL), [BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI](#BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI), [BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500](#BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500), [BR-GWMODE-NAT-UNPROTECTED](#BR-GWMODE-NAT-UNPROTECTED), [BR-GWMODE-ROUTED-EGRESS](#BR-GWMODE-ROUTED-EGRESS), [BR-GWMODE-ROUTED-INBOUND](#BR-GWMODE-ROUTED-INBOUND), [BR-GWMODE-ROUTED-NODE-ADDRESS](#BR-GWMODE-ROUTED-NODE-ADDRESS), [BR-GWMODE-UNKNOWN](#BR-GWMODE-UNKNOWN), [BR-GWMODE-UNKNOWN-CLI](#BR-GWMODE-UNKNOWN-CLI), [BR-GWMODE-UNKNOWN-MSG](#BR-GWMODE-UNKNOWN-MSG), [BR-ISO-BRIDGE-NF-CALL](#BR-ISO-BRIDGE-NF-CALL), [BR-ISO-DIRECT-ROUTING-OFF](#BR-ISO-DIRECT-ROUTING-OFF), [BR-ISO-DIRECT-ROUTING-ON](#BR-ISO-DIRECT-ROUTING-ON), [BR-ISO-INTERNAL-CTR-ROUTE](#BR-ISO-INTERNAL-CTR-ROUTE), [BR-ISO-INTERNAL-CTR-TO-HOST](#BR-ISO-INTERNAL-CTR-TO-HOST), [BR-ISO-INTERNAL-HOST-TO-CTR](#BR-ISO-INTERNAL-HOST-TO-CTR), [BR-ISO-INTERNAL-NO-FORWARD](#BR-ISO-INTERNAL-NO-FORWARD), [BR-ISO-ISOLATED-CTR-TO-HOST](#BR-ISO-ISOLATED-CTR-TO-HOST), [BR-ISO-ISOLATED-NO-GATEWAY](#BR-ISO-ISOLATED-NO-GATEWAY), [BR-ISO-NO-ICC](#BR-ISO-NO-ICC), [BR-ISO-NO-ICC-LEGACY-LINK](#BR-ISO-NO-ICC-LEGACY-LINK), [BR-ISO-NO-VETH](#BR-ISO-NO-VETH), [BR-ISO-SEPARATE-NETWORKS](#BR-ISO-SEPARATE-NETWORKS), [BR-ISO-TRUSTED-IFACE](#BR-ISO-TRUSTED-IFACE), [BR-ISO-TRUSTED-IFACE-LIST](#BR-ISO-TRUSTED-IFACE-LIST), [BR-NOV6-CTR-START](#BR-NOV6-CTR-START), [BR-NOV6-DAEMON-START](#BR-NOV6-DAEMON-START), [BR-NOV6-PUBLISHED-PORT](#BR-NOV6-PUBLISHED-PORT), [BR-NOV6-V6-NETWORK-REFUSED](#BR-NOV6-V6-NETWORK-REFUSED), [BR-OPT-DAEMON-MTU-APPLIED](#BR-OPT-DAEMON-MTU-APPLIED), [BR-OPT-DAEMON-MTU-ERROR](#BR-OPT-DAEMON-MTU-ERROR), [BR-OPT-DAEMON-MTU-MODULO](#BR-OPT-DAEMON-MTU-MODULO), [BR-OPT-DAEMON-MTU-NEGATIVE](#BR-OPT-DAEMON-MTU-NEGATIVE), [BR-OPT-DAEMON-MTU-NEGATIVE-MSG](#BR-OPT-DAEMON-MTU-NEGATIVE-MSG), [BR-OPT-DAEMON-MTU-REFUSED](#BR-OPT-DAEMON-MTU-REFUSED), [BR-OPT-DAEMON-MTU-REFUSED-LIVE-RESTORE](#BR-OPT-DAEMON-MTU-REFUSED-LIVE-RESTORE), [BR-OPT-DAEMON-MTU-ZERO](#BR-OPT-DAEMON-MTU-ZERO), [BR-OPT-DAEMON-MTU-ZERO-REPLACED](#BR-OPT-DAEMON-MTU-ZERO-REPLACED), [BR-OPT-MTU-APPLIED](#BR-OPT-MTU-APPLIED), [BR-OPT-MTU-INVALID](#BR-OPT-MTU-INVALID), [BR-OPT-MTU-INVALID-CLI](#BR-OPT-MTU-INVALID-CLI), [BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO), [BR-OPT-MTU-OUT-OF-RANGE](#BR-OPT-MTU-OUT-OF-RANGE), [BR-OPT-MTU-REFUSED](#BR-OPT-MTU-REFUSED), [BR-OPT-MTU-REFUSED-CLI](#BR-OPT-MTU-REFUSED-CLI), [BR-OPT-MTU-REFUSED-HTTP500](#BR-OPT-MTU-REFUSED-HTTP500), [BR-OPT-MTU-ZERO](#BR-OPT-MTU-ZERO), [BR-PRIO-BASE-CHAINS](#BR-PRIO-BASE-CHAINS), [BR-PUB-HOST-ADDRESS](#BR-PUB-HOST-ADDRESS), [BR-PUB-HOST-PORT-ASSIGNED](#BR-PUB-HOST-PORT-ASSIGNED), [BR-PUB-LOOPBACK-CLIENT](#BR-PUB-LOOPBACK-CLIENT), [BR-PUB-LOOPBACK-NODE](#BR-PUB-LOOPBACK-NODE), [BR-PUB-NO-SCTP](#BR-PUB-NO-SCTP), [BR-PUB-ROUTE-LOCALNET](#BR-PUB-ROUTE-LOCALNET), [BR-PUB-UNPUBLISHED-PORT](#BR-PUB-UNPUBLISHED-PORT), [BR-PUB-V6-CLIENT-SOURCE](#BR-PUB-V6-CLIENT-SOURCE), [BR-PUB-V6-LINK-LOCAL](#BR-PUB-V6-LINK-LOCAL), [BR-PUB-V6-REACHABLE](#BR-PUB-V6-REACHABLE), [BR-RULES-REFERENCE](#BR-RULES-REFERENCE), [BR-RULES-REFERENCE-NFT](#BR-RULES-REFERENCE-NFT), [BR-USER-CHAIN-JUMP](#BR-USER-CHAIN-JUMP), [BR-USER-CHAIN-JUMP-FIREWALLD](#BR-USER-CHAIN-JUMP-FIREWALLD), [BR-USER-DROP-RULE](#BR-USER-DROP-RULE), [BR-USER-RULES-KEPT](#BR-USER-RULES-KEPT), [SWARM-PUB-FIREWALLD-V6-PROXY](#SWARM-PUB-FIREWALLD-V6-PROXY)
+*Pinned by:* [BR-FW-NFT-MISSING](#BR-FW-NFT-MISSING), [BR-FW-NFT-MISSING-MSG](#BR-FW-NFT-MISSING-MSG) · *Needed by:* [BR-CLEAN-BUILTIN-CHAIN-RULES](#BR-CLEAN-BUILTIN-CHAIN-RULES), [BR-CLEAN-BUILTIN-RULES](#BR-CLEAN-BUILTIN-RULES), [BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED](#BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED), [BR-CLEAN-FORWARD-DROP-WARNING](#BR-CLEAN-FORWARD-DROP-WARNING), [BR-CLEAN-FORWARD-POLICY-KEPT](#BR-CLEAN-FORWARD-POLICY-KEPT), [BR-CLEAN-ISOLATION-CHAIN](#BR-CLEAN-ISOLATION-CHAIN), [BR-CLEAN-NO-FORWARD-JUMP](#BR-CLEAN-NO-FORWARD-JUMP), [BR-CLEAN-OTHER-BACKEND](#BR-CLEAN-OTHER-BACKEND), [BR-CLEAN-OTHER-BACKEND-IPT](#BR-CLEAN-OTHER-BACKEND-IPT), [BR-CLEAN-OTHER-BACKEND-NFT](#BR-CLEAN-OTHER-BACKEND-NFT), [BR-CLEAN-USER-DROP-RULE](#BR-CLEAN-USER-DROP-RULE), [BR-EGRESS-DAEMON-NO-MASQUERADE](#BR-EGRESS-DAEMON-NO-MASQUERADE), [BR-EGRESS-HOST-IPV4](#BR-EGRESS-HOST-IPV4), [BR-EGRESS-HOST-IPV6](#BR-EGRESS-HOST-IPV6), [BR-EGRESS-MASQUERADE](#BR-EGRESS-MASQUERADE), [BR-EGRESS-MASQUERADE-V6](#BR-EGRESS-MASQUERADE-V6), [BR-EGRESS-NO-MASQUERADE](#BR-EGRESS-NO-MASQUERADE), [BR-EGRESS-NO-MASQUERADE-V6](#BR-EGRESS-NO-MASQUERADE-V6), [BR-EGRESS-OPERATOR-NAT-RULE-FIRST](#BR-EGRESS-OPERATOR-NAT-RULE-FIRST), [BR-EGRESS-OPERATOR-RULE-DEFAULT-BRIDGE](#BR-EGRESS-OPERATOR-RULE-DEFAULT-BRIDGE), [BR-EGRESS-REPLY-DIRECT-ROUTING-OFF](#BR-EGRESS-REPLY-DIRECT-ROUTING-OFF), [BR-EGRESS-REPLY-DIRECT-ROUTING-ON](#BR-EGRESS-REPLY-DIRECT-ROUTING-ON), [BR-EGRESS-REPLY-TRUSTED-IFACE](#BR-EGRESS-REPLY-TRUSTED-IFACE), [BR-EGRESS-UNDERLAY-REACH](#BR-EGRESS-UNDERLAY-REACH), [BR-FW-BACKEND-INFO](#BR-FW-BACKEND-INFO), [BR-FW-BACKEND-INVALID](#BR-FW-BACKEND-INVALID), [BR-FW-BACKEND-INVALID-MSG](#BR-FW-BACKEND-INVALID-MSG), [BR-FW-FIREWALLD-LATE-START-EGRESS](#BR-FW-FIREWALLD-LATE-START-EGRESS), [BR-FW-FIREWALLD-LATE-START-PORT](#BR-FW-FIREWALLD-LATE-START-PORT), [BR-FW-FIREWALLD-LATE-START-ZONE](#BR-FW-FIREWALLD-LATE-START-ZONE), [BR-FW-FIREWALLD-RELOAD-EGRESS](#BR-FW-FIREWALLD-RELOAD-EGRESS), [BR-FW-FIREWALLD-RELOAD-PORT](#BR-FW-FIREWALLD-RELOAD-PORT), [BR-FW-FIREWALLD-RELOADED-AT](#BR-FW-FIREWALLD-RELOADED-AT), [BR-FW-FIREWALLD-STOP-EGRESS](#BR-FW-FIREWALLD-STOP-EGRESS), [BR-FW-FIREWALLD-STOP-PORT](#BR-FW-FIREWALLD-STOP-PORT), [BR-FW-FIREWALLD-ZONE](#BR-FW-FIREWALLD-ZONE), [BR-FW-FIREWALLD-ZONE-IPTABLES-DISABLED](#BR-FW-FIREWALLD-ZONE-IPTABLES-DISABLED), [BR-FW-FIREWALLD-ZONE-USER-BOUND](#BR-FW-FIREWALLD-ZONE-USER-BOUND), [BR-FW-FORWARD-DROP-FIREWALLD](#BR-FW-FORWARD-DROP-FIREWALLD), [BR-FW-FORWARD-DROP-FIREWALLD-LATE-START](#BR-FW-FORWARD-DROP-FIREWALLD-LATE-START), [BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6](#BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6), [BR-FW-FORWARD-DROP-FIREWALLD-STOP](#BR-FW-FORWARD-DROP-FIREWALLD-STOP), [BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6](#BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6), [BR-FW-FORWARD-DROP-FIREWALLD-V6](#BR-FW-FORWARD-DROP-FIREWALLD-V6), [BR-FW-FORWARDING-ALREADY-ENABLED](#BR-FW-FORWARDING-ALREADY-ENABLED), [BR-FW-FORWARDING-ALREADY-ENABLED-V6](#BR-FW-FORWARDING-ALREADY-ENABLED-V6), [BR-FW-FORWARDING-ENABLED](#BR-FW-FORWARDING-ENABLED), [BR-FW-FORWARDING-ENABLED-V6](#BR-FW-FORWARDING-ENABLED-V6), [BR-FW-FORWARDING-NO-DROP](#BR-FW-FORWARDING-NO-DROP), [BR-FW-FORWARDING-NO-DROP-V6](#BR-FW-FORWARDING-NO-DROP-V6), [BR-FW-IP6TABLES-MISSING](#BR-FW-IP6TABLES-MISSING), [BR-FW-IP6TABLES-MISSING-MSG](#BR-FW-IP6TABLES-MISSING-MSG), [BR-FW-IP6TABLES-MISSING-NETWORK](#BR-FW-IP6TABLES-MISSING-NETWORK), [BR-FW-IP6TABLES-MISSING-PUBLISHED-PORT](#BR-FW-IP6TABLES-MISSING-PUBLISHED-PORT), [BR-FW-IPTABLES-MISSING](#BR-FW-IPTABLES-MISSING), [BR-FW-IPTABLES-MISSING-MSG](#BR-FW-IPTABLES-MISSING-MSG), [BR-FW-NFT-FIREWALLD-RELOAD](#BR-FW-NFT-FIREWALLD-RELOAD), [BR-FW-NFT-FORWARDING-UNCHECKED](#BR-FW-NFT-FORWARDING-UNCHECKED), [BR-FW-NFT-IPV6-MISSING](#BR-FW-NFT-IPV6-MISSING), [BR-FW-NFT-IPV6-MISSING-NETWORK](#BR-FW-NFT-IPV6-MISSING-NETWORK), [BR-FW-NFT-NO-FORWARDING](#BR-FW-NFT-NO-FORWARDING), [BR-FW-NFT-NO-FORWARDING-NETWORK](#BR-FW-NFT-NO-FORWARDING-NETWORK), [BR-FW-NFT-NO-FORWARDING-V6](#BR-FW-NFT-NO-FORWARDING-V6), [BR-FW-NFT-NO-FORWARDING-V6-HTTP500](#BR-FW-NFT-NO-FORWARDING-V6-HTTP500), [BR-GW-DEFAULT-ROUTE-NETWORK](#BR-GW-DEFAULT-ROUTE-NETWORK), [BR-GWMODE-HTTP500-REFUSED](#BR-GWMODE-HTTP500-REFUSED), [BR-GWMODE-ISOLATED-NOT-INTERNAL](#BR-GWMODE-ISOLATED-NOT-INTERNAL), [BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI](#BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI), [BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500](#BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500), [BR-GWMODE-NAT-UNPROTECTED](#BR-GWMODE-NAT-UNPROTECTED), [BR-GWMODE-ROUTED-EGRESS](#BR-GWMODE-ROUTED-EGRESS), [BR-GWMODE-ROUTED-EGRESS-V6](#BR-GWMODE-ROUTED-EGRESS-V6), [BR-GWMODE-ROUTED-INBOUND](#BR-GWMODE-ROUTED-INBOUND), [BR-GWMODE-ROUTED-INBOUND-V6](#BR-GWMODE-ROUTED-INBOUND-V6), [BR-GWMODE-ROUTED-NODE-ADDRESS](#BR-GWMODE-ROUTED-NODE-ADDRESS), [BR-GWMODE-UNKNOWN](#BR-GWMODE-UNKNOWN), [BR-GWMODE-UNKNOWN-CLI](#BR-GWMODE-UNKNOWN-CLI), [BR-GWMODE-UNKNOWN-MSG](#BR-GWMODE-UNKNOWN-MSG), [BR-ISO-ACCEPT-FWMARK](#BR-ISO-ACCEPT-FWMARK), [BR-ISO-ACCEPT-FWMARK-UNTRUSTED](#BR-ISO-ACCEPT-FWMARK-UNTRUSTED), [BR-ISO-BRIDGE-NF-CALL](#BR-ISO-BRIDGE-NF-CALL), [BR-ISO-BRIDGE-NF-CALL-V6](#BR-ISO-BRIDGE-NF-CALL-V6), [BR-ISO-DAEMON-NO-ICC](#BR-ISO-DAEMON-NO-ICC), [BR-ISO-DIRECT-ROUTING-OFF](#BR-ISO-DIRECT-ROUTING-OFF), [BR-ISO-DIRECT-ROUTING-OFF-FIREWALLD](#BR-ISO-DIRECT-ROUTING-OFF-FIREWALLD), [BR-ISO-DIRECT-ROUTING-OFF-V6](#BR-ISO-DIRECT-ROUTING-OFF-V6), [BR-ISO-DIRECT-ROUTING-ON](#BR-ISO-DIRECT-ROUTING-ON), [BR-ISO-DIRECT-ROUTING-ON-FIREWALLD](#BR-ISO-DIRECT-ROUTING-ON-FIREWALLD), [BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING](#BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING), [BR-ISO-INTERNAL-CTR-ROUTE](#BR-ISO-INTERNAL-CTR-ROUTE), [BR-ISO-INTERNAL-CTR-TO-HOST](#BR-ISO-INTERNAL-CTR-TO-HOST), [BR-ISO-INTERNAL-HOST-TO-CTR](#BR-ISO-INTERNAL-HOST-TO-CTR), [BR-ISO-INTERNAL-NO-FORWARD](#BR-ISO-INTERNAL-NO-FORWARD), [BR-ISO-ISOLATED-CTR-TO-HOST](#BR-ISO-ISOLATED-CTR-TO-HOST), [BR-ISO-ISOLATED-NO-GATEWAY](#BR-ISO-ISOLATED-NO-GATEWAY), [BR-ISO-NO-BR-NETFILTER-DAEMON-ICC](#BR-ISO-NO-BR-NETFILTER-DAEMON-ICC), [BR-ISO-NO-BR-NETFILTER-NO-ICC](#BR-ISO-NO-BR-NETFILTER-NO-ICC), [BR-ISO-NO-BR-NETFILTER-NO-ICC-MSG](#BR-ISO-NO-BR-NETFILTER-NO-ICC-MSG), [BR-ISO-NO-ICC](#BR-ISO-NO-ICC), [BR-ISO-NO-ICC-LEGACY-LINK](#BR-ISO-NO-ICC-LEGACY-LINK), [BR-ISO-NO-VETH](#BR-ISO-NO-VETH), [BR-ISO-NO-VETH-CONNECT](#BR-ISO-NO-VETH-CONNECT), [BR-ISO-NO-VETH-CREATE](#BR-ISO-NO-VETH-CREATE), [BR-ISO-NO-VETH-HTTP500](#BR-ISO-NO-VETH-HTTP500), [BR-ISO-SAME-NETWORK](#BR-ISO-SAME-NETWORK), [BR-ISO-SEPARATE-NETWORKS](#BR-ISO-SEPARATE-NETWORKS), [BR-ISO-SEPARATE-NETWORKS-NAT-UNPROTECTED](#BR-ISO-SEPARATE-NETWORKS-NAT-UNPROTECTED), [BR-ISO-SEPARATE-NETWORKS-ROUTED](#BR-ISO-SEPARATE-NETWORKS-ROUTED), [BR-ISO-SEPARATE-NETWORKS-V6](#BR-ISO-SEPARATE-NETWORKS-V6), [BR-ISO-TRUSTED-IFACE](#BR-ISO-TRUSTED-IFACE), [BR-ISO-TRUSTED-IFACE-LIST](#BR-ISO-TRUSTED-IFACE-LIST), [BR-NOV6-CTR-START](#BR-NOV6-CTR-START), [BR-NOV6-DAEMON-START](#BR-NOV6-DAEMON-START), [BR-NOV6-PUBLISHED-PORT](#BR-NOV6-PUBLISHED-PORT), [BR-NOV6-V6-NETWORK-REFUSED](#BR-NOV6-V6-NETWORK-REFUSED), [BR-NOV6-V6-NETWORK-REFUSED-MSG](#BR-NOV6-V6-NETWORK-REFUSED-MSG), [BR-OPT-BRIDGE-NAME](#BR-OPT-BRIDGE-NAME), [BR-OPT-DAEMON-BIP](#BR-OPT-DAEMON-BIP), [BR-OPT-DAEMON-BIP6](#BR-OPT-DAEMON-BIP6), [BR-OPT-DAEMON-BRIDGE-NONE](#BR-OPT-DAEMON-BRIDGE-NONE), [BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED), [BR-OPT-DAEMON-MTU-APPLIED](#BR-OPT-DAEMON-MTU-APPLIED), [BR-OPT-DAEMON-MTU-DEFAULT](#BR-OPT-DAEMON-MTU-DEFAULT), [BR-OPT-DAEMON-MTU-ERROR](#BR-OPT-DAEMON-MTU-ERROR), [BR-OPT-DAEMON-MTU-INVALID](#BR-OPT-DAEMON-MTU-INVALID), [BR-OPT-DAEMON-MTU-MODULO](#BR-OPT-DAEMON-MTU-MODULO), [BR-OPT-DAEMON-MTU-NEGATIVE](#BR-OPT-DAEMON-MTU-NEGATIVE), [BR-OPT-DAEMON-MTU-NEGATIVE-MSG](#BR-OPT-DAEMON-MTU-NEGATIVE-MSG), [BR-OPT-DAEMON-MTU-REFUSED](#BR-OPT-DAEMON-MTU-REFUSED), [BR-OPT-DAEMON-MTU-ZERO](#BR-OPT-DAEMON-MTU-ZERO), [BR-OPT-DAEMON-MTU-ZERO-FLAG](#BR-OPT-DAEMON-MTU-ZERO-FLAG), [BR-OPT-DAEMON-MTU-ZERO-REPLACED](#BR-OPT-DAEMON-MTU-ZERO-REPLACED), [BR-OPT-HTTP500-REFUSED](#BR-OPT-HTTP500-REFUSED), [BR-OPT-IPV4-DISABLED](#BR-OPT-IPV4-DISABLED), [BR-OPT-MTU-APPLIED](#BR-OPT-MTU-APPLIED), [BR-OPT-MTU-INVALID](#BR-OPT-MTU-INVALID), [BR-OPT-MTU-INVALID-CLI](#BR-OPT-MTU-INVALID-CLI), [BR-OPT-MTU-INVALID-MSG](#BR-OPT-MTU-INVALID-MSG), [BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO), [BR-OPT-MTU-OUT-OF-RANGE](#BR-OPT-MTU-OUT-OF-RANGE), [BR-OPT-MTU-REFUSED](#BR-OPT-MTU-REFUSED), [BR-OPT-MTU-REFUSED-CLI](#BR-OPT-MTU-REFUSED-CLI), [BR-OPT-MTU-REFUSED-HTTP500](#BR-OPT-MTU-REFUSED-HTTP500), [BR-OPT-MTU-ZERO](#BR-OPT-MTU-ZERO), [BR-PRIO-BASE-CHAINS](#BR-PRIO-BASE-CHAINS), [BR-PRIO-WELL-KNOWN](#BR-PRIO-WELL-KNOWN), [BR-PUB-HOST-ADDRESS](#BR-PUB-HOST-ADDRESS), [BR-PUB-HOST-BINDING-ADDRESS](#BR-PUB-HOST-BINDING-ADDRESS), [BR-PUB-HOST-BINDING-ADDRESS-DAEMON](#BR-PUB-HOST-BINDING-ADDRESS-DAEMON), [BR-PUB-HOST-PORT-ASSIGNED](#BR-PUB-HOST-PORT-ASSIGNED), [BR-PUB-HOST-PORT-ASSIGNED-CLI](#BR-PUB-HOST-PORT-ASSIGNED-CLI), [BR-PUB-HOST-PORT-RESERVED-REQUESTED](#BR-PUB-HOST-PORT-RESERVED-REQUESTED), [BR-PUB-LOOPBACK-CLIENT](#BR-PUB-LOOPBACK-CLIENT), [BR-PUB-LOOPBACK-CLIENT-FIREWALLD](#BR-PUB-LOOPBACK-CLIENT-FIREWALLD), [BR-PUB-LOOPBACK-NODE](#BR-PUB-LOOPBACK-NODE), [BR-PUB-NO-SCTP](#BR-PUB-NO-SCTP), [BR-PUB-NO-SCTP-CONNECT](#BR-PUB-NO-SCTP-CONNECT), [BR-PUB-NO-SCTP-CREATE](#BR-PUB-NO-SCTP-CREATE), [BR-PUB-NO-SCTP-JOIN-ORDER](#BR-PUB-NO-SCTP-JOIN-ORDER), [BR-PUB-NO-SCTP-MSG](#BR-PUB-NO-SCTP-MSG), [BR-PUB-ROUTE-LOCALNET](#BR-PUB-ROUTE-LOCALNET), [BR-PUB-SCTP](#BR-PUB-SCTP), [BR-PUB-UNPUBLISHED-PORT](#BR-PUB-UNPUBLISHED-PORT), [BR-PUB-UNPUBLISHED-PORT-NODE](#BR-PUB-UNPUBLISHED-PORT-NODE), [BR-PUB-V4-CLIENT-SOURCE](#BR-PUB-V4-CLIENT-SOURCE), [BR-PUB-V6-CLIENT-SOURCE](#BR-PUB-V6-CLIENT-SOURCE), [BR-PUB-V6-LINK-LOCAL](#BR-PUB-V6-LINK-LOCAL), [BR-PUB-V6-REACHABLE](#BR-PUB-V6-REACHABLE), [BR-RULES-REFERENCE](#BR-RULES-REFERENCE), [BR-RULES-REFERENCE-NFT](#BR-RULES-REFERENCE-NFT), [BR-USER-ACCEPT-NO-DIRECT-ROUTING](#BR-USER-ACCEPT-NO-DIRECT-ROUTING), [BR-USER-CHAIN-JUMP](#BR-USER-CHAIN-JUMP), [BR-USER-CHAIN-JUMP-FIREWALLD](#BR-USER-CHAIN-JUMP-FIREWALLD), [BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START](#BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START), [BR-USER-CHAIN-JUMP-FIREWALLD-STOP](#BR-USER-CHAIN-JUMP-FIREWALLD-STOP), [BR-USER-DROP-RULE](#BR-USER-DROP-RULE), [BR-USER-RULES-KEPT](#BR-USER-RULES-KEPT)
 
 *Facility:* **nft**
 
-*Needed when:* The nftables backend
+*Needed when:* The nftables backend, on a daemon built without the `libnftables` build tag. A
+daemon built with it uses the libnftables library and runs no **nft** command. Without
+**nft**, a daemon built without that tag does not start ([*BR-FW-NFT-MISSING*](#BR-FW-NFT-MISSING)).
 
-<a id="needextend-network-bridge-networking-3"></a>
+<a id="needextend-network-bridge-networking-4"></a>
+
+<a id="BR-HOST-IPTABLES-CLEANUP-COMMAND"></a>
+
+**Host requirement BR-HOST-IPTABLES-CLEANUP-COMMAND**: iptables and ip6tables under the nftables backend
+
+*Platforms:* linux · *When:* nftables-backend · *Kind:* program
+
+*Needed by:* [BR-CLEAN-BUILTIN-CHAIN-RULES](#BR-CLEAN-BUILTIN-CHAIN-RULES), [BR-CLEAN-BUILTIN-RULES](#BR-CLEAN-BUILTIN-RULES), [BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED](#BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED), [BR-CLEAN-FORWARD-DROP-WARNING](#BR-CLEAN-FORWARD-DROP-WARNING), [BR-CLEAN-ISOLATION-CHAIN](#BR-CLEAN-ISOLATION-CHAIN), [BR-CLEAN-OTHER-BACKEND](#BR-CLEAN-OTHER-BACKEND), [BR-CLEAN-OTHER-BACKEND-NFT](#BR-CLEAN-OTHER-BACKEND-NFT)
+
+*Facility:* **iptables** with the daemon option `iptables` true, and
+**ip6tables** with the daemon option `ip6tables` true, accepting the filter,
+nat and raw tables
+
+*Needed when:* The nftables backend, on a node with chains or rules that a daemon left in those
+tables under the iptables backend
+
+<a id="BR-HOST-NFT-CLEANUP-COMMAND"></a>
+
+**Host requirement BR-HOST-NFT-CLEANUP-COMMAND**: nft under the iptables backend
+
+*Platforms:* linux · *When:* iptables-backend · *Kind:* program
+
+*Needed by:* [BR-CLEAN-OTHER-BACKEND](#BR-CLEAN-OTHER-BACKEND), [BR-CLEAN-OTHER-BACKEND-IPT](#BR-CLEAN-OTHER-BACKEND-IPT)
+
+*Facility:* **nft**
+
+*Needed when:* The iptables backend, on a node with a `docker-bridges` table that a
+daemon left under the nftables backend, on a daemon built without the `libnftables` build tag.
+A daemon built with it uses the libnftables library and runs no **nft** command.
 
 The daemon does not depend on which implementation of **iptables** and **ip6tables**
 the host has. The kernel options that the programs need depend on that implementation:
@@ -179,19 +772,20 @@ the host has. The kernel options that the programs need depend on that implement
 
 **Host requirement BR-HOST-IPTABLES-KERNEL**: Kernel options for iptables
 
-*Platforms:* linux · *When:* iptables-backend, iptables · *Kind:* os · *Kernel options:* `NETFILTER`, `NETFILTER_ADVANCED`, `NETFILTER_XTABLES`, `NF_CONNTRACK`, `NF_NAT`, `NETFILTER_XT_NAT`, `NETFILTER_XT_TARGET_MASQUERADE`, `NETFILTER_XT_MATCH_ADDRTYPE`, `NETFILTER_XT_MATCH_CONNTRACK`, `NETFILTER_XT_MATCH_SCTP`, `IP_NF_NAT`, `IP_NF_TARGET_MASQUERADE`
+*Platforms:* linux · *When:* iptables-backend, iptables · *Kind:* os · *Kernel options:* `NETFILTER`, `NETFILTER_ADVANCED`, `NETFILTER_XTABLES`, `NF_CONNTRACK`, `NF_NAT`, `NETFILTER_XT_NAT`, `NETFILTER_XT_TARGET_MASQUERADE`, `NETFILTER_XT_MATCH_ADDRTYPE`, `NETFILTER_XT_MATCH_CONNTRACK`, `IP_NF_NAT`, `IP_NF_TARGET_MASQUERADE`
 
-*Needed by:* [BR-CLEAN-BUILTIN-CHAIN-RULES](#BR-CLEAN-BUILTIN-CHAIN-RULES), [BR-CLEAN-BUILTIN-RULES](#BR-CLEAN-BUILTIN-RULES), [BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED](#BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED), [BR-CLEAN-FORWARD-DROP-WARNING](#BR-CLEAN-FORWARD-DROP-WARNING), [BR-CLEAN-FORWARD-POLICY-KEPT](#BR-CLEAN-FORWARD-POLICY-KEPT), [BR-CLEAN-ISOLATION-CHAIN](#BR-CLEAN-ISOLATION-CHAIN), [BR-CLEAN-NAMES-UNCHANGED](#BR-CLEAN-NAMES-UNCHANGED), [BR-CLEAN-OTHER-BACKEND](#BR-CLEAN-OTHER-BACKEND), [BR-CLEAN-OTHER-BACKEND-IPT](#BR-CLEAN-OTHER-BACKEND-IPT), [BR-CLEAN-OTHER-BACKEND-NFT](#BR-CLEAN-OTHER-BACKEND-NFT), [BR-CLEAN-USER-DROP-RULE](#BR-CLEAN-USER-DROP-RULE), [BR-EGRESS-HOST-IPV4](#BR-EGRESS-HOST-IPV4), [BR-EGRESS-MASQUERADE](#BR-EGRESS-MASQUERADE), [BR-EGRESS-NO-MASQUERADE](#BR-EGRESS-NO-MASQUERADE), [BR-EGRESS-REPLY-DIRECT-ROUTING-OFF](#BR-EGRESS-REPLY-DIRECT-ROUTING-OFF), [BR-EGRESS-REPLY-DIRECT-ROUTING-ON](#BR-EGRESS-REPLY-DIRECT-ROUTING-ON), [BR-EGRESS-REPLY-TRUSTED-IFACE](#BR-EGRESS-REPLY-TRUSTED-IFACE), [BR-FW-BACKEND-INVALID](#BR-FW-BACKEND-INVALID), [BR-FW-BACKEND-INVALID-MSG](#BR-FW-BACKEND-INVALID-MSG), [BR-FW-FIREWALLD-RELOAD-EGRESS](#BR-FW-FIREWALLD-RELOAD-EGRESS), [BR-FW-FIREWALLD-RELOAD-NFT](#BR-FW-FIREWALLD-RELOAD-NFT), [BR-FW-FIREWALLD-RELOAD-PORT](#BR-FW-FIREWALLD-RELOAD-PORT), [BR-FW-FIREWALLD-RELOADED-AT](#BR-FW-FIREWALLD-RELOADED-AT), [BR-FW-FORWARD-DROP-FIREWALLD](#BR-FW-FORWARD-DROP-FIREWALLD), [BR-FW-FORWARD-DROP-FIREWALLD-V6](#BR-FW-FORWARD-DROP-FIREWALLD-V6), [BR-FW-FORWARDING-ENABLED](#BR-FW-FORWARDING-ENABLED), [BR-FW-FORWARDING-ENABLED-V6](#BR-FW-FORWARDING-ENABLED-V6), [BR-FW-HTTP500-REFUSED](#BR-FW-HTTP500-REFUSED), [BR-FW-IP6TABLES-MISSING](#BR-FW-IP6TABLES-MISSING), [BR-FW-IP6TABLES-MISSING-NETWORK](#BR-FW-IP6TABLES-MISSING-NETWORK), [BR-FW-IPTABLES-MISSING](#BR-FW-IPTABLES-MISSING), [BR-FW-NFT-MISSING](#BR-FW-NFT-MISSING), [BR-FW-NFT-NO-FORWARDING](#BR-FW-NFT-NO-FORWARDING), [BR-FW-NFT-NO-FORWARDING-V6](#BR-FW-NFT-NO-FORWARDING-V6), [BR-GW-DEFAULT-ROUTE-NETWORK](#BR-GW-DEFAULT-ROUTE-NETWORK), [BR-GWMODE-ISOLATED-NOT-INTERNAL](#BR-GWMODE-ISOLATED-NOT-INTERNAL), [BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI](#BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI), [BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500](#BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500), [BR-GWMODE-NAT-UNPROTECTED](#BR-GWMODE-NAT-UNPROTECTED), [BR-GWMODE-ROUTED-EGRESS](#BR-GWMODE-ROUTED-EGRESS), [BR-GWMODE-ROUTED-INBOUND](#BR-GWMODE-ROUTED-INBOUND), [BR-GWMODE-ROUTED-NODE-ADDRESS](#BR-GWMODE-ROUTED-NODE-ADDRESS), [BR-GWMODE-UNKNOWN](#BR-GWMODE-UNKNOWN), [BR-GWMODE-UNKNOWN-CLI](#BR-GWMODE-UNKNOWN-CLI), [BR-GWMODE-UNKNOWN-MSG](#BR-GWMODE-UNKNOWN-MSG), [BR-ISO-BRIDGE-NF-CALL](#BR-ISO-BRIDGE-NF-CALL), [BR-ISO-DIRECT-ROUTING-OFF](#BR-ISO-DIRECT-ROUTING-OFF), [BR-ISO-DIRECT-ROUTING-ON](#BR-ISO-DIRECT-ROUTING-ON), [BR-ISO-INTERNAL-CTR-ROUTE](#BR-ISO-INTERNAL-CTR-ROUTE), [BR-ISO-INTERNAL-CTR-TO-HOST](#BR-ISO-INTERNAL-CTR-TO-HOST), [BR-ISO-INTERNAL-HOST-TO-CTR](#BR-ISO-INTERNAL-HOST-TO-CTR), [BR-ISO-INTERNAL-NO-FORWARD](#BR-ISO-INTERNAL-NO-FORWARD), [BR-ISO-ISOLATED-CTR-TO-HOST](#BR-ISO-ISOLATED-CTR-TO-HOST), [BR-ISO-ISOLATED-NO-GATEWAY](#BR-ISO-ISOLATED-NO-GATEWAY), [BR-ISO-NO-ICC](#BR-ISO-NO-ICC), [BR-ISO-NO-ICC-LEGACY-LINK](#BR-ISO-NO-ICC-LEGACY-LINK), [BR-ISO-NO-VETH](#BR-ISO-NO-VETH), [BR-ISO-SEPARATE-NETWORKS](#BR-ISO-SEPARATE-NETWORKS), [BR-ISO-TRUSTED-IFACE](#BR-ISO-TRUSTED-IFACE), [BR-ISO-TRUSTED-IFACE-LIST](#BR-ISO-TRUSTED-IFACE-LIST), [BR-NOV6-CTR-START](#BR-NOV6-CTR-START), [BR-NOV6-DAEMON-START](#BR-NOV6-DAEMON-START), [BR-NOV6-PUBLISHED-PORT](#BR-NOV6-PUBLISHED-PORT), [BR-NOV6-V6-NETWORK-REFUSED](#BR-NOV6-V6-NETWORK-REFUSED), [BR-OPT-DAEMON-MTU-APPLIED](#BR-OPT-DAEMON-MTU-APPLIED), [BR-OPT-DAEMON-MTU-ERROR](#BR-OPT-DAEMON-MTU-ERROR), [BR-OPT-DAEMON-MTU-MODULO](#BR-OPT-DAEMON-MTU-MODULO), [BR-OPT-DAEMON-MTU-NEGATIVE](#BR-OPT-DAEMON-MTU-NEGATIVE), [BR-OPT-DAEMON-MTU-NEGATIVE-MSG](#BR-OPT-DAEMON-MTU-NEGATIVE-MSG), [BR-OPT-DAEMON-MTU-REFUSED](#BR-OPT-DAEMON-MTU-REFUSED), [BR-OPT-DAEMON-MTU-REFUSED-LIVE-RESTORE](#BR-OPT-DAEMON-MTU-REFUSED-LIVE-RESTORE), [BR-OPT-DAEMON-MTU-ZERO](#BR-OPT-DAEMON-MTU-ZERO), [BR-OPT-DAEMON-MTU-ZERO-REPLACED](#BR-OPT-DAEMON-MTU-ZERO-REPLACED), [BR-OPT-MTU-APPLIED](#BR-OPT-MTU-APPLIED), [BR-OPT-MTU-INVALID](#BR-OPT-MTU-INVALID), [BR-OPT-MTU-INVALID-CLI](#BR-OPT-MTU-INVALID-CLI), [BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO), [BR-OPT-MTU-OUT-OF-RANGE](#BR-OPT-MTU-OUT-OF-RANGE), [BR-OPT-MTU-REFUSED](#BR-OPT-MTU-REFUSED), [BR-OPT-MTU-REFUSED-CLI](#BR-OPT-MTU-REFUSED-CLI), [BR-OPT-MTU-REFUSED-HTTP500](#BR-OPT-MTU-REFUSED-HTTP500), [BR-OPT-MTU-ZERO](#BR-OPT-MTU-ZERO), [BR-PRIO-BASE-CHAINS](#BR-PRIO-BASE-CHAINS), [BR-PUB-HOST-ADDRESS](#BR-PUB-HOST-ADDRESS), [BR-PUB-HOST-PORT-ASSIGNED](#BR-PUB-HOST-PORT-ASSIGNED), [BR-PUB-LOOPBACK-CLIENT](#BR-PUB-LOOPBACK-CLIENT), [BR-PUB-LOOPBACK-NODE](#BR-PUB-LOOPBACK-NODE), [BR-PUB-NO-SCTP](#BR-PUB-NO-SCTP), [BR-PUB-ROUTE-LOCALNET](#BR-PUB-ROUTE-LOCALNET), [BR-PUB-UNPUBLISHED-PORT](#BR-PUB-UNPUBLISHED-PORT), [BR-PUB-V6-CLIENT-SOURCE](#BR-PUB-V6-CLIENT-SOURCE), [BR-PUB-V6-LINK-LOCAL](#BR-PUB-V6-LINK-LOCAL), [BR-PUB-V6-REACHABLE](#BR-PUB-V6-REACHABLE), [BR-RULES-REFERENCE](#BR-RULES-REFERENCE), [BR-RULES-REFERENCE-NFT](#BR-RULES-REFERENCE-NFT), [BR-USER-CHAIN-JUMP](#BR-USER-CHAIN-JUMP), [BR-USER-CHAIN-JUMP-FIREWALLD](#BR-USER-CHAIN-JUMP-FIREWALLD), [BR-USER-DROP-RULE](#BR-USER-DROP-RULE), [BR-USER-RULES-KEPT](#BR-USER-RULES-KEPT), [SWARM-PUB-FIREWALLD-V6-PROXY](#SWARM-PUB-FIREWALLD-V6-PROXY)
+*Needed by:* [BR-CLEAN-BUILTIN-CHAIN-RULES](#BR-CLEAN-BUILTIN-CHAIN-RULES), [BR-CLEAN-BUILTIN-RULES](#BR-CLEAN-BUILTIN-RULES), [BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED](#BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED), [BR-CLEAN-FORWARD-DROP-WARNING](#BR-CLEAN-FORWARD-DROP-WARNING), [BR-CLEAN-FORWARD-POLICY-KEPT](#BR-CLEAN-FORWARD-POLICY-KEPT), [BR-CLEAN-ISOLATION-CHAIN](#BR-CLEAN-ISOLATION-CHAIN), [BR-CLEAN-NO-FORWARD-JUMP](#BR-CLEAN-NO-FORWARD-JUMP), [BR-CLEAN-OTHER-BACKEND](#BR-CLEAN-OTHER-BACKEND), [BR-CLEAN-OTHER-BACKEND-IPT](#BR-CLEAN-OTHER-BACKEND-IPT), [BR-CLEAN-OTHER-BACKEND-NFT](#BR-CLEAN-OTHER-BACKEND-NFT), [BR-CLEAN-USER-DROP-RULE](#BR-CLEAN-USER-DROP-RULE), [BR-EGRESS-DAEMON-NO-MASQUERADE](#BR-EGRESS-DAEMON-NO-MASQUERADE), [BR-EGRESS-HOST-IPV4](#BR-EGRESS-HOST-IPV4), [BR-EGRESS-HOST-IPV6](#BR-EGRESS-HOST-IPV6), [BR-EGRESS-MASQUERADE](#BR-EGRESS-MASQUERADE), [BR-EGRESS-MASQUERADE-V6](#BR-EGRESS-MASQUERADE-V6), [BR-EGRESS-NO-MASQUERADE](#BR-EGRESS-NO-MASQUERADE), [BR-EGRESS-NO-MASQUERADE-V6](#BR-EGRESS-NO-MASQUERADE-V6), [BR-EGRESS-OPERATOR-NAT-RULE-FIRST](#BR-EGRESS-OPERATOR-NAT-RULE-FIRST), [BR-EGRESS-OPERATOR-RULE-DEFAULT-BRIDGE](#BR-EGRESS-OPERATOR-RULE-DEFAULT-BRIDGE), [BR-EGRESS-REPLY-DIRECT-ROUTING-OFF](#BR-EGRESS-REPLY-DIRECT-ROUTING-OFF), [BR-EGRESS-REPLY-DIRECT-ROUTING-ON](#BR-EGRESS-REPLY-DIRECT-ROUTING-ON), [BR-EGRESS-REPLY-TRUSTED-IFACE](#BR-EGRESS-REPLY-TRUSTED-IFACE), [BR-EGRESS-UNDERLAY-REACH](#BR-EGRESS-UNDERLAY-REACH), [BR-FW-BACKEND-INFO](#BR-FW-BACKEND-INFO), [BR-FW-BACKEND-INVALID](#BR-FW-BACKEND-INVALID), [BR-FW-BACKEND-INVALID-MSG](#BR-FW-BACKEND-INVALID-MSG), [BR-FW-FIREWALLD-LATE-START-EGRESS](#BR-FW-FIREWALLD-LATE-START-EGRESS), [BR-FW-FIREWALLD-LATE-START-PORT](#BR-FW-FIREWALLD-LATE-START-PORT), [BR-FW-FIREWALLD-LATE-START-ZONE](#BR-FW-FIREWALLD-LATE-START-ZONE), [BR-FW-FIREWALLD-RELOAD-EGRESS](#BR-FW-FIREWALLD-RELOAD-EGRESS), [BR-FW-FIREWALLD-RELOAD-PORT](#BR-FW-FIREWALLD-RELOAD-PORT), [BR-FW-FIREWALLD-RELOADED-AT](#BR-FW-FIREWALLD-RELOADED-AT), [BR-FW-FIREWALLD-STOP-EGRESS](#BR-FW-FIREWALLD-STOP-EGRESS), [BR-FW-FIREWALLD-STOP-PORT](#BR-FW-FIREWALLD-STOP-PORT), [BR-FW-FIREWALLD-ZONE](#BR-FW-FIREWALLD-ZONE), [BR-FW-FIREWALLD-ZONE-IPTABLES-DISABLED](#BR-FW-FIREWALLD-ZONE-IPTABLES-DISABLED), [BR-FW-FIREWALLD-ZONE-USER-BOUND](#BR-FW-FIREWALLD-ZONE-USER-BOUND), [BR-FW-FORWARD-DROP-FIREWALLD](#BR-FW-FORWARD-DROP-FIREWALLD), [BR-FW-FORWARD-DROP-FIREWALLD-LATE-START](#BR-FW-FORWARD-DROP-FIREWALLD-LATE-START), [BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6](#BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6), [BR-FW-FORWARD-DROP-FIREWALLD-STOP](#BR-FW-FORWARD-DROP-FIREWALLD-STOP), [BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6](#BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6), [BR-FW-FORWARD-DROP-FIREWALLD-V6](#BR-FW-FORWARD-DROP-FIREWALLD-V6), [BR-FW-FORWARDING-ALREADY-ENABLED](#BR-FW-FORWARDING-ALREADY-ENABLED), [BR-FW-FORWARDING-ALREADY-ENABLED-V6](#BR-FW-FORWARDING-ALREADY-ENABLED-V6), [BR-FW-FORWARDING-ENABLED](#BR-FW-FORWARDING-ENABLED), [BR-FW-FORWARDING-ENABLED-V6](#BR-FW-FORWARDING-ENABLED-V6), [BR-FW-FORWARDING-NO-DROP](#BR-FW-FORWARDING-NO-DROP), [BR-FW-FORWARDING-NO-DROP-V6](#BR-FW-FORWARDING-NO-DROP-V6), [BR-FW-IP6TABLES-MISSING](#BR-FW-IP6TABLES-MISSING), [BR-FW-IP6TABLES-MISSING-MSG](#BR-FW-IP6TABLES-MISSING-MSG), [BR-FW-IP6TABLES-MISSING-NETWORK](#BR-FW-IP6TABLES-MISSING-NETWORK), [BR-FW-IP6TABLES-MISSING-PUBLISHED-PORT](#BR-FW-IP6TABLES-MISSING-PUBLISHED-PORT), [BR-FW-IPTABLES-MISSING](#BR-FW-IPTABLES-MISSING), [BR-FW-IPTABLES-MISSING-MSG](#BR-FW-IPTABLES-MISSING-MSG), [BR-FW-NFT-FIREWALLD-RELOAD](#BR-FW-NFT-FIREWALLD-RELOAD), [BR-FW-NFT-FORWARDING-UNCHECKED](#BR-FW-NFT-FORWARDING-UNCHECKED), [BR-FW-NFT-IPV6-MISSING](#BR-FW-NFT-IPV6-MISSING), [BR-FW-NFT-IPV6-MISSING-NETWORK](#BR-FW-NFT-IPV6-MISSING-NETWORK), [BR-FW-NFT-MISSING](#BR-FW-NFT-MISSING), [BR-FW-NFT-MISSING-MSG](#BR-FW-NFT-MISSING-MSG), [BR-FW-NFT-NO-FORWARDING](#BR-FW-NFT-NO-FORWARDING), [BR-FW-NFT-NO-FORWARDING-NETWORK](#BR-FW-NFT-NO-FORWARDING-NETWORK), [BR-FW-NFT-NO-FORWARDING-V6](#BR-FW-NFT-NO-FORWARDING-V6), [BR-FW-NFT-NO-FORWARDING-V6-HTTP500](#BR-FW-NFT-NO-FORWARDING-V6-HTTP500), [BR-GW-DEFAULT-ROUTE-NETWORK](#BR-GW-DEFAULT-ROUTE-NETWORK), [BR-GWMODE-HTTP500-REFUSED](#BR-GWMODE-HTTP500-REFUSED), [BR-GWMODE-ISOLATED-NOT-INTERNAL](#BR-GWMODE-ISOLATED-NOT-INTERNAL), [BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI](#BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI), [BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500](#BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500), [BR-GWMODE-NAT-UNPROTECTED](#BR-GWMODE-NAT-UNPROTECTED), [BR-GWMODE-ROUTED-EGRESS](#BR-GWMODE-ROUTED-EGRESS), [BR-GWMODE-ROUTED-EGRESS-V6](#BR-GWMODE-ROUTED-EGRESS-V6), [BR-GWMODE-ROUTED-INBOUND](#BR-GWMODE-ROUTED-INBOUND), [BR-GWMODE-ROUTED-INBOUND-V6](#BR-GWMODE-ROUTED-INBOUND-V6), [BR-GWMODE-ROUTED-NODE-ADDRESS](#BR-GWMODE-ROUTED-NODE-ADDRESS), [BR-GWMODE-UNKNOWN](#BR-GWMODE-UNKNOWN), [BR-GWMODE-UNKNOWN-CLI](#BR-GWMODE-UNKNOWN-CLI), [BR-GWMODE-UNKNOWN-MSG](#BR-GWMODE-UNKNOWN-MSG), [BR-ISO-ACCEPT-FWMARK](#BR-ISO-ACCEPT-FWMARK), [BR-ISO-ACCEPT-FWMARK-UNTRUSTED](#BR-ISO-ACCEPT-FWMARK-UNTRUSTED), [BR-ISO-BRIDGE-NF-CALL](#BR-ISO-BRIDGE-NF-CALL), [BR-ISO-BRIDGE-NF-CALL-V6](#BR-ISO-BRIDGE-NF-CALL-V6), [BR-ISO-DAEMON-NO-ICC](#BR-ISO-DAEMON-NO-ICC), [BR-ISO-DIRECT-ROUTING-OFF](#BR-ISO-DIRECT-ROUTING-OFF), [BR-ISO-DIRECT-ROUTING-OFF-FIREWALLD](#BR-ISO-DIRECT-ROUTING-OFF-FIREWALLD), [BR-ISO-DIRECT-ROUTING-OFF-V6](#BR-ISO-DIRECT-ROUTING-OFF-V6), [BR-ISO-DIRECT-ROUTING-ON](#BR-ISO-DIRECT-ROUTING-ON), [BR-ISO-DIRECT-ROUTING-ON-FIREWALLD](#BR-ISO-DIRECT-ROUTING-ON-FIREWALLD), [BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING](#BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING), [BR-ISO-INTERNAL-CTR-ROUTE](#BR-ISO-INTERNAL-CTR-ROUTE), [BR-ISO-INTERNAL-CTR-TO-HOST](#BR-ISO-INTERNAL-CTR-TO-HOST), [BR-ISO-INTERNAL-HOST-TO-CTR](#BR-ISO-INTERNAL-HOST-TO-CTR), [BR-ISO-INTERNAL-NO-FORWARD](#BR-ISO-INTERNAL-NO-FORWARD), [BR-ISO-ISOLATED-CTR-TO-HOST](#BR-ISO-ISOLATED-CTR-TO-HOST), [BR-ISO-ISOLATED-NO-GATEWAY](#BR-ISO-ISOLATED-NO-GATEWAY), [BR-ISO-NO-BR-NETFILTER-DAEMON-ICC](#BR-ISO-NO-BR-NETFILTER-DAEMON-ICC), [BR-ISO-NO-BR-NETFILTER-NO-ICC](#BR-ISO-NO-BR-NETFILTER-NO-ICC), [BR-ISO-NO-BR-NETFILTER-NO-ICC-MSG](#BR-ISO-NO-BR-NETFILTER-NO-ICC-MSG), [BR-ISO-NO-ICC](#BR-ISO-NO-ICC), [BR-ISO-NO-ICC-LEGACY-LINK](#BR-ISO-NO-ICC-LEGACY-LINK), [BR-ISO-NO-VETH](#BR-ISO-NO-VETH), [BR-ISO-NO-VETH-CONNECT](#BR-ISO-NO-VETH-CONNECT), [BR-ISO-NO-VETH-CREATE](#BR-ISO-NO-VETH-CREATE), [BR-ISO-NO-VETH-HTTP500](#BR-ISO-NO-VETH-HTTP500), [BR-ISO-SAME-NETWORK](#BR-ISO-SAME-NETWORK), [BR-ISO-SEPARATE-NETWORKS](#BR-ISO-SEPARATE-NETWORKS), [BR-ISO-SEPARATE-NETWORKS-NAT-UNPROTECTED](#BR-ISO-SEPARATE-NETWORKS-NAT-UNPROTECTED), [BR-ISO-SEPARATE-NETWORKS-ROUTED](#BR-ISO-SEPARATE-NETWORKS-ROUTED), [BR-ISO-SEPARATE-NETWORKS-V6](#BR-ISO-SEPARATE-NETWORKS-V6), [BR-ISO-TRUSTED-IFACE](#BR-ISO-TRUSTED-IFACE), [BR-ISO-TRUSTED-IFACE-LIST](#BR-ISO-TRUSTED-IFACE-LIST), [BR-NOV6-CTR-START](#BR-NOV6-CTR-START), [BR-NOV6-DAEMON-START](#BR-NOV6-DAEMON-START), [BR-NOV6-PUBLISHED-PORT](#BR-NOV6-PUBLISHED-PORT), [BR-NOV6-V6-NETWORK-REFUSED](#BR-NOV6-V6-NETWORK-REFUSED), [BR-NOV6-V6-NETWORK-REFUSED-MSG](#BR-NOV6-V6-NETWORK-REFUSED-MSG), [BR-OPT-BRIDGE-NAME](#BR-OPT-BRIDGE-NAME), [BR-OPT-DAEMON-BIP](#BR-OPT-DAEMON-BIP), [BR-OPT-DAEMON-BIP6](#BR-OPT-DAEMON-BIP6), [BR-OPT-DAEMON-BRIDGE-NONE](#BR-OPT-DAEMON-BRIDGE-NONE), [BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED), [BR-OPT-DAEMON-MTU-APPLIED](#BR-OPT-DAEMON-MTU-APPLIED), [BR-OPT-DAEMON-MTU-DEFAULT](#BR-OPT-DAEMON-MTU-DEFAULT), [BR-OPT-DAEMON-MTU-ERROR](#BR-OPT-DAEMON-MTU-ERROR), [BR-OPT-DAEMON-MTU-INVALID](#BR-OPT-DAEMON-MTU-INVALID), [BR-OPT-DAEMON-MTU-MODULO](#BR-OPT-DAEMON-MTU-MODULO), [BR-OPT-DAEMON-MTU-NEGATIVE](#BR-OPT-DAEMON-MTU-NEGATIVE), [BR-OPT-DAEMON-MTU-NEGATIVE-MSG](#BR-OPT-DAEMON-MTU-NEGATIVE-MSG), [BR-OPT-DAEMON-MTU-REFUSED](#BR-OPT-DAEMON-MTU-REFUSED), [BR-OPT-DAEMON-MTU-ZERO](#BR-OPT-DAEMON-MTU-ZERO), [BR-OPT-DAEMON-MTU-ZERO-FLAG](#BR-OPT-DAEMON-MTU-ZERO-FLAG), [BR-OPT-DAEMON-MTU-ZERO-REPLACED](#BR-OPT-DAEMON-MTU-ZERO-REPLACED), [BR-OPT-HTTP500-REFUSED](#BR-OPT-HTTP500-REFUSED), [BR-OPT-IPV4-DISABLED](#BR-OPT-IPV4-DISABLED), [BR-OPT-MTU-APPLIED](#BR-OPT-MTU-APPLIED), [BR-OPT-MTU-INVALID](#BR-OPT-MTU-INVALID), [BR-OPT-MTU-INVALID-CLI](#BR-OPT-MTU-INVALID-CLI), [BR-OPT-MTU-INVALID-MSG](#BR-OPT-MTU-INVALID-MSG), [BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO), [BR-OPT-MTU-OUT-OF-RANGE](#BR-OPT-MTU-OUT-OF-RANGE), [BR-OPT-MTU-REFUSED](#BR-OPT-MTU-REFUSED), [BR-OPT-MTU-REFUSED-CLI](#BR-OPT-MTU-REFUSED-CLI), [BR-OPT-MTU-REFUSED-HTTP500](#BR-OPT-MTU-REFUSED-HTTP500), [BR-OPT-MTU-ZERO](#BR-OPT-MTU-ZERO), [BR-PRIO-BASE-CHAINS](#BR-PRIO-BASE-CHAINS), [BR-PRIO-WELL-KNOWN](#BR-PRIO-WELL-KNOWN), [BR-PUB-HOST-ADDRESS](#BR-PUB-HOST-ADDRESS), [BR-PUB-HOST-BINDING-ADDRESS](#BR-PUB-HOST-BINDING-ADDRESS), [BR-PUB-HOST-BINDING-ADDRESS-DAEMON](#BR-PUB-HOST-BINDING-ADDRESS-DAEMON), [BR-PUB-HOST-PORT-ASSIGNED](#BR-PUB-HOST-PORT-ASSIGNED), [BR-PUB-HOST-PORT-ASSIGNED-CLI](#BR-PUB-HOST-PORT-ASSIGNED-CLI), [BR-PUB-HOST-PORT-RESERVED-REQUESTED](#BR-PUB-HOST-PORT-RESERVED-REQUESTED), [BR-PUB-LOOPBACK-CLIENT](#BR-PUB-LOOPBACK-CLIENT), [BR-PUB-LOOPBACK-CLIENT-FIREWALLD](#BR-PUB-LOOPBACK-CLIENT-FIREWALLD), [BR-PUB-LOOPBACK-NODE](#BR-PUB-LOOPBACK-NODE), [BR-PUB-NO-SCTP](#BR-PUB-NO-SCTP), [BR-PUB-NO-SCTP-CONNECT](#BR-PUB-NO-SCTP-CONNECT), [BR-PUB-NO-SCTP-CREATE](#BR-PUB-NO-SCTP-CREATE), [BR-PUB-NO-SCTP-JOIN-ORDER](#BR-PUB-NO-SCTP-JOIN-ORDER), [BR-PUB-NO-SCTP-MSG](#BR-PUB-NO-SCTP-MSG), [BR-PUB-ROUTE-LOCALNET](#BR-PUB-ROUTE-LOCALNET), [BR-PUB-SCTP](#BR-PUB-SCTP), [BR-PUB-UNPUBLISHED-PORT](#BR-PUB-UNPUBLISHED-PORT), [BR-PUB-UNPUBLISHED-PORT-NODE](#BR-PUB-UNPUBLISHED-PORT-NODE), [BR-PUB-V4-CLIENT-SOURCE](#BR-PUB-V4-CLIENT-SOURCE), [BR-PUB-V6-CLIENT-SOURCE](#BR-PUB-V6-CLIENT-SOURCE), [BR-PUB-V6-LINK-LOCAL](#BR-PUB-V6-LINK-LOCAL), [BR-PUB-V6-REACHABLE](#BR-PUB-V6-REACHABLE), [BR-RULES-REFERENCE](#BR-RULES-REFERENCE), [BR-RULES-REFERENCE-NFT](#BR-RULES-REFERENCE-NFT), [BR-USER-ACCEPT-NO-DIRECT-ROUTING](#BR-USER-ACCEPT-NO-DIRECT-ROUTING), [BR-USER-CHAIN-JUMP](#BR-USER-CHAIN-JUMP), [BR-USER-CHAIN-JUMP-FIREWALLD](#BR-USER-CHAIN-JUMP-FIREWALLD), [BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START](#BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START), [BR-USER-CHAIN-JUMP-FIREWALLD-STOP](#BR-USER-CHAIN-JUMP-FIREWALLD-STOP), [BR-USER-DROP-RULE](#BR-USER-DROP-RULE), [BR-USER-RULES-KEPT](#BR-USER-RULES-KEPT)
+
+*Needed when:* The iptables backend, with the daemon option `iptables` true
 
 The kernel options that **iptables** needs, whichever implementation provides it. *Kernel
 options:* `NETFILTER`, `NETFILTER_ADVANCED`, `NETFILTER_XTABLES`,
 `NF_CONNTRACK`, `NF_NAT`, `NETFILTER_XT_NAT`,
 `NETFILTER_XT_TARGET_MASQUERADE`, `NETFILTER_XT_MATCH_ADDRTYPE`,
-`NETFILTER_XT_MATCH_CONNTRACK`, `NETFILTER_XT_MATCH_SCTP`. Before Linux 5.2,
-`IP_NF_NAT` and `IP_NF_TARGET_MASQUERADE` in place of
-`NETFILTER_XT_TARGET_MASQUERADE`.
+`NETFILTER_XT_MATCH_CONNTRACK`. Before Linux 5.2, `IP_NF_NAT` and
+`IP_NF_TARGET_MASQUERADE` in place of `NETFILTER_XT_TARGET_MASQUERADE`.
 
-<a id="needextend-network-bridge-networking-4"></a>
+<a id="needextend-network-bridge-networking-5"></a>
 
 <a id="BR-HOST-IPTABLES-LEGACY-KERNEL"></a>
 
@@ -199,14 +793,17 @@ options:* `NETFILTER`, `NETFILTER_ADVANCED`, `NETFILTER_XTABLES`,
 
 *Platforms:* linux · *When:* iptables-backend, iptables, iptables-legacy · *Kind:* os · *Kernel options:* `IP_NF_IPTABLES`, `IP_NF_FILTER`, `IP_NF_NAT`, `IP_NF_RAW`, `IP_NF_IPTABLES_LEGACY`, `NETFILTER_XTABLES_LEGACY`
 
-*Needed by:* [BR-CLEAN-BUILTIN-CHAIN-RULES](#BR-CLEAN-BUILTIN-CHAIN-RULES), [BR-CLEAN-BUILTIN-RULES](#BR-CLEAN-BUILTIN-RULES), [BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED](#BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED), [BR-CLEAN-FORWARD-DROP-WARNING](#BR-CLEAN-FORWARD-DROP-WARNING), [BR-CLEAN-FORWARD-POLICY-KEPT](#BR-CLEAN-FORWARD-POLICY-KEPT), [BR-CLEAN-ISOLATION-CHAIN](#BR-CLEAN-ISOLATION-CHAIN), [BR-CLEAN-NAMES-UNCHANGED](#BR-CLEAN-NAMES-UNCHANGED), [BR-CLEAN-OTHER-BACKEND](#BR-CLEAN-OTHER-BACKEND), [BR-CLEAN-OTHER-BACKEND-IPT](#BR-CLEAN-OTHER-BACKEND-IPT), [BR-CLEAN-OTHER-BACKEND-NFT](#BR-CLEAN-OTHER-BACKEND-NFT), [BR-CLEAN-USER-DROP-RULE](#BR-CLEAN-USER-DROP-RULE), [BR-EGRESS-HOST-IPV4](#BR-EGRESS-HOST-IPV4), [BR-EGRESS-MASQUERADE](#BR-EGRESS-MASQUERADE), [BR-EGRESS-NO-MASQUERADE](#BR-EGRESS-NO-MASQUERADE), [BR-EGRESS-REPLY-DIRECT-ROUTING-OFF](#BR-EGRESS-REPLY-DIRECT-ROUTING-OFF), [BR-EGRESS-REPLY-DIRECT-ROUTING-ON](#BR-EGRESS-REPLY-DIRECT-ROUTING-ON), [BR-EGRESS-REPLY-TRUSTED-IFACE](#BR-EGRESS-REPLY-TRUSTED-IFACE), [BR-FW-BACKEND-INVALID](#BR-FW-BACKEND-INVALID), [BR-FW-BACKEND-INVALID-MSG](#BR-FW-BACKEND-INVALID-MSG), [BR-FW-FIREWALLD-RELOAD-EGRESS](#BR-FW-FIREWALLD-RELOAD-EGRESS), [BR-FW-FIREWALLD-RELOAD-NFT](#BR-FW-FIREWALLD-RELOAD-NFT), [BR-FW-FIREWALLD-RELOAD-PORT](#BR-FW-FIREWALLD-RELOAD-PORT), [BR-FW-FIREWALLD-RELOADED-AT](#BR-FW-FIREWALLD-RELOADED-AT), [BR-FW-FORWARD-DROP-FIREWALLD](#BR-FW-FORWARD-DROP-FIREWALLD), [BR-FW-FORWARD-DROP-FIREWALLD-V6](#BR-FW-FORWARD-DROP-FIREWALLD-V6), [BR-FW-FORWARDING-ENABLED](#BR-FW-FORWARDING-ENABLED), [BR-FW-FORWARDING-ENABLED-V6](#BR-FW-FORWARDING-ENABLED-V6), [BR-FW-HTTP500-REFUSED](#BR-FW-HTTP500-REFUSED), [BR-FW-IP6TABLES-MISSING](#BR-FW-IP6TABLES-MISSING), [BR-FW-IP6TABLES-MISSING-NETWORK](#BR-FW-IP6TABLES-MISSING-NETWORK), [BR-FW-IPTABLES-MISSING](#BR-FW-IPTABLES-MISSING), [BR-FW-NFT-MISSING](#BR-FW-NFT-MISSING), [BR-FW-NFT-NO-FORWARDING](#BR-FW-NFT-NO-FORWARDING), [BR-FW-NFT-NO-FORWARDING-V6](#BR-FW-NFT-NO-FORWARDING-V6), [BR-GW-DEFAULT-ROUTE-NETWORK](#BR-GW-DEFAULT-ROUTE-NETWORK), [BR-GWMODE-ISOLATED-NOT-INTERNAL](#BR-GWMODE-ISOLATED-NOT-INTERNAL), [BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI](#BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI), [BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500](#BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500), [BR-GWMODE-NAT-UNPROTECTED](#BR-GWMODE-NAT-UNPROTECTED), [BR-GWMODE-ROUTED-EGRESS](#BR-GWMODE-ROUTED-EGRESS), [BR-GWMODE-ROUTED-INBOUND](#BR-GWMODE-ROUTED-INBOUND), [BR-GWMODE-ROUTED-NODE-ADDRESS](#BR-GWMODE-ROUTED-NODE-ADDRESS), [BR-GWMODE-UNKNOWN](#BR-GWMODE-UNKNOWN), [BR-GWMODE-UNKNOWN-CLI](#BR-GWMODE-UNKNOWN-CLI), [BR-GWMODE-UNKNOWN-MSG](#BR-GWMODE-UNKNOWN-MSG), [BR-ISO-BRIDGE-NF-CALL](#BR-ISO-BRIDGE-NF-CALL), [BR-ISO-DIRECT-ROUTING-OFF](#BR-ISO-DIRECT-ROUTING-OFF), [BR-ISO-DIRECT-ROUTING-ON](#BR-ISO-DIRECT-ROUTING-ON), [BR-ISO-INTERNAL-CTR-ROUTE](#BR-ISO-INTERNAL-CTR-ROUTE), [BR-ISO-INTERNAL-CTR-TO-HOST](#BR-ISO-INTERNAL-CTR-TO-HOST), [BR-ISO-INTERNAL-HOST-TO-CTR](#BR-ISO-INTERNAL-HOST-TO-CTR), [BR-ISO-INTERNAL-NO-FORWARD](#BR-ISO-INTERNAL-NO-FORWARD), [BR-ISO-ISOLATED-CTR-TO-HOST](#BR-ISO-ISOLATED-CTR-TO-HOST), [BR-ISO-ISOLATED-NO-GATEWAY](#BR-ISO-ISOLATED-NO-GATEWAY), [BR-ISO-NO-ICC](#BR-ISO-NO-ICC), [BR-ISO-NO-ICC-LEGACY-LINK](#BR-ISO-NO-ICC-LEGACY-LINK), [BR-ISO-NO-VETH](#BR-ISO-NO-VETH), [BR-ISO-SEPARATE-NETWORKS](#BR-ISO-SEPARATE-NETWORKS), [BR-ISO-TRUSTED-IFACE](#BR-ISO-TRUSTED-IFACE), [BR-ISO-TRUSTED-IFACE-LIST](#BR-ISO-TRUSTED-IFACE-LIST), [BR-NOV6-CTR-START](#BR-NOV6-CTR-START), [BR-NOV6-DAEMON-START](#BR-NOV6-DAEMON-START), [BR-NOV6-PUBLISHED-PORT](#BR-NOV6-PUBLISHED-PORT), [BR-NOV6-V6-NETWORK-REFUSED](#BR-NOV6-V6-NETWORK-REFUSED), [BR-OPT-DAEMON-MTU-APPLIED](#BR-OPT-DAEMON-MTU-APPLIED), [BR-OPT-DAEMON-MTU-ERROR](#BR-OPT-DAEMON-MTU-ERROR), [BR-OPT-DAEMON-MTU-MODULO](#BR-OPT-DAEMON-MTU-MODULO), [BR-OPT-DAEMON-MTU-NEGATIVE](#BR-OPT-DAEMON-MTU-NEGATIVE), [BR-OPT-DAEMON-MTU-NEGATIVE-MSG](#BR-OPT-DAEMON-MTU-NEGATIVE-MSG), [BR-OPT-DAEMON-MTU-REFUSED](#BR-OPT-DAEMON-MTU-REFUSED), [BR-OPT-DAEMON-MTU-REFUSED-LIVE-RESTORE](#BR-OPT-DAEMON-MTU-REFUSED-LIVE-RESTORE), [BR-OPT-DAEMON-MTU-ZERO](#BR-OPT-DAEMON-MTU-ZERO), [BR-OPT-DAEMON-MTU-ZERO-REPLACED](#BR-OPT-DAEMON-MTU-ZERO-REPLACED), [BR-OPT-MTU-APPLIED](#BR-OPT-MTU-APPLIED), [BR-OPT-MTU-INVALID](#BR-OPT-MTU-INVALID), [BR-OPT-MTU-INVALID-CLI](#BR-OPT-MTU-INVALID-CLI), [BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO), [BR-OPT-MTU-OUT-OF-RANGE](#BR-OPT-MTU-OUT-OF-RANGE), [BR-OPT-MTU-REFUSED](#BR-OPT-MTU-REFUSED), [BR-OPT-MTU-REFUSED-CLI](#BR-OPT-MTU-REFUSED-CLI), [BR-OPT-MTU-REFUSED-HTTP500](#BR-OPT-MTU-REFUSED-HTTP500), [BR-OPT-MTU-ZERO](#BR-OPT-MTU-ZERO), [BR-PRIO-BASE-CHAINS](#BR-PRIO-BASE-CHAINS), [BR-PUB-HOST-ADDRESS](#BR-PUB-HOST-ADDRESS), [BR-PUB-HOST-PORT-ASSIGNED](#BR-PUB-HOST-PORT-ASSIGNED), [BR-PUB-LOOPBACK-CLIENT](#BR-PUB-LOOPBACK-CLIENT), [BR-PUB-LOOPBACK-NODE](#BR-PUB-LOOPBACK-NODE), [BR-PUB-NO-SCTP](#BR-PUB-NO-SCTP), [BR-PUB-ROUTE-LOCALNET](#BR-PUB-ROUTE-LOCALNET), [BR-PUB-UNPUBLISHED-PORT](#BR-PUB-UNPUBLISHED-PORT), [BR-PUB-V6-CLIENT-SOURCE](#BR-PUB-V6-CLIENT-SOURCE), [BR-PUB-V6-LINK-LOCAL](#BR-PUB-V6-LINK-LOCAL), [BR-PUB-V6-REACHABLE](#BR-PUB-V6-REACHABLE), [BR-RULES-REFERENCE](#BR-RULES-REFERENCE), [BR-RULES-REFERENCE-NFT](#BR-RULES-REFERENCE-NFT), [BR-USER-CHAIN-JUMP](#BR-USER-CHAIN-JUMP), [BR-USER-CHAIN-JUMP-FIREWALLD](#BR-USER-CHAIN-JUMP-FIREWALLD), [BR-USER-DROP-RULE](#BR-USER-DROP-RULE), [BR-USER-RULES-KEPT](#BR-USER-RULES-KEPT), [SWARM-PUB-FIREWALLD-V6-PROXY](#SWARM-PUB-FIREWALLD-V6-PROXY)
+*Needed by:* [BR-CLEAN-BUILTIN-CHAIN-RULES](#BR-CLEAN-BUILTIN-CHAIN-RULES), [BR-CLEAN-BUILTIN-RULES](#BR-CLEAN-BUILTIN-RULES), [BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED](#BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED), [BR-CLEAN-FORWARD-DROP-WARNING](#BR-CLEAN-FORWARD-DROP-WARNING), [BR-CLEAN-FORWARD-POLICY-KEPT](#BR-CLEAN-FORWARD-POLICY-KEPT), [BR-CLEAN-ISOLATION-CHAIN](#BR-CLEAN-ISOLATION-CHAIN), [BR-CLEAN-NO-FORWARD-JUMP](#BR-CLEAN-NO-FORWARD-JUMP), [BR-CLEAN-OTHER-BACKEND](#BR-CLEAN-OTHER-BACKEND), [BR-CLEAN-OTHER-BACKEND-IPT](#BR-CLEAN-OTHER-BACKEND-IPT), [BR-CLEAN-OTHER-BACKEND-NFT](#BR-CLEAN-OTHER-BACKEND-NFT), [BR-CLEAN-USER-DROP-RULE](#BR-CLEAN-USER-DROP-RULE), [BR-EGRESS-DAEMON-NO-MASQUERADE](#BR-EGRESS-DAEMON-NO-MASQUERADE), [BR-EGRESS-HOST-IPV4](#BR-EGRESS-HOST-IPV4), [BR-EGRESS-HOST-IPV6](#BR-EGRESS-HOST-IPV6), [BR-EGRESS-MASQUERADE](#BR-EGRESS-MASQUERADE), [BR-EGRESS-MASQUERADE-V6](#BR-EGRESS-MASQUERADE-V6), [BR-EGRESS-NO-MASQUERADE](#BR-EGRESS-NO-MASQUERADE), [BR-EGRESS-NO-MASQUERADE-V6](#BR-EGRESS-NO-MASQUERADE-V6), [BR-EGRESS-OPERATOR-NAT-RULE-FIRST](#BR-EGRESS-OPERATOR-NAT-RULE-FIRST), [BR-EGRESS-OPERATOR-RULE-DEFAULT-BRIDGE](#BR-EGRESS-OPERATOR-RULE-DEFAULT-BRIDGE), [BR-EGRESS-REPLY-DIRECT-ROUTING-OFF](#BR-EGRESS-REPLY-DIRECT-ROUTING-OFF), [BR-EGRESS-REPLY-DIRECT-ROUTING-ON](#BR-EGRESS-REPLY-DIRECT-ROUTING-ON), [BR-EGRESS-REPLY-TRUSTED-IFACE](#BR-EGRESS-REPLY-TRUSTED-IFACE), [BR-EGRESS-UNDERLAY-REACH](#BR-EGRESS-UNDERLAY-REACH), [BR-FW-BACKEND-INFO](#BR-FW-BACKEND-INFO), [BR-FW-BACKEND-INVALID](#BR-FW-BACKEND-INVALID), [BR-FW-BACKEND-INVALID-MSG](#BR-FW-BACKEND-INVALID-MSG), [BR-FW-FIREWALLD-LATE-START-EGRESS](#BR-FW-FIREWALLD-LATE-START-EGRESS), [BR-FW-FIREWALLD-LATE-START-PORT](#BR-FW-FIREWALLD-LATE-START-PORT), [BR-FW-FIREWALLD-LATE-START-ZONE](#BR-FW-FIREWALLD-LATE-START-ZONE), [BR-FW-FIREWALLD-RELOAD-EGRESS](#BR-FW-FIREWALLD-RELOAD-EGRESS), [BR-FW-FIREWALLD-RELOAD-PORT](#BR-FW-FIREWALLD-RELOAD-PORT), [BR-FW-FIREWALLD-RELOADED-AT](#BR-FW-FIREWALLD-RELOADED-AT), [BR-FW-FIREWALLD-STOP-EGRESS](#BR-FW-FIREWALLD-STOP-EGRESS), [BR-FW-FIREWALLD-STOP-PORT](#BR-FW-FIREWALLD-STOP-PORT), [BR-FW-FIREWALLD-ZONE](#BR-FW-FIREWALLD-ZONE), [BR-FW-FIREWALLD-ZONE-IPTABLES-DISABLED](#BR-FW-FIREWALLD-ZONE-IPTABLES-DISABLED), [BR-FW-FIREWALLD-ZONE-USER-BOUND](#BR-FW-FIREWALLD-ZONE-USER-BOUND), [BR-FW-FORWARD-DROP-FIREWALLD](#BR-FW-FORWARD-DROP-FIREWALLD), [BR-FW-FORWARD-DROP-FIREWALLD-LATE-START](#BR-FW-FORWARD-DROP-FIREWALLD-LATE-START), [BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6](#BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6), [BR-FW-FORWARD-DROP-FIREWALLD-STOP](#BR-FW-FORWARD-DROP-FIREWALLD-STOP), [BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6](#BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6), [BR-FW-FORWARD-DROP-FIREWALLD-V6](#BR-FW-FORWARD-DROP-FIREWALLD-V6), [BR-FW-FORWARDING-ALREADY-ENABLED](#BR-FW-FORWARDING-ALREADY-ENABLED), [BR-FW-FORWARDING-ALREADY-ENABLED-V6](#BR-FW-FORWARDING-ALREADY-ENABLED-V6), [BR-FW-FORWARDING-ENABLED](#BR-FW-FORWARDING-ENABLED), [BR-FW-FORWARDING-ENABLED-V6](#BR-FW-FORWARDING-ENABLED-V6), [BR-FW-FORWARDING-NO-DROP](#BR-FW-FORWARDING-NO-DROP), [BR-FW-FORWARDING-NO-DROP-V6](#BR-FW-FORWARDING-NO-DROP-V6), [BR-FW-IP6TABLES-MISSING](#BR-FW-IP6TABLES-MISSING), [BR-FW-IP6TABLES-MISSING-MSG](#BR-FW-IP6TABLES-MISSING-MSG), [BR-FW-IP6TABLES-MISSING-NETWORK](#BR-FW-IP6TABLES-MISSING-NETWORK), [BR-FW-IP6TABLES-MISSING-PUBLISHED-PORT](#BR-FW-IP6TABLES-MISSING-PUBLISHED-PORT), [BR-FW-IPTABLES-MISSING](#BR-FW-IPTABLES-MISSING), [BR-FW-IPTABLES-MISSING-MSG](#BR-FW-IPTABLES-MISSING-MSG), [BR-FW-NFT-FIREWALLD-RELOAD](#BR-FW-NFT-FIREWALLD-RELOAD), [BR-FW-NFT-FORWARDING-UNCHECKED](#BR-FW-NFT-FORWARDING-UNCHECKED), [BR-FW-NFT-IPV6-MISSING](#BR-FW-NFT-IPV6-MISSING), [BR-FW-NFT-IPV6-MISSING-NETWORK](#BR-FW-NFT-IPV6-MISSING-NETWORK), [BR-FW-NFT-MISSING](#BR-FW-NFT-MISSING), [BR-FW-NFT-MISSING-MSG](#BR-FW-NFT-MISSING-MSG), [BR-FW-NFT-NO-FORWARDING](#BR-FW-NFT-NO-FORWARDING), [BR-FW-NFT-NO-FORWARDING-NETWORK](#BR-FW-NFT-NO-FORWARDING-NETWORK), [BR-FW-NFT-NO-FORWARDING-V6](#BR-FW-NFT-NO-FORWARDING-V6), [BR-FW-NFT-NO-FORWARDING-V6-HTTP500](#BR-FW-NFT-NO-FORWARDING-V6-HTTP500), [BR-GW-DEFAULT-ROUTE-NETWORK](#BR-GW-DEFAULT-ROUTE-NETWORK), [BR-GWMODE-HTTP500-REFUSED](#BR-GWMODE-HTTP500-REFUSED), [BR-GWMODE-ISOLATED-NOT-INTERNAL](#BR-GWMODE-ISOLATED-NOT-INTERNAL), [BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI](#BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI), [BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500](#BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500), [BR-GWMODE-NAT-UNPROTECTED](#BR-GWMODE-NAT-UNPROTECTED), [BR-GWMODE-ROUTED-EGRESS](#BR-GWMODE-ROUTED-EGRESS), [BR-GWMODE-ROUTED-EGRESS-V6](#BR-GWMODE-ROUTED-EGRESS-V6), [BR-GWMODE-ROUTED-INBOUND](#BR-GWMODE-ROUTED-INBOUND), [BR-GWMODE-ROUTED-INBOUND-V6](#BR-GWMODE-ROUTED-INBOUND-V6), [BR-GWMODE-ROUTED-NODE-ADDRESS](#BR-GWMODE-ROUTED-NODE-ADDRESS), [BR-GWMODE-UNKNOWN](#BR-GWMODE-UNKNOWN), [BR-GWMODE-UNKNOWN-CLI](#BR-GWMODE-UNKNOWN-CLI), [BR-GWMODE-UNKNOWN-MSG](#BR-GWMODE-UNKNOWN-MSG), [BR-ISO-ACCEPT-FWMARK](#BR-ISO-ACCEPT-FWMARK), [BR-ISO-ACCEPT-FWMARK-UNTRUSTED](#BR-ISO-ACCEPT-FWMARK-UNTRUSTED), [BR-ISO-BRIDGE-NF-CALL](#BR-ISO-BRIDGE-NF-CALL), [BR-ISO-BRIDGE-NF-CALL-V6](#BR-ISO-BRIDGE-NF-CALL-V6), [BR-ISO-DAEMON-NO-ICC](#BR-ISO-DAEMON-NO-ICC), [BR-ISO-DIRECT-ROUTING-OFF](#BR-ISO-DIRECT-ROUTING-OFF), [BR-ISO-DIRECT-ROUTING-OFF-FIREWALLD](#BR-ISO-DIRECT-ROUTING-OFF-FIREWALLD), [BR-ISO-DIRECT-ROUTING-OFF-V6](#BR-ISO-DIRECT-ROUTING-OFF-V6), [BR-ISO-DIRECT-ROUTING-ON](#BR-ISO-DIRECT-ROUTING-ON), [BR-ISO-DIRECT-ROUTING-ON-FIREWALLD](#BR-ISO-DIRECT-ROUTING-ON-FIREWALLD), [BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING](#BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING), [BR-ISO-INTERNAL-CTR-ROUTE](#BR-ISO-INTERNAL-CTR-ROUTE), [BR-ISO-INTERNAL-CTR-TO-HOST](#BR-ISO-INTERNAL-CTR-TO-HOST), [BR-ISO-INTERNAL-HOST-TO-CTR](#BR-ISO-INTERNAL-HOST-TO-CTR), [BR-ISO-INTERNAL-NO-FORWARD](#BR-ISO-INTERNAL-NO-FORWARD), [BR-ISO-ISOLATED-CTR-TO-HOST](#BR-ISO-ISOLATED-CTR-TO-HOST), [BR-ISO-ISOLATED-NO-GATEWAY](#BR-ISO-ISOLATED-NO-GATEWAY), [BR-ISO-NO-BR-NETFILTER-DAEMON-ICC](#BR-ISO-NO-BR-NETFILTER-DAEMON-ICC), [BR-ISO-NO-BR-NETFILTER-NO-ICC](#BR-ISO-NO-BR-NETFILTER-NO-ICC), [BR-ISO-NO-BR-NETFILTER-NO-ICC-MSG](#BR-ISO-NO-BR-NETFILTER-NO-ICC-MSG), [BR-ISO-NO-ICC](#BR-ISO-NO-ICC), [BR-ISO-NO-ICC-LEGACY-LINK](#BR-ISO-NO-ICC-LEGACY-LINK), [BR-ISO-NO-VETH](#BR-ISO-NO-VETH), [BR-ISO-NO-VETH-CONNECT](#BR-ISO-NO-VETH-CONNECT), [BR-ISO-NO-VETH-CREATE](#BR-ISO-NO-VETH-CREATE), [BR-ISO-NO-VETH-HTTP500](#BR-ISO-NO-VETH-HTTP500), [BR-ISO-SAME-NETWORK](#BR-ISO-SAME-NETWORK), [BR-ISO-SEPARATE-NETWORKS](#BR-ISO-SEPARATE-NETWORKS), [BR-ISO-SEPARATE-NETWORKS-NAT-UNPROTECTED](#BR-ISO-SEPARATE-NETWORKS-NAT-UNPROTECTED), [BR-ISO-SEPARATE-NETWORKS-ROUTED](#BR-ISO-SEPARATE-NETWORKS-ROUTED), [BR-ISO-SEPARATE-NETWORKS-V6](#BR-ISO-SEPARATE-NETWORKS-V6), [BR-ISO-TRUSTED-IFACE](#BR-ISO-TRUSTED-IFACE), [BR-ISO-TRUSTED-IFACE-LIST](#BR-ISO-TRUSTED-IFACE-LIST), [BR-NOV6-CTR-START](#BR-NOV6-CTR-START), [BR-NOV6-DAEMON-START](#BR-NOV6-DAEMON-START), [BR-NOV6-PUBLISHED-PORT](#BR-NOV6-PUBLISHED-PORT), [BR-NOV6-V6-NETWORK-REFUSED](#BR-NOV6-V6-NETWORK-REFUSED), [BR-NOV6-V6-NETWORK-REFUSED-MSG](#BR-NOV6-V6-NETWORK-REFUSED-MSG), [BR-OPT-BRIDGE-NAME](#BR-OPT-BRIDGE-NAME), [BR-OPT-DAEMON-BIP](#BR-OPT-DAEMON-BIP), [BR-OPT-DAEMON-BIP6](#BR-OPT-DAEMON-BIP6), [BR-OPT-DAEMON-BRIDGE-NONE](#BR-OPT-DAEMON-BRIDGE-NONE), [BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED), [BR-OPT-DAEMON-MTU-APPLIED](#BR-OPT-DAEMON-MTU-APPLIED), [BR-OPT-DAEMON-MTU-DEFAULT](#BR-OPT-DAEMON-MTU-DEFAULT), [BR-OPT-DAEMON-MTU-ERROR](#BR-OPT-DAEMON-MTU-ERROR), [BR-OPT-DAEMON-MTU-INVALID](#BR-OPT-DAEMON-MTU-INVALID), [BR-OPT-DAEMON-MTU-MODULO](#BR-OPT-DAEMON-MTU-MODULO), [BR-OPT-DAEMON-MTU-NEGATIVE](#BR-OPT-DAEMON-MTU-NEGATIVE), [BR-OPT-DAEMON-MTU-NEGATIVE-MSG](#BR-OPT-DAEMON-MTU-NEGATIVE-MSG), [BR-OPT-DAEMON-MTU-REFUSED](#BR-OPT-DAEMON-MTU-REFUSED), [BR-OPT-DAEMON-MTU-ZERO](#BR-OPT-DAEMON-MTU-ZERO), [BR-OPT-DAEMON-MTU-ZERO-FLAG](#BR-OPT-DAEMON-MTU-ZERO-FLAG), [BR-OPT-DAEMON-MTU-ZERO-REPLACED](#BR-OPT-DAEMON-MTU-ZERO-REPLACED), [BR-OPT-HTTP500-REFUSED](#BR-OPT-HTTP500-REFUSED), [BR-OPT-IPV4-DISABLED](#BR-OPT-IPV4-DISABLED), [BR-OPT-MTU-APPLIED](#BR-OPT-MTU-APPLIED), [BR-OPT-MTU-INVALID](#BR-OPT-MTU-INVALID), [BR-OPT-MTU-INVALID-CLI](#BR-OPT-MTU-INVALID-CLI), [BR-OPT-MTU-INVALID-MSG](#BR-OPT-MTU-INVALID-MSG), [BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO), [BR-OPT-MTU-OUT-OF-RANGE](#BR-OPT-MTU-OUT-OF-RANGE), [BR-OPT-MTU-REFUSED](#BR-OPT-MTU-REFUSED), [BR-OPT-MTU-REFUSED-CLI](#BR-OPT-MTU-REFUSED-CLI), [BR-OPT-MTU-REFUSED-HTTP500](#BR-OPT-MTU-REFUSED-HTTP500), [BR-OPT-MTU-ZERO](#BR-OPT-MTU-ZERO), [BR-PRIO-BASE-CHAINS](#BR-PRIO-BASE-CHAINS), [BR-PRIO-WELL-KNOWN](#BR-PRIO-WELL-KNOWN), [BR-PUB-HOST-ADDRESS](#BR-PUB-HOST-ADDRESS), [BR-PUB-HOST-BINDING-ADDRESS](#BR-PUB-HOST-BINDING-ADDRESS), [BR-PUB-HOST-BINDING-ADDRESS-DAEMON](#BR-PUB-HOST-BINDING-ADDRESS-DAEMON), [BR-PUB-HOST-PORT-ASSIGNED](#BR-PUB-HOST-PORT-ASSIGNED), [BR-PUB-HOST-PORT-ASSIGNED-CLI](#BR-PUB-HOST-PORT-ASSIGNED-CLI), [BR-PUB-HOST-PORT-RESERVED-REQUESTED](#BR-PUB-HOST-PORT-RESERVED-REQUESTED), [BR-PUB-LOOPBACK-CLIENT](#BR-PUB-LOOPBACK-CLIENT), [BR-PUB-LOOPBACK-CLIENT-FIREWALLD](#BR-PUB-LOOPBACK-CLIENT-FIREWALLD), [BR-PUB-LOOPBACK-NODE](#BR-PUB-LOOPBACK-NODE), [BR-PUB-NO-SCTP](#BR-PUB-NO-SCTP), [BR-PUB-NO-SCTP-CONNECT](#BR-PUB-NO-SCTP-CONNECT), [BR-PUB-NO-SCTP-CREATE](#BR-PUB-NO-SCTP-CREATE), [BR-PUB-NO-SCTP-JOIN-ORDER](#BR-PUB-NO-SCTP-JOIN-ORDER), [BR-PUB-NO-SCTP-MSG](#BR-PUB-NO-SCTP-MSG), [BR-PUB-ROUTE-LOCALNET](#BR-PUB-ROUTE-LOCALNET), [BR-PUB-SCTP](#BR-PUB-SCTP), [BR-PUB-UNPUBLISHED-PORT](#BR-PUB-UNPUBLISHED-PORT), [BR-PUB-UNPUBLISHED-PORT-NODE](#BR-PUB-UNPUBLISHED-PORT-NODE), [BR-PUB-V4-CLIENT-SOURCE](#BR-PUB-V4-CLIENT-SOURCE), [BR-PUB-V6-CLIENT-SOURCE](#BR-PUB-V6-CLIENT-SOURCE), [BR-PUB-V6-LINK-LOCAL](#BR-PUB-V6-LINK-LOCAL), [BR-PUB-V6-REACHABLE](#BR-PUB-V6-REACHABLE), [BR-RULES-REFERENCE](#BR-RULES-REFERENCE), [BR-RULES-REFERENCE-NFT](#BR-RULES-REFERENCE-NFT), [BR-USER-ACCEPT-NO-DIRECT-ROUTING](#BR-USER-ACCEPT-NO-DIRECT-ROUTING), [BR-USER-CHAIN-JUMP](#BR-USER-CHAIN-JUMP), [BR-USER-CHAIN-JUMP-FIREWALLD](#BR-USER-CHAIN-JUMP-FIREWALLD), [BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START](#BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START), [BR-USER-CHAIN-JUMP-FIREWALLD-STOP](#BR-USER-CHAIN-JUMP-FIREWALLD-STOP), [BR-USER-DROP-RULE](#BR-USER-DROP-RULE), [BR-USER-RULES-KEPT](#BR-USER-RULES-KEPT)
+
+*Needed when:* The iptables backend with iptables-legacy providing **iptables**, with the
+daemon option `iptables` true
 
 The kernel options that **iptables** needs when iptables-legacy provides it. *Kernel
 options:* `IP_NF_IPTABLES`, `IP_NF_FILTER`, `IP_NF_NAT`,
 `IP_NF_RAW`. `IP_NF_IPTABLES_LEGACY` from Linux 6.9, and
 `NETFILTER_XTABLES_LEGACY` from Linux 6.17.
 
-<a id="needextend-network-bridge-networking-5"></a>
+<a id="needextend-network-bridge-networking-6"></a>
 
 <a id="BR-HOST-IPTABLES-NFT-KERNEL"></a>
 
@@ -214,31 +811,46 @@ options:* `IP_NF_IPTABLES`, `IP_NF_FILTER`, `IP_NF_NAT`,
 
 *Platforms:* linux · *When:* iptables-backend, iptables, iptables-nft · *Kind:* os · *Kernel options:* `NF_TABLES`, `NF_TABLES_IPV4`, `NFT_COMPAT`, `NFT_NAT`, `NFT_CHAIN_NAT_IPV4`
 
-*Needed by:* [BR-CLEAN-BUILTIN-CHAIN-RULES](#BR-CLEAN-BUILTIN-CHAIN-RULES), [BR-CLEAN-BUILTIN-RULES](#BR-CLEAN-BUILTIN-RULES), [BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED](#BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED), [BR-CLEAN-FORWARD-DROP-WARNING](#BR-CLEAN-FORWARD-DROP-WARNING), [BR-CLEAN-FORWARD-POLICY-KEPT](#BR-CLEAN-FORWARD-POLICY-KEPT), [BR-CLEAN-ISOLATION-CHAIN](#BR-CLEAN-ISOLATION-CHAIN), [BR-CLEAN-NAMES-UNCHANGED](#BR-CLEAN-NAMES-UNCHANGED), [BR-CLEAN-OTHER-BACKEND](#BR-CLEAN-OTHER-BACKEND), [BR-CLEAN-OTHER-BACKEND-IPT](#BR-CLEAN-OTHER-BACKEND-IPT), [BR-CLEAN-OTHER-BACKEND-NFT](#BR-CLEAN-OTHER-BACKEND-NFT), [BR-CLEAN-USER-DROP-RULE](#BR-CLEAN-USER-DROP-RULE), [BR-EGRESS-HOST-IPV4](#BR-EGRESS-HOST-IPV4), [BR-EGRESS-MASQUERADE](#BR-EGRESS-MASQUERADE), [BR-EGRESS-NO-MASQUERADE](#BR-EGRESS-NO-MASQUERADE), [BR-EGRESS-REPLY-DIRECT-ROUTING-OFF](#BR-EGRESS-REPLY-DIRECT-ROUTING-OFF), [BR-EGRESS-REPLY-DIRECT-ROUTING-ON](#BR-EGRESS-REPLY-DIRECT-ROUTING-ON), [BR-EGRESS-REPLY-TRUSTED-IFACE](#BR-EGRESS-REPLY-TRUSTED-IFACE), [BR-FW-BACKEND-INVALID](#BR-FW-BACKEND-INVALID), [BR-FW-BACKEND-INVALID-MSG](#BR-FW-BACKEND-INVALID-MSG), [BR-FW-FIREWALLD-RELOAD-EGRESS](#BR-FW-FIREWALLD-RELOAD-EGRESS), [BR-FW-FIREWALLD-RELOAD-NFT](#BR-FW-FIREWALLD-RELOAD-NFT), [BR-FW-FIREWALLD-RELOAD-PORT](#BR-FW-FIREWALLD-RELOAD-PORT), [BR-FW-FIREWALLD-RELOADED-AT](#BR-FW-FIREWALLD-RELOADED-AT), [BR-FW-FORWARD-DROP-FIREWALLD](#BR-FW-FORWARD-DROP-FIREWALLD), [BR-FW-FORWARD-DROP-FIREWALLD-V6](#BR-FW-FORWARD-DROP-FIREWALLD-V6), [BR-FW-FORWARDING-ENABLED](#BR-FW-FORWARDING-ENABLED), [BR-FW-FORWARDING-ENABLED-V6](#BR-FW-FORWARDING-ENABLED-V6), [BR-FW-HTTP500-REFUSED](#BR-FW-HTTP500-REFUSED), [BR-FW-IP6TABLES-MISSING](#BR-FW-IP6TABLES-MISSING), [BR-FW-IP6TABLES-MISSING-NETWORK](#BR-FW-IP6TABLES-MISSING-NETWORK), [BR-FW-IPTABLES-MISSING](#BR-FW-IPTABLES-MISSING), [BR-FW-NFT-MISSING](#BR-FW-NFT-MISSING), [BR-FW-NFT-NO-FORWARDING](#BR-FW-NFT-NO-FORWARDING), [BR-FW-NFT-NO-FORWARDING-V6](#BR-FW-NFT-NO-FORWARDING-V6), [BR-GW-DEFAULT-ROUTE-NETWORK](#BR-GW-DEFAULT-ROUTE-NETWORK), [BR-GWMODE-ISOLATED-NOT-INTERNAL](#BR-GWMODE-ISOLATED-NOT-INTERNAL), [BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI](#BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI), [BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500](#BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500), [BR-GWMODE-NAT-UNPROTECTED](#BR-GWMODE-NAT-UNPROTECTED), [BR-GWMODE-ROUTED-EGRESS](#BR-GWMODE-ROUTED-EGRESS), [BR-GWMODE-ROUTED-INBOUND](#BR-GWMODE-ROUTED-INBOUND), [BR-GWMODE-ROUTED-NODE-ADDRESS](#BR-GWMODE-ROUTED-NODE-ADDRESS), [BR-GWMODE-UNKNOWN](#BR-GWMODE-UNKNOWN), [BR-GWMODE-UNKNOWN-CLI](#BR-GWMODE-UNKNOWN-CLI), [BR-GWMODE-UNKNOWN-MSG](#BR-GWMODE-UNKNOWN-MSG), [BR-ISO-BRIDGE-NF-CALL](#BR-ISO-BRIDGE-NF-CALL), [BR-ISO-DIRECT-ROUTING-OFF](#BR-ISO-DIRECT-ROUTING-OFF), [BR-ISO-DIRECT-ROUTING-ON](#BR-ISO-DIRECT-ROUTING-ON), [BR-ISO-INTERNAL-CTR-ROUTE](#BR-ISO-INTERNAL-CTR-ROUTE), [BR-ISO-INTERNAL-CTR-TO-HOST](#BR-ISO-INTERNAL-CTR-TO-HOST), [BR-ISO-INTERNAL-HOST-TO-CTR](#BR-ISO-INTERNAL-HOST-TO-CTR), [BR-ISO-INTERNAL-NO-FORWARD](#BR-ISO-INTERNAL-NO-FORWARD), [BR-ISO-ISOLATED-CTR-TO-HOST](#BR-ISO-ISOLATED-CTR-TO-HOST), [BR-ISO-ISOLATED-NO-GATEWAY](#BR-ISO-ISOLATED-NO-GATEWAY), [BR-ISO-NO-ICC](#BR-ISO-NO-ICC), [BR-ISO-NO-ICC-LEGACY-LINK](#BR-ISO-NO-ICC-LEGACY-LINK), [BR-ISO-NO-VETH](#BR-ISO-NO-VETH), [BR-ISO-SEPARATE-NETWORKS](#BR-ISO-SEPARATE-NETWORKS), [BR-ISO-TRUSTED-IFACE](#BR-ISO-TRUSTED-IFACE), [BR-ISO-TRUSTED-IFACE-LIST](#BR-ISO-TRUSTED-IFACE-LIST), [BR-NOV6-CTR-START](#BR-NOV6-CTR-START), [BR-NOV6-DAEMON-START](#BR-NOV6-DAEMON-START), [BR-NOV6-PUBLISHED-PORT](#BR-NOV6-PUBLISHED-PORT), [BR-NOV6-V6-NETWORK-REFUSED](#BR-NOV6-V6-NETWORK-REFUSED), [BR-OPT-DAEMON-MTU-APPLIED](#BR-OPT-DAEMON-MTU-APPLIED), [BR-OPT-DAEMON-MTU-ERROR](#BR-OPT-DAEMON-MTU-ERROR), [BR-OPT-DAEMON-MTU-MODULO](#BR-OPT-DAEMON-MTU-MODULO), [BR-OPT-DAEMON-MTU-NEGATIVE](#BR-OPT-DAEMON-MTU-NEGATIVE), [BR-OPT-DAEMON-MTU-NEGATIVE-MSG](#BR-OPT-DAEMON-MTU-NEGATIVE-MSG), [BR-OPT-DAEMON-MTU-REFUSED](#BR-OPT-DAEMON-MTU-REFUSED), [BR-OPT-DAEMON-MTU-REFUSED-LIVE-RESTORE](#BR-OPT-DAEMON-MTU-REFUSED-LIVE-RESTORE), [BR-OPT-DAEMON-MTU-ZERO](#BR-OPT-DAEMON-MTU-ZERO), [BR-OPT-DAEMON-MTU-ZERO-REPLACED](#BR-OPT-DAEMON-MTU-ZERO-REPLACED), [BR-OPT-MTU-APPLIED](#BR-OPT-MTU-APPLIED), [BR-OPT-MTU-INVALID](#BR-OPT-MTU-INVALID), [BR-OPT-MTU-INVALID-CLI](#BR-OPT-MTU-INVALID-CLI), [BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO), [BR-OPT-MTU-OUT-OF-RANGE](#BR-OPT-MTU-OUT-OF-RANGE), [BR-OPT-MTU-REFUSED](#BR-OPT-MTU-REFUSED), [BR-OPT-MTU-REFUSED-CLI](#BR-OPT-MTU-REFUSED-CLI), [BR-OPT-MTU-REFUSED-HTTP500](#BR-OPT-MTU-REFUSED-HTTP500), [BR-OPT-MTU-ZERO](#BR-OPT-MTU-ZERO), [BR-PRIO-BASE-CHAINS](#BR-PRIO-BASE-CHAINS), [BR-PUB-HOST-ADDRESS](#BR-PUB-HOST-ADDRESS), [BR-PUB-HOST-PORT-ASSIGNED](#BR-PUB-HOST-PORT-ASSIGNED), [BR-PUB-LOOPBACK-CLIENT](#BR-PUB-LOOPBACK-CLIENT), [BR-PUB-LOOPBACK-NODE](#BR-PUB-LOOPBACK-NODE), [BR-PUB-NO-SCTP](#BR-PUB-NO-SCTP), [BR-PUB-ROUTE-LOCALNET](#BR-PUB-ROUTE-LOCALNET), [BR-PUB-UNPUBLISHED-PORT](#BR-PUB-UNPUBLISHED-PORT), [BR-PUB-V6-CLIENT-SOURCE](#BR-PUB-V6-CLIENT-SOURCE), [BR-PUB-V6-LINK-LOCAL](#BR-PUB-V6-LINK-LOCAL), [BR-PUB-V6-REACHABLE](#BR-PUB-V6-REACHABLE), [BR-RULES-REFERENCE](#BR-RULES-REFERENCE), [BR-RULES-REFERENCE-NFT](#BR-RULES-REFERENCE-NFT), [BR-USER-CHAIN-JUMP](#BR-USER-CHAIN-JUMP), [BR-USER-CHAIN-JUMP-FIREWALLD](#BR-USER-CHAIN-JUMP-FIREWALLD), [BR-USER-DROP-RULE](#BR-USER-DROP-RULE), [BR-USER-RULES-KEPT](#BR-USER-RULES-KEPT), [SWARM-PUB-FIREWALLD-V6-PROXY](#SWARM-PUB-FIREWALLD-V6-PROXY)
+*Needed by:* [BR-CLEAN-BUILTIN-CHAIN-RULES](#BR-CLEAN-BUILTIN-CHAIN-RULES), [BR-CLEAN-BUILTIN-RULES](#BR-CLEAN-BUILTIN-RULES), [BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED](#BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED), [BR-CLEAN-FORWARD-DROP-WARNING](#BR-CLEAN-FORWARD-DROP-WARNING), [BR-CLEAN-FORWARD-POLICY-KEPT](#BR-CLEAN-FORWARD-POLICY-KEPT), [BR-CLEAN-ISOLATION-CHAIN](#BR-CLEAN-ISOLATION-CHAIN), [BR-CLEAN-NO-FORWARD-JUMP](#BR-CLEAN-NO-FORWARD-JUMP), [BR-CLEAN-OTHER-BACKEND](#BR-CLEAN-OTHER-BACKEND), [BR-CLEAN-OTHER-BACKEND-IPT](#BR-CLEAN-OTHER-BACKEND-IPT), [BR-CLEAN-OTHER-BACKEND-NFT](#BR-CLEAN-OTHER-BACKEND-NFT), [BR-CLEAN-USER-DROP-RULE](#BR-CLEAN-USER-DROP-RULE), [BR-EGRESS-DAEMON-NO-MASQUERADE](#BR-EGRESS-DAEMON-NO-MASQUERADE), [BR-EGRESS-HOST-IPV4](#BR-EGRESS-HOST-IPV4), [BR-EGRESS-HOST-IPV6](#BR-EGRESS-HOST-IPV6), [BR-EGRESS-MASQUERADE](#BR-EGRESS-MASQUERADE), [BR-EGRESS-MASQUERADE-V6](#BR-EGRESS-MASQUERADE-V6), [BR-EGRESS-NO-MASQUERADE](#BR-EGRESS-NO-MASQUERADE), [BR-EGRESS-NO-MASQUERADE-V6](#BR-EGRESS-NO-MASQUERADE-V6), [BR-EGRESS-OPERATOR-NAT-RULE-FIRST](#BR-EGRESS-OPERATOR-NAT-RULE-FIRST), [BR-EGRESS-OPERATOR-RULE-DEFAULT-BRIDGE](#BR-EGRESS-OPERATOR-RULE-DEFAULT-BRIDGE), [BR-EGRESS-REPLY-DIRECT-ROUTING-OFF](#BR-EGRESS-REPLY-DIRECT-ROUTING-OFF), [BR-EGRESS-REPLY-DIRECT-ROUTING-ON](#BR-EGRESS-REPLY-DIRECT-ROUTING-ON), [BR-EGRESS-REPLY-TRUSTED-IFACE](#BR-EGRESS-REPLY-TRUSTED-IFACE), [BR-EGRESS-UNDERLAY-REACH](#BR-EGRESS-UNDERLAY-REACH), [BR-FW-BACKEND-INFO](#BR-FW-BACKEND-INFO), [BR-FW-BACKEND-INVALID](#BR-FW-BACKEND-INVALID), [BR-FW-BACKEND-INVALID-MSG](#BR-FW-BACKEND-INVALID-MSG), [BR-FW-FIREWALLD-LATE-START-EGRESS](#BR-FW-FIREWALLD-LATE-START-EGRESS), [BR-FW-FIREWALLD-LATE-START-PORT](#BR-FW-FIREWALLD-LATE-START-PORT), [BR-FW-FIREWALLD-LATE-START-ZONE](#BR-FW-FIREWALLD-LATE-START-ZONE), [BR-FW-FIREWALLD-RELOAD-EGRESS](#BR-FW-FIREWALLD-RELOAD-EGRESS), [BR-FW-FIREWALLD-RELOAD-PORT](#BR-FW-FIREWALLD-RELOAD-PORT), [BR-FW-FIREWALLD-RELOADED-AT](#BR-FW-FIREWALLD-RELOADED-AT), [BR-FW-FIREWALLD-STOP-EGRESS](#BR-FW-FIREWALLD-STOP-EGRESS), [BR-FW-FIREWALLD-STOP-PORT](#BR-FW-FIREWALLD-STOP-PORT), [BR-FW-FIREWALLD-ZONE](#BR-FW-FIREWALLD-ZONE), [BR-FW-FIREWALLD-ZONE-IPTABLES-DISABLED](#BR-FW-FIREWALLD-ZONE-IPTABLES-DISABLED), [BR-FW-FIREWALLD-ZONE-USER-BOUND](#BR-FW-FIREWALLD-ZONE-USER-BOUND), [BR-FW-FORWARD-DROP-FIREWALLD](#BR-FW-FORWARD-DROP-FIREWALLD), [BR-FW-FORWARD-DROP-FIREWALLD-LATE-START](#BR-FW-FORWARD-DROP-FIREWALLD-LATE-START), [BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6](#BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6), [BR-FW-FORWARD-DROP-FIREWALLD-STOP](#BR-FW-FORWARD-DROP-FIREWALLD-STOP), [BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6](#BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6), [BR-FW-FORWARD-DROP-FIREWALLD-V6](#BR-FW-FORWARD-DROP-FIREWALLD-V6), [BR-FW-FORWARDING-ALREADY-ENABLED](#BR-FW-FORWARDING-ALREADY-ENABLED), [BR-FW-FORWARDING-ALREADY-ENABLED-V6](#BR-FW-FORWARDING-ALREADY-ENABLED-V6), [BR-FW-FORWARDING-ENABLED](#BR-FW-FORWARDING-ENABLED), [BR-FW-FORWARDING-ENABLED-V6](#BR-FW-FORWARDING-ENABLED-V6), [BR-FW-FORWARDING-NO-DROP](#BR-FW-FORWARDING-NO-DROP), [BR-FW-FORWARDING-NO-DROP-V6](#BR-FW-FORWARDING-NO-DROP-V6), [BR-FW-IP6TABLES-MISSING](#BR-FW-IP6TABLES-MISSING), [BR-FW-IP6TABLES-MISSING-MSG](#BR-FW-IP6TABLES-MISSING-MSG), [BR-FW-IP6TABLES-MISSING-NETWORK](#BR-FW-IP6TABLES-MISSING-NETWORK), [BR-FW-IP6TABLES-MISSING-PUBLISHED-PORT](#BR-FW-IP6TABLES-MISSING-PUBLISHED-PORT), [BR-FW-IPTABLES-MISSING](#BR-FW-IPTABLES-MISSING), [BR-FW-IPTABLES-MISSING-MSG](#BR-FW-IPTABLES-MISSING-MSG), [BR-FW-NFT-FIREWALLD-RELOAD](#BR-FW-NFT-FIREWALLD-RELOAD), [BR-FW-NFT-FORWARDING-UNCHECKED](#BR-FW-NFT-FORWARDING-UNCHECKED), [BR-FW-NFT-IPV6-MISSING](#BR-FW-NFT-IPV6-MISSING), [BR-FW-NFT-IPV6-MISSING-NETWORK](#BR-FW-NFT-IPV6-MISSING-NETWORK), [BR-FW-NFT-MISSING](#BR-FW-NFT-MISSING), [BR-FW-NFT-MISSING-MSG](#BR-FW-NFT-MISSING-MSG), [BR-FW-NFT-NO-FORWARDING](#BR-FW-NFT-NO-FORWARDING), [BR-FW-NFT-NO-FORWARDING-NETWORK](#BR-FW-NFT-NO-FORWARDING-NETWORK), [BR-FW-NFT-NO-FORWARDING-V6](#BR-FW-NFT-NO-FORWARDING-V6), [BR-FW-NFT-NO-FORWARDING-V6-HTTP500](#BR-FW-NFT-NO-FORWARDING-V6-HTTP500), [BR-GW-DEFAULT-ROUTE-NETWORK](#BR-GW-DEFAULT-ROUTE-NETWORK), [BR-GWMODE-HTTP500-REFUSED](#BR-GWMODE-HTTP500-REFUSED), [BR-GWMODE-ISOLATED-NOT-INTERNAL](#BR-GWMODE-ISOLATED-NOT-INTERNAL), [BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI](#BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI), [BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500](#BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500), [BR-GWMODE-NAT-UNPROTECTED](#BR-GWMODE-NAT-UNPROTECTED), [BR-GWMODE-ROUTED-EGRESS](#BR-GWMODE-ROUTED-EGRESS), [BR-GWMODE-ROUTED-EGRESS-V6](#BR-GWMODE-ROUTED-EGRESS-V6), [BR-GWMODE-ROUTED-INBOUND](#BR-GWMODE-ROUTED-INBOUND), [BR-GWMODE-ROUTED-INBOUND-V6](#BR-GWMODE-ROUTED-INBOUND-V6), [BR-GWMODE-ROUTED-NODE-ADDRESS](#BR-GWMODE-ROUTED-NODE-ADDRESS), [BR-GWMODE-UNKNOWN](#BR-GWMODE-UNKNOWN), [BR-GWMODE-UNKNOWN-CLI](#BR-GWMODE-UNKNOWN-CLI), [BR-GWMODE-UNKNOWN-MSG](#BR-GWMODE-UNKNOWN-MSG), [BR-ISO-ACCEPT-FWMARK](#BR-ISO-ACCEPT-FWMARK), [BR-ISO-ACCEPT-FWMARK-UNTRUSTED](#BR-ISO-ACCEPT-FWMARK-UNTRUSTED), [BR-ISO-BRIDGE-NF-CALL](#BR-ISO-BRIDGE-NF-CALL), [BR-ISO-BRIDGE-NF-CALL-V6](#BR-ISO-BRIDGE-NF-CALL-V6), [BR-ISO-DAEMON-NO-ICC](#BR-ISO-DAEMON-NO-ICC), [BR-ISO-DIRECT-ROUTING-OFF](#BR-ISO-DIRECT-ROUTING-OFF), [BR-ISO-DIRECT-ROUTING-OFF-FIREWALLD](#BR-ISO-DIRECT-ROUTING-OFF-FIREWALLD), [BR-ISO-DIRECT-ROUTING-OFF-V6](#BR-ISO-DIRECT-ROUTING-OFF-V6), [BR-ISO-DIRECT-ROUTING-ON](#BR-ISO-DIRECT-ROUTING-ON), [BR-ISO-DIRECT-ROUTING-ON-FIREWALLD](#BR-ISO-DIRECT-ROUTING-ON-FIREWALLD), [BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING](#BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING), [BR-ISO-INTERNAL-CTR-ROUTE](#BR-ISO-INTERNAL-CTR-ROUTE), [BR-ISO-INTERNAL-CTR-TO-HOST](#BR-ISO-INTERNAL-CTR-TO-HOST), [BR-ISO-INTERNAL-HOST-TO-CTR](#BR-ISO-INTERNAL-HOST-TO-CTR), [BR-ISO-INTERNAL-NO-FORWARD](#BR-ISO-INTERNAL-NO-FORWARD), [BR-ISO-ISOLATED-CTR-TO-HOST](#BR-ISO-ISOLATED-CTR-TO-HOST), [BR-ISO-ISOLATED-NO-GATEWAY](#BR-ISO-ISOLATED-NO-GATEWAY), [BR-ISO-NO-BR-NETFILTER-DAEMON-ICC](#BR-ISO-NO-BR-NETFILTER-DAEMON-ICC), [BR-ISO-NO-BR-NETFILTER-NO-ICC](#BR-ISO-NO-BR-NETFILTER-NO-ICC), [BR-ISO-NO-BR-NETFILTER-NO-ICC-MSG](#BR-ISO-NO-BR-NETFILTER-NO-ICC-MSG), [BR-ISO-NO-ICC](#BR-ISO-NO-ICC), [BR-ISO-NO-ICC-LEGACY-LINK](#BR-ISO-NO-ICC-LEGACY-LINK), [BR-ISO-NO-VETH](#BR-ISO-NO-VETH), [BR-ISO-NO-VETH-CONNECT](#BR-ISO-NO-VETH-CONNECT), [BR-ISO-NO-VETH-CREATE](#BR-ISO-NO-VETH-CREATE), [BR-ISO-NO-VETH-HTTP500](#BR-ISO-NO-VETH-HTTP500), [BR-ISO-SAME-NETWORK](#BR-ISO-SAME-NETWORK), [BR-ISO-SEPARATE-NETWORKS](#BR-ISO-SEPARATE-NETWORKS), [BR-ISO-SEPARATE-NETWORKS-NAT-UNPROTECTED](#BR-ISO-SEPARATE-NETWORKS-NAT-UNPROTECTED), [BR-ISO-SEPARATE-NETWORKS-ROUTED](#BR-ISO-SEPARATE-NETWORKS-ROUTED), [BR-ISO-SEPARATE-NETWORKS-V6](#BR-ISO-SEPARATE-NETWORKS-V6), [BR-ISO-TRUSTED-IFACE](#BR-ISO-TRUSTED-IFACE), [BR-ISO-TRUSTED-IFACE-LIST](#BR-ISO-TRUSTED-IFACE-LIST), [BR-NOV6-CTR-START](#BR-NOV6-CTR-START), [BR-NOV6-DAEMON-START](#BR-NOV6-DAEMON-START), [BR-NOV6-PUBLISHED-PORT](#BR-NOV6-PUBLISHED-PORT), [BR-NOV6-V6-NETWORK-REFUSED](#BR-NOV6-V6-NETWORK-REFUSED), [BR-NOV6-V6-NETWORK-REFUSED-MSG](#BR-NOV6-V6-NETWORK-REFUSED-MSG), [BR-OPT-BRIDGE-NAME](#BR-OPT-BRIDGE-NAME), [BR-OPT-DAEMON-BIP](#BR-OPT-DAEMON-BIP), [BR-OPT-DAEMON-BIP6](#BR-OPT-DAEMON-BIP6), [BR-OPT-DAEMON-BRIDGE-NONE](#BR-OPT-DAEMON-BRIDGE-NONE), [BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED), [BR-OPT-DAEMON-MTU-APPLIED](#BR-OPT-DAEMON-MTU-APPLIED), [BR-OPT-DAEMON-MTU-DEFAULT](#BR-OPT-DAEMON-MTU-DEFAULT), [BR-OPT-DAEMON-MTU-ERROR](#BR-OPT-DAEMON-MTU-ERROR), [BR-OPT-DAEMON-MTU-INVALID](#BR-OPT-DAEMON-MTU-INVALID), [BR-OPT-DAEMON-MTU-MODULO](#BR-OPT-DAEMON-MTU-MODULO), [BR-OPT-DAEMON-MTU-NEGATIVE](#BR-OPT-DAEMON-MTU-NEGATIVE), [BR-OPT-DAEMON-MTU-NEGATIVE-MSG](#BR-OPT-DAEMON-MTU-NEGATIVE-MSG), [BR-OPT-DAEMON-MTU-REFUSED](#BR-OPT-DAEMON-MTU-REFUSED), [BR-OPT-DAEMON-MTU-ZERO](#BR-OPT-DAEMON-MTU-ZERO), [BR-OPT-DAEMON-MTU-ZERO-FLAG](#BR-OPT-DAEMON-MTU-ZERO-FLAG), [BR-OPT-DAEMON-MTU-ZERO-REPLACED](#BR-OPT-DAEMON-MTU-ZERO-REPLACED), [BR-OPT-HTTP500-REFUSED](#BR-OPT-HTTP500-REFUSED), [BR-OPT-IPV4-DISABLED](#BR-OPT-IPV4-DISABLED), [BR-OPT-MTU-APPLIED](#BR-OPT-MTU-APPLIED), [BR-OPT-MTU-INVALID](#BR-OPT-MTU-INVALID), [BR-OPT-MTU-INVALID-CLI](#BR-OPT-MTU-INVALID-CLI), [BR-OPT-MTU-INVALID-MSG](#BR-OPT-MTU-INVALID-MSG), [BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO), [BR-OPT-MTU-OUT-OF-RANGE](#BR-OPT-MTU-OUT-OF-RANGE), [BR-OPT-MTU-REFUSED](#BR-OPT-MTU-REFUSED), [BR-OPT-MTU-REFUSED-CLI](#BR-OPT-MTU-REFUSED-CLI), [BR-OPT-MTU-REFUSED-HTTP500](#BR-OPT-MTU-REFUSED-HTTP500), [BR-OPT-MTU-ZERO](#BR-OPT-MTU-ZERO), [BR-PRIO-BASE-CHAINS](#BR-PRIO-BASE-CHAINS), [BR-PRIO-WELL-KNOWN](#BR-PRIO-WELL-KNOWN), [BR-PUB-HOST-ADDRESS](#BR-PUB-HOST-ADDRESS), [BR-PUB-HOST-BINDING-ADDRESS](#BR-PUB-HOST-BINDING-ADDRESS), [BR-PUB-HOST-BINDING-ADDRESS-DAEMON](#BR-PUB-HOST-BINDING-ADDRESS-DAEMON), [BR-PUB-HOST-PORT-ASSIGNED](#BR-PUB-HOST-PORT-ASSIGNED), [BR-PUB-HOST-PORT-ASSIGNED-CLI](#BR-PUB-HOST-PORT-ASSIGNED-CLI), [BR-PUB-HOST-PORT-RESERVED-REQUESTED](#BR-PUB-HOST-PORT-RESERVED-REQUESTED), [BR-PUB-LOOPBACK-CLIENT](#BR-PUB-LOOPBACK-CLIENT), [BR-PUB-LOOPBACK-CLIENT-FIREWALLD](#BR-PUB-LOOPBACK-CLIENT-FIREWALLD), [BR-PUB-LOOPBACK-NODE](#BR-PUB-LOOPBACK-NODE), [BR-PUB-NO-SCTP](#BR-PUB-NO-SCTP), [BR-PUB-NO-SCTP-CONNECT](#BR-PUB-NO-SCTP-CONNECT), [BR-PUB-NO-SCTP-CREATE](#BR-PUB-NO-SCTP-CREATE), [BR-PUB-NO-SCTP-JOIN-ORDER](#BR-PUB-NO-SCTP-JOIN-ORDER), [BR-PUB-NO-SCTP-MSG](#BR-PUB-NO-SCTP-MSG), [BR-PUB-ROUTE-LOCALNET](#BR-PUB-ROUTE-LOCALNET), [BR-PUB-SCTP](#BR-PUB-SCTP), [BR-PUB-UNPUBLISHED-PORT](#BR-PUB-UNPUBLISHED-PORT), [BR-PUB-UNPUBLISHED-PORT-NODE](#BR-PUB-UNPUBLISHED-PORT-NODE), [BR-PUB-V4-CLIENT-SOURCE](#BR-PUB-V4-CLIENT-SOURCE), [BR-PUB-V6-CLIENT-SOURCE](#BR-PUB-V6-CLIENT-SOURCE), [BR-PUB-V6-LINK-LOCAL](#BR-PUB-V6-LINK-LOCAL), [BR-PUB-V6-REACHABLE](#BR-PUB-V6-REACHABLE), [BR-RULES-REFERENCE](#BR-RULES-REFERENCE), [BR-RULES-REFERENCE-NFT](#BR-RULES-REFERENCE-NFT), [BR-USER-ACCEPT-NO-DIRECT-ROUTING](#BR-USER-ACCEPT-NO-DIRECT-ROUTING), [BR-USER-CHAIN-JUMP](#BR-USER-CHAIN-JUMP), [BR-USER-CHAIN-JUMP-FIREWALLD](#BR-USER-CHAIN-JUMP-FIREWALLD), [BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START](#BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START), [BR-USER-CHAIN-JUMP-FIREWALLD-STOP](#BR-USER-CHAIN-JUMP-FIREWALLD-STOP), [BR-USER-DROP-RULE](#BR-USER-DROP-RULE), [BR-USER-RULES-KEPT](#BR-USER-RULES-KEPT)
+
+*Needed when:* The iptables backend with iptables-nft providing **iptables**, with the
+daemon option `iptables` true
 
 The kernel options that **iptables** needs when iptables-nft provides it. *Kernel
 options:* `NF_TABLES`, `NF_TABLES_IPV4`, `NFT_COMPAT`,
 `NFT_NAT`. Before Linux 5.1, `NFT_CHAIN_NAT_IPV4` in place of
 `NFT_NAT`.
 
-<a id="needextend-network-bridge-networking-6"></a>
+<a id="needextend-network-bridge-networking-7"></a>
 
 <a id="BR-HOST-IP6TABLES-KERNEL"></a>
 
 **Host requirement BR-HOST-IP6TABLES-KERNEL**: Kernel options for ip6tables
 
-*Platforms:* linux · *When:* iptables-backend, ip6tables · *Kind:* os · *Kernel options:* `IPV6`, `IP6_NF_NAT`, `IP6_NF_TARGET_MASQUERADE`, `NETFILTER_XT_TARGET_MASQUERADE`, `NETFILTER`, `NETFILTER_ADVANCED`, `NETFILTER_XTABLES`, `NF_CONNTRACK`, `NF_NAT`, `NETFILTER_XT_NAT`, `NETFILTER_XT_MATCH_ADDRTYPE`, `NETFILTER_XT_MATCH_CONNTRACK`, `NETFILTER_XT_MATCH_SCTP`, `IP_NF_NAT`, `IP_NF_TARGET_MASQUERADE`
+*Platforms:* linux · *When:* iptables-backend, ip6tables · *Kind:* os · *Kernel options:* `IPV6`, `IP6_NF_NAT`, `IP6_NF_TARGET_MASQUERADE`, `NETFILTER_XT_TARGET_MASQUERADE`, `NETFILTER`, `NETFILTER_ADVANCED`, `NETFILTER_XTABLES`, `NF_CONNTRACK`, `NF_NAT`, `NETFILTER_XT_NAT`, `NETFILTER_XT_MATCH_ADDRTYPE`, `NETFILTER_XT_MATCH_CONNTRACK`
+
+*Needed by:* [BR-CLEAN-ISOLATION-CHAIN](#BR-CLEAN-ISOLATION-CHAIN), [BR-EGRESS-HOST-IPV6](#BR-EGRESS-HOST-IPV6), [BR-EGRESS-MASQUERADE-V6](#BR-EGRESS-MASQUERADE-V6), [BR-EGRESS-NO-MASQUERADE-V6](#BR-EGRESS-NO-MASQUERADE-V6), [BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6](#BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6), [BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6](#BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6), [BR-FW-FORWARD-DROP-FIREWALLD-V6](#BR-FW-FORWARD-DROP-FIREWALLD-V6), [BR-FW-FORWARDING-ALREADY-ENABLED-V6](#BR-FW-FORWARDING-ALREADY-ENABLED-V6), [BR-FW-FORWARDING-ENABLED-V6](#BR-FW-FORWARDING-ENABLED-V6), [BR-FW-FORWARDING-NO-DROP-V6](#BR-FW-FORWARDING-NO-DROP-V6), [BR-GWMODE-ROUTED-EGRESS-V6](#BR-GWMODE-ROUTED-EGRESS-V6), [BR-GWMODE-ROUTED-INBOUND-V6](#BR-GWMODE-ROUTED-INBOUND-V6), [BR-ISO-BRIDGE-NF-CALL-V6](#BR-ISO-BRIDGE-NF-CALL-V6), [BR-ISO-DIRECT-ROUTING-OFF-V6](#BR-ISO-DIRECT-ROUTING-OFF-V6), [BR-ISO-SEPARATE-NETWORKS-V6](#BR-ISO-SEPARATE-NETWORKS-V6), [BR-OPT-DAEMON-BIP6](#BR-OPT-DAEMON-BIP6), [BR-OPT-IPV4-DISABLED](#BR-OPT-IPV4-DISABLED), [BR-PUB-NO-SCTP-JOIN-ORDER](#BR-PUB-NO-SCTP-JOIN-ORDER), [BR-PUB-V6-CLIENT-SOURCE](#BR-PUB-V6-CLIENT-SOURCE), [BR-PUB-V6-LINK-LOCAL](#BR-PUB-V6-LINK-LOCAL), [BR-PUB-V6-REACHABLE](#BR-PUB-V6-REACHABLE), [BR-USER-CHAIN-JUMP](#BR-USER-CHAIN-JUMP), [BR-USER-CHAIN-JUMP-FIREWALLD](#BR-USER-CHAIN-JUMP-FIREWALLD), [BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START](#BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START), [BR-USER-CHAIN-JUMP-FIREWALLD-STOP](#BR-USER-CHAIN-JUMP-FIREWALLD-STOP)
+
+*Needed when:* The iptables backend, with the daemon option `ip6tables` true, for a
+bridge network with IPv6 and for the daemon's IPv6 chains, such as `DOCKER-USER`
 
 The kernel options that **ip6tables** needs, whichever implementation provides it.
 *Kernel options:* `IPV6`, and the options that iptables needs, whichever implementation
-provides it. Before Linux 5.2, `IP6_NF_NAT` and `IP6_NF_TARGET_MASQUERADE` in
-place of `NETFILTER_XT_TARGET_MASQUERADE`.
+provides it, other than its IPv4 options before Linux 5.2. Before Linux 5.2,
+`IP6_NF_NAT` and `IP6_NF_TARGET_MASQUERADE` in place of
+`NETFILTER_XT_TARGET_MASQUERADE`.
 
 <a id="BR-HOST-IP6TABLES-LEGACY-KERNEL"></a>
 
 **Host requirement BR-HOST-IP6TABLES-LEGACY-KERNEL**: Kernel options for ip6tables from iptables-legacy
 
 *Platforms:* linux · *When:* iptables-backend, ip6tables, iptables-legacy · *Kind:* os · *Kernel options:* `IP6_NF_IPTABLES`, `IP6_NF_FILTER`, `IP6_NF_NAT`, `IP6_NF_RAW`, `IP6_NF_IPTABLES_LEGACY`, `NETFILTER_XTABLES_LEGACY`
+
+*Needed by:* [BR-CLEAN-ISOLATION-CHAIN](#BR-CLEAN-ISOLATION-CHAIN), [BR-EGRESS-HOST-IPV6](#BR-EGRESS-HOST-IPV6), [BR-EGRESS-MASQUERADE-V6](#BR-EGRESS-MASQUERADE-V6), [BR-EGRESS-NO-MASQUERADE-V6](#BR-EGRESS-NO-MASQUERADE-V6), [BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6](#BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6), [BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6](#BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6), [BR-FW-FORWARD-DROP-FIREWALLD-V6](#BR-FW-FORWARD-DROP-FIREWALLD-V6), [BR-FW-FORWARDING-ALREADY-ENABLED-V6](#BR-FW-FORWARDING-ALREADY-ENABLED-V6), [BR-FW-FORWARDING-ENABLED-V6](#BR-FW-FORWARDING-ENABLED-V6), [BR-FW-FORWARDING-NO-DROP-V6](#BR-FW-FORWARDING-NO-DROP-V6), [BR-GWMODE-ROUTED-EGRESS-V6](#BR-GWMODE-ROUTED-EGRESS-V6), [BR-GWMODE-ROUTED-INBOUND-V6](#BR-GWMODE-ROUTED-INBOUND-V6), [BR-ISO-BRIDGE-NF-CALL-V6](#BR-ISO-BRIDGE-NF-CALL-V6), [BR-ISO-DIRECT-ROUTING-OFF-V6](#BR-ISO-DIRECT-ROUTING-OFF-V6), [BR-ISO-SEPARATE-NETWORKS-V6](#BR-ISO-SEPARATE-NETWORKS-V6), [BR-OPT-DAEMON-BIP6](#BR-OPT-DAEMON-BIP6), [BR-OPT-IPV4-DISABLED](#BR-OPT-IPV4-DISABLED), [BR-PUB-NO-SCTP-JOIN-ORDER](#BR-PUB-NO-SCTP-JOIN-ORDER), [BR-PUB-V6-CLIENT-SOURCE](#BR-PUB-V6-CLIENT-SOURCE), [BR-PUB-V6-LINK-LOCAL](#BR-PUB-V6-LINK-LOCAL), [BR-PUB-V6-REACHABLE](#BR-PUB-V6-REACHABLE), [BR-USER-CHAIN-JUMP](#BR-USER-CHAIN-JUMP), [BR-USER-CHAIN-JUMP-FIREWALLD](#BR-USER-CHAIN-JUMP-FIREWALLD), [BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START](#BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START), [BR-USER-CHAIN-JUMP-FIREWALLD-STOP](#BR-USER-CHAIN-JUMP-FIREWALLD-STOP)
+
+*Needed when:* The iptables backend with iptables-legacy providing **ip6tables**, with
+the daemon option `ip6tables` true, for a bridge network with IPv6 and for the
+daemon's IPv6 chains, such as `DOCKER-USER`
 
 The kernel options that **ip6tables** needs when iptables-legacy provides it. *Kernel
 options:* `IP6_NF_IPTABLES`, `IP6_NF_FILTER`, `IP6_NF_NAT`,
@@ -251,10 +863,32 @@ options:* `IP6_NF_IPTABLES`, `IP6_NF_FILTER`, `IP6_NF_NAT`,
 
 *Platforms:* linux · *When:* iptables-backend, ip6tables, iptables-nft · *Kind:* os · *Kernel options:* `NF_TABLES`, `NF_TABLES_IPV6`, `NFT_COMPAT`, `NFT_NAT`, `NFT_CHAIN_NAT_IPV6`
 
+*Needed by:* [BR-CLEAN-ISOLATION-CHAIN](#BR-CLEAN-ISOLATION-CHAIN), [BR-EGRESS-HOST-IPV6](#BR-EGRESS-HOST-IPV6), [BR-EGRESS-MASQUERADE-V6](#BR-EGRESS-MASQUERADE-V6), [BR-EGRESS-NO-MASQUERADE-V6](#BR-EGRESS-NO-MASQUERADE-V6), [BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6](#BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6), [BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6](#BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6), [BR-FW-FORWARD-DROP-FIREWALLD-V6](#BR-FW-FORWARD-DROP-FIREWALLD-V6), [BR-FW-FORWARDING-ALREADY-ENABLED-V6](#BR-FW-FORWARDING-ALREADY-ENABLED-V6), [BR-FW-FORWARDING-ENABLED-V6](#BR-FW-FORWARDING-ENABLED-V6), [BR-FW-FORWARDING-NO-DROP-V6](#BR-FW-FORWARDING-NO-DROP-V6), [BR-GWMODE-ROUTED-EGRESS-V6](#BR-GWMODE-ROUTED-EGRESS-V6), [BR-GWMODE-ROUTED-INBOUND-V6](#BR-GWMODE-ROUTED-INBOUND-V6), [BR-ISO-BRIDGE-NF-CALL-V6](#BR-ISO-BRIDGE-NF-CALL-V6), [BR-ISO-DIRECT-ROUTING-OFF-V6](#BR-ISO-DIRECT-ROUTING-OFF-V6), [BR-ISO-SEPARATE-NETWORKS-V6](#BR-ISO-SEPARATE-NETWORKS-V6), [BR-OPT-DAEMON-BIP6](#BR-OPT-DAEMON-BIP6), [BR-OPT-IPV4-DISABLED](#BR-OPT-IPV4-DISABLED), [BR-PUB-NO-SCTP-JOIN-ORDER](#BR-PUB-NO-SCTP-JOIN-ORDER), [BR-PUB-V6-CLIENT-SOURCE](#BR-PUB-V6-CLIENT-SOURCE), [BR-PUB-V6-LINK-LOCAL](#BR-PUB-V6-LINK-LOCAL), [BR-PUB-V6-REACHABLE](#BR-PUB-V6-REACHABLE), [BR-USER-CHAIN-JUMP](#BR-USER-CHAIN-JUMP), [BR-USER-CHAIN-JUMP-FIREWALLD](#BR-USER-CHAIN-JUMP-FIREWALLD), [BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START](#BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START), [BR-USER-CHAIN-JUMP-FIREWALLD-STOP](#BR-USER-CHAIN-JUMP-FIREWALLD-STOP)
+
+*Needed when:* The iptables backend with iptables-nft providing **ip6tables**, with the
+daemon option `ip6tables` true, for a bridge network with IPv6 and for the daemon's
+IPv6 chains, such as `DOCKER-USER`
+
 The kernel options that **ip6tables** needs when iptables-nft provides it. *Kernel
 options:* `NF_TABLES`, `NF_TABLES_IPV6`, `NFT_COMPAT`,
 `NFT_NAT`. Before Linux 5.1, `NFT_CHAIN_NAT_IPV6` in place of
 `NFT_NAT`.
+
+<a id="BR-HOST-IPTABLES-SCTP-MATCH"></a>
+
+**Host requirement BR-HOST-IPTABLES-SCTP-MATCH**: The iptables sctp match
+
+*Platforms:* linux · *When:* iptables-backend, iptables · *Kind:* os · *Kernel options:* `NETFILTER_XT_MATCH_SCTP` · *Tags:* sctp
+
+*Needed by:* [BR-PUB-NO-SCTP-JOIN-ORDER](#BR-PUB-NO-SCTP-JOIN-ORDER), [BR-PUB-SCTP](#BR-PUB-SCTP)
+
+*Facility:* The `sctp` match of **iptables**
+
+*Needed when:* The iptables backend, with the daemon option `iptables` true, and a
+container that publishes an SCTP port. With `ip6tables` true, an SCTP port
+published on IPv6 needs it too.
+
+*Kernel options:* `NETFILTER_XT_MATCH_SCTP`
 
 <a id="bridge-networking-host-configuration"></a>
 
@@ -266,13 +900,15 @@ options:* `NF_TABLES`, `NF_TABLES_IPV6`, `NFT_COMPAT`,
 
 *Platforms:* linux · *When:* nftables-backend, ip-forward · *Kind:* config
 
-*Pinned by:* [BR-FW-FORWARD-DROP-FIREWALLD](#BR-FW-FORWARD-DROP-FIREWALLD), [BR-FW-FORWARDING-ENABLED](#BR-FW-FORWARDING-ENABLED), [BR-FW-NFT-NO-FORWARDING](#BR-FW-NFT-NO-FORWARDING) · *Needed by:* [BR-CLEAN-BUILTIN-CHAIN-RULES](#BR-CLEAN-BUILTIN-CHAIN-RULES), [BR-CLEAN-BUILTIN-RULES](#BR-CLEAN-BUILTIN-RULES), [BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED](#BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED), [BR-CLEAN-FORWARD-DROP-WARNING](#BR-CLEAN-FORWARD-DROP-WARNING), [BR-CLEAN-FORWARD-POLICY-KEPT](#BR-CLEAN-FORWARD-POLICY-KEPT), [BR-CLEAN-ISOLATION-CHAIN](#BR-CLEAN-ISOLATION-CHAIN), [BR-CLEAN-NAMES-UNCHANGED](#BR-CLEAN-NAMES-UNCHANGED), [BR-CLEAN-OTHER-BACKEND](#BR-CLEAN-OTHER-BACKEND), [BR-CLEAN-OTHER-BACKEND-IPT](#BR-CLEAN-OTHER-BACKEND-IPT), [BR-CLEAN-OTHER-BACKEND-NFT](#BR-CLEAN-OTHER-BACKEND-NFT), [BR-CLEAN-USER-DROP-RULE](#BR-CLEAN-USER-DROP-RULE), [BR-EGRESS-HOST-IPV4](#BR-EGRESS-HOST-IPV4), [BR-EGRESS-MASQUERADE](#BR-EGRESS-MASQUERADE), [BR-EGRESS-NO-MASQUERADE](#BR-EGRESS-NO-MASQUERADE), [BR-EGRESS-REPLY-DIRECT-ROUTING-OFF](#BR-EGRESS-REPLY-DIRECT-ROUTING-OFF), [BR-EGRESS-REPLY-DIRECT-ROUTING-ON](#BR-EGRESS-REPLY-DIRECT-ROUTING-ON), [BR-EGRESS-REPLY-TRUSTED-IFACE](#BR-EGRESS-REPLY-TRUSTED-IFACE), [BR-FW-BACKEND-INVALID](#BR-FW-BACKEND-INVALID), [BR-FW-BACKEND-INVALID-MSG](#BR-FW-BACKEND-INVALID-MSG), [BR-FW-FIREWALLD-RELOAD-EGRESS](#BR-FW-FIREWALLD-RELOAD-EGRESS), [BR-FW-FIREWALLD-RELOAD-NFT](#BR-FW-FIREWALLD-RELOAD-NFT), [BR-FW-FIREWALLD-RELOAD-PORT](#BR-FW-FIREWALLD-RELOAD-PORT), [BR-FW-FIREWALLD-RELOADED-AT](#BR-FW-FIREWALLD-RELOADED-AT), [BR-FW-FORWARD-DROP-FIREWALLD-V6](#BR-FW-FORWARD-DROP-FIREWALLD-V6), [BR-FW-FORWARDING-ENABLED-V6](#BR-FW-FORWARDING-ENABLED-V6), [BR-FW-HTTP500-REFUSED](#BR-FW-HTTP500-REFUSED), [BR-FW-IP6TABLES-MISSING](#BR-FW-IP6TABLES-MISSING), [BR-FW-IP6TABLES-MISSING-NETWORK](#BR-FW-IP6TABLES-MISSING-NETWORK), [BR-FW-IPTABLES-MISSING](#BR-FW-IPTABLES-MISSING), [BR-FW-NFT-MISSING](#BR-FW-NFT-MISSING), [BR-FW-NFT-NO-FORWARDING-V6](#BR-FW-NFT-NO-FORWARDING-V6), [BR-GW-DEFAULT-ROUTE-NETWORK](#BR-GW-DEFAULT-ROUTE-NETWORK), [BR-GWMODE-ISOLATED-NOT-INTERNAL](#BR-GWMODE-ISOLATED-NOT-INTERNAL), [BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI](#BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI), [BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500](#BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500), [BR-GWMODE-NAT-UNPROTECTED](#BR-GWMODE-NAT-UNPROTECTED), [BR-GWMODE-ROUTED-EGRESS](#BR-GWMODE-ROUTED-EGRESS), [BR-GWMODE-ROUTED-INBOUND](#BR-GWMODE-ROUTED-INBOUND), [BR-GWMODE-ROUTED-NODE-ADDRESS](#BR-GWMODE-ROUTED-NODE-ADDRESS), [BR-GWMODE-UNKNOWN](#BR-GWMODE-UNKNOWN), [BR-GWMODE-UNKNOWN-CLI](#BR-GWMODE-UNKNOWN-CLI), [BR-GWMODE-UNKNOWN-MSG](#BR-GWMODE-UNKNOWN-MSG), [BR-ISO-BRIDGE-NF-CALL](#BR-ISO-BRIDGE-NF-CALL), [BR-ISO-DIRECT-ROUTING-OFF](#BR-ISO-DIRECT-ROUTING-OFF), [BR-ISO-DIRECT-ROUTING-ON](#BR-ISO-DIRECT-ROUTING-ON), [BR-ISO-INTERNAL-CTR-ROUTE](#BR-ISO-INTERNAL-CTR-ROUTE), [BR-ISO-INTERNAL-CTR-TO-HOST](#BR-ISO-INTERNAL-CTR-TO-HOST), [BR-ISO-INTERNAL-HOST-TO-CTR](#BR-ISO-INTERNAL-HOST-TO-CTR), [BR-ISO-INTERNAL-NO-FORWARD](#BR-ISO-INTERNAL-NO-FORWARD), [BR-ISO-ISOLATED-CTR-TO-HOST](#BR-ISO-ISOLATED-CTR-TO-HOST), [BR-ISO-ISOLATED-NO-GATEWAY](#BR-ISO-ISOLATED-NO-GATEWAY), [BR-ISO-NO-ICC](#BR-ISO-NO-ICC), [BR-ISO-NO-ICC-LEGACY-LINK](#BR-ISO-NO-ICC-LEGACY-LINK), [BR-ISO-NO-VETH](#BR-ISO-NO-VETH), [BR-ISO-SEPARATE-NETWORKS](#BR-ISO-SEPARATE-NETWORKS), [BR-ISO-TRUSTED-IFACE](#BR-ISO-TRUSTED-IFACE), [BR-ISO-TRUSTED-IFACE-LIST](#BR-ISO-TRUSTED-IFACE-LIST), [BR-NOV6-CTR-START](#BR-NOV6-CTR-START), [BR-NOV6-DAEMON-START](#BR-NOV6-DAEMON-START), [BR-NOV6-PUBLISHED-PORT](#BR-NOV6-PUBLISHED-PORT), [BR-NOV6-V6-NETWORK-REFUSED](#BR-NOV6-V6-NETWORK-REFUSED), [BR-OPT-DAEMON-MTU-APPLIED](#BR-OPT-DAEMON-MTU-APPLIED), [BR-OPT-DAEMON-MTU-ERROR](#BR-OPT-DAEMON-MTU-ERROR), [BR-OPT-DAEMON-MTU-MODULO](#BR-OPT-DAEMON-MTU-MODULO), [BR-OPT-DAEMON-MTU-NEGATIVE](#BR-OPT-DAEMON-MTU-NEGATIVE), [BR-OPT-DAEMON-MTU-NEGATIVE-MSG](#BR-OPT-DAEMON-MTU-NEGATIVE-MSG), [BR-OPT-DAEMON-MTU-REFUSED](#BR-OPT-DAEMON-MTU-REFUSED), [BR-OPT-DAEMON-MTU-REFUSED-LIVE-RESTORE](#BR-OPT-DAEMON-MTU-REFUSED-LIVE-RESTORE), [BR-OPT-DAEMON-MTU-ZERO](#BR-OPT-DAEMON-MTU-ZERO), [BR-OPT-DAEMON-MTU-ZERO-REPLACED](#BR-OPT-DAEMON-MTU-ZERO-REPLACED), [BR-OPT-MTU-APPLIED](#BR-OPT-MTU-APPLIED), [BR-OPT-MTU-INVALID](#BR-OPT-MTU-INVALID), [BR-OPT-MTU-INVALID-CLI](#BR-OPT-MTU-INVALID-CLI), [BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO), [BR-OPT-MTU-OUT-OF-RANGE](#BR-OPT-MTU-OUT-OF-RANGE), [BR-OPT-MTU-REFUSED](#BR-OPT-MTU-REFUSED), [BR-OPT-MTU-REFUSED-CLI](#BR-OPT-MTU-REFUSED-CLI), [BR-OPT-MTU-REFUSED-HTTP500](#BR-OPT-MTU-REFUSED-HTTP500), [BR-OPT-MTU-ZERO](#BR-OPT-MTU-ZERO), [BR-PRIO-BASE-CHAINS](#BR-PRIO-BASE-CHAINS), [BR-PUB-HOST-ADDRESS](#BR-PUB-HOST-ADDRESS), [BR-PUB-HOST-PORT-ASSIGNED](#BR-PUB-HOST-PORT-ASSIGNED), [BR-PUB-LOOPBACK-CLIENT](#BR-PUB-LOOPBACK-CLIENT), [BR-PUB-LOOPBACK-NODE](#BR-PUB-LOOPBACK-NODE), [BR-PUB-NO-SCTP](#BR-PUB-NO-SCTP), [BR-PUB-ROUTE-LOCALNET](#BR-PUB-ROUTE-LOCALNET), [BR-PUB-UNPUBLISHED-PORT](#BR-PUB-UNPUBLISHED-PORT), [BR-PUB-V6-CLIENT-SOURCE](#BR-PUB-V6-CLIENT-SOURCE), [BR-PUB-V6-LINK-LOCAL](#BR-PUB-V6-LINK-LOCAL), [BR-PUB-V6-REACHABLE](#BR-PUB-V6-REACHABLE), [BR-RULES-REFERENCE](#BR-RULES-REFERENCE), [BR-RULES-REFERENCE-NFT](#BR-RULES-REFERENCE-NFT), [BR-USER-CHAIN-JUMP](#BR-USER-CHAIN-JUMP), [BR-USER-CHAIN-JUMP-FIREWALLD](#BR-USER-CHAIN-JUMP-FIREWALLD), [BR-USER-DROP-RULE](#BR-USER-DROP-RULE), [BR-USER-RULES-KEPT](#BR-USER-RULES-KEPT), [SWARM-CLEAN-INGRESS-CHAIN-NFT](swarm-lifecycle.md#SWARM-CLEAN-INGRESS-CHAIN-NFT), [SWARM-PUB-FIREWALLD-V6-PROXY](#SWARM-PUB-FIREWALLD-V6-PROXY), [SWARM-WIRE-MIXED-VERSIONS](swarm-lifecycle.md#SWARM-WIRE-MIXED-VERSIONS)
+*Pinned by:* [BR-FW-NFT-NO-FORWARDING](#BR-FW-NFT-NO-FORWARDING), [BR-FW-NFT-NO-FORWARDING-NETWORK](#BR-FW-NFT-NO-FORWARDING-NETWORK) · *Needed by:* [BR-CLEAN-BUILTIN-CHAIN-RULES](#BR-CLEAN-BUILTIN-CHAIN-RULES), [BR-CLEAN-BUILTIN-RULES](#BR-CLEAN-BUILTIN-RULES), [BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED](#BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED), [BR-CLEAN-FORWARD-DROP-WARNING](#BR-CLEAN-FORWARD-DROP-WARNING), [BR-CLEAN-FORWARD-POLICY-KEPT](#BR-CLEAN-FORWARD-POLICY-KEPT), [BR-CLEAN-ISOLATION-CHAIN](#BR-CLEAN-ISOLATION-CHAIN), [BR-CLEAN-NO-FORWARD-JUMP](#BR-CLEAN-NO-FORWARD-JUMP), [BR-CLEAN-OTHER-BACKEND](#BR-CLEAN-OTHER-BACKEND), [BR-CLEAN-OTHER-BACKEND-IPT](#BR-CLEAN-OTHER-BACKEND-IPT), [BR-CLEAN-OTHER-BACKEND-NFT](#BR-CLEAN-OTHER-BACKEND-NFT), [BR-CLEAN-USER-DROP-RULE](#BR-CLEAN-USER-DROP-RULE), [BR-EGRESS-DAEMON-NO-MASQUERADE](#BR-EGRESS-DAEMON-NO-MASQUERADE), [BR-EGRESS-HOST-IPV4](#BR-EGRESS-HOST-IPV4), [BR-EGRESS-HOST-IPV6](#BR-EGRESS-HOST-IPV6), [BR-EGRESS-MASQUERADE](#BR-EGRESS-MASQUERADE), [BR-EGRESS-MASQUERADE-V6](#BR-EGRESS-MASQUERADE-V6), [BR-EGRESS-NO-MASQUERADE](#BR-EGRESS-NO-MASQUERADE), [BR-EGRESS-NO-MASQUERADE-V6](#BR-EGRESS-NO-MASQUERADE-V6), [BR-EGRESS-OPERATOR-NAT-RULE-FIRST](#BR-EGRESS-OPERATOR-NAT-RULE-FIRST), [BR-EGRESS-OPERATOR-RULE-DEFAULT-BRIDGE](#BR-EGRESS-OPERATOR-RULE-DEFAULT-BRIDGE), [BR-EGRESS-REPLY-DIRECT-ROUTING-OFF](#BR-EGRESS-REPLY-DIRECT-ROUTING-OFF), [BR-EGRESS-REPLY-DIRECT-ROUTING-ON](#BR-EGRESS-REPLY-DIRECT-ROUTING-ON), [BR-EGRESS-REPLY-TRUSTED-IFACE](#BR-EGRESS-REPLY-TRUSTED-IFACE), [BR-EGRESS-UNDERLAY-REACH](#BR-EGRESS-UNDERLAY-REACH), [BR-FW-BACKEND-INFO](#BR-FW-BACKEND-INFO), [BR-FW-BACKEND-INVALID](#BR-FW-BACKEND-INVALID), [BR-FW-BACKEND-INVALID-MSG](#BR-FW-BACKEND-INVALID-MSG), [BR-FW-FIREWALLD-LATE-START-EGRESS](#BR-FW-FIREWALLD-LATE-START-EGRESS), [BR-FW-FIREWALLD-LATE-START-PORT](#BR-FW-FIREWALLD-LATE-START-PORT), [BR-FW-FIREWALLD-LATE-START-ZONE](#BR-FW-FIREWALLD-LATE-START-ZONE), [BR-FW-FIREWALLD-RELOAD-EGRESS](#BR-FW-FIREWALLD-RELOAD-EGRESS), [BR-FW-FIREWALLD-RELOAD-PORT](#BR-FW-FIREWALLD-RELOAD-PORT), [BR-FW-FIREWALLD-RELOADED-AT](#BR-FW-FIREWALLD-RELOADED-AT), [BR-FW-FIREWALLD-STOP-EGRESS](#BR-FW-FIREWALLD-STOP-EGRESS), [BR-FW-FIREWALLD-STOP-PORT](#BR-FW-FIREWALLD-STOP-PORT), [BR-FW-FIREWALLD-ZONE](#BR-FW-FIREWALLD-ZONE), [BR-FW-FIREWALLD-ZONE-IPTABLES-DISABLED](#BR-FW-FIREWALLD-ZONE-IPTABLES-DISABLED), [BR-FW-FIREWALLD-ZONE-USER-BOUND](#BR-FW-FIREWALLD-ZONE-USER-BOUND), [BR-FW-FORWARD-DROP-FIREWALLD](#BR-FW-FORWARD-DROP-FIREWALLD), [BR-FW-FORWARD-DROP-FIREWALLD-LATE-START](#BR-FW-FORWARD-DROP-FIREWALLD-LATE-START), [BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6](#BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6), [BR-FW-FORWARD-DROP-FIREWALLD-STOP](#BR-FW-FORWARD-DROP-FIREWALLD-STOP), [BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6](#BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6), [BR-FW-FORWARD-DROP-FIREWALLD-V6](#BR-FW-FORWARD-DROP-FIREWALLD-V6), [BR-FW-FORWARDING-ALREADY-ENABLED](#BR-FW-FORWARDING-ALREADY-ENABLED), [BR-FW-FORWARDING-ALREADY-ENABLED-V6](#BR-FW-FORWARDING-ALREADY-ENABLED-V6), [BR-FW-FORWARDING-ENABLED](#BR-FW-FORWARDING-ENABLED), [BR-FW-FORWARDING-ENABLED-V6](#BR-FW-FORWARDING-ENABLED-V6), [BR-FW-FORWARDING-NO-DROP](#BR-FW-FORWARDING-NO-DROP), [BR-FW-FORWARDING-NO-DROP-V6](#BR-FW-FORWARDING-NO-DROP-V6), [BR-FW-IP6TABLES-MISSING](#BR-FW-IP6TABLES-MISSING), [BR-FW-IP6TABLES-MISSING-MSG](#BR-FW-IP6TABLES-MISSING-MSG), [BR-FW-IP6TABLES-MISSING-NETWORK](#BR-FW-IP6TABLES-MISSING-NETWORK), [BR-FW-IP6TABLES-MISSING-PUBLISHED-PORT](#BR-FW-IP6TABLES-MISSING-PUBLISHED-PORT), [BR-FW-IPTABLES-MISSING](#BR-FW-IPTABLES-MISSING), [BR-FW-IPTABLES-MISSING-MSG](#BR-FW-IPTABLES-MISSING-MSG), [BR-FW-NFT-FIREWALLD-RELOAD](#BR-FW-NFT-FIREWALLD-RELOAD), [BR-FW-NFT-FORWARDING-UNCHECKED](#BR-FW-NFT-FORWARDING-UNCHECKED), [BR-FW-NFT-IPV6-MISSING](#BR-FW-NFT-IPV6-MISSING), [BR-FW-NFT-IPV6-MISSING-NETWORK](#BR-FW-NFT-IPV6-MISSING-NETWORK), [BR-FW-NFT-MISSING](#BR-FW-NFT-MISSING), [BR-FW-NFT-MISSING-MSG](#BR-FW-NFT-MISSING-MSG), [BR-FW-NFT-NO-FORWARDING-V6](#BR-FW-NFT-NO-FORWARDING-V6), [BR-FW-NFT-NO-FORWARDING-V6-HTTP500](#BR-FW-NFT-NO-FORWARDING-V6-HTTP500), [BR-GW-DEFAULT-ROUTE-NETWORK](#BR-GW-DEFAULT-ROUTE-NETWORK), [BR-GWMODE-HTTP500-REFUSED](#BR-GWMODE-HTTP500-REFUSED), [BR-GWMODE-ISOLATED-NOT-INTERNAL](#BR-GWMODE-ISOLATED-NOT-INTERNAL), [BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI](#BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI), [BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500](#BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500), [BR-GWMODE-NAT-UNPROTECTED](#BR-GWMODE-NAT-UNPROTECTED), [BR-GWMODE-ROUTED-EGRESS](#BR-GWMODE-ROUTED-EGRESS), [BR-GWMODE-ROUTED-EGRESS-V6](#BR-GWMODE-ROUTED-EGRESS-V6), [BR-GWMODE-ROUTED-INBOUND](#BR-GWMODE-ROUTED-INBOUND), [BR-GWMODE-ROUTED-INBOUND-V6](#BR-GWMODE-ROUTED-INBOUND-V6), [BR-GWMODE-ROUTED-NODE-ADDRESS](#BR-GWMODE-ROUTED-NODE-ADDRESS), [BR-GWMODE-UNKNOWN](#BR-GWMODE-UNKNOWN), [BR-GWMODE-UNKNOWN-CLI](#BR-GWMODE-UNKNOWN-CLI), [BR-GWMODE-UNKNOWN-MSG](#BR-GWMODE-UNKNOWN-MSG), [BR-ISO-ACCEPT-FWMARK](#BR-ISO-ACCEPT-FWMARK), [BR-ISO-ACCEPT-FWMARK-UNTRUSTED](#BR-ISO-ACCEPT-FWMARK-UNTRUSTED), [BR-ISO-BRIDGE-NF-CALL](#BR-ISO-BRIDGE-NF-CALL), [BR-ISO-BRIDGE-NF-CALL-V6](#BR-ISO-BRIDGE-NF-CALL-V6), [BR-ISO-DAEMON-NO-ICC](#BR-ISO-DAEMON-NO-ICC), [BR-ISO-DIRECT-ROUTING-OFF](#BR-ISO-DIRECT-ROUTING-OFF), [BR-ISO-DIRECT-ROUTING-OFF-FIREWALLD](#BR-ISO-DIRECT-ROUTING-OFF-FIREWALLD), [BR-ISO-DIRECT-ROUTING-OFF-V6](#BR-ISO-DIRECT-ROUTING-OFF-V6), [BR-ISO-DIRECT-ROUTING-ON](#BR-ISO-DIRECT-ROUTING-ON), [BR-ISO-DIRECT-ROUTING-ON-FIREWALLD](#BR-ISO-DIRECT-ROUTING-ON-FIREWALLD), [BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING](#BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING), [BR-ISO-INTERNAL-CTR-ROUTE](#BR-ISO-INTERNAL-CTR-ROUTE), [BR-ISO-INTERNAL-CTR-TO-HOST](#BR-ISO-INTERNAL-CTR-TO-HOST), [BR-ISO-INTERNAL-HOST-TO-CTR](#BR-ISO-INTERNAL-HOST-TO-CTR), [BR-ISO-INTERNAL-NO-FORWARD](#BR-ISO-INTERNAL-NO-FORWARD), [BR-ISO-ISOLATED-CTR-TO-HOST](#BR-ISO-ISOLATED-CTR-TO-HOST), [BR-ISO-ISOLATED-NO-GATEWAY](#BR-ISO-ISOLATED-NO-GATEWAY), [BR-ISO-NO-BR-NETFILTER-DAEMON-ICC](#BR-ISO-NO-BR-NETFILTER-DAEMON-ICC), [BR-ISO-NO-BR-NETFILTER-NO-ICC](#BR-ISO-NO-BR-NETFILTER-NO-ICC), [BR-ISO-NO-BR-NETFILTER-NO-ICC-MSG](#BR-ISO-NO-BR-NETFILTER-NO-ICC-MSG), [BR-ISO-NO-ICC](#BR-ISO-NO-ICC), [BR-ISO-NO-ICC-LEGACY-LINK](#BR-ISO-NO-ICC-LEGACY-LINK), [BR-ISO-NO-VETH](#BR-ISO-NO-VETH), [BR-ISO-NO-VETH-CONNECT](#BR-ISO-NO-VETH-CONNECT), [BR-ISO-NO-VETH-CREATE](#BR-ISO-NO-VETH-CREATE), [BR-ISO-NO-VETH-HTTP500](#BR-ISO-NO-VETH-HTTP500), [BR-ISO-SAME-NETWORK](#BR-ISO-SAME-NETWORK), [BR-ISO-SEPARATE-NETWORKS](#BR-ISO-SEPARATE-NETWORKS), [BR-ISO-SEPARATE-NETWORKS-NAT-UNPROTECTED](#BR-ISO-SEPARATE-NETWORKS-NAT-UNPROTECTED), [BR-ISO-SEPARATE-NETWORKS-ROUTED](#BR-ISO-SEPARATE-NETWORKS-ROUTED), [BR-ISO-SEPARATE-NETWORKS-V6](#BR-ISO-SEPARATE-NETWORKS-V6), [BR-ISO-TRUSTED-IFACE](#BR-ISO-TRUSTED-IFACE), [BR-ISO-TRUSTED-IFACE-LIST](#BR-ISO-TRUSTED-IFACE-LIST), [BR-NOV6-CTR-START](#BR-NOV6-CTR-START), [BR-NOV6-DAEMON-START](#BR-NOV6-DAEMON-START), [BR-NOV6-PUBLISHED-PORT](#BR-NOV6-PUBLISHED-PORT), [BR-NOV6-V6-NETWORK-REFUSED](#BR-NOV6-V6-NETWORK-REFUSED), [BR-NOV6-V6-NETWORK-REFUSED-MSG](#BR-NOV6-V6-NETWORK-REFUSED-MSG), [BR-OPT-BRIDGE-NAME](#BR-OPT-BRIDGE-NAME), [BR-OPT-DAEMON-BIP](#BR-OPT-DAEMON-BIP), [BR-OPT-DAEMON-BIP6](#BR-OPT-DAEMON-BIP6), [BR-OPT-DAEMON-BRIDGE-NONE](#BR-OPT-DAEMON-BRIDGE-NONE), [BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED), [BR-OPT-DAEMON-MTU-APPLIED](#BR-OPT-DAEMON-MTU-APPLIED), [BR-OPT-DAEMON-MTU-DEFAULT](#BR-OPT-DAEMON-MTU-DEFAULT), [BR-OPT-DAEMON-MTU-ERROR](#BR-OPT-DAEMON-MTU-ERROR), [BR-OPT-DAEMON-MTU-INVALID](#BR-OPT-DAEMON-MTU-INVALID), [BR-OPT-DAEMON-MTU-MODULO](#BR-OPT-DAEMON-MTU-MODULO), [BR-OPT-DAEMON-MTU-NEGATIVE](#BR-OPT-DAEMON-MTU-NEGATIVE), [BR-OPT-DAEMON-MTU-NEGATIVE-MSG](#BR-OPT-DAEMON-MTU-NEGATIVE-MSG), [BR-OPT-DAEMON-MTU-REFUSED](#BR-OPT-DAEMON-MTU-REFUSED), [BR-OPT-DAEMON-MTU-ZERO](#BR-OPT-DAEMON-MTU-ZERO), [BR-OPT-DAEMON-MTU-ZERO-FLAG](#BR-OPT-DAEMON-MTU-ZERO-FLAG), [BR-OPT-DAEMON-MTU-ZERO-REPLACED](#BR-OPT-DAEMON-MTU-ZERO-REPLACED), [BR-OPT-HTTP500-REFUSED](#BR-OPT-HTTP500-REFUSED), [BR-OPT-IPV4-DISABLED](#BR-OPT-IPV4-DISABLED), [BR-OPT-MTU-APPLIED](#BR-OPT-MTU-APPLIED), [BR-OPT-MTU-INVALID](#BR-OPT-MTU-INVALID), [BR-OPT-MTU-INVALID-CLI](#BR-OPT-MTU-INVALID-CLI), [BR-OPT-MTU-INVALID-MSG](#BR-OPT-MTU-INVALID-MSG), [BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO), [BR-OPT-MTU-OUT-OF-RANGE](#BR-OPT-MTU-OUT-OF-RANGE), [BR-OPT-MTU-REFUSED](#BR-OPT-MTU-REFUSED), [BR-OPT-MTU-REFUSED-CLI](#BR-OPT-MTU-REFUSED-CLI), [BR-OPT-MTU-REFUSED-HTTP500](#BR-OPT-MTU-REFUSED-HTTP500), [BR-OPT-MTU-ZERO](#BR-OPT-MTU-ZERO), [BR-PRIO-BASE-CHAINS](#BR-PRIO-BASE-CHAINS), [BR-PRIO-WELL-KNOWN](#BR-PRIO-WELL-KNOWN), [BR-PUB-HOST-ADDRESS](#BR-PUB-HOST-ADDRESS), [BR-PUB-HOST-BINDING-ADDRESS](#BR-PUB-HOST-BINDING-ADDRESS), [BR-PUB-HOST-BINDING-ADDRESS-DAEMON](#BR-PUB-HOST-BINDING-ADDRESS-DAEMON), [BR-PUB-HOST-PORT-ASSIGNED](#BR-PUB-HOST-PORT-ASSIGNED), [BR-PUB-HOST-PORT-ASSIGNED-CLI](#BR-PUB-HOST-PORT-ASSIGNED-CLI), [BR-PUB-HOST-PORT-RESERVED-REQUESTED](#BR-PUB-HOST-PORT-RESERVED-REQUESTED), [BR-PUB-LOOPBACK-CLIENT](#BR-PUB-LOOPBACK-CLIENT), [BR-PUB-LOOPBACK-CLIENT-FIREWALLD](#BR-PUB-LOOPBACK-CLIENT-FIREWALLD), [BR-PUB-LOOPBACK-NODE](#BR-PUB-LOOPBACK-NODE), [BR-PUB-NO-SCTP](#BR-PUB-NO-SCTP), [BR-PUB-NO-SCTP-CONNECT](#BR-PUB-NO-SCTP-CONNECT), [BR-PUB-NO-SCTP-CREATE](#BR-PUB-NO-SCTP-CREATE), [BR-PUB-NO-SCTP-JOIN-ORDER](#BR-PUB-NO-SCTP-JOIN-ORDER), [BR-PUB-NO-SCTP-MSG](#BR-PUB-NO-SCTP-MSG), [BR-PUB-ROUTE-LOCALNET](#BR-PUB-ROUTE-LOCALNET), [BR-PUB-SCTP](#BR-PUB-SCTP), [BR-PUB-UNPUBLISHED-PORT](#BR-PUB-UNPUBLISHED-PORT), [BR-PUB-UNPUBLISHED-PORT-NODE](#BR-PUB-UNPUBLISHED-PORT-NODE), [BR-PUB-V4-CLIENT-SOURCE](#BR-PUB-V4-CLIENT-SOURCE), [BR-PUB-V6-CLIENT-SOURCE](#BR-PUB-V6-CLIENT-SOURCE), [BR-PUB-V6-LINK-LOCAL](#BR-PUB-V6-LINK-LOCAL), [BR-PUB-V6-REACHABLE](#BR-PUB-V6-REACHABLE), [BR-RULES-REFERENCE](#BR-RULES-REFERENCE), [BR-RULES-REFERENCE-NFT](#BR-RULES-REFERENCE-NFT), [BR-USER-ACCEPT-NO-DIRECT-ROUTING](#BR-USER-ACCEPT-NO-DIRECT-ROUTING), [BR-USER-CHAIN-JUMP](#BR-USER-CHAIN-JUMP), [BR-USER-CHAIN-JUMP-FIREWALLD](#BR-USER-CHAIN-JUMP-FIREWALLD), [BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START](#BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START), [BR-USER-CHAIN-JUMP-FIREWALLD-STOP](#BR-USER-CHAIN-JUMP-FIREWALLD-STOP), [BR-USER-DROP-RULE](#BR-USER-DROP-RULE), [BR-USER-RULES-KEPT](#BR-USER-RULES-KEPT), [SWARM-CLEAN-INGRESS-CHAIN-NFT](swarm-lifecycle.md#SWARM-CLEAN-INGRESS-CHAIN-NFT), [SWARM-WIRE-MIXED-VERSIONS](swarm-lifecycle.md#SWARM-WIRE-MIXED-VERSIONS)
 
 *Facility:* `net.ipv4.ip_forward` is 1
 
-*Needed when:* The nftables backend, with the daemon option `ip-forward` true
+*Needed when:* The nftables backend, with the daemon option `ip-forward` true.
+Without it, the daemon does not start with its default bridge network
+([*BR-FW-NFT-NO-FORWARDING*](#BR-FW-NFT-NO-FORWARDING)).
 
-<a id="needextend-network-bridge-networking-7"></a>
+<a id="needextend-network-bridge-networking-8"></a>
 
 <a id="BR-HOST-FORWARDING-V6"></a>
 
@@ -280,7 +916,7 @@ options:* `NF_TABLES`, `NF_TABLES_IPV6`, `NFT_COMPAT`,
 
 *Platforms:* linux · *When:* nftables-backend, ip-forward · *Kind:* config · *Tags:* ipv6
 
-*Pinned by:* [BR-FW-FORWARD-DROP-FIREWALLD-V6](#BR-FW-FORWARD-DROP-FIREWALLD-V6), [BR-FW-FORWARDING-ENABLED-V6](#BR-FW-FORWARDING-ENABLED-V6), [BR-FW-NFT-NO-FORWARDING-V6](#BR-FW-NFT-NO-FORWARDING-V6)
+*Pinned by:* [BR-FW-NFT-NO-FORWARDING-V6](#BR-FW-NFT-NO-FORWARDING-V6) · *Needed by:* [BR-EGRESS-HOST-IPV6](#BR-EGRESS-HOST-IPV6), [BR-EGRESS-MASQUERADE-V6](#BR-EGRESS-MASQUERADE-V6), [BR-EGRESS-NO-MASQUERADE-V6](#BR-EGRESS-NO-MASQUERADE-V6), [BR-GWMODE-ROUTED-EGRESS-V6](#BR-GWMODE-ROUTED-EGRESS-V6), [BR-GWMODE-ROUTED-INBOUND-V6](#BR-GWMODE-ROUTED-INBOUND-V6), [BR-ISO-BRIDGE-NF-CALL-V6](#BR-ISO-BRIDGE-NF-CALL-V6), [BR-ISO-DIRECT-ROUTING-OFF-V6](#BR-ISO-DIRECT-ROUTING-OFF-V6), [BR-ISO-SEPARATE-NETWORKS-V6](#BR-ISO-SEPARATE-NETWORKS-V6), [BR-OPT-DAEMON-BIP6](#BR-OPT-DAEMON-BIP6), [BR-OPT-IPV4-DISABLED](#BR-OPT-IPV4-DISABLED), [BR-PUB-NO-SCTP-JOIN-ORDER](#BR-PUB-NO-SCTP-JOIN-ORDER), [BR-PUB-V6-CLIENT-SOURCE](#BR-PUB-V6-CLIENT-SOURCE), [BR-PUB-V6-LINK-LOCAL](#BR-PUB-V6-LINK-LOCAL), [BR-PUB-V6-REACHABLE](#BR-PUB-V6-REACHABLE)
 
 *Facility:* `net.ipv6.conf.all.forwarding` and
 `net.ipv6.conf.default.forwarding` are 1
@@ -294,13 +930,13 @@ a bridge network with IPv6
 
 *Platforms:* linux · *Kind:* config
 
-*Needed by:* [BR-CLEAN-BUILTIN-CHAIN-RULES](#BR-CLEAN-BUILTIN-CHAIN-RULES), [BR-CLEAN-BUILTIN-RULES](#BR-CLEAN-BUILTIN-RULES), [BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED](#BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED), [BR-CLEAN-FORWARD-DROP-WARNING](#BR-CLEAN-FORWARD-DROP-WARNING), [BR-CLEAN-FORWARD-POLICY-KEPT](#BR-CLEAN-FORWARD-POLICY-KEPT), [BR-CLEAN-ISOLATION-CHAIN](#BR-CLEAN-ISOLATION-CHAIN), [BR-CLEAN-NAMES-UNCHANGED](#BR-CLEAN-NAMES-UNCHANGED), [BR-CLEAN-OTHER-BACKEND](#BR-CLEAN-OTHER-BACKEND), [BR-CLEAN-OTHER-BACKEND-IPT](#BR-CLEAN-OTHER-BACKEND-IPT), [BR-CLEAN-OTHER-BACKEND-NFT](#BR-CLEAN-OTHER-BACKEND-NFT), [BR-CLEAN-USER-DROP-RULE](#BR-CLEAN-USER-DROP-RULE), [BR-EGRESS-HOST-IPV4](#BR-EGRESS-HOST-IPV4), [BR-EGRESS-MASQUERADE](#BR-EGRESS-MASQUERADE), [BR-EGRESS-NO-MASQUERADE](#BR-EGRESS-NO-MASQUERADE), [BR-EGRESS-REPLY-DIRECT-ROUTING-OFF](#BR-EGRESS-REPLY-DIRECT-ROUTING-OFF), [BR-EGRESS-REPLY-DIRECT-ROUTING-ON](#BR-EGRESS-REPLY-DIRECT-ROUTING-ON), [BR-EGRESS-REPLY-TRUSTED-IFACE](#BR-EGRESS-REPLY-TRUSTED-IFACE), [BR-FW-BACKEND-INVALID](#BR-FW-BACKEND-INVALID), [BR-FW-BACKEND-INVALID-MSG](#BR-FW-BACKEND-INVALID-MSG), [BR-FW-FIREWALLD-RELOAD-EGRESS](#BR-FW-FIREWALLD-RELOAD-EGRESS), [BR-FW-FIREWALLD-RELOAD-NFT](#BR-FW-FIREWALLD-RELOAD-NFT), [BR-FW-FIREWALLD-RELOAD-PORT](#BR-FW-FIREWALLD-RELOAD-PORT), [BR-FW-FIREWALLD-RELOADED-AT](#BR-FW-FIREWALLD-RELOADED-AT), [BR-FW-FORWARD-DROP-FIREWALLD](#BR-FW-FORWARD-DROP-FIREWALLD), [BR-FW-FORWARD-DROP-FIREWALLD-V6](#BR-FW-FORWARD-DROP-FIREWALLD-V6), [BR-FW-FORWARDING-ENABLED](#BR-FW-FORWARDING-ENABLED), [BR-FW-FORWARDING-ENABLED-V6](#BR-FW-FORWARDING-ENABLED-V6), [BR-FW-HTTP500-REFUSED](#BR-FW-HTTP500-REFUSED), [BR-FW-IP6TABLES-MISSING](#BR-FW-IP6TABLES-MISSING), [BR-FW-IP6TABLES-MISSING-NETWORK](#BR-FW-IP6TABLES-MISSING-NETWORK), [BR-FW-IPTABLES-MISSING](#BR-FW-IPTABLES-MISSING), [BR-FW-NFT-MISSING](#BR-FW-NFT-MISSING), [BR-FW-NFT-NO-FORWARDING](#BR-FW-NFT-NO-FORWARDING), [BR-FW-NFT-NO-FORWARDING-V6](#BR-FW-NFT-NO-FORWARDING-V6), [BR-GW-DEFAULT-ROUTE-NETWORK](#BR-GW-DEFAULT-ROUTE-NETWORK), [BR-GWMODE-ISOLATED-NOT-INTERNAL](#BR-GWMODE-ISOLATED-NOT-INTERNAL), [BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI](#BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI), [BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500](#BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500), [BR-GWMODE-NAT-UNPROTECTED](#BR-GWMODE-NAT-UNPROTECTED), [BR-GWMODE-ROUTED-EGRESS](#BR-GWMODE-ROUTED-EGRESS), [BR-GWMODE-ROUTED-INBOUND](#BR-GWMODE-ROUTED-INBOUND), [BR-GWMODE-ROUTED-NODE-ADDRESS](#BR-GWMODE-ROUTED-NODE-ADDRESS), [BR-GWMODE-UNKNOWN](#BR-GWMODE-UNKNOWN), [BR-GWMODE-UNKNOWN-CLI](#BR-GWMODE-UNKNOWN-CLI), [BR-GWMODE-UNKNOWN-MSG](#BR-GWMODE-UNKNOWN-MSG), [BR-ISO-BRIDGE-NF-CALL](#BR-ISO-BRIDGE-NF-CALL), [BR-ISO-DIRECT-ROUTING-OFF](#BR-ISO-DIRECT-ROUTING-OFF), [BR-ISO-DIRECT-ROUTING-ON](#BR-ISO-DIRECT-ROUTING-ON), [BR-ISO-INTERNAL-CTR-ROUTE](#BR-ISO-INTERNAL-CTR-ROUTE), [BR-ISO-INTERNAL-CTR-TO-HOST](#BR-ISO-INTERNAL-CTR-TO-HOST), [BR-ISO-INTERNAL-HOST-TO-CTR](#BR-ISO-INTERNAL-HOST-TO-CTR), [BR-ISO-INTERNAL-NO-FORWARD](#BR-ISO-INTERNAL-NO-FORWARD), [BR-ISO-ISOLATED-CTR-TO-HOST](#BR-ISO-ISOLATED-CTR-TO-HOST), [BR-ISO-ISOLATED-NO-GATEWAY](#BR-ISO-ISOLATED-NO-GATEWAY), [BR-ISO-NO-ICC](#BR-ISO-NO-ICC), [BR-ISO-NO-ICC-LEGACY-LINK](#BR-ISO-NO-ICC-LEGACY-LINK), [BR-ISO-NO-VETH](#BR-ISO-NO-VETH), [BR-ISO-SEPARATE-NETWORKS](#BR-ISO-SEPARATE-NETWORKS), [BR-ISO-TRUSTED-IFACE](#BR-ISO-TRUSTED-IFACE), [BR-ISO-TRUSTED-IFACE-LIST](#BR-ISO-TRUSTED-IFACE-LIST), [BR-NOV6-CTR-START](#BR-NOV6-CTR-START), [BR-NOV6-DAEMON-START](#BR-NOV6-DAEMON-START), [BR-NOV6-PUBLISHED-PORT](#BR-NOV6-PUBLISHED-PORT), [BR-NOV6-V6-NETWORK-REFUSED](#BR-NOV6-V6-NETWORK-REFUSED), [BR-OPT-DAEMON-MTU-APPLIED](#BR-OPT-DAEMON-MTU-APPLIED), [BR-OPT-DAEMON-MTU-ERROR](#BR-OPT-DAEMON-MTU-ERROR), [BR-OPT-DAEMON-MTU-MODULO](#BR-OPT-DAEMON-MTU-MODULO), [BR-OPT-DAEMON-MTU-NEGATIVE](#BR-OPT-DAEMON-MTU-NEGATIVE), [BR-OPT-DAEMON-MTU-NEGATIVE-MSG](#BR-OPT-DAEMON-MTU-NEGATIVE-MSG), [BR-OPT-DAEMON-MTU-REFUSED](#BR-OPT-DAEMON-MTU-REFUSED), [BR-OPT-DAEMON-MTU-REFUSED-LIVE-RESTORE](#BR-OPT-DAEMON-MTU-REFUSED-LIVE-RESTORE), [BR-OPT-DAEMON-MTU-ZERO](#BR-OPT-DAEMON-MTU-ZERO), [BR-OPT-DAEMON-MTU-ZERO-REPLACED](#BR-OPT-DAEMON-MTU-ZERO-REPLACED), [BR-OPT-MTU-APPLIED](#BR-OPT-MTU-APPLIED), [BR-OPT-MTU-INVALID](#BR-OPT-MTU-INVALID), [BR-OPT-MTU-INVALID-CLI](#BR-OPT-MTU-INVALID-CLI), [BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO), [BR-OPT-MTU-OUT-OF-RANGE](#BR-OPT-MTU-OUT-OF-RANGE), [BR-OPT-MTU-REFUSED](#BR-OPT-MTU-REFUSED), [BR-OPT-MTU-REFUSED-CLI](#BR-OPT-MTU-REFUSED-CLI), [BR-OPT-MTU-REFUSED-HTTP500](#BR-OPT-MTU-REFUSED-HTTP500), [BR-OPT-MTU-ZERO](#BR-OPT-MTU-ZERO), [BR-PRIO-BASE-CHAINS](#BR-PRIO-BASE-CHAINS), [BR-PUB-HOST-ADDRESS](#BR-PUB-HOST-ADDRESS), [BR-PUB-HOST-PORT-ASSIGNED](#BR-PUB-HOST-PORT-ASSIGNED), [BR-PUB-LOOPBACK-CLIENT](#BR-PUB-LOOPBACK-CLIENT), [BR-PUB-LOOPBACK-NODE](#BR-PUB-LOOPBACK-NODE), [BR-PUB-NO-SCTP](#BR-PUB-NO-SCTP), [BR-PUB-ROUTE-LOCALNET](#BR-PUB-ROUTE-LOCALNET), [BR-PUB-UNPUBLISHED-PORT](#BR-PUB-UNPUBLISHED-PORT), [BR-PUB-V6-CLIENT-SOURCE](#BR-PUB-V6-CLIENT-SOURCE), [BR-PUB-V6-LINK-LOCAL](#BR-PUB-V6-LINK-LOCAL), [BR-PUB-V6-REACHABLE](#BR-PUB-V6-REACHABLE), [BR-RULES-REFERENCE](#BR-RULES-REFERENCE), [BR-RULES-REFERENCE-NFT](#BR-RULES-REFERENCE-NFT), [BR-USER-CHAIN-JUMP](#BR-USER-CHAIN-JUMP), [BR-USER-CHAIN-JUMP-FIREWALLD](#BR-USER-CHAIN-JUMP-FIREWALLD), [BR-USER-DROP-RULE](#BR-USER-DROP-RULE), [BR-USER-RULES-KEPT](#BR-USER-RULES-KEPT), [SWARM-PUB-FIREWALLD-V6-PROXY](#SWARM-PUB-FIREWALLD-V6-PROXY)
+*Pinned by:* [BR-ISO-BRIDGE-NF-CALL](#BR-ISO-BRIDGE-NF-CALL), [BR-ISO-BRIDGE-NF-CALL-V6](#BR-ISO-BRIDGE-NF-CALL-V6), [BR-PUB-ROUTE-LOCALNET](#BR-PUB-ROUTE-LOCALNET) · *Needed by:* [BR-CLEAN-BUILTIN-CHAIN-RULES](#BR-CLEAN-BUILTIN-CHAIN-RULES), [BR-CLEAN-BUILTIN-RULES](#BR-CLEAN-BUILTIN-RULES), [BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED](#BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED), [BR-CLEAN-FORWARD-DROP-WARNING](#BR-CLEAN-FORWARD-DROP-WARNING), [BR-CLEAN-FORWARD-POLICY-KEPT](#BR-CLEAN-FORWARD-POLICY-KEPT), [BR-CLEAN-ISOLATION-CHAIN](#BR-CLEAN-ISOLATION-CHAIN), [BR-CLEAN-NO-FORWARD-JUMP](#BR-CLEAN-NO-FORWARD-JUMP), [BR-CLEAN-OTHER-BACKEND](#BR-CLEAN-OTHER-BACKEND), [BR-CLEAN-OTHER-BACKEND-IPT](#BR-CLEAN-OTHER-BACKEND-IPT), [BR-CLEAN-OTHER-BACKEND-NFT](#BR-CLEAN-OTHER-BACKEND-NFT), [BR-CLEAN-USER-DROP-RULE](#BR-CLEAN-USER-DROP-RULE), [BR-EGRESS-DAEMON-NO-MASQUERADE](#BR-EGRESS-DAEMON-NO-MASQUERADE), [BR-EGRESS-HOST-IPV4](#BR-EGRESS-HOST-IPV4), [BR-EGRESS-HOST-IPV6](#BR-EGRESS-HOST-IPV6), [BR-EGRESS-MASQUERADE](#BR-EGRESS-MASQUERADE), [BR-EGRESS-MASQUERADE-V6](#BR-EGRESS-MASQUERADE-V6), [BR-EGRESS-NO-MASQUERADE](#BR-EGRESS-NO-MASQUERADE), [BR-EGRESS-NO-MASQUERADE-V6](#BR-EGRESS-NO-MASQUERADE-V6), [BR-EGRESS-OPERATOR-NAT-RULE-FIRST](#BR-EGRESS-OPERATOR-NAT-RULE-FIRST), [BR-EGRESS-OPERATOR-RULE-DEFAULT-BRIDGE](#BR-EGRESS-OPERATOR-RULE-DEFAULT-BRIDGE), [BR-EGRESS-REPLY-DIRECT-ROUTING-OFF](#BR-EGRESS-REPLY-DIRECT-ROUTING-OFF), [BR-EGRESS-REPLY-DIRECT-ROUTING-ON](#BR-EGRESS-REPLY-DIRECT-ROUTING-ON), [BR-EGRESS-REPLY-TRUSTED-IFACE](#BR-EGRESS-REPLY-TRUSTED-IFACE), [BR-EGRESS-UNDERLAY-REACH](#BR-EGRESS-UNDERLAY-REACH), [BR-FW-BACKEND-INFO](#BR-FW-BACKEND-INFO), [BR-FW-BACKEND-INVALID](#BR-FW-BACKEND-INVALID), [BR-FW-BACKEND-INVALID-MSG](#BR-FW-BACKEND-INVALID-MSG), [BR-FW-FIREWALLD-LATE-START-EGRESS](#BR-FW-FIREWALLD-LATE-START-EGRESS), [BR-FW-FIREWALLD-LATE-START-PORT](#BR-FW-FIREWALLD-LATE-START-PORT), [BR-FW-FIREWALLD-LATE-START-ZONE](#BR-FW-FIREWALLD-LATE-START-ZONE), [BR-FW-FIREWALLD-RELOAD-EGRESS](#BR-FW-FIREWALLD-RELOAD-EGRESS), [BR-FW-FIREWALLD-RELOAD-PORT](#BR-FW-FIREWALLD-RELOAD-PORT), [BR-FW-FIREWALLD-RELOADED-AT](#BR-FW-FIREWALLD-RELOADED-AT), [BR-FW-FIREWALLD-STOP-EGRESS](#BR-FW-FIREWALLD-STOP-EGRESS), [BR-FW-FIREWALLD-STOP-PORT](#BR-FW-FIREWALLD-STOP-PORT), [BR-FW-FIREWALLD-ZONE](#BR-FW-FIREWALLD-ZONE), [BR-FW-FIREWALLD-ZONE-IPTABLES-DISABLED](#BR-FW-FIREWALLD-ZONE-IPTABLES-DISABLED), [BR-FW-FIREWALLD-ZONE-USER-BOUND](#BR-FW-FIREWALLD-ZONE-USER-BOUND), [BR-FW-FORWARD-DROP-FIREWALLD](#BR-FW-FORWARD-DROP-FIREWALLD), [BR-FW-FORWARD-DROP-FIREWALLD-LATE-START](#BR-FW-FORWARD-DROP-FIREWALLD-LATE-START), [BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6](#BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6), [BR-FW-FORWARD-DROP-FIREWALLD-STOP](#BR-FW-FORWARD-DROP-FIREWALLD-STOP), [BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6](#BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6), [BR-FW-FORWARD-DROP-FIREWALLD-V6](#BR-FW-FORWARD-DROP-FIREWALLD-V6), [BR-FW-FORWARDING-ALREADY-ENABLED](#BR-FW-FORWARDING-ALREADY-ENABLED), [BR-FW-FORWARDING-ALREADY-ENABLED-V6](#BR-FW-FORWARDING-ALREADY-ENABLED-V6), [BR-FW-FORWARDING-ENABLED](#BR-FW-FORWARDING-ENABLED), [BR-FW-FORWARDING-ENABLED-V6](#BR-FW-FORWARDING-ENABLED-V6), [BR-FW-FORWARDING-NO-DROP](#BR-FW-FORWARDING-NO-DROP), [BR-FW-FORWARDING-NO-DROP-V6](#BR-FW-FORWARDING-NO-DROP-V6), [BR-FW-IP6TABLES-MISSING](#BR-FW-IP6TABLES-MISSING), [BR-FW-IP6TABLES-MISSING-MSG](#BR-FW-IP6TABLES-MISSING-MSG), [BR-FW-IP6TABLES-MISSING-NETWORK](#BR-FW-IP6TABLES-MISSING-NETWORK), [BR-FW-IP6TABLES-MISSING-PUBLISHED-PORT](#BR-FW-IP6TABLES-MISSING-PUBLISHED-PORT), [BR-FW-IPTABLES-MISSING](#BR-FW-IPTABLES-MISSING), [BR-FW-IPTABLES-MISSING-MSG](#BR-FW-IPTABLES-MISSING-MSG), [BR-FW-NFT-FIREWALLD-RELOAD](#BR-FW-NFT-FIREWALLD-RELOAD), [BR-FW-NFT-FORWARDING-UNCHECKED](#BR-FW-NFT-FORWARDING-UNCHECKED), [BR-FW-NFT-IPV6-MISSING](#BR-FW-NFT-IPV6-MISSING), [BR-FW-NFT-IPV6-MISSING-NETWORK](#BR-FW-NFT-IPV6-MISSING-NETWORK), [BR-FW-NFT-MISSING](#BR-FW-NFT-MISSING), [BR-FW-NFT-MISSING-MSG](#BR-FW-NFT-MISSING-MSG), [BR-FW-NFT-NO-FORWARDING](#BR-FW-NFT-NO-FORWARDING), [BR-FW-NFT-NO-FORWARDING-NETWORK](#BR-FW-NFT-NO-FORWARDING-NETWORK), [BR-FW-NFT-NO-FORWARDING-V6](#BR-FW-NFT-NO-FORWARDING-V6), [BR-FW-NFT-NO-FORWARDING-V6-HTTP500](#BR-FW-NFT-NO-FORWARDING-V6-HTTP500), [BR-GW-DEFAULT-ROUTE-NETWORK](#BR-GW-DEFAULT-ROUTE-NETWORK), [BR-GWMODE-HTTP500-REFUSED](#BR-GWMODE-HTTP500-REFUSED), [BR-GWMODE-ISOLATED-NOT-INTERNAL](#BR-GWMODE-ISOLATED-NOT-INTERNAL), [BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI](#BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI), [BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500](#BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500), [BR-GWMODE-NAT-UNPROTECTED](#BR-GWMODE-NAT-UNPROTECTED), [BR-GWMODE-ROUTED-EGRESS](#BR-GWMODE-ROUTED-EGRESS), [BR-GWMODE-ROUTED-EGRESS-V6](#BR-GWMODE-ROUTED-EGRESS-V6), [BR-GWMODE-ROUTED-INBOUND](#BR-GWMODE-ROUTED-INBOUND), [BR-GWMODE-ROUTED-INBOUND-V6](#BR-GWMODE-ROUTED-INBOUND-V6), [BR-GWMODE-ROUTED-NODE-ADDRESS](#BR-GWMODE-ROUTED-NODE-ADDRESS), [BR-GWMODE-UNKNOWN](#BR-GWMODE-UNKNOWN), [BR-GWMODE-UNKNOWN-CLI](#BR-GWMODE-UNKNOWN-CLI), [BR-GWMODE-UNKNOWN-MSG](#BR-GWMODE-UNKNOWN-MSG), [BR-ISO-ACCEPT-FWMARK](#BR-ISO-ACCEPT-FWMARK), [BR-ISO-ACCEPT-FWMARK-UNTRUSTED](#BR-ISO-ACCEPT-FWMARK-UNTRUSTED), [BR-ISO-BRIDGE-NF-CALL](#BR-ISO-BRIDGE-NF-CALL), [BR-ISO-BRIDGE-NF-CALL-V6](#BR-ISO-BRIDGE-NF-CALL-V6), [BR-ISO-DAEMON-NO-ICC](#BR-ISO-DAEMON-NO-ICC), [BR-ISO-DIRECT-ROUTING-OFF](#BR-ISO-DIRECT-ROUTING-OFF), [BR-ISO-DIRECT-ROUTING-OFF-FIREWALLD](#BR-ISO-DIRECT-ROUTING-OFF-FIREWALLD), [BR-ISO-DIRECT-ROUTING-OFF-V6](#BR-ISO-DIRECT-ROUTING-OFF-V6), [BR-ISO-DIRECT-ROUTING-ON](#BR-ISO-DIRECT-ROUTING-ON), [BR-ISO-DIRECT-ROUTING-ON-FIREWALLD](#BR-ISO-DIRECT-ROUTING-ON-FIREWALLD), [BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING](#BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING), [BR-ISO-INTERNAL-CTR-ROUTE](#BR-ISO-INTERNAL-CTR-ROUTE), [BR-ISO-INTERNAL-CTR-TO-HOST](#BR-ISO-INTERNAL-CTR-TO-HOST), [BR-ISO-INTERNAL-HOST-TO-CTR](#BR-ISO-INTERNAL-HOST-TO-CTR), [BR-ISO-INTERNAL-NO-FORWARD](#BR-ISO-INTERNAL-NO-FORWARD), [BR-ISO-ISOLATED-CTR-TO-HOST](#BR-ISO-ISOLATED-CTR-TO-HOST), [BR-ISO-ISOLATED-NO-GATEWAY](#BR-ISO-ISOLATED-NO-GATEWAY), [BR-ISO-NO-BR-NETFILTER-DAEMON-ICC](#BR-ISO-NO-BR-NETFILTER-DAEMON-ICC), [BR-ISO-NO-BR-NETFILTER-NO-ICC](#BR-ISO-NO-BR-NETFILTER-NO-ICC), [BR-ISO-NO-BR-NETFILTER-NO-ICC-MSG](#BR-ISO-NO-BR-NETFILTER-NO-ICC-MSG), [BR-ISO-NO-ICC](#BR-ISO-NO-ICC), [BR-ISO-NO-ICC-LEGACY-LINK](#BR-ISO-NO-ICC-LEGACY-LINK), [BR-ISO-NO-VETH](#BR-ISO-NO-VETH), [BR-ISO-NO-VETH-CONNECT](#BR-ISO-NO-VETH-CONNECT), [BR-ISO-NO-VETH-CREATE](#BR-ISO-NO-VETH-CREATE), [BR-ISO-NO-VETH-HTTP500](#BR-ISO-NO-VETH-HTTP500), [BR-ISO-SAME-NETWORK](#BR-ISO-SAME-NETWORK), [BR-ISO-SEPARATE-NETWORKS](#BR-ISO-SEPARATE-NETWORKS), [BR-ISO-SEPARATE-NETWORKS-NAT-UNPROTECTED](#BR-ISO-SEPARATE-NETWORKS-NAT-UNPROTECTED), [BR-ISO-SEPARATE-NETWORKS-ROUTED](#BR-ISO-SEPARATE-NETWORKS-ROUTED), [BR-ISO-SEPARATE-NETWORKS-V6](#BR-ISO-SEPARATE-NETWORKS-V6), [BR-ISO-TRUSTED-IFACE](#BR-ISO-TRUSTED-IFACE), [BR-ISO-TRUSTED-IFACE-LIST](#BR-ISO-TRUSTED-IFACE-LIST), [BR-NOV6-CTR-START](#BR-NOV6-CTR-START), [BR-NOV6-DAEMON-START](#BR-NOV6-DAEMON-START), [BR-NOV6-PUBLISHED-PORT](#BR-NOV6-PUBLISHED-PORT), [BR-NOV6-V6-NETWORK-REFUSED](#BR-NOV6-V6-NETWORK-REFUSED), [BR-NOV6-V6-NETWORK-REFUSED-MSG](#BR-NOV6-V6-NETWORK-REFUSED-MSG), [BR-OPT-BRIDGE-NAME](#BR-OPT-BRIDGE-NAME), [BR-OPT-DAEMON-BIP](#BR-OPT-DAEMON-BIP), [BR-OPT-DAEMON-BIP6](#BR-OPT-DAEMON-BIP6), [BR-OPT-DAEMON-BRIDGE-NONE](#BR-OPT-DAEMON-BRIDGE-NONE), [BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED), [BR-OPT-DAEMON-MTU-APPLIED](#BR-OPT-DAEMON-MTU-APPLIED), [BR-OPT-DAEMON-MTU-DEFAULT](#BR-OPT-DAEMON-MTU-DEFAULT), [BR-OPT-DAEMON-MTU-ERROR](#BR-OPT-DAEMON-MTU-ERROR), [BR-OPT-DAEMON-MTU-INVALID](#BR-OPT-DAEMON-MTU-INVALID), [BR-OPT-DAEMON-MTU-MODULO](#BR-OPT-DAEMON-MTU-MODULO), [BR-OPT-DAEMON-MTU-NEGATIVE](#BR-OPT-DAEMON-MTU-NEGATIVE), [BR-OPT-DAEMON-MTU-NEGATIVE-MSG](#BR-OPT-DAEMON-MTU-NEGATIVE-MSG), [BR-OPT-DAEMON-MTU-REFUSED](#BR-OPT-DAEMON-MTU-REFUSED), [BR-OPT-DAEMON-MTU-ZERO](#BR-OPT-DAEMON-MTU-ZERO), [BR-OPT-DAEMON-MTU-ZERO-FLAG](#BR-OPT-DAEMON-MTU-ZERO-FLAG), [BR-OPT-DAEMON-MTU-ZERO-REPLACED](#BR-OPT-DAEMON-MTU-ZERO-REPLACED), [BR-OPT-HTTP500-REFUSED](#BR-OPT-HTTP500-REFUSED), [BR-OPT-IPV4-DISABLED](#BR-OPT-IPV4-DISABLED), [BR-OPT-MTU-APPLIED](#BR-OPT-MTU-APPLIED), [BR-OPT-MTU-INVALID](#BR-OPT-MTU-INVALID), [BR-OPT-MTU-INVALID-CLI](#BR-OPT-MTU-INVALID-CLI), [BR-OPT-MTU-INVALID-MSG](#BR-OPT-MTU-INVALID-MSG), [BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO), [BR-OPT-MTU-OUT-OF-RANGE](#BR-OPT-MTU-OUT-OF-RANGE), [BR-OPT-MTU-REFUSED](#BR-OPT-MTU-REFUSED), [BR-OPT-MTU-REFUSED-CLI](#BR-OPT-MTU-REFUSED-CLI), [BR-OPT-MTU-REFUSED-HTTP500](#BR-OPT-MTU-REFUSED-HTTP500), [BR-OPT-MTU-ZERO](#BR-OPT-MTU-ZERO), [BR-PRIO-BASE-CHAINS](#BR-PRIO-BASE-CHAINS), [BR-PRIO-WELL-KNOWN](#BR-PRIO-WELL-KNOWN), [BR-PUB-HOST-ADDRESS](#BR-PUB-HOST-ADDRESS), [BR-PUB-HOST-BINDING-ADDRESS](#BR-PUB-HOST-BINDING-ADDRESS), [BR-PUB-HOST-BINDING-ADDRESS-DAEMON](#BR-PUB-HOST-BINDING-ADDRESS-DAEMON), [BR-PUB-HOST-PORT-ASSIGNED](#BR-PUB-HOST-PORT-ASSIGNED), [BR-PUB-HOST-PORT-ASSIGNED-CLI](#BR-PUB-HOST-PORT-ASSIGNED-CLI), [BR-PUB-HOST-PORT-RESERVED-REQUESTED](#BR-PUB-HOST-PORT-RESERVED-REQUESTED), [BR-PUB-LOOPBACK-CLIENT](#BR-PUB-LOOPBACK-CLIENT), [BR-PUB-LOOPBACK-CLIENT-FIREWALLD](#BR-PUB-LOOPBACK-CLIENT-FIREWALLD), [BR-PUB-LOOPBACK-NODE](#BR-PUB-LOOPBACK-NODE), [BR-PUB-NO-SCTP](#BR-PUB-NO-SCTP), [BR-PUB-NO-SCTP-CONNECT](#BR-PUB-NO-SCTP-CONNECT), [BR-PUB-NO-SCTP-CREATE](#BR-PUB-NO-SCTP-CREATE), [BR-PUB-NO-SCTP-JOIN-ORDER](#BR-PUB-NO-SCTP-JOIN-ORDER), [BR-PUB-NO-SCTP-MSG](#BR-PUB-NO-SCTP-MSG), [BR-PUB-ROUTE-LOCALNET](#BR-PUB-ROUTE-LOCALNET), [BR-PUB-SCTP](#BR-PUB-SCTP), [BR-PUB-UNPUBLISHED-PORT](#BR-PUB-UNPUBLISHED-PORT), [BR-PUB-UNPUBLISHED-PORT-NODE](#BR-PUB-UNPUBLISHED-PORT-NODE), [BR-PUB-V4-CLIENT-SOURCE](#BR-PUB-V4-CLIENT-SOURCE), [BR-PUB-V6-CLIENT-SOURCE](#BR-PUB-V6-CLIENT-SOURCE), [BR-PUB-V6-LINK-LOCAL](#BR-PUB-V6-LINK-LOCAL), [BR-PUB-V6-REACHABLE](#BR-PUB-V6-REACHABLE), [BR-RULES-REFERENCE](#BR-RULES-REFERENCE), [BR-RULES-REFERENCE-NFT](#BR-RULES-REFERENCE-NFT), [BR-USER-ACCEPT-NO-DIRECT-ROUTING](#BR-USER-ACCEPT-NO-DIRECT-ROUTING), [BR-USER-CHAIN-JUMP](#BR-USER-CHAIN-JUMP), [BR-USER-CHAIN-JUMP-FIREWALLD](#BR-USER-CHAIN-JUMP-FIREWALLD), [BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START](#BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START), [BR-USER-CHAIN-JUMP-FIREWALLD-STOP](#BR-USER-CHAIN-JUMP-FIREWALLD-STOP), [BR-USER-DROP-RULE](#BR-USER-DROP-RULE), [BR-USER-RULES-KEPT](#BR-USER-RULES-KEPT)
 
 *Facility:* `/proc/sys/net` is writable in the daemon's network namespace
 
 *Needed when:* Always
 
-<a id="needextend-network-bridge-networking-8"></a>
+<a id="needextend-network-bridge-networking-9"></a>
 
 <a id="BR-HOST-NO-FORWARD-DROP"></a>
 
@@ -308,20 +944,24 @@ a bridge network with IPv6
 
 *Platforms:* linux · *When:* nftables-backend · *Kind:* config
 
-*Pinned by:* [BR-CLEAN-FORWARD-DROP-WARNING](#BR-CLEAN-FORWARD-DROP-WARNING), [BR-CLEAN-FORWARD-POLICY-KEPT](#BR-CLEAN-FORWARD-POLICY-KEPT), [BR-CLEAN-USER-DROP-RULE](#BR-CLEAN-USER-DROP-RULE) · *Needed by:* [SWARM-WIRE-MIXED-VERSIONS](swarm-lifecycle.md#SWARM-WIRE-MIXED-VERSIONS)
+*Pinned by:* [BR-CLEAN-FORWARD-DROP-WARNING](#BR-CLEAN-FORWARD-DROP-WARNING), [BR-CLEAN-FORWARD-POLICY-KEPT](#BR-CLEAN-FORWARD-POLICY-KEPT), [BR-CLEAN-USER-DROP-RULE](#BR-CLEAN-USER-DROP-RULE) · *Needed by:* [BR-EGRESS-DAEMON-NO-MASQUERADE](#BR-EGRESS-DAEMON-NO-MASQUERADE), [BR-EGRESS-HOST-IPV4](#BR-EGRESS-HOST-IPV4), [BR-EGRESS-HOST-IPV6](#BR-EGRESS-HOST-IPV6), [BR-EGRESS-MASQUERADE](#BR-EGRESS-MASQUERADE), [BR-EGRESS-MASQUERADE-V6](#BR-EGRESS-MASQUERADE-V6), [BR-EGRESS-NO-MASQUERADE](#BR-EGRESS-NO-MASQUERADE), [BR-EGRESS-NO-MASQUERADE-V6](#BR-EGRESS-NO-MASQUERADE-V6), [BR-EGRESS-REPLY-DIRECT-ROUTING-ON](#BR-EGRESS-REPLY-DIRECT-ROUTING-ON), [BR-EGRESS-REPLY-TRUSTED-IFACE](#BR-EGRESS-REPLY-TRUSTED-IFACE), [BR-EGRESS-UNDERLAY-REACH](#BR-EGRESS-UNDERLAY-REACH), [BR-FW-FIREWALLD-LATE-START-EGRESS](#BR-FW-FIREWALLD-LATE-START-EGRESS), [BR-FW-FIREWALLD-LATE-START-PORT](#BR-FW-FIREWALLD-LATE-START-PORT), [BR-FW-FIREWALLD-RELOAD-EGRESS](#BR-FW-FIREWALLD-RELOAD-EGRESS), [BR-FW-FIREWALLD-RELOAD-PORT](#BR-FW-FIREWALLD-RELOAD-PORT), [BR-FW-FIREWALLD-STOP-EGRESS](#BR-FW-FIREWALLD-STOP-EGRESS), [BR-FW-FIREWALLD-STOP-PORT](#BR-FW-FIREWALLD-STOP-PORT), [BR-GW-DEFAULT-ROUTE-NETWORK](#BR-GW-DEFAULT-ROUTE-NETWORK), [BR-GWMODE-NAT-UNPROTECTED](#BR-GWMODE-NAT-UNPROTECTED), [BR-GWMODE-ROUTED-EGRESS](#BR-GWMODE-ROUTED-EGRESS), [BR-GWMODE-ROUTED-EGRESS-V6](#BR-GWMODE-ROUTED-EGRESS-V6), [BR-GWMODE-ROUTED-INBOUND](#BR-GWMODE-ROUTED-INBOUND), [BR-GWMODE-ROUTED-INBOUND-V6](#BR-GWMODE-ROUTED-INBOUND-V6), [BR-ISO-ACCEPT-FWMARK](#BR-ISO-ACCEPT-FWMARK), [BR-ISO-DAEMON-NO-ICC](#BR-ISO-DAEMON-NO-ICC), [BR-ISO-DIRECT-ROUTING-ON](#BR-ISO-DIRECT-ROUTING-ON), [BR-ISO-DIRECT-ROUTING-ON-FIREWALLD](#BR-ISO-DIRECT-ROUTING-ON-FIREWALLD), [BR-ISO-NO-ICC](#BR-ISO-NO-ICC), [BR-ISO-NO-ICC-LEGACY-LINK](#BR-ISO-NO-ICC-LEGACY-LINK), [BR-ISO-SAME-NETWORK](#BR-ISO-SAME-NETWORK), [BR-ISO-SEPARATE-NETWORKS](#BR-ISO-SEPARATE-NETWORKS), [BR-ISO-SEPARATE-NETWORKS-NAT-UNPROTECTED](#BR-ISO-SEPARATE-NETWORKS-NAT-UNPROTECTED), [BR-ISO-SEPARATE-NETWORKS-ROUTED](#BR-ISO-SEPARATE-NETWORKS-ROUTED), [BR-ISO-SEPARATE-NETWORKS-V6](#BR-ISO-SEPARATE-NETWORKS-V6), [BR-ISO-TRUSTED-IFACE](#BR-ISO-TRUSTED-IFACE), [BR-ISO-TRUSTED-IFACE-LIST](#BR-ISO-TRUSTED-IFACE-LIST), [BR-NOV6-PUBLISHED-PORT](#BR-NOV6-PUBLISHED-PORT), [BR-PUB-HOST-ADDRESS](#BR-PUB-HOST-ADDRESS), [BR-PUB-HOST-BINDING-ADDRESS](#BR-PUB-HOST-BINDING-ADDRESS), [BR-PUB-HOST-BINDING-ADDRESS-DAEMON](#BR-PUB-HOST-BINDING-ADDRESS-DAEMON), [BR-PUB-HOST-PORT-ASSIGNED](#BR-PUB-HOST-PORT-ASSIGNED), [BR-PUB-HOST-PORT-ASSIGNED-CLI](#BR-PUB-HOST-PORT-ASSIGNED-CLI), [BR-PUB-SCTP](#BR-PUB-SCTP), [BR-PUB-V4-CLIENT-SOURCE](#BR-PUB-V4-CLIENT-SOURCE), [BR-PUB-V6-CLIENT-SOURCE](#BR-PUB-V6-CLIENT-SOURCE), [BR-PUB-V6-REACHABLE](#BR-PUB-V6-REACHABLE), [SWARM-WIRE-MIXED-VERSIONS](swarm-lifecycle.md#SWARM-WIRE-MIXED-VERSIONS)
 
 *Facility:* No other table in the host's firewall drops the forwarded traffic of bridge
 networks. For example, the iptables filter table's `FORWARD` chain has policy ACCEPT.
 
-*Needed when:* The nftables backend
+*Needed when:* The nftables backend, for traffic to or from an endpoint on a bridge network that
+passes the node's forward path, such as egress, traffic to a published port and traffic between
+networks, and traffic within a network where the netfilter hooks for bridged traffic are loaded.
+The endpoints on `docker_gwbridge` that carry the egress and the routing mesh of Swarm
+tasks are such endpoints.
 
 <a id="bridge-networking-firewall-anchors-host-integration"></a>
 
 ## Firewall anchors & host integration
 
-The content of Moby's firewall rules is not an interface. A backend change replaces exactly this
-content. [Rule content](#bridge-networking-rule-content) pins it with detectors only. Two things are
-interfaces. They are the anchors of this section:
+The content of Moby's firewall rules is not an interface ([*PRIN-STABLE*](../principles.md#PRIN-STABLE)). A backend change
+replaces exactly this content. [Rule content](#bridge-networking-rule-content) pins it with detectors only.
+Two things are interfaces. They are the anchors of this section:
 
 1. The `DOCKER-USER` iptables chain. Operators attach rules to it. The documentation
    names it as the place to put policy that survives daemon restarts. The daemon never deletes or
@@ -334,9 +974,9 @@ No other name is an anchor. Moby's other iptables chains are not anchors, and no
 an anchor. An operator's rules can reach Moby's nftables chains only if they are programmed into
 Moby's own tables. That is not a supported configuration.
 
-IPv4 is an enabled IP version while the daemon's **iptables** option is true. IPv6 is an
-enabled IP version while the daemon's **ip6tables** option is true. This applies under either
-firewall backend, and whether or not `ipv6` is set.
+IPv4 is an enabled IP version while the daemon option `iptables` is true. IPv6 is an
+enabled IP version while the daemon option `ip6tables` is true. This applies under
+either firewall backend, and whether or not `ipv6` is set.
 
 <a id="bridge-networking-base-chain-priorities"></a>
 
@@ -344,7 +984,23 @@ firewall backend, and whether or not `ipv6` is set.
 
 These expectations cover the host's network namespace only. The specs do not assert the rules that
 the daemon programs in a container's network namespace
-([Deliberately not asserted](container-dns.md#container-dns-deliberately-not-asserted)).
+([Deliberately not asserted](container-dns.md#container-dns-deliberately-not-asserted) in [container-dns.md](container-dns.md)).
+
+<a id="BR-PRIO-WELL-KNOWN"></a>
+
+**Expectation (provisional) BR-PRIO-WELL-KNOWN**: Docker's nftables base chains are at the well-known priorities
+
+*Observed from:* node · *Depends on:* none · *Platforms:* linux
+
+*Provisional on:* [REQ-BR-NFT-BASE-CHAIN-PRIORITIES](#REQ-BR-NFT-BASE-CHAIN-PRIORITIES) · *Exact form:* [BR-PRIO-BASE-CHAINS](#BR-PRIO-BASE-CHAINS) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NFTABLES-V6](#BR-HOST-NFTABLES-V6), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* The nftables backend
+
+For each enabled IP version, each base chain of the bridge driver's nftables table
+`docker-bridges` in that version's family has the well-known priority of its kind:
+raw (−300) for its chain on the prerouting hook that runs before connection tracking, dstnat
+(−100) for its chains on the prerouting and output hooks that translate destinations, filter (0)
+for its chain on the forward hook, and srcnat (100) for its chain on the postrouting hook.
 
 <a id="BR-PRIO-BASE-CHAINS"></a>
 
@@ -352,7 +1008,7 @@ the daemon programs in a container's network namespace
 
 *Observed from:* node · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Exact form of:* [BR-PRIO-WELL-KNOWN](#BR-PRIO-WELL-KNOWN) · *Pins:* [BR-HOST-NFTABLES](#BR-HOST-NFTABLES) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NFTABLES-V6](#BR-HOST-NFTABLES-V6), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* The nftables backend
 
@@ -370,46 +1026,93 @@ under the iptables backend.
 
 <a id="BR-USER-CHAIN-JUMP"></a>
 
-**Expectation (detector) BR-USER-CHAIN-JUMP**: DOCKER-USER exists and FORWARD jumps to it for each IP version
+**Expectation (contract) BR-USER-CHAIN-JUMP**: DOCKER-USER exists and FORWARD jumps to it for each IP version
 
 *Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-DOCKER-USER](#REQ-BR-DOCKER-USER) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND), [BR-HOST-IP6TABLES-KERNEL](#BR-HOST-IP6TABLES-KERNEL), [BR-HOST-IP6TABLES-LEGACY-KERNEL](#BR-HOST-IP6TABLES-LEGACY-KERNEL), [BR-HOST-IP6TABLES-NFT-KERNEL](#BR-HOST-IP6TABLES-NFT-KERNEL), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 For each enabled IP version, `DOCKER-USER` exists in the filter table and
 `FORWARD` jumps to it.
 
 <a id="BR-USER-DROP-RULE"></a>
 
-**Expectation (detector) BR-USER-DROP-RULE**: An operator's DROP rule in DOCKER-USER drops traffic to a published port
+**Expectation (contract) BR-USER-DROP-RULE**: An operator's DROP rule in DOCKER-USER drops traffic to a published port
 
 *Observed from:* client · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-DOCKER-USER](#REQ-BR-DOCKER-USER), [REQ-BR-FIREWALLD-RELOAD](#REQ-BR-FIREWALLD-RELOAD) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
-A DROP rule that an operator places in `DOCKER-USER` drops matching traffic to a
-published port. This is also true for a rule that an operator places after a firewalld reload.
+*Applies to:* A DROP rule that an operator places in `DOCKER-USER`, which matches
+traffic to a published port by the client's address, or by the container's address and port
+
+The rule drops the traffic to the published port that it matches and that the node forwards to
+the container, not relaying it through **docker-proxy**. This is also true for a rule
+that an operator places after a firewalld reload.
+
+<a id="BR-USER-ACCEPT-NO-DIRECT-ROUTING"></a>
+
+**Expectation (contract) BR-USER-ACCEPT-NO-DIRECT-ROUTING**: An operator's ACCEPT rule in DOCKER-USER does not open direct routing
+
+*Observed from:* underlay → ctr · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-NO-DIRECT-ROUTING](#REQ-BR-NO-DIRECT-ROUTING) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A daemon with `allow-direct-routing` false; a container on a bridge
+network whose `com.docker.network.bridge.gateway_mode_ipv4` is `nat` or not set; an
+underlay host with a route to the container's IPv4 address via the node's underlay address,
+whose traffic arrives on an interface that is not in the network's
+`com.docker.network.bridge.trusted_host_interfaces`; and an operator's rule in
+`DOCKER-USER` that accepts this traffic
+
+Traffic from that host to the container's IPv4 address does not reach the container on any port.
 
 <a id="BR-USER-RULES-KEPT"></a>
 
-**Expectation (detector) BR-USER-RULES-KEPT**: An operator's DOCKER-USER rules stay unchanged across a daemon start
+**Expectation (contract) BR-USER-RULES-KEPT**: An operator's DOCKER-USER rules stay unchanged across a daemon start
 
-*Observed from:* node, client · *Depends on:* none · *Platforms:* linux
+*Observed from:* node · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-DOCKER-USER-KEPT](#REQ-BR-DOCKER-USER-KEPT) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 `DOCKER-USER` rules that an operator added before a start of the daemon are still
-there, unchanged, after the start. This includes a restart with **iptables** false.
+there, unchanged, after the start. This includes a restart with `iptables` false.
 
 <a id="BR-USER-CHAIN-JUMP-FIREWALLD"></a>
 
-**Expectation (detector) BR-USER-CHAIN-JUMP-FIREWALLD**: After a firewalld reload, DOCKER-USER exists and FORWARD jumps to it
+**Expectation (contract) BR-USER-CHAIN-JUMP-FIREWALLD**: After a firewalld reload, DOCKER-USER exists and FORWARD jumps to it
 
 *Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-DOCKER-USER](#REQ-BR-DOCKER-USER), [REQ-BR-FIREWALLD-RELOAD](#REQ-BR-FIREWALLD-RELOAD) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND), [BR-HOST-IP6TABLES-KERNEL](#BR-HOST-IP6TABLES-KERNEL), [BR-HOST-IP6TABLES-LEGACY-KERNEL](#BR-HOST-IP6TABLES-LEGACY-KERNEL), [BR-HOST-IP6TABLES-NFT-KERNEL](#BR-HOST-IP6TABLES-NFT-KERNEL), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 After a firewalld reload, for each enabled IP version, `DOCKER-USER` exists and
+`FORWARD` jumps to it.
+
+<a id="BR-USER-CHAIN-JUMP-FIREWALLD-STOP"></a>
+
+**Expectation (contract) BR-USER-CHAIN-JUMP-FIREWALLD-STOP**: After firewalld stops, DOCKER-USER exists and FORWARD jumps to it
+
+*Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-DOCKER-USER](#REQ-BR-DOCKER-USER), [REQ-BR-FIREWALLD-RELOAD](#REQ-BR-FIREWALLD-RELOAD) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND), [BR-HOST-IP6TABLES-KERNEL](#BR-HOST-IP6TABLES-KERNEL), [BR-HOST-IP6TABLES-LEGACY-KERNEL](#BR-HOST-IP6TABLES-LEGACY-KERNEL), [BR-HOST-IP6TABLES-NFT-KERNEL](#BR-HOST-IP6TABLES-NFT-KERNEL), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A node with firewalld running
+
+After firewalld stops, for each enabled IP version, `DOCKER-USER` exists and
+`FORWARD` jumps to it.
+
+<a id="BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START"></a>
+
+**Expectation (contract) BR-USER-CHAIN-JUMP-FIREWALLD-LATE-START**: After firewalld starts later than the daemon, FORWARD jumps to DOCKER-USER
+
+*Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-DOCKER-USER](#REQ-BR-DOCKER-USER), [REQ-BR-FIREWALLD-RELOAD](#REQ-BR-FIREWALLD-RELOAD) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND), [BR-HOST-IP6TABLES-KERNEL](#BR-HOST-IP6TABLES-KERNEL), [BR-HOST-IP6TABLES-LEGACY-KERNEL](#BR-HOST-IP6TABLES-LEGACY-KERNEL), [BR-HOST-IP6TABLES-NFT-KERNEL](#BR-HOST-IP6TABLES-NFT-KERNEL), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A daemon that started while firewalld was not running
+
+After firewalld starts, for each enabled IP version, `DOCKER-USER` exists and
 `FORWARD` jumps to it.
 
 <a id="bridge-networking-cross-generation-cleanup"></a>
@@ -434,18 +1137,18 @@ during its start. It restores each bridge network that exists at the start. It a
 endpoints and port bindings of containers that the previous daemon left in place. Those are the
 endpoints and port bindings of the containers that `live-restore` keeps running, and
 those of the containers that the daemon stops during its start, after it was killed or after a stop
-with `live-restore` true.
-
-A daemon of one release does not show a rename of a previous release's names. The detector that pins
-the names that cleanup needs fails on such a rename.
+with `live-restore` true. The daemon restores them before its API responds. It does not
+restore a network whose state it does not have when it starts, such as a network whose state was
+deleted from the daemon's data root while the daemon was stopped, or that network's endpoints and
+port bindings. [*BR-CLEAN-BUILTIN-CHAIN-RULES*](#BR-CLEAN-BUILTIN-CHAIN-RULES) states which rules stay for them.
 
 <a id="BR-CLEAN-OTHER-BACKEND"></a>
 
-**Expectation (detector) BR-CLEAN-OTHER-BACKEND**: No table or chain of the other backend remains after the daemon starts
+**Expectation (contract) BR-CLEAN-OTHER-BACKEND**: No table or chain of the other backend remains after the daemon starts
 
 *Observed from:* node · *Depends on:* os-linux, upgrade · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [PRIN-NO-LEAKS](../principles.md#PRIN-NO-LEAKS), [REQ-BR-DOCKER-USER-KEPT](#REQ-BR-DOCKER-USER-KEPT) · *Provisional on:* [REQ-BR-NFT-MIGRATION](#REQ-BR-NFT-MIGRATION) · *Exact form:* [BR-CLEAN-OTHER-BACKEND-IPT](#BR-CLEAN-OTHER-BACKEND-IPT), [BR-CLEAN-OTHER-BACKEND-NFT](#BR-CLEAN-OTHER-BACKEND-NFT) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-CLEANUP-COMMAND](#BR-HOST-IPTABLES-CLEANUP-COMMAND), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-CLEANUP-COMMAND](#BR-HOST-NFT-CLEANUP-COMMAND), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Does not cover:* Without the FORWARD jump, a start with nftables keeps the old iptables state ([BR-CLEAN-NO-FORWARD-JUMP](#BR-CLEAN-NO-FORWARD-JUMP)) · *Concerned by:* [BR-CLEAN-BUILTIN-CHAIN-RULES](#BR-CLEAN-BUILTIN-CHAIN-RULES)
 
 After the daemon has started, the host netns does not contain any table or chain that a previous
 generation left there with the other backend. The exceptions are `DOCKER-USER` and
@@ -453,17 +1156,18 @@ the `FORWARD` jump to it, which hold the operator's rules and stay in place. The
 tables and built-in chains that an **iptables** command creates by itself, such as the
 filter table and its `FORWARD` chain, are also exceptions. The overlay driver's
 `docker-overlay` table is also an exception. It is not asserted
-([nftables](swarm-lifecycle.md#swarm-lifecycle-nftables)). This holds for a switch from iptables to nftables and for a
-switch from nftables to iptables. It holds across a package upgrade from *N−1* to *N* and across
-a same-binary restart.
+([nftables](swarm-lifecycle.md#swarm-lifecycle-nftables)). The tables and chains that belong to Swarm, such as
+`DOCKER-INGRESS`, are among those that do not remain. This holds for a switch from
+iptables to nftables and for a switch from nftables to iptables. It holds across a package
+upgrade from *N−1* to *N* and across a same-binary restart.
 
 <a id="BR-CLEAN-ISOLATION-CHAIN"></a>
 
-**Expectation (detector) BR-CLEAN-ISOLATION-CHAIN**: Neither the old DOCKER-ISOLATION chain nor its FORWARD rule remains
+**Expectation (contract) BR-CLEAN-ISOLATION-CHAIN**: Neither the old DOCKER-ISOLATION chain nor its FORWARD rule remains
 
 *Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [PRIN-NO-LEAKS](../principles.md#PRIN-NO-LEAKS) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND), [BR-HOST-IP6TABLES-KERNEL](#BR-HOST-IP6TABLES-KERNEL), [BR-HOST-IP6TABLES-LEGACY-KERNEL](#BR-HOST-IP6TABLES-LEGACY-KERNEL), [BR-HOST-IP6TABLES-NFT-KERNEL](#BR-HOST-IP6TABLES-NFT-KERNEL), [BR-HOST-IPTABLES-CLEANUP-COMMAND](#BR-HOST-IPTABLES-CLEANUP-COMMAND), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Does not cover:* Without the FORWARD jump, a start with nftables keeps the old iptables state ([BR-CLEAN-NO-FORWARD-JUMP](#BR-CLEAN-NO-FORWARD-JUMP))
 
 *Applies to:* The `DOCKER-ISOLATION` chain, which releases older than *N−1* created
 and *N* does not create, with the rule `-j DOCKER-ISOLATION` in the filter table's
@@ -474,19 +1178,19 @@ After the daemon has started, the filter table contains neither that chain nor t
 
 <a id="BR-CLEAN-BUILTIN-RULES"></a>
 
-**Expectation (detector) BR-CLEAN-BUILTIN-RULES**: Restoring a network, endpoint or binding removes its old built-in rules
+**Expectation (contract) BR-CLEAN-BUILTIN-RULES**: Restoring a network, endpoint or binding removes its old built-in rules
 
 *Observed from:* node · *Depends on:* os-linux, upgrade · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [PRIN-NO-LEAKS](../principles.md#PRIN-NO-LEAKS) · *Provisional on:* [REQ-BR-NFT-MIGRATION](#REQ-BR-NFT-MIGRATION) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-CLEANUP-COMMAND](#BR-HOST-IPTABLES-CLEANUP-COMMAND), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Does not cover:* Without the FORWARD jump, a start with nftables keeps the old iptables state ([BR-CLEAN-NO-FORWARD-JUMP](#BR-CLEAN-NO-FORWARD-JUMP)) · *Concerned by:* [BR-CLEAN-BUILTIN-CHAIN-RULES](#BR-CLEAN-BUILTIN-CHAIN-RULES)
 
 *Applies to:* A rule that the previous generation left in a built-in chain for a network,
-endpoint or port binding
+endpoint or port binding: a rule in a built-in chain that matches on the network's bridge or
+subnets, on the endpoint's addresses, or on the binding's host address or port
 
 After a switch from iptables to nftables, the rule does not remain after the daemon has restored
 that network, endpoint or port binding. This holds across a package upgrade from the previous
-release and across a same-binary restart. See
-[Known divergences & non-goals](#bridge-networking-known-divergences-non-goals).
+release and across a same-binary restart.
 
 <a id="BR-CLEAN-OTHER-BACKEND-IPT"></a>
 
@@ -494,10 +1198,11 @@ release and across a same-binary restart. See
 
 *Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Exact form of:* [BR-CLEAN-OTHER-BACKEND](#BR-CLEAN-OTHER-BACKEND) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-CLEANUP-COMMAND](#BR-HOST-NFT-CLEANUP-COMMAND), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
-When the daemon starts with the iptables backend, no `docker-bridges` table remains
-after the start.
+*Applies to:* A `docker-bridges` table that a daemon left under the nftables backend
+
+After the daemon starts with the iptables backend, that table does not remain.
 
 <a id="BR-CLEAN-OTHER-BACKEND-NFT"></a>
 
@@ -505,7 +1210,7 @@ after the start.
 
 *Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Exact form of:* [BR-CLEAN-OTHER-BACKEND](#BR-CLEAN-OTHER-BACKEND) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-CLEANUP-COMMAND](#BR-HOST-IPTABLES-CLEANUP-COMMAND), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerned by:* [BR-CLEAN-NO-FORWARD-JUMP](#BR-CLEAN-NO-FORWARD-JUMP)
 
 *Applies to:* A jump from the filter table's `FORWARD` chain to
 `DOCKER-FORWARD` or to `DOCKER-ISOLATION-STAGE-1`
@@ -517,41 +1222,41 @@ After the daemon starts with the nftables backend, some chains do not remain. Th
 `DOCKER-ISOLATION`. The jumps to these chains from `FORWARD` and from the
 nat table's `PREROUTING` and `OUTPUT` do not remain either.
 
+<a id="BR-CLEAN-BUILTIN-CHAIN-RULES"></a>
+
+**Expectation (defect) BR-CLEAN-BUILTIN-CHAIN-RULES**: After a switch to nftables, rules for what is not restored stay in built-in chains
+
+*Observed from:* node · *Depends on:* none · *Platforms:* linux
+
+*Pinned by:* [BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED](#BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-CLEANUP-COMMAND](#BR-HOST-IPTABLES-CLEANUP-COMMAND), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerns:* [BR-CLEAN-BUILTIN-RULES](#BR-CLEAN-BUILTIN-RULES), [BR-CLEAN-OTHER-BACKEND](#BR-CLEAN-OTHER-BACKEND) · *Violates:* [PRIN-NO-LEAKS](../principles.md#PRIN-NO-LEAKS)
+
+After a switch from the iptables backend to the nftables backend, the daemon deletes the rules
+that the previous generation added to the built-in iptables chains only for the networks,
+endpoints and port bindings that it restores. Rules for anything that it does not restore stay
+in the built-in chains.
+
 <a id="BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED"></a>
 
-**Expectation (detector) BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED**: Old built-in rules remain until the daemon restores what they are for
+**Expectation (detector) BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED**: Old built-in rules stay for a network that the daemon does not restore
 
 *Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Pins:* [BR-CLEAN-BUILTIN-CHAIN-RULES](#BR-CLEAN-BUILTIN-CHAIN-RULES) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-CLEANUP-COMMAND](#BR-HOST-IPTABLES-CLEANUP-COMMAND), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerned by:* [BR-CLEAN-NO-FORWARD-JUMP](#BR-CLEAN-NO-FORWARD-JUMP)
 
-*Applies to:* The rules of the previous generation in built-in chains for a network, endpoint or
-port binding
+*Applies to:* A bridge network that a previous generation set up under the iptables backend, and
+whose state the daemon does not have when it starts
 
-After a switch from iptables to nftables, these rules remain until that network, endpoint or
-port binding is restored. They do not remain after that.
-
-<a id="BR-CLEAN-NAMES-UNCHANGED"></a>
-
-**Expectation (detector) BR-CLEAN-NAMES-UNCHANGED**: The table and chain names that cleanup needs are unchanged
-
-*Observed from:* node · *Depends on:* none · *Platforms:* linux
-
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
-
-The names that cleanup needs are unchanged. They are the nftables table
-`docker-bridges`, and the iptables chains `DOCKER` (in the filter and nat
-tables), `DOCKER-FORWARD`, `DOCKER-BRIDGE`, `DOCKER-CT`,
-`DOCKER-INTERNAL`, `DOCKER-ISOLATION-STAGE-1`,
-`DOCKER-ISOLATION-STAGE-2` and `DOCKER-ISOLATION`.
+After a start with the nftables backend, once the daemon's API responds, the rule in the nat
+table's `POSTROUTING` chain that masquerades the network's subnet
+(`-s <subnet> ! -o <bridge> -j MASQUERADE`) remains.
 
 <a id="BR-CLEAN-FORWARD-POLICY-KEPT"></a>
 
-**Expectation (detector) BR-CLEAN-FORWARD-POLICY-KEPT**: A start with nftables does not modify the FORWARD chain's policy
+**Expectation (provisional) BR-CLEAN-FORWARD-POLICY-KEPT**: A start with nftables does not modify the FORWARD chain's policy
 
 *Observed from:* node · *Depends on:* none · *Platforms:* linux
 
-*Pins:* [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP) · *Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Provisional on:* [REQ-BR-NFT-MIGRATION](#REQ-BR-NFT-MIGRATION) · *Pins:* [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 The policy of the iptables filter table's `FORWARD` chain is not modified when the
 daemon starts with the nftables backend. This includes a policy of DROP.
@@ -562,7 +1267,7 @@ daemon starts with the nftables backend. This includes a policy of DROP.
 
 *Observed from:* log · *Depends on:* none · *Platforms:* linux
 
-*Pins:* [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP) · *Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Pins:* [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-CLEANUP-COMMAND](#BR-HOST-IPTABLES-CLEANUP-COMMAND), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Does not cover:* Without the FORWARD jump, a start with nftables keeps the old iptables state ([BR-CLEAN-NO-FORWARD-JUMP](#BR-CLEAN-NO-FORWARD-JUMP))
 
 *Applies to:* The filter table's `FORWARD` chain with policy DROP
 
@@ -570,17 +1275,41 @@ On the first start after a switch from iptables to nftables, the daemon logs a w
 contains `Network traffic for published ports may be dropped, iptables chain FORWARD has
 policy DROP.`
 
+<a id="BR-CLEAN-NO-FORWARD-JUMP"></a>
+
+**Expectation (defect) BR-CLEAN-NO-FORWARD-JUMP**: Without the FORWARD jump, a start with nftables keeps the old iptables state
+
+*Observed from:* node · *Depends on:* none · *Platforms:* linux
+
+*Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Narrows:* [BR-CLEAN-BUILTIN-RULES](#BR-CLEAN-BUILTIN-RULES), [BR-CLEAN-FORWARD-DROP-WARNING](#BR-CLEAN-FORWARD-DROP-WARNING), [BR-CLEAN-ISOLATION-CHAIN](#BR-CLEAN-ISOLATION-CHAIN), [BR-CLEAN-OTHER-BACKEND](#BR-CLEAN-OTHER-BACKEND) · *Concerns:* [BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED](#BR-CLEAN-BUILTIN-RULES-UNTIL-RESTORED), [BR-CLEAN-OTHER-BACKEND-NFT](#BR-CLEAN-OTHER-BACKEND-NFT) · *Violates:* [PRIN-NO-LEAKS](../principles.md#PRIN-NO-LEAKS), [REQ-BR-NFT-MIGRATION](#REQ-BR-NFT-MIGRATION)
+
+On a start with the nftables backend, the daemon removes the iptables chains of a previous
+generation for an IP version only when that IP version's filter table `FORWARD` chain
+jumps to `DOCKER-FORWARD` or to `DOCKER-ISOLATION-STAGE-1`. When that jump
+is gone, for example because an operator deleted it, the chains of that IP version,
+`DOCKER-ISOLATION` among them, stay, and so do the jumps to that IP version's nat
+table `DOCKER` chain from its `PREROUTING` and `OUTPUT` chains.
+When that IP version's `FORWARD` chain also has policy DROP, the daemon logs on that
+start no warning for that IP version that contains `Network traffic for published ports may
+be dropped, iptables chain FORWARD has policy DROP.` When that jump is gone for every enabled IP
+version, the jumps to those chains also stay, and so do the rules that the previous generation
+left in built-in chains, after the daemon restores their networks, endpoints and port bindings.
+
 <a id="BR-CLEAN-USER-DROP-RULE"></a>
 
-**Expectation (detector) BR-CLEAN-USER-DROP-RULE**: After a switch to nftables, a DOCKER-USER DROP rule still drops traffic
+**Expectation (provisional) BR-CLEAN-USER-DROP-RULE**: After a switch to nftables, a DOCKER-USER DROP rule still drops traffic
 
 *Observed from:* client · *Depends on:* os-linux · *Platforms:* linux
 
-*Pins:* [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP) · *Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Provisional on:* [REQ-BR-NFT-MIGRATION](#REQ-BR-NFT-MIGRATION) · *Pins:* [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
-After a switch from iptables to nftables, a DROP rule that an operator placed in
-`DOCKER-USER` still drops the forwarded traffic that it matches. This includes
-traffic to published ports.
+*Applies to:* A filter table `FORWARD` chain with policy ACCEPT when the daemon
+starts with the nftables backend, and a DROP rule that an operator placed in
+`DOCKER-USER` under the iptables backend, which matches traffic to a published port
+by the client's address, or by the container's address and port
+
+After a switch from iptables to nftables, the rule still drops the traffic to the published port
+that it matches and that the node forwards to the container.
 
 <a id="bridge-networking-firewall-backend-and-firewalld"></a>
 
@@ -588,42 +1317,115 @@ traffic to published ports.
 
 <a id="BR-FW-BACKEND-INVALID"></a>
 
-**Expectation (detector) BR-FW-BACKEND-INVALID**: The daemon does not start with an unknown firewall-backend
+**Expectation (contract) BR-FW-BACKEND-INVALID**: The daemon does not start with an unknown firewall-backend
 
-*Observed from:* log · *Depends on:* none · *Platforms:* linux
+*Observed from:* log, node · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [PRIN-FAILS-CLOSED](../principles.md#PRIN-FAILS-CLOSED), [REQ-BR-FIREWALL-BACKEND-OPTION](#REQ-BR-FIREWALL-BACKEND-OPTION) · *Exact form:* [BR-FW-BACKEND-INVALID-MSG](#BR-FW-BACKEND-INVALID-MSG) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
-*Applies to:* A daemon configured with a `firewall-backend` other than
-**iptables** or `nftables`
+*Applies to:* A daemon configured with a `firewall-backend` other than `iptables`
+or `nftables`
 
 The daemon does not start. The daemon log contains an error.
 
 <a id="BR-FW-BACKEND-INVALID-MSG"></a>
 
-**Expectation (detector) BR-FW-BACKEND-INVALID-MSG**: An unknown firewall-backend is logged as invalid firewall-backend
+**Expectation (detector) BR-FW-BACKEND-INVALID-MSG**: With an unknown firewall-backend, the daemon logs that it is invalid
 
-*Observed from:* log · *Depends on:* none · *Platforms:* linux
+*Observed from:* log, node · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Exact form of:* [BR-FW-BACKEND-INVALID](#BR-FW-BACKEND-INVALID) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
-*Applies to:* A daemon configured with a `firewall-backend` other than
-**iptables** or `nftables`
+*Applies to:* A daemon configured with a `firewall-backend` other than `iptables`
+or `nftables`
 
 The daemon does not start. The daemon log contains an error that contains `invalid
 firewall-backend`.
 
+<a id="BR-FW-BACKEND-INFO"></a>
+
+**Expectation (contract) BR-FW-BACKEND-INFO**: GET /info reports the firewall backend that the daemon uses
+
+*Observed from:* api · *Depends on:* none · *Platforms:* linux
+
+*Refines:* [REQ-BR-FIREWALL-BACKEND-INFO](#REQ-BR-FIREWALL-BACKEND-INFO), [REQ-BR-FIREWALL-BACKEND-OPTION](#REQ-BR-FIREWALL-BACKEND-OPTION) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+`GET /info` at API version 1.49 or later reports `FirewallBackend.Driver`.
+Its value starts with `iptables` when the daemon's `firewall-backend` is
+`iptables` or not set, and with `nftables` when it is `nftables`.
+
+<a id="BR-FW-FIREWALLD-ZONE"></a>
+
+**Expectation (contract) BR-FW-FIREWALLD-ZONE**: Bridge interfaces are in the firewalld zone docker, with docker-forwarding
+
+*Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-FIREWALLD-ZONE](#REQ-BR-FIREWALLD-ZONE) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A node with firewalld running, a daemon with `iptables` or
+`ip6tables` true, a bridge network whose bridge interface the operator has not bound to another firewalld zone, and a firewalld configuration that has neither a zone
+`docker` nor a policy `docker-forwarding` before the daemon starts
+
+Firewalld has a zone `docker` with target `ACCEPT`. The network's bridge interface
+is in that zone. Firewalld also has a policy `docker-forwarding` with the ingress
+zone `ANY`, the egress zone `docker` and target `ACCEPT`.
+
+<a id="BR-FW-FIREWALLD-LATE-START-ZONE"></a>
+
+**Expectation (contract) BR-FW-FIREWALLD-LATE-START-ZONE**: A bridge joins the docker zone when firewalld starts after the daemon
+
+*Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-FIREWALLD-RELOAD](#REQ-BR-FIREWALLD-RELOAD), [REQ-BR-FIREWALLD-ZONE](#REQ-BR-FIREWALLD-ZONE) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A daemon with `iptables` or `ip6tables` true that started while firewalld was not running, a bridge network whose bridge interface the operator has not bound to another firewalld zone, and a firewalld configuration that has neither
+a zone `docker` nor a policy `docker-forwarding` before firewalld starts
+
+After firewalld starts, it has the zone `docker` and the policy
+`docker-forwarding`, and the network's bridge interface is in the zone
+`docker`.
+
+<a id="BR-FW-FIREWALLD-ZONE-IPTABLES-DISABLED"></a>
+
+**Expectation (detector) BR-FW-FIREWALLD-ZONE-IPTABLES-DISABLED**: Without iptables and ip6tables, a bridge is not put in the docker zone
+
+*Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
+
+*Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Rationale:* Without the daemon's rules, its bridges stay out of an accepting firewalld zone ([RAT-BR-FIREWALLD-ZONE-FOLLOWS-IPTABLES](#RAT-BR-FIREWALLD-ZONE-FOLLOWS-IPTABLES))
+
+*Applies to:* A node with firewalld running, and a daemon with `iptables` and
+`ip6tables` false
+
+After `POST /networks/create` for a bridge network responds 201, firewalld does not
+report `docker` as the zone of the network's bridge interface.
+
+<a id="BR-FW-FIREWALLD-ZONE-USER-BOUND"></a>
+
+**Expectation (contract) BR-FW-FIREWALLD-ZONE-USER-BOUND**: A bridge the operator bound to another zone stays there and keeps working
+
+*Observed from:* node, api · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-FIREWALLD-ZONE](#REQ-BR-FIREWALLD-ZONE) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A node with firewalld running, and a bridge network whose bridge interface the
+operator has bound to a firewalld zone other than `docker`
+
+After the daemon restarts, firewalld reports the operator's zone as the zone of the network's
+bridge interface. `POST /containers/create` for a container on the network then responds
+201, and `POST /containers/{id}/start` for it responds 204.
+
 <a id="BR-FW-FIREWALLD-RELOAD-PORT"></a>
 
-**Expectation (detector) BR-FW-FIREWALLD-RELOAD-PORT**: A published port answers after a firewalld reload
+**Expectation (contract) BR-FW-FIREWALLD-RELOAD-PORT**: A published port answers after a firewalld reload
 
 *Observed from:* client · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-FIREWALLD-RELOAD](#REQ-BR-FIREWALLD-RELOAD) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
-*Applies to:* A node with firewalld running
+*Applies to:* A node with firewalld running, and a published port that answers a client at an
+address of the node before a firewalld reload
 
-A published port answers after a firewalld reload.
+After a firewalld reload, the port answers that client at that address.
 
 <a id="BR-FW-FIREWALLD-RELOADED-AT"></a>
 
@@ -631,7 +1433,7 @@ A published port answers after a firewalld reload.
 
 *Observed from:* api · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Rationale:* ReloadedAt is the only report that the daemon has reapplied its rules after a firewalld reload ([RAT-BR-RELOAD-COMPLETION-REPORTED](#RAT-BR-RELOAD-COMPLETION-REPORTED))
 
 *Applies to:* A node with firewalld running
 
@@ -642,11 +1444,11 @@ started.
 
 <a id="BR-FW-FIREWALLD-RELOAD-EGRESS"></a>
 
-**Expectation (detector) BR-FW-FIREWALLD-RELOAD-EGRESS**: A container reaches an underlay IPv4 address after a firewalld reload
+**Expectation (contract) BR-FW-FIREWALLD-RELOAD-EGRESS**: A container reaches an underlay IPv4 address after a firewalld reload
 
 *Observed from:* ctr · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-EGRESS-NAT](#REQ-BR-EGRESS-NAT), [REQ-BR-FIREWALLD-RELOAD](#REQ-BR-FIREWALLD-RELOAD) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* A node with firewalld running, and a running container on a bridge network that is
 not `internal`, whose `com.docker.network.bridge.gateway_mode_ipv4` is not `routed`,
@@ -655,359 +1457,968 @@ and whose `com.docker.network.bridge.enable_ip_masquerade` is not `false`
 After a firewalld reload, a connection from the container to an IPv4 address of an underlay host
 succeeds.
 
+<a id="BR-FW-FIREWALLD-STOP-PORT"></a>
+
+**Expectation (contract) BR-FW-FIREWALLD-STOP-PORT**: A published port answers after firewalld stops
+
+*Observed from:* client · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-FIREWALLD-RELOAD](#REQ-BR-FIREWALLD-RELOAD) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A node with firewalld running, and a published port that answers a client at an
+address of the node before firewalld stops
+
+After firewalld stops, the port answers that client at that address.
+
+<a id="BR-FW-FIREWALLD-STOP-EGRESS"></a>
+
+**Expectation (contract) BR-FW-FIREWALLD-STOP-EGRESS**: A container reaches an underlay IPv4 address after firewalld stops
+
+*Observed from:* ctr · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-EGRESS-NAT](#REQ-BR-EGRESS-NAT), [REQ-BR-FIREWALLD-RELOAD](#REQ-BR-FIREWALLD-RELOAD) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A node with firewalld running, and a running container on a bridge network that is
+not `internal`, whose `com.docker.network.bridge.gateway_mode_ipv4` is not `routed`,
+and whose `com.docker.network.bridge.enable_ip_masquerade` is not `false`
+
+After firewalld stops, a connection from the container to an IPv4 address of an underlay host
+succeeds.
+
+<a id="BR-FW-FIREWALLD-LATE-START-PORT"></a>
+
+**Expectation (contract) BR-FW-FIREWALLD-LATE-START-PORT**: A published port answers after firewalld starts later than the daemon
+
+*Observed from:* client · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-FIREWALLD-RELOAD](#REQ-BR-FIREWALLD-RELOAD) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A daemon that started while firewalld was not running, and a published port that
+answers a client at an address of the node before firewalld starts
+
+After firewalld starts, the port answers that client at that address.
+
+<a id="BR-FW-FIREWALLD-LATE-START-EGRESS"></a>
+
+**Expectation (contract) BR-FW-FIREWALLD-LATE-START-EGRESS**: A container reaches an underlay IPv4 address after firewalld starts
+
+*Observed from:* ctr · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-EGRESS-NAT](#REQ-BR-EGRESS-NAT), [REQ-BR-FIREWALLD-RELOAD](#REQ-BR-FIREWALLD-RELOAD) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A daemon that started while firewalld was not running, and a running container on
+a bridge network that is not `internal`, whose
+`com.docker.network.bridge.gateway_mode_ipv4` is not `routed`, and whose
+`com.docker.network.bridge.enable_ip_masquerade` is not `false`
+
+After firewalld starts, a connection from the container to an IPv4 address of an underlay host
+succeeds.
+
+<a id="BR-FW-NFT-FIREWALLD-RELOAD"></a>
+
+**Expectation (detector) BR-FW-NFT-FIREWALLD-RELOAD**: Under nftables, a firewalld reload logs warnings and leaves the tables unchanged
+
+*Observed from:* log · *Depends on:* none · *Platforms:* linux
+
+*Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Rationale:* Under nftables, the warnings that a firewalld reload logs report no fault ([RAT-BR-RELOAD-NFT-WARNINGS](#RAT-BR-RELOAD-NFT-WARNINGS))
+
+*Applies to:* The nftables backend, and a node with firewalld running
+
+A firewalld reload does not change the daemon's nftables tables. On each reload, and each time
+firewalld starts or stops while the daemon runs, the daemon log contains these warning-level
+entries, each kind exactly once for each object that it names and for no other object: (1) one
+entry per bridge network that contains `ReapplyNetworkLevelRules is not implemented for
+nftables`; (2) one entry per endpoint that contains `Failed to reconfigure Endpoint` and
+`rule exists`, for an endpoint that has an address of an IP version whose gateway mode is
+`nat`, the default, on a network that is not `internal`, on a daemon with
+`allow-direct-routing` false, whatever the number of its IP versions; (3) one entry
+per bridge network whose endpoints publish a port, that contains
+`Failed to reconfigure NAT` and `rule exists`, whatever the number of its ports and
+their IP versions.
+
 <a id="BR-FW-FORWARDING-ENABLED"></a>
 
-**Expectation (detector) BR-FW-FORWARDING-ENABLED**: An IPv4 bridge network turns on ip_forward and sets FORWARD to DROP
+**Expectation (contract) BR-FW-FORWARDING-ENABLED**: An IPv4 bridge network turns on ip_forward and sets FORWARD to DROP
 
 *Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
 
-*Pins:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4) · *Needs:* [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-IP-FORWARDING-DROP](#REQ-BR-IP-FORWARDING-DROP) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* The iptables backend, with `ip-forward` and `iptables`
 true and `ip-forward-no-drop` false, and a host where `net.ipv4.ip_forward`
-is 0
+is 0 and the filter table's `FORWARD` chain has policy ACCEPT
 
 After the daemon has created a bridge network with IPv4, `net.ipv4.ip_forward` is 1. The
 filter table's `FORWARD` chain also has policy DROP.
 
 <a id="BR-FW-FORWARDING-ENABLED-V6"></a>
 
-**Expectation (detector) BR-FW-FORWARDING-ENABLED-V6**: An IPv6 bridge network turns on IPv6 forwarding and sets FORWARD to DROP
+**Expectation (contract) BR-FW-FORWARDING-ENABLED-V6**: An IPv6 bridge network turns on IPv6 forwarding and sets FORWARD to DROP
 
 *Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
 
-*Pins:* [BR-HOST-FORWARDING-V6](#BR-HOST-FORWARDING-V6) · *Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-IP-FORWARDING-DROP](#REQ-BR-IP-FORWARDING-DROP) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND), [BR-HOST-IP6TABLES-KERNEL](#BR-HOST-IP6TABLES-KERNEL), [BR-HOST-IP6TABLES-LEGACY-KERNEL](#BR-HOST-IP6TABLES-LEGACY-KERNEL), [BR-HOST-IP6TABLES-NFT-KERNEL](#BR-HOST-IP6TABLES-NFT-KERNEL), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* The iptables backend, with `ip-forward` and `ip6tables`
 true and `ip-forward-no-drop` false, and a host where
-`net.ipv6.conf.all.forwarding` or `net.ipv6.conf.default.forwarding` is 0
+`net.ipv6.conf.all.forwarding` or `net.ipv6.conf.default.forwarding` is 0, and
+the ip6tables filter table's `FORWARD` chain has policy ACCEPT
 
 After the daemon has created a bridge network with IPv6, both are 1. The ip6tables filter
 table's `FORWARD` chain also has policy DROP.
 
-<a id="BR-FW-FORWARD-DROP-FIREWALLD"></a>
+<a id="BR-FW-FORWARDING-NO-DROP"></a>
 
-**Expectation (detector) BR-FW-FORWARD-DROP-FIREWALLD**: The FORWARD chain has policy DROP after a firewalld reload
+**Expectation (contract) BR-FW-FORWARDING-NO-DROP**: With ip-forward-no-drop, enabling ip_forward leaves the FORWARD policy
 
 *Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
 
-*Pins:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4) · *Needs:* [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-IP-FORWARDING-DROP](#REQ-BR-IP-FORWARDING-DROP) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* The iptables backend, with `ip-forward`, `iptables` and
+`ip-forward-no-drop` true, and a host where `net.ipv4.ip_forward` is 0 and
+the filter table's `FORWARD` chain has policy ACCEPT
+
+After the daemon has created a bridge network with IPv4, `net.ipv4.ip_forward` is 1. The
+filter table's `FORWARD` chain still has policy ACCEPT.
+
+<a id="BR-FW-FORWARDING-NO-DROP-V6"></a>
+
+**Expectation (contract) BR-FW-FORWARDING-NO-DROP-V6**: With ip-forward-no-drop, enabling IPv6 forwarding leaves the FORWARD policy
+
+*Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-IP-FORWARDING-DROP](#REQ-BR-IP-FORWARDING-DROP) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND), [BR-HOST-IP6TABLES-KERNEL](#BR-HOST-IP6TABLES-KERNEL), [BR-HOST-IP6TABLES-LEGACY-KERNEL](#BR-HOST-IP6TABLES-LEGACY-KERNEL), [BR-HOST-IP6TABLES-NFT-KERNEL](#BR-HOST-IP6TABLES-NFT-KERNEL), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* The iptables backend, with `ip-forward`, `ip6tables` and
+`ip-forward-no-drop` true, and a host where `net.ipv6.conf.all.forwarding`
+or `net.ipv6.conf.default.forwarding` is 0, and the ip6tables filter table's
+`FORWARD` chain has policy ACCEPT
+
+After the daemon has created a bridge network with IPv6, both are 1. The ip6tables filter
+table's `FORWARD` chain still has policy ACCEPT.
+
+<a id="BR-FW-FORWARDING-ALREADY-ENABLED"></a>
+
+**Expectation (contract) BR-FW-FORWARDING-ALREADY-ENABLED**: With ip_forward already 1, an IPv4 network leaves the FORWARD policy
+
+*Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-IP-FORWARDING-DROP](#REQ-BR-IP-FORWARDING-DROP) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* The iptables backend, with `ip-forward` and `iptables`
+true, and a host where `net.ipv4.ip_forward` is 1 and the filter table's
+`FORWARD` chain has policy ACCEPT
+
+After the daemon has created a bridge network with IPv4, the filter table's `FORWARD`
+chain still has policy ACCEPT.
+
+<a id="BR-FW-FORWARDING-ALREADY-ENABLED-V6"></a>
+
+**Expectation (contract) BR-FW-FORWARDING-ALREADY-ENABLED-V6**: With IPv6 forwarding already on, an IPv6 network leaves the FORWARD policy
+
+*Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-IP-FORWARDING-DROP](#REQ-BR-IP-FORWARDING-DROP) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND), [BR-HOST-IP6TABLES-KERNEL](#BR-HOST-IP6TABLES-KERNEL), [BR-HOST-IP6TABLES-LEGACY-KERNEL](#BR-HOST-IP6TABLES-LEGACY-KERNEL), [BR-HOST-IP6TABLES-NFT-KERNEL](#BR-HOST-IP6TABLES-NFT-KERNEL), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* The iptables backend, with `ip-forward` and `ip6tables`
+true, and a host where `net.ipv6.conf.all.forwarding` and
+`net.ipv6.conf.default.forwarding` are 1 and the ip6tables filter table's
+`FORWARD` chain has policy ACCEPT
+
+After the daemon has created a bridge network with IPv6, the ip6tables filter table's
+`FORWARD` chain still has policy ACCEPT.
+
+<a id="BR-FW-FORWARD-DROP-FIREWALLD"></a>
+
+**Expectation (contract) BR-FW-FORWARD-DROP-FIREWALLD**: The FORWARD chain has policy DROP after a firewalld reload
+
+*Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-FIREWALLD-RELOAD](#REQ-BR-FIREWALLD-RELOAD), [REQ-BR-IP-FORWARDING-DROP](#REQ-BR-IP-FORWARDING-DROP) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* The iptables backend, with `ip-forward` and `iptables`
 true and `ip-forward-no-drop` false, firewalld running, and a bridge network with
-IPv4 that the daemon created on a host where `net.ipv4.ip_forward` was 0
+IPv4 that the daemon created on a host where `net.ipv4.ip_forward` was 0, after which an
+operator set the policy of the filter table's `FORWARD` chain to ACCEPT
 
 After a firewalld reload, the filter table's `FORWARD` chain has policy DROP.
 
 <a id="BR-FW-FORWARD-DROP-FIREWALLD-V6"></a>
 
-**Expectation (detector) BR-FW-FORWARD-DROP-FIREWALLD-V6**: The ip6tables FORWARD chain has policy DROP after a firewalld reload
+**Expectation (contract) BR-FW-FORWARD-DROP-FIREWALLD-V6**: The ip6tables FORWARD chain has policy DROP after a firewalld reload
 
 *Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
 
-*Pins:* [BR-HOST-FORWARDING-V6](#BR-HOST-FORWARDING-V6) · *Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-FIREWALLD-RELOAD](#REQ-BR-FIREWALLD-RELOAD), [REQ-BR-IP-FORWARDING-DROP](#REQ-BR-IP-FORWARDING-DROP) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND), [BR-HOST-IP6TABLES-KERNEL](#BR-HOST-IP6TABLES-KERNEL), [BR-HOST-IP6TABLES-LEGACY-KERNEL](#BR-HOST-IP6TABLES-LEGACY-KERNEL), [BR-HOST-IP6TABLES-NFT-KERNEL](#BR-HOST-IP6TABLES-NFT-KERNEL), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* The iptables backend, with `ip-forward` and `ip6tables`
 true and `ip-forward-no-drop` false, firewalld running, and a bridge network with
 IPv6 that the daemon created on a host where `net.ipv6.conf.all.forwarding` or
-`net.ipv6.conf.default.forwarding` was 0
+`net.ipv6.conf.default.forwarding` was 0, after which an operator set the policy of the
+ip6tables filter table's `FORWARD` chain to ACCEPT
 
 After a firewalld reload, the ip6tables filter table's `FORWARD` chain has policy
 DROP.
 
+<a id="BR-FW-FORWARD-DROP-FIREWALLD-STOP"></a>
+
+**Expectation (contract) BR-FW-FORWARD-DROP-FIREWALLD-STOP**: The FORWARD chain has policy DROP after firewalld stops
+
+*Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-FIREWALLD-RELOAD](#REQ-BR-FIREWALLD-RELOAD), [REQ-BR-IP-FORWARDING-DROP](#REQ-BR-IP-FORWARDING-DROP) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* The iptables backend, with `ip-forward` and `iptables`
+true and `ip-forward-no-drop` false, firewalld running, and a bridge network with
+IPv4 that the daemon created on a host where `net.ipv4.ip_forward` was 0, after which an
+operator set the policy of the filter table's `FORWARD` chain to ACCEPT
+
+After firewalld stops, the filter table's `FORWARD` chain has policy DROP.
+
+<a id="BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6"></a>
+
+**Expectation (contract) BR-FW-FORWARD-DROP-FIREWALLD-STOP-V6**: The ip6tables FORWARD chain has policy DROP after firewalld stops
+
+*Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-FIREWALLD-RELOAD](#REQ-BR-FIREWALLD-RELOAD), [REQ-BR-IP-FORWARDING-DROP](#REQ-BR-IP-FORWARDING-DROP) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND), [BR-HOST-IP6TABLES-KERNEL](#BR-HOST-IP6TABLES-KERNEL), [BR-HOST-IP6TABLES-LEGACY-KERNEL](#BR-HOST-IP6TABLES-LEGACY-KERNEL), [BR-HOST-IP6TABLES-NFT-KERNEL](#BR-HOST-IP6TABLES-NFT-KERNEL), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* The iptables backend, with `ip-forward` and `ip6tables`
+true and `ip-forward-no-drop` false, firewalld running, and a bridge network with
+IPv6 that the daemon created on a host where `net.ipv6.conf.all.forwarding` or
+`net.ipv6.conf.default.forwarding` was 0, after which an operator set the policy of the
+ip6tables filter table's `FORWARD` chain to ACCEPT
+
+After firewalld stops, the ip6tables filter table's `FORWARD` chain has policy DROP.
+
+<a id="BR-FW-FORWARD-DROP-FIREWALLD-LATE-START"></a>
+
+**Expectation (contract) BR-FW-FORWARD-DROP-FIREWALLD-LATE-START**: The FORWARD chain has policy DROP after firewalld starts later
+
+*Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-FIREWALLD-RELOAD](#REQ-BR-FIREWALLD-RELOAD), [REQ-BR-IP-FORWARDING-DROP](#REQ-BR-IP-FORWARDING-DROP) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* The iptables backend, with `ip-forward` and `iptables`
+true and `ip-forward-no-drop` false, a daemon that started while firewalld was not
+running, and a bridge network with IPv4 that the daemon created on a host where
+`net.ipv4.ip_forward` was 0, after which an operator set the policy of the filter
+table's `FORWARD` chain to ACCEPT
+
+After firewalld starts, the filter table's `FORWARD` chain has policy DROP.
+
+<a id="BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6"></a>
+
+**Expectation (contract) BR-FW-FORWARD-DROP-FIREWALLD-LATE-START-V6**: The ip6tables FORWARD chain has policy DROP after firewalld starts later
+
+*Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-FIREWALLD-RELOAD](#REQ-BR-FIREWALLD-RELOAD), [REQ-BR-IP-FORWARDING-DROP](#REQ-BR-IP-FORWARDING-DROP) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND), [BR-HOST-IP6TABLES-KERNEL](#BR-HOST-IP6TABLES-KERNEL), [BR-HOST-IP6TABLES-LEGACY-KERNEL](#BR-HOST-IP6TABLES-LEGACY-KERNEL), [BR-HOST-IP6TABLES-NFT-KERNEL](#BR-HOST-IP6TABLES-NFT-KERNEL), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* The iptables backend, with `ip-forward` and `ip6tables`
+true and `ip-forward-no-drop` false, a daemon that started while firewalld was not
+running, and a bridge network with IPv6 that the daemon created on a host where
+`net.ipv6.conf.all.forwarding` or `net.ipv6.conf.default.forwarding` was 0,
+after which an operator set the policy of the ip6tables filter table's `FORWARD`
+chain to ACCEPT
+
+After firewalld starts, the ip6tables filter table's `FORWARD` chain has policy DROP.
+
 <a id="BR-FW-NFT-NO-FORWARDING"></a>
 
-**Expectation (detector) BR-FW-NFT-NO-FORWARDING**: With nftables, the daemon does not start while ip_forward is 0
+**Expectation (provisional) BR-FW-NFT-NO-FORWARDING**: With nftables, the daemon does not start while ip_forward is 0
 
-*Observed from:* log · *Depends on:* none · *Platforms:* linux
+*Observed from:* log, node · *Depends on:* none · *Platforms:* linux
 
-*Pins:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4) · *Needs:* [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Provisional on:* [REQ-BR-NFT-IP-FORWARDING](#REQ-BR-NFT-IP-FORWARDING) · *Pins:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* A daemon with the nftables backend, `ip-forward` true and the default
 bridge enabled, on a host where `net.ipv4.ip_forward` is 0, and without containers that
 `live-restore` keeps running
 
-The daemon does not start. It prints an error that contains `IPv4 forwarding is disabled`.
+The daemon does not start. The daemon log contains an error that contains `IPv4 forwarding
+is disabled`.
 
-<a id="BR-FW-NFT-NO-FORWARDING-V6"></a>
+<a id="BR-FW-NFT-NO-FORWARDING-NETWORK"></a>
 
-**Expectation (detector) BR-FW-NFT-NO-FORWARDING-V6**: With nftables, an IPv6 network responds 500 while forwarding is off
+**Expectation (provisional) BR-FW-NFT-NO-FORWARDING-NETWORK**: With nftables, an IPv4 network is refused while ip_forward is 0
 
 *Observed from:* api · *Depends on:* none · *Platforms:* linux
 
-*Pins:* [BR-HOST-FORWARDING-V6](#BR-HOST-FORWARDING-V6) · *Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Provisional on:* [REQ-BR-NFT-IP-FORWARDING](#REQ-BR-NFT-IP-FORWARDING) · *Pins:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A daemon with the nftables backend, `ip-forward` true and
+`bridge` set to `none`, on a host where `net.ipv4.ip_forward` is 0
+
+`POST /networks/create` for a bridge network with IPv4 responds with a 4xx or 5xx
+status, with a message that contains `IPv4 forwarding is disabled`.
+`GET /networks` then does not list a network with the request's `Name`.
+
+<a id="BR-FW-NFT-NO-FORWARDING-V6"></a>
+
+**Expectation (provisional) BR-FW-NFT-NO-FORWARDING-V6**: With nftables, an IPv6 network is refused while forwarding is off
+
+*Observed from:* api · *Depends on:* none · *Platforms:* linux
+
+*Provisional on:* [REQ-BR-NFT-IP-FORWARDING](#REQ-BR-NFT-IP-FORWARDING) · *Exact form:* [BR-FW-NFT-NO-FORWARDING-V6-HTTP500](#BR-FW-NFT-NO-FORWARDING-V6-HTTP500) · *Pins:* [BR-HOST-FORWARDING-V6](#BR-HOST-FORWARDING-V6) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* A daemon with the nftables backend and `ip-forward` true, on a host
 where `net.ipv6.conf.all.forwarding` or `net.ipv6.conf.default.forwarding` is 0
 
 `POST /networks/create` for a bridge network with `EnableIPv6` set responds
-500, with a message that contains `IPv6 global forwarding is disabled`. See
-[Host requirements](#bridge-networking-host-requirements).
+with a 4xx or 5xx status, with a message that contains
+`IPv6 global forwarding is disabled`. `GET /networks` then does not list a
+network with the request's `Name`.
+
+<a id="BR-FW-NFT-NO-FORWARDING-V6-HTTP500"></a>
+
+**Expectation (detector) BR-FW-NFT-NO-FORWARDING-V6-HTTP500**: With nftables, an IPv6 network responds 500 while forwarding is off
+
+*Observed from:* api · *Depends on:* none · *Platforms:* linux
+
+*Exact form of:* [BR-FW-NFT-NO-FORWARDING-V6](#BR-FW-NFT-NO-FORWARDING-V6) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A daemon with the nftables backend and `ip-forward` true, on a host
+where `net.ipv6.conf.all.forwarding` or `net.ipv6.conf.default.forwarding` is 0
+
+`POST /networks/create` for a bridge network with `EnableIPv6` set responds
+500.
+
+<a id="BR-FW-NFT-FORWARDING-UNCHECKED"></a>
+
+**Expectation (provisional) BR-FW-NFT-FORWARDING-UNCHECKED**: With nftables and ip-forward false, the daemon does not check forwarding
+
+*Observed from:* api, node · *Depends on:* none · *Platforms:* linux
+
+*Provisional on:* [REQ-BR-NFT-IP-FORWARDING](#REQ-BR-NFT-IP-FORWARDING) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NFTABLES-V6](#BR-HOST-NFTABLES-V6), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A daemon with the nftables backend and `ip-forward` false, on a host
+where `net.ipv4.ip_forward`, `net.ipv6.conf.all.forwarding` and
+`net.ipv6.conf.default.forwarding` are 0, and without containers that
+`live-restore` keeps running
+
+The daemon starts. `POST /networks/create` for a bridge network with
+`EnableIPv6` set responds 201. The three sysctls are still 0.
 
 <a id="BR-FW-IPTABLES-MISSING"></a>
 
-**Expectation (detector) BR-FW-IPTABLES-MISSING**: Without the iptables command, the daemon does not start
+**Expectation (contract) BR-FW-IPTABLES-MISSING**: Without the iptables command, the daemon does not start
 
-*Observed from:* log · *Depends on:* none · *Platforms:* linux
+*Observed from:* log, node · *Depends on:* none · *Platforms:* linux
 
-*Pins:* [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [DNS-HOST-IPTABLES-COMMAND](container-dns.md#DNS-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND) · *Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [PRIN-FAILS-CLOSED](../principles.md#PRIN-FAILS-CLOSED) · *Exact form:* [BR-FW-IPTABLES-MISSING-MSG](#BR-FW-IPTABLES-MISSING-MSG) · *Pins:* [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* A daemon with the iptables backend and `iptables` true, on a host
 without the **iptables** command
 
-The daemon does not start. The daemon log contains `iptables not found`. See [Host
-requirements](#bridge-networking-host-requirements).
+The daemon does not start. The daemon log contains an error.
+
+<a id="BR-FW-IPTABLES-MISSING-MSG"></a>
+
+**Expectation (detector) BR-FW-IPTABLES-MISSING-MSG**: With no iptables command, the daemon logs that iptables is not found
+
+*Observed from:* log, node · *Depends on:* none · *Platforms:* linux
+
+*Exact form of:* [BR-FW-IPTABLES-MISSING](#BR-FW-IPTABLES-MISSING) · *Pins:* [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A daemon with the iptables backend and `iptables` true, on a host
+without the **iptables** command
+
+The daemon does not start. The daemon log contains an error that contains `iptables not
+found`.
 
 <a id="BR-FW-IP6TABLES-MISSING"></a>
 
-**Expectation (detector) BR-FW-IP6TABLES-MISSING**: With no ip6tables command, the daemon starts but cannot set up chains
+**Expectation (contract) BR-FW-IP6TABLES-MISSING**: With no ip6tables command, the daemon starts
 
-*Observed from:* log · *Depends on:* none · *Platforms:* linux
+*Observed from:* api · *Depends on:* none · *Platforms:* linux
 
-*Pins:* [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND) · *Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-IPV6-UNAVAILABLE](#REQ-BR-IPV6-UNAVAILABLE) · *Pins:* [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* A daemon with the iptables backend and `ip6tables` true, on a host
 without the **ip6tables** command
 
-The daemon starts. The daemon log contains `ip6tables is enabled, but cannot set up
-ip6tables chains`. See [Host requirements](#bridge-networking-host-requirements).
+The daemon starts.
+
+<a id="BR-FW-IP6TABLES-MISSING-MSG"></a>
+
+**Expectation (detector) BR-FW-IP6TABLES-MISSING-MSG**: With no ip6tables command, the daemon logs that it cannot set up chains
+
+*Observed from:* log · *Depends on:* none · *Platforms:* linux
+
+*Pins:* [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A daemon with the iptables backend and `ip6tables` true, on a host
+without the **ip6tables** command
+
+The daemon log contains `ip6tables is enabled, but cannot set up ip6tables chains`.
 
 <a id="BR-FW-IP6TABLES-MISSING-NETWORK"></a>
 
-**Expectation (detector) BR-FW-IP6TABLES-MISSING-NETWORK**: Without the ip6tables command, an IPv6 bridge network is refused
+**Expectation (contract) BR-FW-IP6TABLES-MISSING-NETWORK**: Without the ip6tables command, an IPv6 bridge network is refused
 
 *Observed from:* api · *Depends on:* none · *Platforms:* linux
 
-*Pins:* [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND) · *Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [PRIN-FAILS-CLOSED](../principles.md#PRIN-FAILS-CLOSED), [REQ-BR-IPV6-UNAVAILABLE](#REQ-BR-IPV6-UNAVAILABLE), [REQ-NET-NETWORK-CREATE-ERRORS](network-common.md#REQ-NET-NETWORK-CREATE-ERRORS) · *Pins:* [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* A daemon with the iptables backend and `ip6tables` true, on a host
 without the **ip6tables** command
 
 `POST /networks/create` for a bridge network with `EnableIPv6` set responds
-with a 4xx or 5xx status. The network is not created.
+with a 4xx or 5xx status. `GET /networks` then does not list a network with the
+request's `Name`.
+
+<a id="BR-FW-IP6TABLES-MISSING-PUBLISHED-PORT"></a>
+
+**Expectation (contract) BR-FW-IP6TABLES-MISSING-PUBLISHED-PORT**: Without the ip6tables command, a port is reachable over IPv4
+
+*Observed from:* client · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-IPV6-UNAVAILABLE](#REQ-BR-IPV6-UNAVAILABLE), [REQ-BR-PUBLISH-DEFAULTS](#REQ-BR-PUBLISH-DEFAULTS) · *Pins:* [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A daemon with the iptables backend and `ip6tables` true, on a host
+without the **ip6tables** command, and a running container on a bridge network without
+IPv6 that publishes a port without a host address
+
+A client reaches the container on that port at the node's IPv4 address.
+
+<a id="BR-FW-NFT-IPV6-MISSING"></a>
+
+**Expectation (detector) BR-FW-NFT-IPV6-MISSING**: Without IPv6 nftables support, the nftables backend starts and logs it
+
+*Observed from:* api, log · *Depends on:* none · *Platforms:* linux
+
+*Pins:* [BR-HOST-NFTABLES-V6](#BR-HOST-NFTABLES-V6) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* The nftables backend with `ip6tables` true, on a kernel without
+`NF_TABLES_IPV6`
+
+The daemon starts. The daemon log contains `ip6tables is enabled, but cannot set up IPv6
+nftables table`.
+
+<a id="BR-FW-NFT-IPV6-MISSING-NETWORK"></a>
+
+**Expectation (contract) BR-FW-NFT-IPV6-MISSING-NETWORK**: Without IPv6 nftables support, an IPv6 bridge network is refused
+
+*Observed from:* api · *Depends on:* none · *Platforms:* linux
+
+*Refines:* [PRIN-FAILS-CLOSED](../principles.md#PRIN-FAILS-CLOSED), [REQ-NET-NETWORK-CREATE-ERRORS](network-common.md#REQ-NET-NETWORK-CREATE-ERRORS) · *Pins:* [BR-HOST-NFTABLES-V6](#BR-HOST-NFTABLES-V6) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* The nftables backend with `ip6tables` true, on a kernel without
+`NF_TABLES_IPV6`
+
+`POST /networks/create` for a bridge network with `EnableIPv6` set responds
+with a 4xx or 5xx status. `GET /networks` then does not list a network with the
+request's `Name`.
 
 <a id="BR-FW-NFT-MISSING"></a>
 
-**Expectation (detector) BR-FW-NFT-MISSING**: Without the nft command, the daemon does not start with nftables
+**Expectation (contract) BR-FW-NFT-MISSING**: Without the nft command, the daemon does not start with nftables
 
-*Observed from:* log · *Depends on:* none · *Platforms:* linux
+*Observed from:* log, node · *Depends on:* none · *Platforms:* linux
 
-*Pins:* [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [DNS-HOST-NFT-COMMAND](container-dns.md#DNS-HOST-NFT-COMMAND) · *Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [PRIN-FAILS-CLOSED](../principles.md#PRIN-FAILS-CLOSED) · *Exact form:* [BR-FW-NFT-MISSING-MSG](#BR-FW-NFT-MISSING-MSG) · *Pins:* [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [DNS-HOST-NFT-COMMAND](container-dns.md#DNS-HOST-NFT-COMMAND) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
-*Applies to:* A daemon with the nftables backend, on a host without the **nft** command
+*Applies to:* A daemon built without the `libnftables` build tag, with the nftables backend,
+on a host without the **nft** command
 
-The daemon does not start. The daemon log contains `failed to find nft tool`. See
-[Host requirements](#bridge-networking-host-requirements).
+The daemon does not start. The daemon log contains an error.
+
+<a id="BR-FW-NFT-MISSING-MSG"></a>
+
+**Expectation (detector) BR-FW-NFT-MISSING-MSG**: With no nft command, the daemon logs that it failed to find the nft tool
+
+*Observed from:* log, node · *Depends on:* none · *Platforms:* linux
+
+*Exact form of:* [BR-FW-NFT-MISSING](#BR-FW-NFT-MISSING) · *Pins:* [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [DNS-HOST-NFT-COMMAND](container-dns.md#DNS-HOST-NFT-COMMAND) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A daemon built without the `libnftables` build tag, with the nftables backend,
+on a host without the **nft** command
+
+The daemon does not start. The daemon log contains an error that contains `failed to find
+nft tool`.
 
 <a id="bridge-networking-rule-content"></a>
 
 ### Rule content
 
-The expectations in this subsection pin the content of the bridge driver's rules, so that a change
-to it is visible in review. A deliberate change to this content is not a breakage.
+The expectations in this subsection pin the content of the firewall rules that the daemon programs
+in the node's host network namespace, so that a change to it is visible in review.
 
 <a id="BR-RULES-REFERENCE"></a>
 
-**Expectation (detector) BR-RULES-REFERENCE**: The bridge driver's IPv4 iptables rules match the reference rulesets
+**Expectation (detector) BR-RULES-REFERENCE**: The node's IPv4 iptables rules match the reference rulesets
 
 *Observed from:* node · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Pins:* [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Within:* [SWARM-CEIL-REASSIGNMENT](swarm-lifecycle.md#SWARM-CEIL-REASSIGNMENT)
+
+*Applies to:* The iptables backend
 
 For each configuration that the repository keeps a reference iptables ruleset for in
-`integration/network/bridge/iptablesdoc`, the bridge driver's IPv4 iptables rules
-match that reference. The reference gives the matches and target of each rule, the order of the
-rules in each chain, and the names of the chains. The configurations include a Swarm service
-that publishes a port.
+`integration/network/bridge/iptablesdoc`, the IPv4 iptables rules and chains in the
+node's host network namespace match that reference, in every table and chain that it shows,
+including those that parts of the daemon other than the bridge driver program, such as Swarm's.
+The reference gives the matches and target of each rule, the order of the rules in each chain,
+and the names of the chains. The configurations include a Swarm service that publishes a port.
 
 <a id="BR-RULES-REFERENCE-NFT"></a>
 
-**Expectation (detector) BR-RULES-REFERENCE-NFT**: The bridge driver's IPv4 nftables ruleset matches the reference
+**Expectation (detector) BR-RULES-REFERENCE-NFT**: The IPv4 docker-bridges table matches the reference rulesets
 
 *Observed from:* node · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Pins:* [BR-HOST-NFTABLES](#BR-HOST-NFTABLES) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Within:* [SWARM-CEIL-REASSIGNMENT](swarm-lifecycle.md#SWARM-CEIL-REASSIGNMENT)
+
+*Applies to:* The nftables backend
 
 For each configuration that the repository keeps a reference nftables ruleset for in
-`integration/network/bridge/nftablesdoc`, the bridge driver's IPv4 nftables ruleset
-matches that reference. The reference gives the matches and verdict of each rule, the order of the rules in each chain, and the table and chain names. The configurations include a Swarm service that publishes a port.
+`integration/network/bridge/nftablesdoc`, the IPv4 `docker-bridges` table
+in the node's host network namespace matches the reference's listing of that table. The tables
+that the reference lists for other network namespaces are not part of this expectation. The
+reference gives the matches and verdict of each rule, the order of the rules in each chain, and the table and chain names. The configurations include a Swarm service that publishes a port.
 
 <a id="bridge-networking-network-and-endpoint-options"></a>
 
 ## Network and endpoint options
 
+In this section, the parts of expectations about values below −2³¹ or from 2³¹ up hold for a daemon
+built for a 64-bit architecture.
+
 <a id="BR-OPT-MTU-INVALID"></a>
 
-**Expectation (detector) BR-OPT-MTU-INVALID**: A network MTU that is not an integer in range responds 400
+**Expectation (contract) BR-OPT-MTU-INVALID**: A network MTU that is not an integer in range responds 400
 
 *Observed from:* api · *Depends on:* none · *Platforms:* linux
 
-*CLI form:* [BR-OPT-MTU-INVALID-CLI](#BR-OPT-MTU-INVALID-CLI) · *Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [PRIN-FAILS-CLOSED](../principles.md#PRIN-FAILS-CLOSED), [REQ-BR-NETWORK-MTU](#REQ-BR-NETWORK-MTU), [REQ-NET-API-ERROR-STATUS](network-common.md#REQ-NET-API-ERROR-STATUS), [REQ-NET-NETWORK-CREATE-ERRORS](network-common.md#REQ-NET-NETWORK-CREATE-ERRORS) · *Exact form:* [BR-OPT-MTU-INVALID-MSG](#BR-OPT-MTU-INVALID-MSG) · *CLI form:* [BR-OPT-MTU-INVALID-CLI](#BR-OPT-MTU-INVALID-CLI) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerned by:* [BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO)
 
 `POST /networks/create` for a bridge network whose
-`com.docker.network.driver.mtu` is not an integer from 0 to 2⁶³ − 1 responds 400. The
-message includes the value.
+`com.docker.network.driver.mtu` is not an integer from 0 to 2⁶³ − 1 responds 400.
+
+<a id="BR-OPT-MTU-INVALID-MSG"></a>
+
+**Expectation (detector) BR-OPT-MTU-INVALID-MSG**: A refused network MTU says the value is unparsable or an invalid MTU
+
+*Observed from:* api · *Depends on:* none · *Platforms:* linux
+
+*Exact form of:* [BR-OPT-MTU-INVALID](#BR-OPT-MTU-INVALID) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+`POST /networks/create` for a bridge network whose
+`com.docker.network.driver.mtu` is not an integer from −2⁶³ to 2⁶³ − 1 responds with a
+message that contains `failed to parse com.docker.network.driver.mtu value: <value>`.
+For one whose option is an integer from −2⁶³ to −1, the message contains `invalid MTU
+number: <value>`. `<value>` is the option's value.
 
 <a id="BR-OPT-MTU-INVALID-CLI"></a>
 
-**Expectation (detector) BR-OPT-MTU-INVALID-CLI**: docker network create with an invalid MTU exits non-zero
+**Expectation (contract) BR-OPT-MTU-INVALID-CLI**: docker network create with an invalid MTU exits non-zero
 
 *Observed from:* api · *Depends on:* cli · *Platforms:* linux
 
-*CLI form of:* [BR-OPT-MTU-INVALID](#BR-OPT-MTU-INVALID) · *Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [PRIN-FAILS-CLOSED](../principles.md#PRIN-FAILS-CLOSED), [REQ-BR-NETWORK-MTU](#REQ-BR-NETWORK-MTU), [REQ-NET-NETWORK-CREATE-ERRORS](network-common.md#REQ-NET-NETWORK-CREATE-ERRORS) · *CLI form of:* [BR-OPT-MTU-INVALID](#BR-OPT-MTU-INVALID) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 `docker network create --driver bridge` with a `com.docker.network.driver.mtu`
-option that is not an integer from 0 to 2⁶³ − 1 exits non-zero. It prints an error that includes
-the value.
+option that is not an integer from 0 to 2⁶³ − 1 exits non-zero.
 
 <a id="BR-OPT-MTU-REFUSED"></a>
 
-**Expectation (detector) BR-OPT-MTU-REFUSED**: A network with an MTU that the kernel refuses is not created
+**Expectation (contract) BR-OPT-MTU-REFUSED**: A network with an MTU that the kernel or IPv6 cannot use is not created
 
 *Observed from:* api · *Depends on:* none · *Platforms:* linux
 
-*CLI form:* [BR-OPT-MTU-REFUSED-CLI](#BR-OPT-MTU-REFUSED-CLI) · *Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [PRIN-FAILS-CLOSED](../principles.md#PRIN-FAILS-CLOSED), [REQ-BR-NETWORK-MTU](#REQ-BR-NETWORK-MTU), [REQ-NET-NETWORK-CREATE-ERRORS](network-common.md#REQ-NET-NETWORK-CREATE-ERRORS) · *Exact form:* [BR-OPT-MTU-REFUSED-HTTP500](#BR-OPT-MTU-REFUSED-HTTP500) · *CLI form:* [BR-OPT-MTU-REFUSED-CLI](#BR-OPT-MTU-REFUSED-CLI) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Does not cover:* A bridge or daemon MTU from 2³² up is applied modulo 2³² ([BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO)) · *Concerned by:* [BR-OPT-HTTP500-REFUSED](#BR-OPT-HTTP500-REFUSED), [BR-OPT-MTU-OUT-OF-RANGE](#BR-OPT-MTU-OUT-OF-RANGE)
 
-`POST /networks/create` for a bridge network with an MTU that the kernel refuses
-responds with a 4xx or 5xx status. `GET /networks` then does not list the network.
+`POST /networks/create` for a bridge network with an MTU from 1 to 2⁶³ − 1 that the
+kernel refuses, or with `EnableIPv6` set and an MTU from 1 to 1279, responds with a
+4xx or 5xx status. `GET /networks` then does not list a network with the request's
+`Name`.
 
 <a id="BR-OPT-MTU-REFUSED-HTTP500"></a>
 
-**Expectation (detector) BR-OPT-MTU-REFUSED-HTTP500**: A network MTU that the kernel refuses responds 500
+**Expectation (detector) BR-OPT-MTU-REFUSED-HTTP500**: A network MTU that the kernel or IPv6 cannot use responds 500
 
 *Observed from:* api · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Exact form of:* [BR-OPT-MTU-REFUSED](#BR-OPT-MTU-REFUSED) · *Pins:* [BR-OPT-HTTP500-REFUSED](#BR-OPT-HTTP500-REFUSED) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Does not cover:* A bridge or daemon MTU from 2³² up is applied modulo 2³² ([BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO)) · *Concerned by:* [BR-OPT-MTU-OUT-OF-RANGE](#BR-OPT-MTU-OUT-OF-RANGE)
 
-`POST /networks/create` for a bridge network with an MTU that the kernel refuses
-responds 500. See [Known divergences & non-goals](#bridge-networking-known-divergences-non-goals).
+`POST /networks/create` for a bridge network with an MTU from 1 to 2⁶³ − 1 that the
+kernel refuses, or with `EnableIPv6` set and an MTU from 1 to 1279, responds 500.
 
 <a id="BR-OPT-MTU-REFUSED-CLI"></a>
 
-**Expectation (detector) BR-OPT-MTU-REFUSED-CLI**: docker network create exits non-zero for an MTU the kernel refuses
+**Expectation (contract) BR-OPT-MTU-REFUSED-CLI**: docker network create exits non-zero for an MTU the kernel or IPv6 cannot use
 
 *Observed from:* api · *Depends on:* cli · *Platforms:* linux
 
-*CLI form of:* [BR-OPT-MTU-REFUSED](#BR-OPT-MTU-REFUSED) · *Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [PRIN-FAILS-CLOSED](../principles.md#PRIN-FAILS-CLOSED), [REQ-BR-NETWORK-MTU](#REQ-BR-NETWORK-MTU), [REQ-NET-NETWORK-CREATE-ERRORS](network-common.md#REQ-NET-NETWORK-CREATE-ERRORS) · *CLI form of:* [BR-OPT-MTU-REFUSED](#BR-OPT-MTU-REFUSED) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Does not cover:* A bridge or daemon MTU from 2³² up is applied modulo 2³² ([BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO))
 
-`docker network create --driver bridge` with an MTU that the kernel refuses exits non-zero.
-`docker network ls` then does not list the network.
+`docker network create --driver bridge` with an MTU from 1 to 2⁶³ − 1 that the kernel
+refuses, or with `--ipv6` and an MTU from 1 to 1279, exits non-zero.
+`docker network ls` then does not list a network with the name that the command gave.
+
+<a id="BR-OPT-HTTP500-REFUSED"></a>
+
+**Expectation (defect) BR-OPT-HTTP500-REFUSED**: A bridge MTU that the kernel or IPv6 cannot use is refused with 500
+
+*Observed from:* api · *Depends on:* none · *Platforms:* linux
+
+*Pinned by:* [BR-OPT-MTU-REFUSED-HTTP500](#BR-OPT-MTU-REFUSED-HTTP500) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerns:* [BR-OPT-MTU-REFUSED](#BR-OPT-MTU-REFUSED) · *Violates:* [REQ-NET-API-ERROR-STATUS](network-common.md#REQ-NET-API-ERROR-STATUS), [REQ-NET-NETWORK-CREATE-ERRORS](network-common.md#REQ-NET-NETWORK-CREATE-ERRORS)
+
+`POST /networks/create` for a bridge network with an MTU from 1 to 2³² − 1 that the
+kernel refuses, or from 2³² to 2⁶³ − 1 with a remainder modulo 2³² that the kernel refuses, is
+refused and responds 500. So is a request with `EnableIPv6` set and an MTU from 1 to
+1279, or from 2³² to 2⁶³ − 1 with a remainder modulo 2³² from 1 to 1279.
+
+<a id="BR-OPT-MTU-OUT-OF-RANGE"></a>
+
+**Expectation (defect) BR-OPT-MTU-OUT-OF-RANGE**: A refused bridge MTU gives an error that does not name the option
+
+*Observed from:* api · *Depends on:* none · *Platforms:* linux
+
+*Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerns:* [BR-OPT-MTU-REFUSED](#BR-OPT-MTU-REFUSED), [BR-OPT-MTU-REFUSED-HTTP500](#BR-OPT-MTU-REFUSED-HTTP500) · *Violates:* [PRIN-ERRORS-ACTIONABLE](../principles.md#PRIN-ERRORS-ACTIONABLE)
+
+`POST /networks/create` for a bridge network with an MTU from 1 to 2³² − 1 that the
+kernel refuses, or from 2³² to 2⁶³ − 1 with a remainder modulo 2³² that the kernel refuses, is
+refused with a message that contains `invalid argument`. A request with
+`EnableIPv6` set and an MTU below 1280 that the kernel accepts, or a value from 2³²
+to 2⁶³ − 1 whose remainder modulo 2³² is such an MTU, is refused with a message that contains
+`Cannot read IPv6 setup for bridge` and `no such file or directory`.
+Neither message names the option.
 
 <a id="BR-OPT-MTU-APPLIED"></a>
 
-**Expectation (detector) BR-OPT-MTU-APPLIED**: A network's positive MTU applies to its containers' interfaces
+**Expectation (contract) BR-OPT-MTU-APPLIED**: A network's positive MTU applies to its containers' interfaces
 
 *Observed from:* ctr · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-NETWORK-MTU](#REQ-BR-NETWORK-MTU) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Does not cover:* A bridge or daemon MTU from 2³² up is applied modulo 2³² ([BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO))
 
 *Applies to:* A bridge network whose `com.docker.network.driver.mtu` is positive
 
-The interfaces of the network's containers have that MTU. See
-[Known divergences & non-goals](#bridge-networking-known-divergences-non-goals).
+The interfaces of the network's containers have that MTU.
 
 <a id="BR-OPT-MTU-ZERO"></a>
 
-**Expectation (detector) BR-OPT-MTU-ZERO**: A network MTU of 0 leaves the MTU that the kernel set
+**Expectation (contract) BR-OPT-MTU-ZERO**: A network MTU of 0 leaves an existing bridge's MTU
 
 *Observed from:* node, ctr · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-NETWORK-MTU](#REQ-BR-NETWORK-MTU) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
-A bridge network's `com.docker.network.driver.mtu` of 0 leaves the MTU of the bridge and
-of its containers' interfaces as the kernel set it.
+A bridge network's `com.docker.network.driver.mtu` of 0 sets no MTU. When
+`POST /networks/create` responds, a bridge device that existed before the request with
+an MTU other than 1500, such as 9000, still has that MTU. A bridge device that the request adds
+has MTU 1500, the kernel's default. The interfaces of the network's containers have MTU 1500,
+the kernel's default for a new veth device.
 
 <a id="BR-OPT-DAEMON-MTU-NEGATIVE"></a>
 
-**Expectation (detector) BR-OPT-DAEMON-MTU-NEGATIVE**: The daemon does not start with a negative mtu
+**Expectation (contract) BR-OPT-DAEMON-MTU-NEGATIVE**: The daemon does not start with a negative mtu
 
-*Observed from:* log · *Depends on:* none · *Platforms:* linux
+*Observed from:* log, node · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [PRIN-FAILS-CLOSED](../principles.md#PRIN-FAILS-CLOSED) · *Exact form:* [BR-OPT-DAEMON-MTU-NEGATIVE-MSG](#BR-OPT-DAEMON-MTU-NEGATIVE-MSG) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
-*Applies to:* A daemon configured with a negative `mtu`
+*Applies to:* A daemon configured with an `mtu` from −2⁶³ to −1
 
 The daemon does not start. The daemon log contains an error.
 
 <a id="BR-OPT-DAEMON-MTU-NEGATIVE-MSG"></a>
 
-**Expectation (detector) BR-OPT-DAEMON-MTU-NEGATIVE-MSG**: A negative daemon mtu is logged as invalid default MTU
+**Expectation (detector) BR-OPT-DAEMON-MTU-NEGATIVE-MSG**: With a negative mtu, the daemon logs that the default MTU is invalid
 
-*Observed from:* log · *Depends on:* none · *Platforms:* linux
+*Observed from:* log, node · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Exact form of:* [BR-OPT-DAEMON-MTU-NEGATIVE](#BR-OPT-DAEMON-MTU-NEGATIVE) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
-*Applies to:* A daemon configured with a negative `mtu`
+*Applies to:* A daemon configured with an `mtu` from −2⁶³ to −1
 
 The daemon does not start. The daemon log contains an error that contains `invalid default
 MTU`.
 
-<a id="BR-OPT-DAEMON-MTU-REFUSED"></a>
+<a id="BR-OPT-DAEMON-MTU-INVALID"></a>
 
-**Expectation (detector) BR-OPT-DAEMON-MTU-REFUSED**: The daemon does not start with an mtu the kernel cannot apply
-
-*Observed from:* log · *Depends on:* none · *Platforms:* linux
-
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
-
-*Applies to:* A daemon configured with an `mtu` that the kernel cannot apply to the
-default bridge, and without containers that `live-restore` keeps running
-
-The daemon does not start. See [Known divergences & non-goals](#bridge-networking-known-divergences-non-goals).
-
-<a id="BR-OPT-DAEMON-MTU-REFUSED-LIVE-RESTORE"></a>
-
-**Expectation (detector) BR-OPT-DAEMON-MTU-REFUSED-LIVE-RESTORE**: With live-restored containers, a refused mtu leaves the bridge MTU as is
+**Expectation (contract) BR-OPT-DAEMON-MTU-INVALID**: The daemon does not start with an mtu that is not a 64-bit integer
 
 *Observed from:* log, node · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [PRIN-FAILS-CLOSED](../principles.md#PRIN-FAILS-CLOSED) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
-*Applies to:* A daemon configured with an `mtu` that the kernel cannot apply to the
-default bridge, with containers that `live-restore` keeps running
+*Applies to:* A daemon configured with an `mtu` below −2⁶³ or from 2⁶³, or with one
+that is not an integer, such as `"1500"` or `1500.5`
 
-The daemon starts. The default bridge keeps its MTU.
+The daemon does not start. The daemon log contains an error.
+
+<a id="BR-OPT-DAEMON-MTU-REFUSED"></a>
+
+**Expectation (contract) BR-OPT-DAEMON-MTU-REFUSED**: The daemon does not start with an mtu the default bridge cannot use
+
+*Observed from:* log, node · *Depends on:* none · *Platforms:* linux
+
+*Refines:* [PRIN-FAILS-CLOSED](../principles.md#PRIN-FAILS-CLOSED) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Does not cover:* A bridge or daemon MTU from 2³² up is applied modulo 2³² ([BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO)) · *Concerned by:* [BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED), [BR-OPT-DAEMON-MTU-ERROR](#BR-OPT-DAEMON-MTU-ERROR)
+
+*Applies to:* A daemon with the default bridge enabled, configured with an `mtu`
+from 1 to 2⁶³ − 1 that the kernel cannot apply to the default bridge, or with
+`ipv6` true and an mtu from 1 to 1279, and without containers that
+`live-restore` keeps running
+
+The daemon does not start. The daemon log contains an error.
+
+<a id="BR-OPT-DAEMON-MTU-ERROR"></a>
+
+**Expectation (defect) BR-OPT-DAEMON-MTU-ERROR**: An unusable daemon mtu stops the daemon without naming the setting
+
+*Observed from:* log, node · *Depends on:* none · *Platforms:* linux
+
+*Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerns:* [BR-OPT-DAEMON-MTU-REFUSED](#BR-OPT-DAEMON-MTU-REFUSED) · *Violates:* [PRIN-ERRORS-ACTIONABLE](../principles.md#PRIN-ERRORS-ACTIONABLE)
+
+*Applies to:* A daemon with the default bridge enabled, configured with an `mtu`
+from 1 to 2³² − 1 that the kernel cannot apply to the default bridge, or from 2³² to 2⁶³ − 1
+with a remainder modulo 2³² that the kernel refuses, or with `ipv6` true and an mtu
+from 1 to 1279 that the kernel can apply or an mtu from 2³² to 2⁶³ − 1 whose remainder modulo
+2³² is such an MTU, and without containers that `live-restore` keeps running
+
+The daemon does not start. When the kernel refuses the MTU that the daemon gives it, which for
+an `mtu` from 2³² to 2⁶³ − 1 is its remainder modulo 2³², the daemon log contains
+an error that ends in `error creating default "bridge" network: invalid argument`.
+Otherwise it contains an error that contains `error creating default "bridge" network:
+Cannot read IPv6 setup for bridge` and `no such file or directory`. Neither error names the
+setting.
+
+<a id="BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED"></a>
+
+**Expectation (defect) BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED**: With live-restored containers, the daemon's default-bridge settings are not applied
+
+*Observed from:* api, node, ctr, ctr → ctr, client · *Depends on:* os-linux · *Platforms:* linux
+
+*Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Narrows:* [BR-EGRESS-DAEMON-NO-MASQUERADE](#BR-EGRESS-DAEMON-NO-MASQUERADE), [BR-ISO-DAEMON-NO-ICC](#BR-ISO-DAEMON-NO-ICC), [BR-ISO-NO-ICC-LEGACY-LINK](#BR-ISO-NO-ICC-LEGACY-LINK), [BR-ISO-SAME-NETWORK](#BR-ISO-SAME-NETWORK), [BR-OPT-DAEMON-BIP](#BR-OPT-DAEMON-BIP), [BR-OPT-DAEMON-BIP6](#BR-OPT-DAEMON-BIP6), [BR-PUB-HOST-BINDING-ADDRESS-DAEMON](#BR-PUB-HOST-BINDING-ADDRESS-DAEMON), [NET-HOSTS-HOST-GATEWAY-NO-BRIDGE](network-common.md#NET-HOSTS-HOST-GATEWAY-NO-BRIDGE), [NET-HOSTS-HOST-GATEWAY-NO-BRIDGE-CLI](network-common.md#NET-HOSTS-HOST-GATEWAY-NO-BRIDGE-CLI), [NET-HOSTS-HOST-GATEWAY-NO-BRIDGE-HTTP500](network-common.md#NET-HOSTS-HOST-GATEWAY-NO-BRIDGE-HTTP500) · *Concerns:* [BR-OPT-DAEMON-BRIDGE-NONE](#BR-OPT-DAEMON-BRIDGE-NONE), [BR-OPT-DAEMON-MTU-APPLIED](#BR-OPT-DAEMON-MTU-APPLIED), [BR-OPT-DAEMON-MTU-DEFAULT](#BR-OPT-DAEMON-MTU-DEFAULT), [BR-OPT-DAEMON-MTU-MODULO](#BR-OPT-DAEMON-MTU-MODULO), [BR-OPT-DAEMON-MTU-REFUSED](#BR-OPT-DAEMON-MTU-REFUSED), [BR-OPT-DAEMON-MTU-ZERO](#BR-OPT-DAEMON-MTU-ZERO), [BR-OPT-DAEMON-MTU-ZERO-FLAG](#BR-OPT-DAEMON-MTU-ZERO-FLAG) · *Violates:* [PRIN-FAILS-CLOSED](../principles.md#PRIN-FAILS-CLOSED), [REQ-BR-DAEMON-BRIDGE-NONE](#REQ-BR-DAEMON-BRIDGE-NONE), [REQ-BR-DAEMON-MTU](#REQ-BR-DAEMON-MTU), [REQ-BR-DEFAULT-BRIDGE-ADDRESSING](#REQ-BR-DEFAULT-BRIDGE-ADDRESSING), [REQ-BR-EGRESS-NAT](#REQ-BR-EGRESS-NAT), [REQ-BR-HOST-BINDING-ADDRESS](#REQ-BR-HOST-BINDING-ADDRESS), [REQ-BR-ICC](#REQ-BR-ICC)
+
+*Applies to:* A daemon with containers that `live-restore` keeps running
+
+After the daemon starts, whatever its `bridge`, `bip`,
+`bip6`, `default-gateway`, `default-gateway-v6`,
+`fixed-cidr`, `fixed-cidr-v6`, `icc`, `ip`,
+`ip-masq`, `ipv6` and `mtu` settings, `GET
+/networks` lists `bridge` exactly when the default bridge existed before the start,
+also with `bridge` set to `none`, and `GET /networks/bridge` reports the
+`EnableIPv6`, `IPAM` and `Options` that the default bridge had
+before the start. The default bridge keeps the MTU that it had before the start, and a container
+that joins it after the start gets the MTU that a container joining it got before the start. Two
+containers on the default bridge that no legacy link joins reach each other at their addresses
+on the network, on any port that they listen on, when the default bridge had ICC enabled before
+the start, and on no port when it had ICC disabled. When the default bridge's
+`com.docker.network.bridge.host_binding_ipv4` was `0.0.0.0` before the start, a port
+that a container on it publishes without a host address is reachable at any address of the node,
+also with `ip` set to one of them. With `bridge` set to `none` and
+without `host-gateway-ips`, when the default bridge existed before the start, a
+container with an entry `<name>:host-gateway` in `HostConfig.ExtraHosts` starts,
+and its `/etc/hosts` maps `<name>` as [*NET-HOSTS-HOST-GATEWAY-DEFAULT-BRIDGE*](network-common.md#NET-HOSTS-HOST-GATEWAY-DEFAULT-BRIDGE)
+states. When its other settings let it start without such containers, the daemon starts with an
+`mtu` from 0 to 2⁶³ − 1, or without one, also when the kernel cannot apply the mtu
+to the default bridge and, with `ipv6` true, for an mtu from 1 to 1279.
 
 <a id="BR-OPT-DAEMON-MTU-APPLIED"></a>
 
-**Expectation (detector) BR-OPT-DAEMON-MTU-APPLIED**: A positive daemon mtu applies to containers on the default bridge
+**Expectation (contract) BR-OPT-DAEMON-MTU-APPLIED**: A positive daemon mtu applies to containers on the default bridge
 
 *Observed from:* ctr · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-DAEMON-MTU](#REQ-BR-DAEMON-MTU), [REQ-NET-DAEMON-JSON-KEYS](network-common.md#REQ-NET-DAEMON-JSON-KEYS) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerned by:* [BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED), [BR-OPT-DAEMON-MTU-ZERO-REPLACED](#BR-OPT-DAEMON-MTU-ZERO-REPLACED), [BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO)
 
 *Applies to:* A daemon configured with a positive `mtu` that the kernel can apply
-to the default bridge
+to the default bridge, and that is 1280 or more when `ipv6` is true, without
+containers that `live-restore` keeps running
 
-The interfaces of containers on the default bridge have that MTU. See
-[Known divergences & non-goals](#bridge-networking-known-divergences-non-goals).
+The interfaces of containers on the default bridge have that MTU.
 
-<a id="BR-OPT-DAEMON-MTU-ZERO"></a>
+<a id="BR-OPT-MTU-MODULO"></a>
 
-**Expectation (detector) BR-OPT-DAEMON-MTU-ZERO**: With --mtu 0, the default bridge keeps the MTU that the kernel gave it
+**Expectation (defect) BR-OPT-MTU-MODULO**: A bridge or daemon MTU from 2³² up is applied modulo 2³²
+
+*Observed from:* api, ctr, node · *Depends on:* none · *Platforms:* linux
+
+*Pinned by:* [BR-OPT-DAEMON-MTU-MODULO](#BR-OPT-DAEMON-MTU-MODULO) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Narrows:* [BR-OPT-DAEMON-MTU-REFUSED](#BR-OPT-DAEMON-MTU-REFUSED), [BR-OPT-MTU-APPLIED](#BR-OPT-MTU-APPLIED), [BR-OPT-MTU-REFUSED](#BR-OPT-MTU-REFUSED), [BR-OPT-MTU-REFUSED-CLI](#BR-OPT-MTU-REFUSED-CLI), [BR-OPT-MTU-REFUSED-HTTP500](#BR-OPT-MTU-REFUSED-HTTP500) · *Concerns:* [BR-OPT-DAEMON-MTU-APPLIED](#BR-OPT-DAEMON-MTU-APPLIED), [BR-OPT-MTU-INVALID](#BR-OPT-MTU-INVALID) · *Violates:* [PRIN-FAILS-CLOSED](../principles.md#PRIN-FAILS-CLOSED), [REQ-BR-DAEMON-MTU](#REQ-BR-DAEMON-MTU), [REQ-BR-NETWORK-MTU](#REQ-BR-NETWORK-MTU), [REQ-NET-NETWORK-CREATE-ERRORS](network-common.md#REQ-NET-NETWORK-CREATE-ERRORS)
+
+A value from 2³² to 2⁶³ − 1 of `com.docker.network.driver.mtu` is applied modulo 2³².
+`POST /networks/create` accepts such a value when the kernel accepts its remainder as an
+MTU and, with `EnableIPv6` set, that remainder is 1280 or more. For example,
+4294968796 is applied as 1500. `GET /networks/{id}` then reports the requested value in
+`Options`. `POST /networks/create` refuses such a value when the kernel
+refuses its remainder as an MTU, or when `EnableIPv6` is set and that remainder is
+below 1280 ([*BR-OPT-MTU-OUT-OF-RANGE*](#BR-OPT-MTU-OUT-OF-RANGE)). A daemon-wide `mtu` from 2³² to
+2⁶³ − 1 does not stop the daemon when the kernel accepts its remainder as an MTU and, with
+`ipv6` true, that remainder is 1280 or more. Without containers that
+`live-restore` keeps running, the daemon then sets that remainder as the MTU of the
+default bridge and of its containers' interfaces.
+
+<a id="BR-OPT-DAEMON-MTU-DEFAULT"></a>
+
+**Expectation (contract) BR-OPT-DAEMON-MTU-DEFAULT**: Without an mtu setting, the default bridge gets MTU 1500
 
 *Observed from:* node, ctr · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-DAEMON-MTU](#REQ-BR-DAEMON-MTU) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerned by:* [BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED)
 
-*Applies to:* A daemon started with `--mtu 0`
+*Applies to:* A daemon without `mtu` in `daemon.json` and without
+`--mtu`, and without containers that `live-restore` keeps running
 
-The default bridge and its containers' interfaces keep the MTU that the kernel gave them. See
-[Known divergences & non-goals](#bridge-networking-known-divergences-non-goals).
+The default bridge and its containers' interfaces have MTU 1500. This includes a default bridge
+device that existed before the start with another MTU.
+
+<a id="BR-OPT-DAEMON-MTU-ZERO"></a>
+
+**Expectation (detector) BR-OPT-DAEMON-MTU-ZERO**: With mtu 0 in daemon.json, the default bridge gets MTU 1500
+
+*Observed from:* node, ctr · *Depends on:* none · *Platforms:* linux
+
+*Pins:* [BR-OPT-DAEMON-MTU-ZERO-REPLACED](#BR-OPT-DAEMON-MTU-ZERO-REPLACED) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerned by:* [BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED), [BR-OPT-DAEMON-MTU-ZERO-REPLACED](#BR-OPT-DAEMON-MTU-ZERO-REPLACED)
+
+*Applies to:* A daemon whose `daemon.json` sets `mtu` to 0, started without
+`--mtu`, and without containers that `live-restore` keeps running
+
+The default bridge and its containers' interfaces have MTU 1500. This includes a default bridge
+device that existed before the start with another MTU.
+
+<a id="BR-OPT-DAEMON-MTU-ZERO-FLAG"></a>
+
+**Expectation (contract) BR-OPT-DAEMON-MTU-ZERO-FLAG**: With --mtu 0, an existing default bridge keeps its MTU
+
+*Observed from:* node, ctr · *Depends on:* none · *Platforms:* linux
+
+*Refines:* [REQ-BR-DAEMON-MTU](#REQ-BR-DAEMON-MTU) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerned by:* [BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED), [BR-OPT-DAEMON-MTU-ZERO-REPLACED](#BR-OPT-DAEMON-MTU-ZERO-REPLACED)
+
+*Applies to:* A daemon started with `--mtu 0`, without containers that
+`live-restore` keeps running
+
+When the daemon's API responds after the start, a default bridge device that existed before the
+start with an MTU other than 1500, such as one whose MTU an operator set with **ip**
+while the daemon was stopped, still has that MTU. A default bridge device that the daemon adds
+at the start has MTU 1500, the kernel's default. The interfaces of the default bridge's
+containers have MTU 1500, the kernel's default for a new veth device.
+
+<a id="BR-OPT-DAEMON-MTU-ZERO-REPLACED"></a>
+
+**Expectation (defect) BR-OPT-DAEMON-MTU-ZERO-REPLACED**: An mtu of 0 in daemon.json is replaced by 1500
+
+*Observed from:* api, node, ctr · *Depends on:* none · *Platforms:* linux
+
+*Pinned by:* [BR-OPT-DAEMON-MTU-ZERO](#BR-OPT-DAEMON-MTU-ZERO) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerns:* [BR-OPT-DAEMON-MTU-APPLIED](#BR-OPT-DAEMON-MTU-APPLIED), [BR-OPT-DAEMON-MTU-ZERO](#BR-OPT-DAEMON-MTU-ZERO), [BR-OPT-DAEMON-MTU-ZERO-FLAG](#BR-OPT-DAEMON-MTU-ZERO-FLAG) · *Violates:* [REQ-BR-DAEMON-MTU](#REQ-BR-DAEMON-MTU), [REQ-NET-DAEMON-JSON-KEYS](network-common.md#REQ-NET-DAEMON-JSON-KEYS)
+
+*Applies to:* A daemon without containers that `live-restore` keeps running
+
+With `mtu` 0 in daemon.json, `GET /networks/bridge` reports
+`com.docker.network.driver.mtu` `1500`. The daemon then sets 1500 on the default
+bridge, a default bridge device that existed before the start with an MTU other than 1500
+included, and on its containers' interfaces. Only `--mtu 0` leaves such a bridge
+device's MTU as it was.
 
 <a id="BR-OPT-DAEMON-MTU-MODULO"></a>
 
 **Expectation (detector) BR-OPT-DAEMON-MTU-MODULO**: A daemon mtu of 2³² or more sets its remainder modulo 2³² as the MTU
 
-*Observed from:* log, node · *Depends on:* none · *Platforms:* linux
+*Observed from:* node · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Pins:* [BR-OPT-MTU-MODULO](#BR-OPT-MTU-MODULO) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerned by:* [BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED)
 
-*Applies to:* A daemon configured with an `mtu` from 2³² to 2⁶³ − 1 whose remainder
-modulo 2³² the kernel accepts
+*Applies to:* A daemon configured with an `mtu` from 2³² to 2⁶³ − 1, where the
+kernel accepts the remainder modulo 2³² as an MTU for the default bridge and, with
+`ipv6` true, that remainder is 1280 or more, and without containers that
+`live-restore` keeps running
 
 The daemon starts. The default bridge gets that remainder as its MTU. For example, 4294968796
-gives an MTU of 1500. See [Known divergences & non-goals](#bridge-networking-known-divergences-non-goals).
+gives an MTU of 1500.
+
+<a id="BR-OPT-DAEMON-BIP"></a>
+
+**Expectation (contract) BR-OPT-DAEMON-BIP**: The daemon's bip, fixed-cidr and default-gateway address the default bridge
+
+*Observed from:* api, node, ctr · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-DEFAULT-BRIDGE-ADDRESSING](#REQ-BR-DEFAULT-BRIDGE-ADDRESSING) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Does not cover:* With live-restored containers, the daemon's default-bridge settings are not applied ([BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED))
+
+*Applies to:* A daemon with `bip` set to an IPv4 address and prefix length, such as
+`192.168.1.1/24`, whose address is neither the first nor the last address of its subnet,
+`fixed-cidr` set to that subnet or to a subnet within it, such as
+`192.168.1.0/25`, and `default-gateway` set to another address of that subnet
+that is neither its first nor its last address, such as `192.168.1.254`
+
+`GET /networks/bridge` reports an entry in `IPAM.Config` whose
+`Subnet` is the subnet of `bip`, whose `Gateway` is the
+address of `bip`, and whose `IPRange` is `fixed-cidr`. The
+Linux bridge of the default bridge network has the address of `bip`. A container
+that starts on the default bridge gets an IPv4 address in `fixed-cidr`. When the
+default bridge is the container's only network, its IPv4 default route is via the address of
+`default-gateway`.
+
+<a id="BR-OPT-DAEMON-BIP6"></a>
+
+**Expectation (contract) BR-OPT-DAEMON-BIP6**: The daemon's ipv6, bip6 and fixed-cidr-v6 give the default bridge IPv6
+
+*Observed from:* api, node, ctr · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-DEFAULT-BRIDGE-ADDRESSING](#REQ-BR-DEFAULT-BRIDGE-ADDRESSING) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-FORWARDING-V6](#BR-HOST-FORWARDING-V6), [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND), [BR-HOST-IP6TABLES-KERNEL](#BR-HOST-IP6TABLES-KERNEL), [BR-HOST-IP6TABLES-LEGACY-KERNEL](#BR-HOST-IP6TABLES-LEGACY-KERNEL), [BR-HOST-IP6TABLES-NFT-KERNEL](#BR-HOST-IP6TABLES-NFT-KERNEL), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NFTABLES-V6](#BR-HOST-NFTABLES-V6), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Does not cover:* With live-restored containers, the daemon's default-bridge settings are not applied ([BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED))
+
+*Applies to:* A Linux node that has IPv6 enabled, and a daemon with `ipv6` true,
+`bip6` set to a global or unique-local IPv6 address and prefix length, such as
+`2001:db8::1111/64`, whose address is not the first address of its subnet,
+`fixed-cidr-v6` set to that subnet or to a subnet within it, and
+`default-gateway-v6` unset or set to another address of that subnet that is not its
+first address
+
+`GET /networks/bridge` reports `EnableIPv6` true and an entry in
+`IPAM.Config` whose `Subnet` is the subnet of `bip6`, whose
+`Gateway` is the address of `bip6`, and whose `IPRange` is
+`fixed-cidr-v6`. The Linux bridge of the default bridge network has the address of
+`bip6`. A container that starts on the default bridge, with IPv6 enabled in its
+network namespace and on its interface on the default bridge, gets an IPv6 address in
+`fixed-cidr-v6`. When the default bridge is that container's only network, its IPv6
+default route is via the address of `default-gateway-v6` when that is set, and
+otherwise via the address of `bip6`.
+
+<a id="BR-OPT-DAEMON-BRIDGE-NONE"></a>
+
+**Expectation (contract) BR-OPT-DAEMON-BRIDGE-NONE**: With the daemon's bridge set to none, there is no default bridge network
+
+*Observed from:* api · *Depends on:* none · *Platforms:* linux
+
+*Refines:* [REQ-BR-DAEMON-BRIDGE-NONE](#REQ-BR-DAEMON-BRIDGE-NONE) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerned by:* [BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED)
+
+*Applies to:* A daemon with `bridge` set to `none`, without containers that
+`live-restore` keeps running
+
+After the daemon starts, `GET /networks` does not list `bridge`.
+
+<a id="BR-OPT-BRIDGE-NAME"></a>
+
+**Expectation (contract) BR-OPT-BRIDGE-NAME**: A network's bridge name option names its bridge interface
+
+*Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-BRIDGE-NAME](#REQ-BR-BRIDGE-NAME) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A node without an interface named `<name>`
+
+`POST /networks/create` for a bridge network with
+`com.docker.network.bridge.name` set to `<name>` responds 201. The node then has a
+`bridge` interface named `<name>`.
+
+<a id="BR-OPT-IPV4-DISABLED"></a>
+
+**Expectation (contract) BR-OPT-IPV4-DISABLED**: A bridge network created without IPv4 gives its containers no IPv4 address
+
+*Observed from:* api, ctr · *Depends on:* none · *Platforms:* linux
+
+*Refines:* [REQ-NET-IPV6-ONLY](network-common.md#REQ-NET-IPV6-ONLY) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-FORWARDING-V6](#BR-HOST-FORWARDING-V6), [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND), [BR-HOST-IP6TABLES-KERNEL](#BR-HOST-IP6TABLES-KERNEL), [BR-HOST-IP6TABLES-LEGACY-KERNEL](#BR-HOST-IP6TABLES-LEGACY-KERNEL), [BR-HOST-IP6TABLES-NFT-KERNEL](#BR-HOST-IP6TABLES-NFT-KERNEL), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NFTABLES-V6](#BR-HOST-NFTABLES-V6), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A Linux node that has IPv6 enabled
+
+At API version 1.48 or later, `POST /networks/create` for a bridge network with
+`EnableIPv4` false and `EnableIPv6` true responds 201.
+`GET /networks/{id}` then reports `EnableIPv4` false. The interface of a
+container on the network has no IPv4 address. When IPv6 is enabled in the container's network
+namespace and on that interface, the interface has an IPv6 address in the network's subnet.
 
 <a id="bridge-networking-data-path"></a>
 
@@ -1020,72 +2431,157 @@ gives an MTU of 1500. See [Known divergences & non-goals](#bridge-networking-kno
 The expectations in this subsection hold with `userland-proxy` true and with
 `userland-proxy` false, unless an expectation names a value.
 
+In this subsection, a container's addresses on a network are the IPv4 address and the IPv6 address
+that `GET /containers/{id}/json` reports for that network in
+`NetworkSettings.Networks`, as `IPAddress` and `GlobalIPv6Address`,
+and the IPv6 link-local addresses of the container's interface on the network, the kernel's and
+those in `IPAMConfig.LinkLocalIPs`, reached with that interface as the zone. The IPv4
+addresses in `IPAMConfig.LinkLocalIPs` are not among them.
+
 <a id="BR-ISO-SEPARATE-NETWORKS"></a>
 
-**Expectation (detector) BR-ISO-SEPARATE-NETWORKS**: Containers on separate networks are isolated
+**Expectation (contract) BR-ISO-SEPARATE-NETWORKS**: Containers on separate networks are isolated
 
 *Observed from:* ctr → ctr · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-SEPARATE-NETWORKS](#REQ-BR-SEPARATE-NETWORKS) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* A daemon with `allow-direct-routing` false, and a target network
-whose `com.docker.network.bridge.gateway_mode_ipv4` is `nat` or not set
+whose `com.docker.network.bridge.gateway_mode_ipv4` is `nat` or not set, and whose
+`com.docker.network.bridge.trusted_host_interfaces` does not name the bridge of the
+other network
 
 A container on one bridge network cannot reach a container on another bridge network at that
 container's IPv4 address, on any port. It reaches the published ports of that container at the
 node's address.
 
-<a id="BR-ISO-NO-ICC"></a>
+<a id="BR-ISO-SEPARATE-NETWORKS-V6"></a>
 
-**Expectation (detector) BR-ISO-NO-ICC**: A network without ICC isolates its containers
+**Expectation (contract) BR-ISO-SEPARATE-NETWORKS-V6**: Containers on separate networks are isolated over IPv6
 
 *Observed from:* ctr → ctr · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-BR-NETFILTER](#BR-HOST-BR-NETFILTER), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-SEPARATE-NETWORKS](#REQ-BR-SEPARATE-NETWORKS) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-FORWARDING-V6](#BR-HOST-FORWARDING-V6), [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND), [BR-HOST-IP6TABLES-KERNEL](#BR-HOST-IP6TABLES-KERNEL), [BR-HOST-IP6TABLES-LEGACY-KERNEL](#BR-HOST-IP6TABLES-LEGACY-KERNEL), [BR-HOST-IP6TABLES-NFT-KERNEL](#BR-HOST-IP6TABLES-NFT-KERNEL), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NFTABLES-V6](#BR-HOST-NFTABLES-V6), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A daemon with `ip6tables` true and
+`allow-direct-routing` false, and two bridge networks with IPv6 enabled, the target
+network's `com.docker.network.bridge.gateway_mode_ipv6` being `nat` or not set, and
+its `com.docker.network.bridge.trusted_host_interfaces` not naming the other network's
+bridge
+
+A container on one of the networks cannot reach a container on the other at that container's
+IPv6 address, on any port. It reaches the published ports of that container at the node's IPv6
+address.
+
+<a id="BR-ISO-SEPARATE-NETWORKS-ROUTED"></a>
+
+**Expectation (contract) BR-ISO-SEPARATE-NETWORKS-ROUTED**: Containers on other networks reach a routed network's published ports
+
+*Observed from:* ctr → ctr · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-SEPARATE-NETWORKS](#REQ-BR-SEPARATE-NETWORKS), [REQ-BR-UNPUBLISHED-PORTS](#REQ-BR-UNPUBLISHED-PORTS) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A target network whose `com.docker.network.bridge.gateway_mode_ipv4` is
+`routed`, and a container on another bridge network that is not `internal`
+
+The container reaches a container on the target network at that container's IPv4 address, on
+each port that the target container publishes. It does not reach the target container on any
+other port.
+
+<a id="BR-ISO-SEPARATE-NETWORKS-NAT-UNPROTECTED"></a>
+
+**Expectation (contract) BR-ISO-SEPARATE-NETWORKS-NAT-UNPROTECTED**: Containers on other networks reach any port of a nat-unprotected network
+
+*Observed from:* ctr → ctr · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-GWMODE-DIRECT-ROUTING](#REQ-BR-GWMODE-DIRECT-ROUTING) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A target network whose `com.docker.network.bridge.gateway_mode_ipv4` is
+`nat-unprotected`, and a container on another bridge network that is not `internal`
+
+The container reaches a container on the target network at that container's IPv4 address, on
+any port that the target container listens on.
+
+<a id="BR-ISO-SAME-NETWORK"></a>
+
+**Expectation (contract) BR-ISO-SAME-NETWORK**: Containers on one bridge network reach each other on any port
+
+*Observed from:* ctr → ctr · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-ICC](#REQ-BR-ICC), [REQ-BR-INTERNAL](#REQ-BR-INTERNAL), [REQ-BR-SAME-NETWORK](#REQ-BR-SAME-NETWORK), [REQ-BR-UNPUBLISHED-PORTS](#REQ-BR-UNPUBLISHED-PORTS), [REQ-NET-DEFAULT-BRIDGE-ATTACHMENT](network-common.md#REQ-NET-DEFAULT-BRIDGE-ATTACHMENT) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Does not cover:* With live-restored containers, the daemon's default-bridge settings are not applied ([BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED))
+
+*Applies to:* A bridge network without `com.docker.network.bridge.enable_icc` set to
+`false`, other than the default bridge of a daemon with `icc` false
+
+A container on the network reaches another container on the network at each of that
+container's addresses on the network, on any port that it listens on.
+
+<a id="BR-ISO-NO-ICC"></a>
+
+**Expectation (contract) BR-ISO-NO-ICC**: A network without ICC isolates its containers
+
+*Observed from:* ctr → ctr · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-ICC](#REQ-BR-ICC) · *Needs:* [BR-HOST-BR-NETFILTER-NO-ICC](#BR-HOST-BR-NETFILTER-NO-ICC), [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* A bridge network with `com.docker.network.bridge.enable_icc` set to
 `false`
 
-A container cannot reach another container on the network at that container's address, on any
-port. This does not apply to two containers that a legacy link joins (see the next expectation).
-It reaches the published ports of that container at the node's address.
+A container cannot reach another container on the network at any of that container's addresses
+on the network, on any port. This does not apply to two containers that a legacy link joins. A
+container reaches the published ports of another container on the network at the node's address.
 
 <a id="BR-ISO-NO-ICC-LEGACY-LINK"></a>
 
-**Expectation (detector) BR-ISO-NO-ICC-LEGACY-LINK**: Without ICC, a legacy link reaches only exposed ports over IPv4
+**Expectation (contract) BR-ISO-NO-ICC-LEGACY-LINK**: Without ICC, a legacy link reaches only exposed ports over IPv4
 
 *Observed from:* ctr → ctr · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-BR-NETFILTER](#BR-HOST-BR-NETFILTER), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-ICC](#REQ-BR-ICC), [REQ-BR-LEGACY-LINKS](#REQ-BR-LEGACY-LINKS) · *Needs:* [BR-HOST-BR-NETFILTER-NO-ICC](#BR-HOST-BR-NETFILTER-NO-ICC), [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Does not cover:* With live-restored containers, the daemon's default-bridge settings are not applied ([BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED))
 
 *Applies to:* A daemon with `icc` false, and a container on the default bridge
 network whose `HostConfig.Links` names another container on that network
 
-The container reaches the linked container at the linked container's IPv4 address, on each port
-that the linked container exposes. It does not reach the linked container on any other port, or
-at the linked container's IPv6 address.
+The container reaches the linked container at the linked container's IPv4 address, on each port,
+with its protocol, that the linked container's `Config.ExposedPorts` or
+`HostConfig.PortBindings` lists. `Config.ExposedPorts` includes the ports
+that the container's image exposes. It does not reach the linked container on any other port.
+
+<a id="BR-ISO-DAEMON-NO-ICC"></a>
+
+**Expectation (contract) BR-ISO-DAEMON-NO-ICC**: With the daemon's icc false, the default bridge isolates its containers
+
+*Observed from:* ctr → ctr · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-ICC](#REQ-BR-ICC) · *Needs:* [BR-HOST-BR-NETFILTER-NO-ICC](#BR-HOST-BR-NETFILTER-NO-ICC), [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Does not cover:* With live-restored containers, the daemon's default-bridge settings are not applied ([BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED))
+
+*Applies to:* A daemon with `icc` false, and two containers on the default bridge
+network that no legacy link joins
+
+Neither container reaches the other at that container's addresses on the network, on any port.
 
 <a id="BR-ISO-INTERNAL-NO-FORWARD"></a>
 
-**Expectation (detector) BR-ISO-INTERNAL-NO-FORWARD**: The node does not forward traffic for an internal network
+**Expectation (contract) BR-ISO-INTERNAL-NO-FORWARD**: The node does not forward traffic for an internal network
 
 *Observed from:* ctr, underlay · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-INTERNAL](#REQ-BR-INTERNAL), [REQ-NET-INTERNAL-NO-EXTERNAL-ACCESS](network-common.md#REQ-NET-INTERNAL-NO-EXTERNAL-ACCESS) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 The node does not forward traffic between a container on an `internal` bridge network and an
-address outside the network's subnets, in either direction. This holds even when the container
-has a default route through the bridge, such as one that a container with `NET_ADMIN` adds
-itself. Traffic that the node delivers to its own addresses is not forwarded, and this
-expectation does not cover it.
+address outside the network's subnets, in either direction. In the inbound direction, this
+includes traffic from a host outside the node that has a route to the network's subnets through
+an address of the node. This holds even when the container has a default route through the
+bridge, such as one that a container with `NET_ADMIN` adds itself. Traffic that the node
+delivers to its own addresses is not forwarded, and this expectation does not cover it.
 
 <a id="BR-ISO-INTERNAL-HOST-TO-CTR"></a>
 
-**Expectation (detector) BR-ISO-INTERNAL-HOST-TO-CTR**: The node reaches containers on an internal network
+**Expectation (contract) BR-ISO-INTERNAL-HOST-TO-CTR**: The node reaches containers on an internal network
 
 *Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-INTERNAL](#REQ-BR-INTERNAL), [REQ-BR-ISOLATED](#REQ-BR-ISOLATED) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* An `internal` bridge network whose
 `com.docker.network.bridge.gateway_mode_ipv4` is not `isolated`, and without
@@ -1096,11 +2592,11 @@ container's IPv4 address.
 
 <a id="BR-ISO-INTERNAL-CTR-TO-HOST"></a>
 
-**Expectation (detector) BR-ISO-INTERNAL-CTR-TO-HOST**: Containers on an internal network reach the bridge's address
+**Expectation (contract) BR-ISO-INTERNAL-CTR-TO-HOST**: Containers on an internal network reach the bridge's address
 
 *Observed from:* ctr · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-INTERNAL](#REQ-BR-INTERNAL), [REQ-BR-ISOLATED](#REQ-BR-ISOLATED) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* An `internal` bridge network whose
 `com.docker.network.bridge.gateway_mode_ipv4` is not `isolated`, and without
@@ -1115,7 +2611,7 @@ on the bridge's IPv4 address.
 
 *Observed from:* ctr · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Rationale:* Only a container's routes keep it from the node's other addresses on an internal network ([RAT-BR-INTERNAL-NODE-ADDRESSES](#RAT-BR-INTERNAL-NODE-ADDRESSES))
 
 *Applies to:* An `internal` bridge network whose
 `com.docker.network.bridge.gateway_mode_ipv4` is not `isolated`, without
@@ -1128,11 +2624,11 @@ address.
 
 <a id="BR-ISO-ISOLATED-NO-GATEWAY"></a>
 
-**Expectation (detector) BR-ISO-ISOLATED-NO-GATEWAY**: An isolated network's bridge has no IPv4 address
+**Expectation (contract) BR-ISO-ISOLATED-NO-GATEWAY**: An isolated network's bridge has no IPv4 address
 
 *Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-ISOLATED](#REQ-BR-ISOLATED) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* An `internal` bridge network with
 `com.docker.network.bridge.gateway_mode_ipv4` set to `isolated`
@@ -1142,11 +2638,11 @@ reach the network's containers at their IPv4 addresses.
 
 <a id="BR-ISO-ISOLATED-CTR-TO-HOST"></a>
 
-**Expectation (detector) BR-ISO-ISOLATED-CTR-TO-HOST**: Containers on an isolated network cannot reach the node
+**Expectation (contract) BR-ISO-ISOLATED-CTR-TO-HOST**: Containers on an isolated network cannot reach the node
 
 *Observed from:* ctr · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-ISOLATED](#REQ-BR-ISOLATED) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* An `internal` bridge network with
 `com.docker.network.bridge.gateway_mode_ipv4` set to `isolated`
@@ -1157,42 +2653,95 @@ container with `NET_ADMIN` adds itself.
 
 <a id="BR-ISO-DIRECT-ROUTING-OFF"></a>
 
-**Expectation (detector) BR-ISO-DIRECT-ROUTING-OFF**: Direct routing from an untrusted interface does not reach containers
+**Expectation (contract) BR-ISO-DIRECT-ROUTING-OFF**: Direct routing from an untrusted interface does not reach containers
 
 *Observed from:* underlay → ctr · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-NO-DIRECT-ROUTING](#REQ-BR-NO-DIRECT-ROUTING) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* A daemon with `allow-direct-routing` false, a container on a bridge
 network whose `com.docker.network.bridge.gateway_mode_ipv4` is `nat` or not set, and
-an underlay host with a route to the container's IPv4 address via the node's underlay address
+an underlay host with a route to the container's IPv4 address via the node's underlay address,
+whose traffic arrives on an interface that is not in the network's
+`com.docker.network.bridge.trusted_host_interfaces`
 
-Traffic from that host to the container's IPv4 address arrives on an interface that is not in
-the network's `com.docker.network.bridge.trusted_host_interfaces`. The traffic does not
-reach the container on any port.
+Traffic from that host to the container's IPv4 address does not reach the container on any port.
 
-<a id="BR-ISO-DIRECT-ROUTING-ON"></a>
+<a id="BR-ISO-DIRECT-ROUTING-OFF-V6"></a>
 
-**Expectation (detector) BR-ISO-DIRECT-ROUTING-ON**: With allow-direct-routing, direct routing reaches published ports only
+**Expectation (contract) BR-ISO-DIRECT-ROUTING-OFF-V6**: Direct routing over IPv6 from an untrusted interface does not reach containers
 
 *Observed from:* underlay → ctr · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-NO-DIRECT-ROUTING](#REQ-BR-NO-DIRECT-ROUTING) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-FORWARDING-V6](#BR-HOST-FORWARDING-V6), [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND), [BR-HOST-IP6TABLES-KERNEL](#BR-HOST-IP6TABLES-KERNEL), [BR-HOST-IP6TABLES-LEGACY-KERNEL](#BR-HOST-IP6TABLES-LEGACY-KERNEL), [BR-HOST-IP6TABLES-NFT-KERNEL](#BR-HOST-IP6TABLES-NFT-KERNEL), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NFTABLES-V6](#BR-HOST-NFTABLES-V6), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A daemon with `ip6tables` true and
+`allow-direct-routing` false, a container on a bridge network with IPv6 enabled
+whose `com.docker.network.bridge.gateway_mode_ipv6` is `nat` or not set, and an
+underlay host with a route to the container's IPv6 address via the node's underlay address,
+whose traffic arrives on an interface that is not in the network's
+`com.docker.network.bridge.trusted_host_interfaces`
+
+Traffic from that host to the container's IPv6 address does not reach the container on any port.
+
+<a id="BR-ISO-DIRECT-ROUTING-OFF-FIREWALLD"></a>
+
+**Expectation (contract) BR-ISO-DIRECT-ROUTING-OFF-FIREWALLD**: After a firewalld reload, direct routing still does not reach containers
+
+*Observed from:* underlay → ctr · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-FIREWALLD-RELOAD](#REQ-BR-FIREWALLD-RELOAD), [REQ-BR-NO-DIRECT-ROUTING](#REQ-BR-NO-DIRECT-ROUTING) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A node with firewalld running, a daemon with `allow-direct-routing`
+false, a container on a bridge network whose
+`com.docker.network.bridge.gateway_mode_ipv4` is `nat` or not set, and an underlay
+host with a route to the container's IPv4 address via the node's underlay address, whose traffic
+arrives on an interface that is not in the network's
+`com.docker.network.bridge.trusted_host_interfaces`
+
+After a firewalld reload, traffic from that host to the container's IPv4 address does not reach
+the container on any port, including a port that the container publishes on `127.0.0.1`.
+
+<a id="BR-ISO-DIRECT-ROUTING-ON"></a>
+
+**Expectation (contract) BR-ISO-DIRECT-ROUTING-ON**: With allow-direct-routing, direct routing reaches published ports only
+
+*Observed from:* underlay → ctr · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-DIRECT-ROUTING-OPT-IN](#REQ-BR-DIRECT-ROUTING-OPT-IN), [REQ-BR-UNPUBLISHED-PORTS](#REQ-BR-UNPUBLISHED-PORTS) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Does not cover:* With iptables, direct routing does not reach a port published only on IPv6 host addresses ([BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING](#BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING))
 
 *Applies to:* A daemon with `allow-direct-routing` true, a container on a bridge
 network whose `com.docker.network.bridge.gateway_mode_ipv4` is `nat` or not set, and
 an underlay host with a route to the container's IPv4 address via the node's underlay address
 
 Traffic from that host to the container's IPv4 address reaches the container's published ports
-only.
+only. A port counts as published whatever the host address of its binding, a loopback address
+included.
 
-<a id="BR-ISO-TRUSTED-IFACE"></a>
+<a id="BR-ISO-DIRECT-ROUTING-ON-FIREWALLD"></a>
 
-**Expectation (detector) BR-ISO-TRUSTED-IFACE**: A trusted interface reaches published ports only
+**Expectation (contract) BR-ISO-DIRECT-ROUTING-ON-FIREWALLD**: After a firewalld reload, direct routing still reaches published ports only
 
 *Observed from:* underlay → ctr · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-DIRECT-ROUTING-OPT-IN](#REQ-BR-DIRECT-ROUTING-OPT-IN), [REQ-BR-FIREWALLD-RELOAD](#REQ-BR-FIREWALLD-RELOAD), [REQ-BR-UNPUBLISHED-PORTS](#REQ-BR-UNPUBLISHED-PORTS) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Does not cover:* With iptables, direct routing does not reach a port published only on IPv6 host addresses ([BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING](#BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING))
+
+*Applies to:* A node with firewalld running, a daemon with `allow-direct-routing`
+true, a container on a bridge network whose
+`com.docker.network.bridge.gateway_mode_ipv4` is `nat` or not set, and an underlay
+host with a route to the container's IPv4 address via the node's underlay address
+
+After a firewalld reload, traffic from that host to the container's IPv4 address reaches the
+container's published ports only. A port counts as published whatever the host address of its
+binding, a loopback address included.
+
+<a id="BR-ISO-TRUSTED-IFACE"></a>
+
+**Expectation (contract) BR-ISO-TRUSTED-IFACE**: A trusted interface reaches published ports only
+
+*Observed from:* underlay → ctr · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-DIRECT-ROUTING-OPT-IN](#REQ-BR-DIRECT-ROUTING-OPT-IN), [REQ-BR-UNPUBLISHED-PORTS](#REQ-BR-UNPUBLISHED-PORTS) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Does not cover:* With iptables, direct routing does not reach a port published only on IPv6 host addresses ([BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING](#BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING))
 
 *Applies to:* A container on a bridge network whose
 `com.docker.network.bridge.gateway_mode_ipv4` is `nat` or not set, and an underlay
@@ -1200,15 +2749,16 @@ host with a route to the container's IPv4 address via the node's underlay addres
 
 When traffic from that host to the container's IPv4 address arrives on an interface in the
 network's `com.docker.network.bridge.trusted_host_interfaces`, it reaches the
-container's published ports only.
+container's published ports only. A port counts as published whatever the host address of its
+binding, a loopback address included.
 
 <a id="BR-ISO-TRUSTED-IFACE-LIST"></a>
 
-**Expectation (detector) BR-ISO-TRUSTED-IFACE-LIST**: A colon-separated list names several trusted interfaces
+**Expectation (contract) BR-ISO-TRUSTED-IFACE-LIST**: A colon-separated list names several trusted interfaces
 
-*Observed from:* underlay → ctr · *Depends on:* none · *Platforms:* linux
+*Observed from:* underlay → ctr · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-DIRECT-ROUTING-OPT-IN](#REQ-BR-DIRECT-ROUTING-OPT-IN) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Does not cover:* With iptables, direct routing does not reach a port published only on IPv6 host addresses ([BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING](#BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING))
 
 *Applies to:* A bridge network whose `com.docker.network.bridge.trusted_host_interfaces`
 names several interfaces separated by colons, such as `eth1:eth2`, and whose
@@ -1217,7 +2767,63 @@ host with a route to the IPv4 address of a container on the network via the node
 address
 
 When traffic from that host to the container's IPv4 address arrives on any of the named
-interfaces, it reaches the container's published ports.
+interfaces, it reaches the container's published ports. A port counts as published whatever the
+host address of its binding, a loopback address included.
+
+<a id="BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING"></a>
+
+**Expectation (defect) BR-ISO-DIRECT-ROUTING-V6-HOST-BINDING**: With iptables, direct routing does not reach a port published only on IPv6 host addresses
+
+*Observed from:* underlay → ctr · *Depends on:* os-linux · *Platforms:* linux
+
+*Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Narrows:* [BR-ISO-DIRECT-ROUTING-ON](#BR-ISO-DIRECT-ROUTING-ON), [BR-ISO-DIRECT-ROUTING-ON-FIREWALLD](#BR-ISO-DIRECT-ROUTING-ON-FIREWALLD), [BR-ISO-TRUSTED-IFACE](#BR-ISO-TRUSTED-IFACE), [BR-ISO-TRUSTED-IFACE-LIST](#BR-ISO-TRUSTED-IFACE-LIST) · *Violates:* [REQ-BR-DIRECT-ROUTING-OPT-IN](#REQ-BR-DIRECT-ROUTING-OPT-IN)
+
+*Applies to:* The iptables backend; a container on a bridge network whose
+`com.docker.network.bridge.gateway_mode_ipv4` is `nat` or not set, with a port that it
+publishes only on IPv6 host addresses; and an underlay host with a route to the container's IPv4
+address via the node's underlay address, whose traffic arrives on an interface in the network's
+`com.docker.network.bridge.trusted_host_interfaces`, or on any interface with
+`allow-direct-routing` true
+
+Traffic from that host to that port at the container's IPv4 address does not reach the
+container.
+
+<a id="BR-ISO-ACCEPT-FWMARK"></a>
+
+**Expectation (contract) BR-ISO-ACCEPT-FWMARK**: Traffic with the bridge-accept-fwmark mark reaches unpublished ports
+
+*Observed from:* underlay → ctr · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-ACCEPT-FWMARK](#REQ-BR-ACCEPT-FWMARK) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A daemon with `bridge-accept-fwmark` set to a mark, or to a mark and
+a mask; a container on a bridge network that is not `internal` and whose
+`com.docker.network.bridge.gateway_mode_ipv4` is `nat` or not set; an underlay host
+with a route to the container's IPv4 address via the node's underlay address, whose traffic
+arrives on an interface in the network's
+`com.docker.network.bridge.trusted_host_interfaces`; and an operator's rule at the
+prerouting hook that sets that mark on this traffic
+
+Traffic from that host to the container's IPv4 address reaches the container on every port,
+published or not.
+
+<a id="BR-ISO-ACCEPT-FWMARK-UNTRUSTED"></a>
+
+**Expectation (contract) BR-ISO-ACCEPT-FWMARK-UNTRUSTED**: The bridge-accept-fwmark mark does not open direct routing from an untrusted interface
+
+*Observed from:* underlay → ctr · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-ACCEPT-FWMARK](#REQ-BR-ACCEPT-FWMARK), [REQ-BR-NO-DIRECT-ROUTING](#REQ-BR-NO-DIRECT-ROUTING) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A daemon with `bridge-accept-fwmark` set to a mark, or to a mark and
+a mask, and with `allow-direct-routing` false; a container on a bridge network that
+is not `internal` and whose `com.docker.network.bridge.gateway_mode_ipv4` is `nat`
+or not set; an underlay host with a route to the container's IPv4 address via the node's
+underlay address, whose traffic arrives on an interface that is not in the network's
+`com.docker.network.bridge.trusted_host_interfaces`; and an operator's rule that sets
+that mark on this traffic at the prerouting hook, before the daemon's own rules on that hook
+
+Traffic from that host to the container's IPv4 address does not reach the container on any port.
 
 <a id="BR-ISO-BRIDGE-NF-CALL"></a>
 
@@ -1225,28 +2831,133 @@ interfaces, it reaches the container's published ports.
 
 *Observed from:* node · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [BR-HOST-BR-NETFILTER](#BR-HOST-BR-NETFILTER), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Pins:* [BR-HOST-BR-NETFILTER-NO-ICC](#BR-HOST-BR-NETFILTER-NO-ICC), [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER) · *Needs:* [BR-HOST-BR-NETFILTER-NO-ICC](#BR-HOST-BR-NETFILTER-NO-ICC), [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER)
 
 *Applies to:* A daemon with `iptables` true, on a host where
-`net.ipv4.ip_forward` is 1, and a bridge network with
-`com.docker.network.bridge.enable_icc` set to `false`, or any bridge network when
-`userland-proxy` is false
+`net.ipv4.ip_forward` is 1, the module `br_netfilter` is loaded and
+`net.bridge.bridge-nf-call-iptables` is 0
 
-The sysctl `net.bridge.bridge-nf-call-iptables` is 1. See [Host requirements](#bridge-networking-host-requirements).
+Once the daemon has set up a bridge network with `com.docker.network.bridge.enable_icc`
+set to `false`, or any bridge network when `userland-proxy` is false, the sysctl
+`net.bridge.bridge-nf-call-iptables` is 1: once the request that creates the network
+responds, or, for a network that exists when the daemon starts, once the daemon's API responds.
 
-<a id="BR-ISO-NO-VETH"></a>
+<a id="BR-ISO-BRIDGE-NF-CALL-V6"></a>
 
-**Expectation (detector) BR-ISO-NO-VETH**: A container does not start without veth support
+**Expectation (detector) BR-ISO-BRIDGE-NF-CALL-V6**: The daemon enables bridge-nf-call-ip6tables
+
+*Observed from:* node · *Depends on:* none · *Platforms:* linux
+
+*Pins:* [BR-HOST-BR-NETFILTER-NO-ICC](#BR-HOST-BR-NETFILTER-NO-ICC), [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE) · *Needs:* [BR-HOST-BR-NETFILTER-NO-ICC](#BR-HOST-BR-NETFILTER-NO-ICC), [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-FORWARDING-V6](#BR-HOST-FORWARDING-V6), [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND), [BR-HOST-IP6TABLES-KERNEL](#BR-HOST-IP6TABLES-KERNEL), [BR-HOST-IP6TABLES-LEGACY-KERNEL](#BR-HOST-IP6TABLES-LEGACY-KERNEL), [BR-HOST-IP6TABLES-NFT-KERNEL](#BR-HOST-IP6TABLES-NFT-KERNEL), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NFTABLES-V6](#BR-HOST-NFTABLES-V6), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A daemon with `ip6tables` true, on a host where the module
+`br_netfilter` is loaded and `net.bridge.bridge-nf-call-ip6tables` is 0
+
+Once the daemon has set up a bridge network with IPv6 enabled and
+`com.docker.network.bridge.enable_icc` set to `false`, or any bridge network with IPv6
+enabled when `userland-proxy` is false, the sysctl
+`net.bridge.bridge-nf-call-ip6tables` is 1: once the request that creates the network
+responds, or, for a network that exists when the daemon starts, once the daemon's API responds.
+
+<a id="BR-ISO-NO-BR-NETFILTER-NO-ICC"></a>
+
+**Expectation (contract) BR-ISO-NO-BR-NETFILTER-NO-ICC**: Without br_netfilter, a network without ICC is refused
 
 *Observed from:* api · *Depends on:* none · *Platforms:* linux
 
-*Pins:* [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE) · *Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [PRIN-FAILS-CLOSED](../principles.md#PRIN-FAILS-CLOSED), [REQ-NET-NETWORK-CREATE-ERRORS](network-common.md#REQ-NET-NETWORK-CREATE-ERRORS) · *Exact form:* [BR-ISO-NO-BR-NETFILTER-NO-ICC-MSG](#BR-ISO-NO-BR-NETFILTER-NO-ICC-MSG) · *Pins:* [BR-HOST-BR-NETFILTER-NO-ICC](#BR-HOST-BR-NETFILTER-NO-ICC), [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY) · *Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A Linux host whose kernel does not offer Netfilter hooks for bridged traffic
+(`br_netfilter`), and a daemon with `iptables` true
+
+`POST /networks/create` for a bridge network with
+`com.docker.network.bridge.enable_icc` set to `false` responds with a 4xx or 5xx
+status. `GET /networks` then does not list a network with the request's
+`Name`.
+
+<a id="BR-ISO-NO-BR-NETFILTER-NO-ICC-MSG"></a>
+
+**Expectation (detector) BR-ISO-NO-BR-NETFILTER-NO-ICC-MSG**: Without br_netfilter, the refusal says ICC cannot be restricted
+
+*Observed from:* api · *Depends on:* none · *Platforms:* linux
+
+*Exact form of:* [BR-ISO-NO-BR-NETFILTER-NO-ICC](#BR-ISO-NO-BR-NETFILTER-NO-ICC) · *Pins:* [BR-HOST-BR-NETFILTER-NO-ICC](#BR-HOST-BR-NETFILTER-NO-ICC), [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY) · *Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A Linux host whose kernel does not offer Netfilter hooks for bridged traffic
+(`br_netfilter`), and a daemon with `iptables` true
+
+The error response of `POST /networks/create` for a bridge network with
+`com.docker.network.bridge.enable_icc` set to `false` has a message that contains
+`cannot restrict inter-container communication`.
+
+<a id="BR-ISO-NO-BR-NETFILTER-DAEMON-ICC"></a>
+
+**Expectation (contract) BR-ISO-NO-BR-NETFILTER-DAEMON-ICC**: Without br_netfilter, a daemon with icc false does not start
+
+*Observed from:* log, node · *Depends on:* none · *Platforms:* linux
+
+*Refines:* [PRIN-FAILS-CLOSED](../principles.md#PRIN-FAILS-CLOSED) · *Pins:* [BR-HOST-BR-NETFILTER-NO-ICC](#BR-HOST-BR-NETFILTER-NO-ICC), [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY) · *Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A Linux host whose kernel does not offer Netfilter hooks for bridged traffic
+(`br_netfilter`), a daemon with `iptables` true, `icc` false and the
+default bridge enabled, and without containers that `live-restore` keeps running
+
+The daemon does not start. The daemon log contains an error.
+
+<a id="BR-ISO-NO-VETH"></a>
+
+**Expectation (contract) BR-ISO-NO-VETH**: A container does not start without veth support
+
+*Observed from:* api · *Depends on:* none · *Platforms:* linux
+
+*Refines:* [PRIN-FAILS-CLOSED](../principles.md#PRIN-FAILS-CLOSED) · *Exact form:* [BR-ISO-NO-VETH-HTTP500](#BR-ISO-NO-VETH-HTTP500) · *Pins:* [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerned by:* [BR-ISO-NO-VETH-CONNECT](#BR-ISO-NO-VETH-CONNECT), [BR-ISO-NO-VETH-CREATE](#BR-ISO-NO-VETH-CREATE)
+
+*Applies to:* A Linux host whose kernel does not offer veth pairs, and a created or stopped
+container on a bridge network
+
+`POST /containers/{id}/start` for the container responds with a 4xx or 5xx status. The
+container is not running.
+
+<a id="BR-ISO-NO-VETH-HTTP500"></a>
+
+**Expectation (detector) BR-ISO-NO-VETH-HTTP500**: Without veth support, a container start responds 500
+
+*Observed from:* api · *Depends on:* none · *Platforms:* linux
+
+*Exact form of:* [BR-ISO-NO-VETH](#BR-ISO-NO-VETH) · *Pins:* [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* A Linux host whose kernel does not offer veth pairs, and a created or stopped
 container on a bridge network
 
 `POST /containers/{id}/start` for the container responds 500, with a message that
-contains `pair interfaces`. See [Host requirements](#bridge-networking-host-requirements).
+contains `pair interfaces`.
+
+<a id="BR-ISO-NO-VETH-CREATE"></a>
+
+**Expectation (defect) BR-ISO-NO-VETH-CREATE**: Without veth support, a container on a bridge network is created without a warning
+
+*Observed from:* api · *Depends on:* none · *Platforms:* linux
+
+*Pins:* [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerns:* [BR-ISO-NO-VETH](#BR-ISO-NO-VETH) · *Violates:* [PRIN-WARN-AHEAD](../principles.md#PRIN-WARN-AHEAD)
+
+*Applies to:* A Linux host whose kernel does not offer veth pairs
+
+`POST /containers/create` for a container on a bridge network responds 201 without a
+warning about the network.
+
+<a id="BR-ISO-NO-VETH-CONNECT"></a>
+
+**Expectation (defect) BR-ISO-NO-VETH-CONNECT**: Without veth support, a stopped container is connected to a bridge network without a warning
+
+*Observed from:* api · *Depends on:* none · *Platforms:* linux
+
+*Pins:* [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerns:* [BR-ISO-NO-VETH](#BR-ISO-NO-VETH) · *Violates:* [PRIN-WARN-AHEAD](../principles.md#PRIN-WARN-AHEAD)
+
+*Applies to:* A Linux host whose kernel does not offer veth pairs, and a created or stopped
+container
+
+`POST /networks/{id}/connect` for the container to a bridge network responds 200 without
+a warning about the network.
 
 <a id="bridge-networking-port-publishing"></a>
 
@@ -1257,113 +2968,282 @@ The expectations in this subsection hold with `userland-proxy` true and with
 
 <a id="BR-PUB-HOST-PORT-ASSIGNED"></a>
 
-**Expectation (detector) BR-PUB-HOST-PORT-ASSIGNED**: A port published without a host port gets one that clients reach
+**Expectation (contract) BR-PUB-HOST-PORT-ASSIGNED**: A port published without a host port gets one that clients reach
 
 *Observed from:* api, client · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-PUBLISH-DEFAULTS](#REQ-BR-PUBLISH-DEFAULTS), [REQ-BR-PUBLISH-SKIP-RESERVED-PORTS](#REQ-BR-PUBLISH-SKIP-RESERVED-PORTS) · *CLI form:* [BR-PUB-HOST-PORT-ASSIGNED-CLI](#BR-PUB-HOST-PORT-ASSIGNED-CLI) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 `POST /containers/{id}/start` for a created or stopped container that is on a bridge
-network and publishes a port without a host port responds 204. `GET
-/containers/{id}/json` then reports the assigned host port in
-`NetworkSettings.Ports`. A client reaches the container on that host port at the
-node's address.
+network and publishes a port without a host port responds 204.
+`GET /containers/{id}/json` then reports the assigned host port in
+`NetworkSettings.Ports`. On a host where neither
+`net.ipv4.ip_local_port_range` nor `net.ipv4.ip_local_reserved_ports` has
+changed since the daemon started, the port is in that range and is not one of those reserved
+ports. This includes a host whose `net.ipv4.ip_local_reserved_ports` lists every port of
+that range but one that nothing on the node uses: the assigned port is that one. A client
+reaches the container on that host port at the node's address.
 
-<a id="BR-PUB-NO-SCTP"></a>
+<a id="BR-PUB-HOST-PORT-ASSIGNED-CLI"></a>
 
-**Expectation (detector) BR-PUB-NO-SCTP**: A container that publishes an SCTP port does not start without SCTP
+**Expectation (contract) BR-PUB-HOST-PORT-ASSIGNED-CLI**: docker port prints the host port assigned to a published port
+
+*Observed from:* api, client · *Depends on:* cli, os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-PUBLISH-DEFAULTS](#REQ-BR-PUBLISH-DEFAULTS) · *CLI form of:* [BR-PUB-HOST-PORT-ASSIGNED](#BR-PUB-HOST-PORT-ASSIGNED) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A running container on a bridge network that publishes a port without a host port
+
+`docker port` for the container exits 0 and prints the host port that the daemon assigned
+to that port. A client reaches the container on that host port at the node's address.
+
+<a id="BR-PUB-HOST-PORT-RESERVED-REQUESTED"></a>
+
+**Expectation (contract) BR-PUB-HOST-PORT-RESERVED-REQUESTED**: A requested host port or range is assigned even when it is reserved
 
 *Observed from:* api · *Depends on:* none · *Platforms:* linux
 
-*Pins:* [BR-HOST-SCTP](#BR-HOST-SCTP), [SWARM-HOST-SCTP](swarm-networking.md#SWARM-HOST-SCTP) · *Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-PUBLISH-SKIP-RESERVED-PORTS](#REQ-BR-PUBLISH-SKIP-RESERVED-PORTS) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A host whose `net.ipv4.ip_local_reserved_ports` lists a port, or every
+port of a port range, that nothing on the node uses
+
+`POST /containers/{id}/start` for a created container on a bridge network that publishes
+a port with that host port, or with that host port range, responds 204. `GET
+/containers/{id}/json` then reports in `NetworkSettings.Ports` a host port that
+`net.ipv4.ip_local_reserved_ports` lists.
+
+<a id="BR-PUB-SCTP"></a>
+
+**Expectation (contract) BR-PUB-SCTP**: A port published with protocol sctp answers
+
+*Observed from:* client · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-PUBLISH-SCTP](#REQ-BR-PUBLISH-SCTP) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-IPTABLES-SCTP-MATCH](#BR-HOST-IPTABLES-SCTP-MATCH), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [BR-HOST-SCTP](#BR-HOST-SCTP), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A running container on a bridge network that publishes an SCTP port without a host
+address
+
+An SCTP association from a client to that port at the node's IPv4 address reaches the container.
+
+<a id="BR-PUB-NO-SCTP"></a>
+
+**Expectation (contract) BR-PUB-NO-SCTP**: A container that publishes an SCTP port does not start without SCTP
+
+*Observed from:* api · *Depends on:* none · *Platforms:* linux
+
+*Refines:* [PRIN-FAILS-CLOSED](../principles.md#PRIN-FAILS-CLOSED) · *Exact form:* [BR-PUB-NO-SCTP-MSG](#BR-PUB-NO-SCTP-MSG) · *Pins:* [BR-HOST-SCTP](#BR-HOST-SCTP), [SWARM-HOST-SCTP](swarm-networking.md#SWARM-HOST-SCTP) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerned by:* [BR-PUB-NO-SCTP-CONNECT](#BR-PUB-NO-SCTP-CONNECT), [BR-PUB-NO-SCTP-CREATE](#BR-PUB-NO-SCTP-CREATE), [BR-PUB-NO-SCTP-JOIN-ORDER](#BR-PUB-NO-SCTP-JOIN-ORDER)
 
 *Applies to:* A Linux host whose kernel does not offer SCTP, and a created or stopped container
-on a bridge network that publishes an SCTP port
+that publishes an SCTP port without a host address, and whose networks are all bridge networks
+that are not `internal`, that have IPv4, whose
+`com.docker.network.bridge.gateway_mode_ipv4` and
+`com.docker.network.bridge.gateway_mode_ipv6` are not `routed`, and whose
+`com.docker.network.bridge.host_binding_ipv4` is unset or an IPv4 address
+
+`POST /containers/{id}/start` for the container responds with a 4xx or 5xx status. The
+container is not running.
+
+<a id="BR-PUB-NO-SCTP-MSG"></a>
+
+**Expectation (detector) BR-PUB-NO-SCTP-MSG**: Without SCTP, the start error says it cannot create an SCTP socket
+
+*Observed from:* api · *Depends on:* none · *Platforms:* linux
+
+*Exact form of:* [BR-PUB-NO-SCTP](#BR-PUB-NO-SCTP) · *Pins:* [BR-HOST-SCTP](#BR-HOST-SCTP), [SWARM-HOST-SCTP](swarm-networking.md#SWARM-HOST-SCTP) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A Linux host whose kernel does not offer SCTP, and a created or stopped container
+that publishes an SCTP port without a host address, and whose networks are all bridge networks
+that are not `internal`, that have IPv4, whose
+`com.docker.network.bridge.gateway_mode_ipv4` and
+`com.docker.network.bridge.gateway_mode_ipv6` are not `routed`, and whose
+`com.docker.network.bridge.host_binding_ipv4` is unset or an IPv4 address
 
 `POST /containers/{id}/start` for the container responds with a 4xx or 5xx status, with
-a message that contains `failed to create socket for` and `/sctp`. See [Host
-requirements](#bridge-networking-host-requirements).
+a message that contains `failed to create socket for` and `/sctp`.
+
+<a id="BR-PUB-NO-SCTP-CREATE"></a>
+
+**Expectation (defect) BR-PUB-NO-SCTP-CREATE**: Without SCTP, a container that publishes an SCTP port is created without a warning
+
+*Observed from:* api · *Depends on:* none · *Platforms:* linux
+
+*Pins:* [BR-HOST-SCTP](#BR-HOST-SCTP) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerns:* [BR-PUB-NO-SCTP](#BR-PUB-NO-SCTP) · *Violates:* [PRIN-WARN-AHEAD](../principles.md#PRIN-WARN-AHEAD)
+
+*Applies to:* A Linux host whose kernel does not offer SCTP
+
+`POST /containers/create` for a container that publishes an SCTP port without a host
+address, and whose networks are all bridge networks that are not `internal`, that have IPv4,
+whose `com.docker.network.bridge.gateway_mode_ipv4` and
+`com.docker.network.bridge.gateway_mode_ipv6` are not `routed`, and whose
+`com.docker.network.bridge.host_binding_ipv4` is unset or an IPv4 address, responds 201
+without a warning about the port.
+
+<a id="BR-PUB-NO-SCTP-CONNECT"></a>
+
+**Expectation (defect) BR-PUB-NO-SCTP-CONNECT**: Without SCTP, a connect of a stopped container gives no SCTP port warning
+
+*Observed from:* api · *Depends on:* none · *Platforms:* linux
+
+*Pins:* [BR-HOST-SCTP](#BR-HOST-SCTP) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerns:* [BR-PUB-NO-SCTP](#BR-PUB-NO-SCTP) · *Violates:* [PRIN-WARN-AHEAD](../principles.md#PRIN-WARN-AHEAD)
+
+*Applies to:* A Linux host whose kernel does not offer SCTP, and a created or stopped container
+that publishes an SCTP port without a host address, and whose networks are all bridge networks
+that are not `internal`, that have IPv4, whose
+`com.docker.network.bridge.gateway_mode_ipv4` and
+`com.docker.network.bridge.gateway_mode_ipv6` are not `routed`, and whose
+`com.docker.network.bridge.host_binding_ipv4` is unset or an IPv4 address
+
+`POST /networks/{id}/connect` for the container to another bridge network of that kind
+responds 200 without a warning about the port.
+
+<a id="BR-PUB-NO-SCTP-JOIN-ORDER"></a>
+
+**Expectation (defect) BR-PUB-NO-SCTP-JOIN-ORDER**: Without SCTP, repeated starts of one container sometimes fail
+
+*Observed from:* api · *Depends on:* none · *Platforms:* linux
+
+*Pins:* [BR-HOST-SCTP](#BR-HOST-SCTP) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-FORWARDING-V6](#BR-HOST-FORWARDING-V6), [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND), [BR-HOST-IP6TABLES-KERNEL](#BR-HOST-IP6TABLES-KERNEL), [BR-HOST-IP6TABLES-LEGACY-KERNEL](#BR-HOST-IP6TABLES-LEGACY-KERNEL), [BR-HOST-IP6TABLES-NFT-KERNEL](#BR-HOST-IP6TABLES-NFT-KERNEL), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-IPTABLES-SCTP-MATCH](#BR-HOST-IPTABLES-SCTP-MATCH), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NFTABLES-V6](#BR-HOST-NFTABLES-V6), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerns:* [BR-PUB-NO-SCTP](#BR-PUB-NO-SCTP) · *Violates:* [PRIN-REPEATABLE](../principles.md#PRIN-REPEATABLE)
+
+*Applies to:* A Linux host whose kernel does not offer SCTP, and a created or stopped container
+with IPv6 enabled in its network namespace and on its interfaces, that publishes an SCTP port
+without a host address, and whose only networks are two bridge networks that are not
+`internal`, with the same `GwPriority`: one with IPv4 and without IPv6, whose
+`com.docker.network.bridge.gateway_mode_ipv4` is not `routed` and whose
+`com.docker.network.bridge.host_binding_ipv4` is unset or an IPv4 address, and one with
+IPv4 and IPv6, whose `com.docker.network.bridge.gateway_mode_ipv4` and
+`com.docker.network.bridge.gateway_mode_ipv6` are `routed`
+
+Repeated `POST /containers/{id}/start` for the container, each after the container
+stops, give both outcomes: some respond 204, and some respond with a 4xx or 5xx status, with a
+message that contains `failed to create socket for` and `/sctp`. This holds
+whatever the names of the container and of its networks.
 
 <a id="BR-PUB-UNPUBLISHED-PORT"></a>
 
-**Expectation (detector) BR-PUB-UNPUBLISHED-PORT**: A container's unpublished port is not reachable at the node's address
+**Expectation (contract) BR-PUB-UNPUBLISHED-PORT**: A container's unpublished port is not reachable at the node's address
 
-*Observed from:* client, ctr · *Depends on:* os-linux · *Platforms:* linux
+*Observed from:* client · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-UNPUBLISHED-PORTS](#REQ-BR-UNPUBLISHED-PORTS) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* A container that is on a bridge network and listens on a port that it does not
 publish
 
 A client that connects to the node's address, on any port, does not reach that listener.
 
-<a id="BR-PUB-LOOPBACK-NODE"></a>
+<a id="BR-PUB-UNPUBLISHED-PORT-NODE"></a>
 
-**Expectation (detector) BR-PUB-LOOPBACK-NODE**: A port published on 127.0.0.1 is reachable from the node
+**Expectation (contract) BR-PUB-UNPUBLISHED-PORT-NODE**: The node reaches a container's unpublished port at its address
 
 *Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-UNPUBLISHED-PORTS](#REQ-BR-UNPUBLISHED-PORTS) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A container on a bridge network that is not `internal` and has no
+`com.docker.network.bridge.inhibit_ipv4`, and that listens on a port that it does not
+publish
+
+A process in the node's host network namespace reaches that listener at the container's IPv4
+address.
+
+<a id="BR-PUB-LOOPBACK-NODE"></a>
+
+**Expectation (contract) BR-PUB-LOOPBACK-NODE**: A port published on 127.0.0.1 is reachable from the node
+
+*Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-PUBLISH-HOST-IP](#REQ-BR-PUBLISH-HOST-IP) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 A port published on `127.0.0.1` is reachable from the node at `127.0.0.1`.
 
 <a id="BR-PUB-LOOPBACK-CLIENT"></a>
 
-**Expectation (detector) BR-PUB-LOOPBACK-CLIENT**: A port published on 127.0.0.1 is not reachable from a client
+**Expectation (contract) BR-PUB-LOOPBACK-CLIENT**: A port published on 127.0.0.1 is not reachable from a client
 
 *Observed from:* client · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-PUBLISH-HOST-IP](#REQ-BR-PUBLISH-HOST-IP) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 A port published on `127.0.0.1` is not reachable from a client at any address of the node.
 This includes a packet to `127.0.0.1` that a client on the node's link sends in an Ethernet
 frame addressed to the node's MAC address.
 
+<a id="BR-PUB-LOOPBACK-CLIENT-FIREWALLD"></a>
+
+**Expectation (contract) BR-PUB-LOOPBACK-CLIENT-FIREWALLD**: After a firewalld reload, a port published on 127.0.0.1 stays unreachable
+
+*Observed from:* client · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-FIREWALLD-RELOAD](#REQ-BR-FIREWALLD-RELOAD), [REQ-BR-PUBLISH-HOST-IP](#REQ-BR-PUBLISH-HOST-IP) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A node with firewalld running, and a container that publishes a port on
+`127.0.0.1`
+
+After a firewalld reload, the port is not reachable from a client at any address of the node.
+This includes a packet to `127.0.0.1` that a client on the node's link sends in an Ethernet
+frame addressed to the node's MAC address.
+
 <a id="BR-PUB-HOST-ADDRESS"></a>
 
-**Expectation (detector) BR-PUB-HOST-ADDRESS**: A port published on a node address is reachable at that address only
+**Expectation (contract) BR-PUB-HOST-ADDRESS**: A port published on a node address is reachable at that address only
 
 *Observed from:* node, client · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-PUBLISH-HOST-IP](#REQ-BR-PUBLISH-HOST-IP) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 A port published on an address of the node is reachable at that address, from the node and from
 a client. It is not reachable at the node's other addresses, `127.0.0.1` included.
 
+<a id="BR-PUB-HOST-BINDING-ADDRESS"></a>
+
+**Expectation (contract) BR-PUB-HOST-BINDING-ADDRESS**: With host_binding_ipv4, a port is reachable at that address only
+
+*Observed from:* node, client · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-HOST-BINDING-ADDRESS](#REQ-BR-HOST-BINDING-ADDRESS) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A bridge network with `com.docker.network.bridge.host_binding_ipv4` set to
+an IPv4 address of the node, and a container on the network that publishes a port without a
+host address
+
+The port is reachable at that address, from the node and from a client. It is not reachable at
+the node's other addresses, `127.0.0.1` included.
+
+<a id="BR-PUB-HOST-BINDING-ADDRESS-DAEMON"></a>
+
+**Expectation (contract) BR-PUB-HOST-BINDING-ADDRESS-DAEMON**: With the daemon option ip, a default-bridge port is reachable there only
+
+*Observed from:* node, client · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-HOST-BINDING-ADDRESS](#REQ-BR-HOST-BINDING-ADDRESS) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Does not cover:* With live-restored containers, the daemon's default-bridge settings are not applied ([BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED))
+
+*Applies to:* A daemon with `ip` set to an IPv4 address of the node, and a
+container on the default bridge network that publishes a port without a host address
+
+The port is reachable at that address, from the node and from a client. It is not reachable at
+the node's other addresses, `127.0.0.1` included.
+
 <a id="BR-PUB-V6-REACHABLE"></a>
 
-**Expectation (detector) BR-PUB-V6-REACHABLE**: A port published with no host address answers at node IPv6 addresses
+**Expectation (contract) BR-PUB-V6-REACHABLE**: A port published with no host address answers at node IPv6 addresses
 
 *Observed from:* client · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-PUBLISH-DEFAULTS](#REQ-BR-PUBLISH-DEFAULTS) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-FORWARDING-V6](#BR-HOST-FORWARDING-V6), [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND), [BR-HOST-IP6TABLES-KERNEL](#BR-HOST-IP6TABLES-KERNEL), [BR-HOST-IP6TABLES-LEGACY-KERNEL](#BR-HOST-IP6TABLES-LEGACY-KERNEL), [BR-HOST-IP6TABLES-NFT-KERNEL](#BR-HOST-IP6TABLES-NFT-KERNEL), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NFTABLES-V6](#BR-HOST-NFTABLES-V6), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerned by:* [BR-PUB-V6-LINK-LOCAL](#BR-PUB-V6-LINK-LOCAL)
 
 *Applies to:* A bridge network with IPv6 enabled, and a daemon with `ip6tables`
 true
 
 A port published without a host address is reachable at the node's IPv6 addresses.
 
-<a id="BR-PUB-V6-CLIENT-SOURCE"></a>
-
-**Expectation (detector) BR-PUB-V6-CLIENT-SOURCE**: Over IPv6, the container sees the client's address as the source
-
-*Observed from:* client → ctr · *Depends on:* os-linux · *Platforms:* linux
-
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
-
-*Applies to:* A bridge network with IPv6 enabled, and a daemon with `ip6tables`
-true
-
-A client connects to a port published without a host address, at one of the node's IPv6
-addresses. The container observes the IPv6 address of the client as the source address.
-
 <a id="BR-PUB-V6-LINK-LOCAL"></a>
 
-**Expectation (detector) BR-PUB-V6-LINK-LOCAL**: Without the userland proxy, published ports do not answer at link-local
+**Expectation (defect) BR-PUB-V6-LINK-LOCAL**: Without the userland proxy, a port published on all addresses does not answer at link-local
 
 *Observed from:* client · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-BR-NETFILTER](#BR-HOST-BR-NETFILTER), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-FORWARDING-V6](#BR-HOST-FORWARDING-V6), [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND), [BR-HOST-IP6TABLES-KERNEL](#BR-HOST-IP6TABLES-KERNEL), [BR-HOST-IP6TABLES-LEGACY-KERNEL](#BR-HOST-IP6TABLES-LEGACY-KERNEL), [BR-HOST-IP6TABLES-NFT-KERNEL](#BR-HOST-IP6TABLES-NFT-KERNEL), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NFTABLES-V6](#BR-HOST-NFTABLES-V6), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerns:* [BR-PUB-V6-REACHABLE](#BR-PUB-V6-REACHABLE) · *Violates:* [REQ-BR-PUBLISH-DEFAULTS](#REQ-BR-PUBLISH-DEFAULTS)
 
 *Applies to:* A bridge network with IPv6 enabled, and a daemon with `ip6tables`
 true and `userland-proxy` false
@@ -1371,45 +3251,140 @@ true and `userland-proxy` false
 A port published without a host address is not reachable from a client at an IPv6 link-local
 address of the node.
 
+<a id="BR-PUB-V4-CLIENT-SOURCE"></a>
+
+**Expectation (contract) BR-PUB-V4-CLIENT-SOURCE**: Over IPv4, the container sees the client's address as the source
+
+*Observed from:* client → ctr · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-PUBLISH-V4-CLIENT-SOURCE](#REQ-BR-PUBLISH-V4-CLIENT-SOURCE) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+A client connects to a port published without a host address, at one of the node's IPv4
+addresses. The container observes the IPv4 address of the client as the source address.
+
+<a id="BR-PUB-V6-CLIENT-SOURCE"></a>
+
+**Expectation (contract) BR-PUB-V6-CLIENT-SOURCE**: Over IPv6, the container sees the client's address as the source
+
+*Observed from:* client → ctr · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-PUBLISH-V6-CLIENT-SOURCE](#REQ-BR-PUBLISH-V6-CLIENT-SOURCE) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-FORWARDING-V6](#BR-HOST-FORWARDING-V6), [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND), [BR-HOST-IP6TABLES-KERNEL](#BR-HOST-IP6TABLES-KERNEL), [BR-HOST-IP6TABLES-LEGACY-KERNEL](#BR-HOST-IP6TABLES-LEGACY-KERNEL), [BR-HOST-IP6TABLES-NFT-KERNEL](#BR-HOST-IP6TABLES-NFT-KERNEL), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NFTABLES-V6](#BR-HOST-NFTABLES-V6), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A bridge network with IPv6 enabled, and a daemon with `ip6tables`
+true
+
+A client connects to a port published without a host address, at one of the node's IPv6
+addresses. The container observes the IPv6 address of the client as the source address.
+
 <a id="BR-PUB-ROUTE-LOCALNET"></a>
 
 **Expectation (detector) BR-PUB-ROUTE-LOCALNET**: Without the userland proxy, the bridge's route_localnet is 1
 
 *Observed from:* node · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [BR-HOST-BR-NETFILTER](#BR-HOST-BR-NETFILTER), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Pins:* [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
-*Applies to:* A daemon with `userland-proxy` false, and a bridge network
+*Applies to:* A daemon with `userland-proxy` false, on a host where
+`net.ipv4.conf.default.route_localnet` is 0, and a bridge network whose bridge
+interface, where it exists before the daemon sets up the network, has
+`net.ipv4.conf.<bridge>.route_localnet` 0, such as a default bridge device left by a
+daemon with `userland-proxy` true
 
-The sysctl `net.ipv4.conf.<bridge>.route_localnet` is 1, where `<bridge>` is the
-network's bridge interface. See [Host requirements](#bridge-networking-host-requirements).
+Once the daemon has set up the network, the sysctl
+`net.ipv4.conf.<bridge>.route_localnet` is 1, where `<bridge>` is the network's bridge
+interface: once the request that creates the network responds, or, for a network that exists
+when the daemon starts, once the daemon's API responds.
 
 <a id="bridge-networking-egress"></a>
 
 ### Egress
 
+<a id="BR-EGRESS-UNDERLAY-REACH"></a>
+
+**Expectation (contract) BR-EGRESS-UNDERLAY-REACH**: A container on a bridge network reaches an underlay host
+
+*Observed from:* ctr · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-EGRESS-NAT](#REQ-BR-EGRESS-NAT), [REQ-NET-DEFAULT-BRIDGE-ATTACHMENT](network-common.md#REQ-NET-DEFAULT-BRIDGE-ATTACHMENT) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A running container on a bridge network that is not `internal`, whose
+`com.docker.network.bridge.gateway_mode_ipv4` is not `routed` and whose
+`com.docker.network.bridge.enable_ip_masquerade` is not `false`. The default bridge is
+such a network.
+
+A connection from the container to an IPv4 address of an underlay host succeeds.
+
 <a id="BR-EGRESS-MASQUERADE"></a>
 
-**Expectation (detector) BR-EGRESS-MASQUERADE**: IPv4 egress from containers has the node's address as its source
+**Expectation (contract) BR-EGRESS-MASQUERADE**: IPv4 egress from containers has the node's address as its source
 
 *Observed from:* underlay · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-EGRESS-NAT](#REQ-BR-EGRESS-NAT), [REQ-BR-GWMODE-VALUES](#REQ-BR-GWMODE-VALUES) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
-*Applies to:* A bridge network without the options
-`com.docker.network.bridge.enable_ip_masquerade`,
-`com.docker.network.bridge.gateway_mode_ipv4` and `com.docker.network.host_ipv4`
+*Applies to:* A bridge network whose `com.docker.network.bridge.enable_ip_masquerade` is
+not `false` and whose `com.docker.network.bridge.gateway_mode_ipv4` is `nat` or not
+set, without `com.docker.network.host_ipv4`. The default bridge is such a network.
 
 An underlay host observes an address of the node as the source address of IPv4 egress from the
 network's containers.
 
-<a id="BR-EGRESS-NO-MASQUERADE"></a>
+<a id="BR-EGRESS-MASQUERADE-V6"></a>
 
-**Expectation (detector) BR-EGRESS-NO-MASQUERADE**: Without masquerade, IPv4 egress has the container's address as source
+**Expectation (contract) BR-EGRESS-MASQUERADE-V6**: IPv6 egress from containers has the node's address as its source
 
 *Observed from:* underlay · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-EGRESS-NAT](#REQ-BR-EGRESS-NAT), [REQ-BR-GWMODE-VALUES](#REQ-BR-GWMODE-VALUES) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-FORWARDING-V6](#BR-HOST-FORWARDING-V6), [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND), [BR-HOST-IP6TABLES-KERNEL](#BR-HOST-IP6TABLES-KERNEL), [BR-HOST-IP6TABLES-LEGACY-KERNEL](#BR-HOST-IP6TABLES-LEGACY-KERNEL), [BR-HOST-IP6TABLES-NFT-KERNEL](#BR-HOST-IP6TABLES-NFT-KERNEL), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NFTABLES-V6](#BR-HOST-NFTABLES-V6), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A daemon with `ip6tables` true, and a bridge network with IPv6
+enabled whose `com.docker.network.bridge.enable_ip_masquerade` is not `false` and
+whose `com.docker.network.bridge.gateway_mode_ipv6` is `nat` or not set, without
+`com.docker.network.host_ipv6`
+
+An underlay host observes an address of the node as the source address of IPv6 egress from the
+network's containers.
+
+<a id="BR-EGRESS-OPERATOR-NAT-RULE-FIRST"></a>
+
+**Expectation (contract) BR-EGRESS-OPERATOR-NAT-RULE-FIRST**: An operator's nat rule ahead of masquerading survives a restart
+
+*Observed from:* underlay · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-NAT-OPERATOR-RULES-FIRST](#REQ-BR-NAT-OPERATOR-RULES-FIRST) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerned by:* [BR-EGRESS-OPERATOR-RULE-DEFAULT-BRIDGE](#BR-EGRESS-OPERATOR-RULE-DEFAULT-BRIDGE)
+
+*Applies to:* The iptables backend, a user-defined bridge network whose
+`com.docker.network.bridge.enable_ip_masquerade` is not `false` and whose
+`com.docker.network.bridge.gateway_mode_ipv4` is `nat` or not set, without
+`com.docker.network.host_ipv4`, and a rule that an operator inserted at the start of
+the nat table's `POSTROUTING` chain after the network was created, which returns IPv4
+packets from the network's subnet to a given destination
+
+An underlay host at that destination observes the container's address as the source address of
+IPv4 egress from the network's containers, and still does after the daemon restarts.
+
+<a id="BR-EGRESS-OPERATOR-RULE-DEFAULT-BRIDGE"></a>
+
+**Expectation (defect) BR-EGRESS-OPERATOR-RULE-DEFAULT-BRIDGE**: After a restart, the default bridge masquerades ahead of operator rules
+
+*Observed from:* underlay · *Depends on:* os-linux · *Platforms:* linux
+
+*Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerns:* [BR-EGRESS-OPERATOR-NAT-RULE-FIRST](#BR-EGRESS-OPERATOR-NAT-RULE-FIRST) · *Violates:* [REQ-BR-NAT-OPERATOR-RULES-FIRST](#REQ-BR-NAT-OPERATOR-RULES-FIRST)
+
+*Applies to:* The iptables backend, the default bridge with masquerading, and a rule that an
+operator inserted at the start of the nat table's `POSTROUTING` chain, which returns
+IPv4 packets from the default bridge's subnet to a given destination
+
+After the daemon restarts, an underlay host at that destination observes an address of the node
+as the source address of IPv4 egress from the default bridge's containers.
+
+<a id="BR-EGRESS-NO-MASQUERADE"></a>
+
+**Expectation (contract) BR-EGRESS-NO-MASQUERADE**: Without masquerade, IPv4 egress has the container's address as source
+
+*Observed from:* underlay · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-EGRESS-NAT](#REQ-BR-EGRESS-NAT) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* A bridge network with `com.docker.network.bridge.enable_ip_masquerade` set
 to `false`, and without `com.docker.network.bridge.gateway_mode_ipv4`
@@ -1417,60 +3392,92 @@ to `false`, and without `com.docker.network.bridge.gateway_mode_ipv4`
 An underlay host observes the container's address as the source address of IPv4 egress from a
 container on the network.
 
+<a id="BR-EGRESS-DAEMON-NO-MASQUERADE"></a>
+
+**Expectation (contract) BR-EGRESS-DAEMON-NO-MASQUERADE**: With the daemon's ip-masq false, default-bridge egress has the container's address
+
+*Observed from:* underlay · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-EGRESS-NAT](#REQ-BR-EGRESS-NAT) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Does not cover:* With live-restored containers, the daemon's default-bridge settings are not applied ([BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED](#BR-OPT-DAEMON-LIVE-RESTORE-UNAPPLIED))
+
+*Applies to:* A daemon with `ip-masq` false, and a container on the default bridge
+
+An underlay host observes the container's address as the source address of IPv4 egress from the
+container.
+
+<a id="BR-EGRESS-NO-MASQUERADE-V6"></a>
+
+**Expectation (contract) BR-EGRESS-NO-MASQUERADE-V6**: Without masquerade, IPv6 egress has the container's address as source
+
+*Observed from:* underlay · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-EGRESS-NAT](#REQ-BR-EGRESS-NAT) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-FORWARDING-V6](#BR-HOST-FORWARDING-V6), [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND), [BR-HOST-IP6TABLES-KERNEL](#BR-HOST-IP6TABLES-KERNEL), [BR-HOST-IP6TABLES-LEGACY-KERNEL](#BR-HOST-IP6TABLES-LEGACY-KERNEL), [BR-HOST-IP6TABLES-NFT-KERNEL](#BR-HOST-IP6TABLES-NFT-KERNEL), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NFTABLES-V6](#BR-HOST-NFTABLES-V6), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A daemon with `ip6tables` true, and a bridge network with IPv6
+enabled, with `com.docker.network.bridge.enable_ip_masquerade` set to `false` and
+without `com.docker.network.bridge.gateway_mode_ipv6`
+
+An underlay host observes the container's IPv6 address as the source address of IPv6 egress
+from a container on the network.
+
 <a id="BR-EGRESS-REPLY-DIRECT-ROUTING-OFF"></a>
 
-**Expectation (detector) BR-EGRESS-REPLY-DIRECT-ROUTING-OFF**: An unmasqueraded egress reply on an untrusted interface is not delivered
+**Expectation (contract) BR-EGRESS-REPLY-DIRECT-ROUTING-OFF**: An unmasqueraded egress reply on an untrusted interface is not delivered
 
 *Observed from:* underlay → ctr · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-NO-DIRECT-ROUTING](#REQ-BR-NO-DIRECT-ROUTING) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
-*Applies to:* A daemon with `allow-direct-routing` false, and a bridge network with
+*Applies to:* A daemon with `allow-direct-routing` false, a bridge network with
 `com.docker.network.bridge.enable_ip_masquerade` set to `false` and without
-`com.docker.network.bridge.gateway_mode_ipv4`
+`com.docker.network.bridge.gateway_mode_ipv4`, and an underlay host with a route to the
+container's IPv4 address via the node's underlay address, whose replies to the container arrive
+on an interface that is not in the network's
+`com.docker.network.bridge.trusted_host_interfaces`
 
-An underlay host replies to IPv4 egress from a container on the network. The reply arrives on an
-interface that is not in the network's
-`com.docker.network.bridge.trusted_host_interfaces`. The reply does not reach the
-container.
+An underlay host replies to IPv4 egress from a container on the network. The reply does not
+reach the container.
 
 <a id="BR-EGRESS-REPLY-DIRECT-ROUTING-ON"></a>
 
-**Expectation (detector) BR-EGRESS-REPLY-DIRECT-ROUTING-ON**: With allow-direct-routing, a reply to unmasqueraded egress is delivered
+**Expectation (contract) BR-EGRESS-REPLY-DIRECT-ROUTING-ON**: With allow-direct-routing, a reply to unmasqueraded egress is delivered
 
 *Observed from:* underlay → ctr · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-DIRECT-ROUTING-OPT-IN](#REQ-BR-DIRECT-ROUTING-OPT-IN) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
-*Applies to:* A daemon with `allow-direct-routing` true, and a bridge network with
+*Applies to:* A daemon with `allow-direct-routing` true, a bridge network with
 `com.docker.network.bridge.enable_ip_masquerade` set to `false` and without
-`com.docker.network.bridge.gateway_mode_ipv4`
+`com.docker.network.bridge.gateway_mode_ipv4`, and an underlay host with a route to the
+container's IPv4 address via the node's underlay address
 
 An underlay host replies to IPv4 egress from a container on the network. The reply reaches the
 container.
 
 <a id="BR-EGRESS-REPLY-TRUSTED-IFACE"></a>
 
-**Expectation (detector) BR-EGRESS-REPLY-TRUSTED-IFACE**: A reply to unmasqueraded egress on a trusted interface is delivered
+**Expectation (contract) BR-EGRESS-REPLY-TRUSTED-IFACE**: A reply to unmasqueraded egress on a trusted interface is delivered
 
 *Observed from:* underlay → ctr · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-DIRECT-ROUTING-OPT-IN](#REQ-BR-DIRECT-ROUTING-OPT-IN) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* A bridge network with `com.docker.network.bridge.enable_ip_masquerade` set
-to `false` and without `com.docker.network.bridge.gateway_mode_ipv4`
+to `false` and without `com.docker.network.bridge.gateway_mode_ipv4`, and an underlay
+host with a route to the container's IPv4 address via the node's underlay address, whose replies
+to the container arrive on an interface in the network's
+`com.docker.network.bridge.trusted_host_interfaces`
 
-An underlay host replies to IPv4 egress from a container on the network. The reply arrives on an
-interface in the network's `com.docker.network.bridge.trusted_host_interfaces`. The
-reply reaches the container.
+An underlay host replies to IPv4 egress from a container on the network. The reply reaches the
+container.
 
 <a id="BR-EGRESS-HOST-IPV4"></a>
 
-**Expectation (detector) BR-EGRESS-HOST-IPV4**: With host_ipv4 set, IPv4 egress has that address as its source
+**Expectation (contract) BR-EGRESS-HOST-IPV4**: With host_ipv4 set, IPv4 egress has that address as its source
 
 *Observed from:* underlay · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-EGRESS-NAT](#REQ-BR-EGRESS-NAT) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* A bridge network with `com.docker.network.host_ipv4` set to an address of
 the node, `com.docker.network.bridge.enable_ip_masquerade` not `false`, and
@@ -1479,17 +3486,33 @@ the node, `com.docker.network.bridge.enable_ip_masquerade` not `false`, and
 An underlay host observes that address as the source address of IPv4 egress from the network's
 containers.
 
+<a id="BR-EGRESS-HOST-IPV6"></a>
+
+**Expectation (contract) BR-EGRESS-HOST-IPV6**: With host_ipv6 set, IPv6 egress has that address as its source
+
+*Observed from:* underlay · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-EGRESS-NAT](#REQ-BR-EGRESS-NAT) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-FORWARDING-V6](#BR-HOST-FORWARDING-V6), [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND), [BR-HOST-IP6TABLES-KERNEL](#BR-HOST-IP6TABLES-KERNEL), [BR-HOST-IP6TABLES-LEGACY-KERNEL](#BR-HOST-IP6TABLES-LEGACY-KERNEL), [BR-HOST-IP6TABLES-NFT-KERNEL](#BR-HOST-IP6TABLES-NFT-KERNEL), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NFTABLES-V6](#BR-HOST-NFTABLES-V6), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A daemon with `ip6tables` true, and a bridge network with IPv6
+enabled, with `com.docker.network.host_ipv6` set to an IPv6 address of the node,
+`com.docker.network.bridge.enable_ip_masquerade` not `false`, and
+`com.docker.network.bridge.gateway_mode_ipv6` not `routed`
+
+An underlay host observes that address as the source address of IPv6 egress from the network's
+containers.
+
 <a id="bridge-networking-gateway-modes"></a>
 
 ### Gateway modes
 
 <a id="BR-GWMODE-ROUTED-EGRESS"></a>
 
-**Expectation (detector) BR-GWMODE-ROUTED-EGRESS**: In routed mode, IPv4 egress has the container's address as source
+**Expectation (contract) BR-GWMODE-ROUTED-EGRESS**: In routed mode, IPv4 egress has the container's address as source
 
 *Observed from:* underlay · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-GWMODE-ROUTED-NO-NAT](#REQ-BR-GWMODE-ROUTED-NO-NAT) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* A bridge network with `com.docker.network.bridge.gateway_mode_ipv4` set to
 `routed`
@@ -1497,13 +3520,27 @@ containers.
 An underlay host observes the container's address as the source address of IPv4 egress from a
 container on the network.
 
+<a id="BR-GWMODE-ROUTED-EGRESS-V6"></a>
+
+**Expectation (contract) BR-GWMODE-ROUTED-EGRESS-V6**: In routed mode, IPv6 egress has the container's address as source
+
+*Observed from:* underlay · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-GWMODE-ROUTED-NO-NAT](#REQ-BR-GWMODE-ROUTED-NO-NAT) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-FORWARDING-V6](#BR-HOST-FORWARDING-V6), [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND), [BR-HOST-IP6TABLES-KERNEL](#BR-HOST-IP6TABLES-KERNEL), [BR-HOST-IP6TABLES-LEGACY-KERNEL](#BR-HOST-IP6TABLES-LEGACY-KERNEL), [BR-HOST-IP6TABLES-NFT-KERNEL](#BR-HOST-IP6TABLES-NFT-KERNEL), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NFTABLES-V6](#BR-HOST-NFTABLES-V6), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A daemon with `ip6tables` true, and a bridge network with IPv6
+enabled, with `com.docker.network.bridge.gateway_mode_ipv6` set to `routed`
+
+An underlay host observes the container's IPv6 address as the source address of IPv6 egress
+from a container on the network.
+
 <a id="BR-GWMODE-ROUTED-INBOUND"></a>
 
-**Expectation (detector) BR-GWMODE-ROUTED-INBOUND**: In routed mode, a client with a route reaches published ports only
+**Expectation (contract) BR-GWMODE-ROUTED-INBOUND**: In routed mode, a client with a route reaches published ports only
 
 *Observed from:* client · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-GWMODE-DIRECT-ROUTING](#REQ-BR-GWMODE-DIRECT-ROUTING), [REQ-BR-UNPUBLISHED-PORTS](#REQ-BR-UNPUBLISHED-PORTS) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* A container on a bridge network with
 `com.docker.network.bridge.gateway_mode_ipv4` set to `routed`, and a client with a
@@ -1512,13 +3549,28 @@ route to the container's IPv4 address via the node's address
 Traffic from the client to the container's IPv4 address reaches the container's published ports,
 and not its other ports.
 
-<a id="BR-GWMODE-ROUTED-NODE-ADDRESS"></a>
+<a id="BR-GWMODE-ROUTED-INBOUND-V6"></a>
 
-**Expectation (detector) BR-GWMODE-ROUTED-NODE-ADDRESS**: In routed mode, published ports are not reachable at the node's address
+**Expectation (contract) BR-GWMODE-ROUTED-INBOUND-V6**: In routed mode, a client with an IPv6 route reaches published ports only
 
 *Observed from:* client · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-GWMODE-DIRECT-ROUTING](#REQ-BR-GWMODE-DIRECT-ROUTING), [REQ-BR-UNPUBLISHED-PORTS](#REQ-BR-UNPUBLISHED-PORTS) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-FORWARDING-V6](#BR-HOST-FORWARDING-V6), [BR-HOST-IP6TABLES-COMMAND](#BR-HOST-IP6TABLES-COMMAND), [BR-HOST-IP6TABLES-KERNEL](#BR-HOST-IP6TABLES-KERNEL), [BR-HOST-IP6TABLES-LEGACY-KERNEL](#BR-HOST-IP6TABLES-LEGACY-KERNEL), [BR-HOST-IP6TABLES-NFT-KERNEL](#BR-HOST-IP6TABLES-NFT-KERNEL), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NFTABLES-V6](#BR-HOST-NFTABLES-V6), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+
+*Applies to:* A daemon with `ip6tables` true, a container on a bridge network with
+IPv6 enabled and `com.docker.network.bridge.gateway_mode_ipv6` set to `routed`, and a
+client with a route to the container's IPv6 address via the node's address
+
+Traffic from the client to the container's IPv6 address reaches the container's published ports,
+and not its other ports.
+
+<a id="BR-GWMODE-ROUTED-NODE-ADDRESS"></a>
+
+**Expectation (contract) BR-GWMODE-ROUTED-NODE-ADDRESS**: In routed mode, published ports are not reachable at the node's address
+
+*Observed from:* client · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-BR-GWMODE-ROUTED-NO-NAT](#REQ-BR-GWMODE-ROUTED-NO-NAT) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* A container on a bridge network with
 `com.docker.network.bridge.gateway_mode_ipv4` set to `routed`, whose IPv4 default
@@ -1529,11 +3581,11 @@ not reach the container.
 
 <a id="BR-GWMODE-NAT-UNPROTECTED"></a>
 
-**Expectation (detector) BR-GWMODE-NAT-UNPROTECTED**: In nat-unprotected mode, a client with a route reaches every port
+**Expectation (contract) BR-GWMODE-NAT-UNPROTECTED**: In nat-unprotected mode, a client with a route reaches every port
 
 *Observed from:* client · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-GWMODE-DIRECT-ROUTING](#REQ-BR-GWMODE-DIRECT-ROUTING) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* A container on a bridge network with
 `com.docker.network.bridge.gateway_mode_ipv4` set to `nat-unprotected`, and a client
@@ -1543,16 +3595,17 @@ Traffic from the client to the container's IPv4 address reaches every port of th
 
 <a id="BR-GWMODE-ISOLATED-NOT-INTERNAL"></a>
 
-**Expectation (detector) BR-GWMODE-ISOLATED-NOT-INTERNAL**: Isolated gateway mode on a network that is not internal is refused
+**Expectation (contract) BR-GWMODE-ISOLATED-NOT-INTERNAL**: Isolated gateway mode on a network that is not internal is refused
 
 *Observed from:* api · *Depends on:* none · *Platforms:* linux
 
-*CLI form:* [BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI](#BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI) · *Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [PRIN-FAILS-CLOSED](../principles.md#PRIN-FAILS-CLOSED), [REQ-BR-GWMODE-VALUES](#REQ-BR-GWMODE-VALUES), [REQ-NET-NETWORK-CREATE-ERRORS](network-common.md#REQ-NET-NETWORK-CREATE-ERRORS) · *Exact form:* [BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500](#BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500) · *CLI form:* [BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI](#BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerned by:* [BR-GWMODE-HTTP500-REFUSED](#BR-GWMODE-HTTP500-REFUSED)
 
 `POST /networks/create` for a bridge network with `Internal` not true and
 with `com.docker.network.bridge.gateway_mode_ipv4` or
 `com.docker.network.bridge.gateway_mode_ipv6` set to `isolated` responds with a 4xx or
-5xx status. `GET /networks` then does not list the network.
+5xx status. `GET /networks` then does not list a network with the request's
+`Name`.
 
 <a id="BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500"></a>
 
@@ -1560,47 +3613,60 @@ with `com.docker.network.bridge.gateway_mode_ipv4` or
 
 *Observed from:* api · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Exact form of:* [BR-GWMODE-ISOLATED-NOT-INTERNAL](#BR-GWMODE-ISOLATED-NOT-INTERNAL) · *Pins:* [BR-GWMODE-HTTP500-REFUSED](#BR-GWMODE-HTTP500-REFUSED) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 `POST /networks/create` for a bridge network with `Internal` not true and
 with `com.docker.network.bridge.gateway_mode_ipv4` or
 `com.docker.network.bridge.gateway_mode_ipv6` set to `isolated` responds 500. The
 message contains `gateway mode 'isolated' can only be used for an internal network`.
-See [Known divergences & non-goals](#bridge-networking-known-divergences-non-goals).
 
 <a id="BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI"></a>
 
-**Expectation (detector) BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI**: docker network create without --internal refuses isolated mode
+**Expectation (contract) BR-GWMODE-ISOLATED-NOT-INTERNAL-CLI**: docker network create without --internal refuses isolated mode
 
 *Observed from:* api · *Depends on:* cli · *Platforms:* linux
 
-*CLI form of:* [BR-GWMODE-ISOLATED-NOT-INTERNAL](#BR-GWMODE-ISOLATED-NOT-INTERNAL) · *Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [PRIN-FAILS-CLOSED](../principles.md#PRIN-FAILS-CLOSED), [REQ-BR-GWMODE-VALUES](#REQ-BR-GWMODE-VALUES), [REQ-NET-NETWORK-CREATE-ERRORS](network-common.md#REQ-NET-NETWORK-CREATE-ERRORS) · *CLI form of:* [BR-GWMODE-ISOLATED-NOT-INTERNAL](#BR-GWMODE-ISOLATED-NOT-INTERNAL) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 `docker network create --driver bridge --opt
 com.docker.network.bridge.gateway_mode_ipv4=isolated` without `--internal` exits
-non-zero and prints the daemon's error. `docker network ls` then does not list the network.
+non-zero and prints the daemon's error. `docker network ls` then does not list a network
+with the name that the command gave.
 
-<a id="BR-GWMODE-UNKNOWN"></a>
+<a id="BR-GWMODE-HTTP500-REFUSED"></a>
 
-**Expectation (detector) BR-GWMODE-UNKNOWN**: An unknown gateway mode is refused
+**Expectation (defect) BR-GWMODE-HTTP500-REFUSED**: Isolated gateway mode on a network that is not internal is refused with 500
 
 *Observed from:* api · *Depends on:* none · *Platforms:* linux
 
-*CLI form:* [BR-GWMODE-UNKNOWN-CLI](#BR-GWMODE-UNKNOWN-CLI) · *Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Pinned by:* [BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500](#BR-GWMODE-ISOLATED-NOT-INTERNAL-HTTP500) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerns:* [BR-GWMODE-ISOLATED-NOT-INTERNAL](#BR-GWMODE-ISOLATED-NOT-INTERNAL) · *Violates:* [REQ-NET-API-ERROR-STATUS](network-common.md#REQ-NET-API-ERROR-STATUS), [REQ-NET-NETWORK-CREATE-ERRORS](network-common.md#REQ-NET-NETWORK-CREATE-ERRORS)
+
+`POST /networks/create` for a bridge network with
+`com.docker.network.bridge.gateway_mode_ipv4` or
+`com.docker.network.bridge.gateway_mode_ipv6` set to `isolated`, when
+`Internal` is not true, is refused and responds 500.
+
+<a id="BR-GWMODE-UNKNOWN"></a>
+
+**Expectation (contract) BR-GWMODE-UNKNOWN**: An unknown gateway mode responds 400
+
+*Observed from:* api · *Depends on:* none · *Platforms:* linux
+
+*Refines:* [PRIN-FAILS-CLOSED](../principles.md#PRIN-FAILS-CLOSED), [REQ-BR-GWMODE-VALUES](#REQ-BR-GWMODE-VALUES), [REQ-NET-API-ERROR-STATUS](network-common.md#REQ-NET-API-ERROR-STATUS), [REQ-NET-NETWORK-CREATE-ERRORS](network-common.md#REQ-NET-NETWORK-CREATE-ERRORS) · *Exact form:* [BR-GWMODE-UNKNOWN-MSG](#BR-GWMODE-UNKNOWN-MSG) · *CLI form:* [BR-GWMODE-UNKNOWN-CLI](#BR-GWMODE-UNKNOWN-CLI) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 `POST /networks/create` for a bridge network with
 `com.docker.network.bridge.gateway_mode_ipv4` or
 `com.docker.network.bridge.gateway_mode_ipv6` set to a value other than `nat`,
-`nat-unprotected`, `routed` and `isolated` responds with a 4xx or 5xx status. `GET
-/networks` then does not list the network.
+`nat-unprotected`, `routed` and `isolated` responds 400. `GET /networks` then does
+not list a network with the request's `Name`.
 
 <a id="BR-GWMODE-UNKNOWN-MSG"></a>
 
-**Expectation (detector) BR-GWMODE-UNKNOWN-MSG**: An unknown gateway mode responds 400
+**Expectation (detector) BR-GWMODE-UNKNOWN-MSG**: An unknown gateway mode responds 400 and says the mode is unknown
 
 *Observed from:* api · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Exact form of:* [BR-GWMODE-UNKNOWN](#BR-GWMODE-UNKNOWN) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 `POST /networks/create` for a bridge network with
 `com.docker.network.bridge.gateway_mode_ipv4` or
@@ -1610,32 +3676,33 @@ non-zero and prints the daemon's error. `docker network ls` then does not list t
 
 <a id="BR-GWMODE-UNKNOWN-CLI"></a>
 
-**Expectation (detector) BR-GWMODE-UNKNOWN-CLI**: docker network create with an unknown gateway mode exits non-zero
+**Expectation (contract) BR-GWMODE-UNKNOWN-CLI**: docker network create with an unknown gateway mode exits non-zero
 
 *Observed from:* api · *Depends on:* cli · *Platforms:* linux
 
-*CLI form of:* [BR-GWMODE-UNKNOWN](#BR-GWMODE-UNKNOWN) · *Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [PRIN-FAILS-CLOSED](../principles.md#PRIN-FAILS-CLOSED), [REQ-BR-GWMODE-VALUES](#REQ-BR-GWMODE-VALUES), [REQ-NET-NETWORK-CREATE-ERRORS](network-common.md#REQ-NET-NETWORK-CREATE-ERRORS) · *CLI form of:* [BR-GWMODE-UNKNOWN](#BR-GWMODE-UNKNOWN) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 `docker network create --driver bridge` with the option
 `com.docker.network.bridge.gateway_mode_ipv4` set to a value other than `nat`,
 `nat-unprotected`, `routed` and `isolated` exits non-zero and prints the daemon's error.
-`docker network ls` then does not list the network.
+`docker network ls` then does not list a network with the name that the command gave.
 
 <a id="bridge-networking-default-gateway"></a>
 
 ### Default gateway
 
-[Default gateway](network-common.md#network-common-default-gateway) covers which endpoint gives a container its default route, for
-every network driver. The expectations in this subsection hold with `userland-proxy`
-true and with `userland-proxy` false, unless an expectation names a value.
+[Default gateway](network-common.md#network-common-default-gateway) in [network-common.md](network-common.md) covers which
+endpoint gives a container its default route, for every network driver. The expectations in this
+subsection hold with `userland-proxy` true and with `userland-proxy`
+false, unless an expectation names a value.
 
 <a id="BR-GW-DEFAULT-ROUTE-NETWORK"></a>
 
-**Expectation (detector) BR-GW-DEFAULT-ROUTE-NETWORK**: A published port reaches the container on its default route's network
+**Expectation (contract) BR-GW-DEFAULT-ROUTE-NETWORK**: A published port reaches the container on its default route's network
 
 *Observed from:* client, ctr · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-PUBLISH-GATEWAY-ENDPOINT](#REQ-BR-PUBLISH-GATEWAY-ENDPOINT) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* A container with endpoints on two or more bridge networks that are not
 `internal`, whose IPv4 default route is through a network whose
@@ -1655,24 +3722,23 @@ stack, so it does not have `/proc/sys/net/ipv6`.
 
 <a id="BR-NOV6-DAEMON-START"></a>
 
-**Expectation (detector) BR-NOV6-DAEMON-START**: The daemon starts on a host booted with ipv6.disable=1
+**Expectation (contract) BR-NOV6-DAEMON-START**: The daemon starts on a host booted with ipv6.disable=1
 
 *Observed from:* api · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-IPV6-UNAVAILABLE](#REQ-BR-IPV6-UNAVAILABLE) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
-*Applies to:* A Linux host booted with `ipv6.disable=1`, and a daemon with its default
-settings
+*Applies to:* A Linux host booted with `ipv6.disable=1`
 
 The daemon starts. `GET /info` responds 200.
 
 <a id="BR-NOV6-CTR-START"></a>
 
-**Expectation (detector) BR-NOV6-CTR-START**: On a host without IPv6, a container on a bridge network starts
+**Expectation (contract) BR-NOV6-CTR-START**: On a host without IPv6, a container on a bridge network starts
 
 *Observed from:* api · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-IPV6-UNAVAILABLE](#REQ-BR-IPV6-UNAVAILABLE) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* A Linux host booted with `ipv6.disable=1`, and a created container on a bridge
 network without IPv6
@@ -1681,11 +3747,11 @@ network without IPv6
 
 <a id="BR-NOV6-PUBLISHED-PORT"></a>
 
-**Expectation (detector) BR-NOV6-PUBLISHED-PORT**: On a host without IPv6, a published port is reachable over IPv4
+**Expectation (contract) BR-NOV6-PUBLISHED-PORT**: On a host without IPv6, a published port is reachable over IPv4
 
 *Observed from:* client · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [REQ-BR-IPV6-UNAVAILABLE](#REQ-BR-IPV6-UNAVAILABLE), [REQ-BR-PUBLISH-DEFAULTS](#REQ-BR-PUBLISH-DEFAULTS) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](#BR-HOST-NO-FORWARD-DROP), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
 
 *Applies to:* A Linux host booted with `ipv6.disable=1`, and a running container on a bridge
 network without IPv6 that publishes a port without a host address
@@ -1694,136 +3760,32 @@ A client reaches the container on that port at the node's IPv4 address.
 
 <a id="BR-NOV6-V6-NETWORK-REFUSED"></a>
 
-**Expectation (detector) BR-NOV6-V6-NETWORK-REFUSED**: On a host without IPv6, an IPv6 bridge network is refused
+**Expectation (contract) BR-NOV6-V6-NETWORK-REFUSED**: On a host without IPv6, an IPv6 bridge network is refused
 
 *Observed from:* api · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
+*Refines:* [PRIN-FAILS-CLOSED](../principles.md#PRIN-FAILS-CLOSED), [REQ-BR-IPV6-UNAVAILABLE](#REQ-BR-IPV6-UNAVAILABLE), [REQ-NET-NETWORK-CREATE-ERRORS](network-common.md#REQ-NET-NETWORK-CREATE-ERRORS) · *Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerned by:* [BR-NOV6-V6-NETWORK-REFUSED-MSG](#BR-NOV6-V6-NETWORK-REFUSED-MSG)
 
 *Applies to:* A Linux host booted with `ipv6.disable=1`
 
 `POST /networks/create` for a bridge network with `EnableIPv6` set responds
-with a 4xx or 5xx status. `GET /networks` then does not list the network.
+with a 4xx or 5xx status. `GET /networks` then does not list a network with the
+request's `Name`.
 
-<a id="bridge-networking-known-divergences-non-goals"></a>
+<a id="BR-NOV6-V6-NETWORK-REFUSED-MSG"></a>
 
-## Known divergences & non-goals
-
-<a id="BR-CLEAN-BUILTIN-CHAIN-RULES"></a>
-
-**Expectation (detector) BR-CLEAN-BUILTIN-CHAIN-RULES**: Rules left in built-in iptables chains after a switch to nftables
-
-*Observed from:* node · *Depends on:* none · *Platforms:* linux
-
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
-
-The daemon deletes them only for the networks, endpoints and port bindings that it restores.
-Rules for anything that it does not restore stay in the built-in chains
-([Cross-generation cleanup](#bridge-networking-cross-generation-cleanup)).
-
-<a id="BR-FW-FIREWALLD-RELOAD-NFT"></a>
-
-**Expectation (detector) BR-FW-FIREWALLD-RELOAD-NFT**: Firewalld reload under the nftables backend
-
-*Observed from:* log · *Depends on:* none · *Platforms:* linux
-
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Rationale:* Why a change to BR-FW-FIREWALLD-RELOAD-NFT should be deliberate ([RAT-BR-RELOAD-NFT-WARNINGS](#RAT-BR-RELOAD-NFT-WARNINGS))
-
-Logged as failures. A firewalld reload does not change the daemon's nftables tables. On each
-reload, the daemon still adds its rules for each bridge network again, and nftables refuses each
-rule that exists. The daemon log then contains these warning-level entries for each reload: (1)
-one entry per bridge network that contains `ReapplyNetworkLevelRules is not implemented for
-nftables`; (2) one entry per endpoint that contains `Failed to reconfigure Endpoint` and
-`rule exists`, for an endpoint on a network that is not `internal` and whose gateway mode
-for IPv4 or IPv6 is `nat`, the default, on a daemon with `allow-direct-routing`
-false; (3) one entry per endpoint that publishes a port that contains `Failed to
-reconfigure NAT` and `rule exists`. The daemon's tables do not change.
-
-<a id="SWARM-PUB-FIREWALLD-V6-PROXY"></a>
-
-**Expectation (detector) SWARM-PUB-FIREWALLD-V6-PROXY**: Published ports at the node's IPv6 addresses through docker-proxy, with firewalld running
-
-*Observed from:* client · *Depends on:* os-linux · *Platforms:* linux
-
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
-
-Refused. A port published on an endpoint without an IPv6 address can be reachable at the node's
-IPv6 addresses through docker-proxy ([README.md](README.md#readme-observed-from)). With firewalld
-running and its default zone in effect for the interface, a connection to such a port at an IPv6
-address of the node does not answer, before and after a firewalld reload, with either firewall
-backend. The daemon does not open the port in firewalld. The port answers at the node's IPv4
-addresses ([Port publishing](#bridge-networking-port-publishing)).
-
-<a id="BR-OPT-MTU-OUT-OF-RANGE"></a>
-
-**Expectation (detector) BR-OPT-MTU-OUT-OF-RANGE**: Out-of-range bridge MTU error
+**Expectation (defect) BR-NOV6-V6-NETWORK-REFUSED-MSG**: An IPv6 network's refusal without host IPv6 says a /proc file is missing
 
 *Observed from:* api · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Rationale:* Why a change to BR-OPT-MTU-OUT-OF-RANGE should be deliberate ([RAT-BR-OPT-MTU-OUT-OF-RANGE](#RAT-BR-OPT-MTU-OUT-OF-RANGE))
+*Needs:* [BR-HOST-BR-NETFILTER-NO-PROXY](#BR-HOST-BR-NETFILTER-NO-PROXY), [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Concerns:* [BR-NOV6-V6-NETWORK-REFUSED](#BR-NOV6-V6-NETWORK-REFUSED) · *Violates:* [PRIN-ERRORS-ACTIONABLE](../principles.md#PRIN-ERRORS-ACTIONABLE)
 
-The error does not name the option. `POST /networks/create` with an MTU that the kernel
-does not accept responds 500 with `invalid argument`. A request can have IPv6 enabled
-and an MTU that the kernel accepts for IPv4 but not for IPv6. That request responds 500 with a
-message that contains `Cannot read IPv6 setup for bridge` and `no such
-file or directory` ([Network and endpoint options](#bridge-networking-network-and-endpoint-options)).
+*Applies to:* A Linux host booted with `ipv6.disable=1`
 
-<a id="BR-OPT-MTU-MODULO"></a>
-
-**Expectation (detector) BR-OPT-MTU-MODULO**: Bridge MTU from 2³² to 2⁶³ − 1
-
-*Observed from:* ctr · *Depends on:* none · *Platforms:* linux
-
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
-
-The value is applied modulo 2³². This applies to `com.docker.network.driver.mtu` and to
-the daemon-wide `mtu`. A daemon-wide `mtu` whose remainder the kernel
-accepts does not stop the daemon. `POST /networks/create` accepts a value whose
-remainder the kernel accepts. For example, 4294968796 is applied as 1500. `GET
-/networks/{id}` then reports the requested value in `Options`. `POST
-/networks/create` refuses a value whose remainder the kernel refuses, as the *Out-of-range
-bridge MTU error* entry describes ([Network and endpoint options](#bridge-networking-network-and-endpoint-options)).
-
-<a id="BR-OPT-DAEMON-MTU-ERROR"></a>
-
-**Expectation (detector) BR-OPT-DAEMON-MTU-ERROR**: Daemon-wide mtu error
-
-*Observed from:* log · *Depends on:* none · *Platforms:* linux
-
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS) · *Rationale:* Why a change to BR-OPT-DAEMON-MTU-ERROR should be deliberate ([RAT-BR-OPT-DAEMON-MTU-ERROR](#RAT-BR-OPT-DAEMON-MTU-ERROR))
-
-A value that the kernel cannot apply stops the daemon with an error that ends in `error
-creating default "bridge" network: invalid argument`. This error does not name the setting
-([Network and endpoint options](#bridge-networking-network-and-endpoint-options)).
-
-<a id="BR-OPT-DAEMON-MTU-ZERO-REPLACED"></a>
-
-**Expectation (detector) BR-OPT-DAEMON-MTU-ZERO-REPLACED**: Daemon-wide mtu of 0 in daemon.json
-
-*Observed from:* node · *Depends on:* none · *Platforms:* linux
-
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
-
-Replaced by the default. A `"mtu"` of 0 in daemon.json is replaced by 1500 when the
-file is merged with the flags. The daemon then sets 1500 on the default bridge and its
-containers' interfaces. Only `--mtu 0` leaves the MTU that the kernel gave them
-([Network and endpoint options](#bridge-networking-network-and-endpoint-options)).
-
-<a id="BR-FW-HTTP500-REFUSED"></a>
-
-**Expectation (detector) BR-FW-HTTP500-REFUSED**: HTTP 500 for refused requests
-
-*Observed from:* api · *Depends on:* none · *Platforms:* linux
-
-*Needs:* [BR-HOST-FORWARDING-V4](#BR-HOST-FORWARDING-V4), [BR-HOST-IPTABLES-COMMAND](#BR-HOST-IPTABLES-COMMAND), [BR-HOST-IPTABLES-KERNEL](#BR-HOST-IPTABLES-KERNEL), [BR-HOST-IPTABLES-LEGACY-KERNEL](#BR-HOST-IPTABLES-LEGACY-KERNEL), [BR-HOST-IPTABLES-NFT-KERNEL](#BR-HOST-IPTABLES-NFT-KERNEL), [BR-HOST-NETNS-VETH-BRIDGE](#BR-HOST-NETNS-VETH-BRIDGE), [BR-HOST-NFT-COMMAND](#BR-HOST-NFT-COMMAND), [BR-HOST-NFTABLES](#BR-HOST-NFTABLES), [BR-HOST-PROC-SYS-NET-WRITABLE](#BR-HOST-PROC-SYS-NET-WRITABLE), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS)
-
-The daemon refuses each request below on purpose, but the request responds 500. 500 is the
-status for a fault in the daemon. The requests are: (1) `POST /networks/create` for a
-bridge network with an MTU that the kernel refuses. (2) `POST /networks/create` for a
-bridge network with `com.docker.network.bridge.gateway_mode_ipv4` or
-`com.docker.network.bridge.gateway_mode_ipv6` set to `isolated`, when
-`Internal` is not true ([Network and endpoint options](#bridge-networking-network-and-endpoint-options),
-[Gateway modes](#bridge-networking-gateway-modes)).
+The error response of `POST /networks/create` for a bridge network with
+`EnableIPv6` set has a message that contains `Cannot read IPv6 setup for
+bridge` and `no such file or directory`, with the path of a file under
+`/proc/sys/net/ipv6`. The message does not say that IPv6 is disabled on the host.
 
 <a id="bridge-networking-deliberately-not-asserted"></a>
 
@@ -1838,5 +3800,4 @@ bridge network with `com.docker.network.bridge.gateway_mode_ipv4` or
 - Which packet-filtering technology is in use, beyond what the expectations of this spec assert for
   each backend.
 - Whether an operator's `DOCKER-USER` rules survive a firewalld reload. That is
-  firewalld's behavior. After a reload, the daemon recreates the chain and the jump to it. It does
-  not restore the chain's rules.
+  firewalld's behavior.
