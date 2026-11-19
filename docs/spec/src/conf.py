@@ -409,7 +409,7 @@ def _local(props, required=()):
 # layer satisfies are "expected" rules: they are violations for each document
 # except those in LAX_DOCS, for which they are info, reported without failing
 # the build. A document leaves LAX_DOCS once its items satisfy them.
-LAX_DOCS = []
+LAX_DOCS = ["network/network-common", "network/ipvlan-networking", "network/bridge-networking", "network/container-dns", "network/swarm-networking", "network/swarm-traffic", "network/swarm-lifecycle"]
 
 
 def _docnames():

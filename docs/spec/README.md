@@ -13,10 +13,11 @@ spec states:
 This document gives the model that every spec follows: the items of a spec, how an expectation is
 read, and how the items link to each other. It covers these documents:
 
-| Document                               | Scope                                                                 |
-|----------------------------------------|-----------------------------------------------------------------------|
-| [principles.md](principles.md)         | The principles that the maintainers hold the daemon to, in every spec |
-| [id-style-guide.md](id-style-guide.md) | How the IDs and titles of items are formed                            |
+| Document                               | Scope                                                                                                                                                                      |
+|----------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [network/README.md](network/README.md) | The networking specs, and the conventions that only they use: vantage points, daemon settings and firewall backends, platforms, host requirements and convergence ceilings |
+| [principles.md](principles.md)         | The principles that the maintainers hold the daemon to, in every spec                                                                                                      |
+| [id-style-guide.md](id-style-guide.md) | How the IDs and titles of items are formed                                                                                                                                 |
 
 A spec describes behavior only. It should change when the behavior of the daemon changes. It should
 also change when a regression reveals an expectation that, until then, was only an assumption.
@@ -716,3 +717,11 @@ every spec.
   * [IDs](id-style-guide.md#ids)
   * [Titles](id-style-guide.md#titles)
   * [What is checked](id-style-guide.md#what-is-checked)
+* [Networking behavior specifications](network/README.md)
+  * [Nodes](network/README.md#readme-nodes)
+  * [Settings and scope](network/README.md#readme-settings-and-scope)
+  * [Timing](network/README.md#readme-timing)
+  * [Traffic](network/README.md#readme-traffic)
+  * [Observed from](network/README.md#readme-observed-from)
+  * [Platforms](network/README.md#readme-network-platforms)
+  * [Host requirements](network/README.md#readme-host-requirements)
