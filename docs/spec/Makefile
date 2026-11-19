@@ -1,6 +1,8 @@
 # Build, check and format the behavior specifications.
 #
-# The specs are Sphinx-Needs documents in src/. Every target other than
+# The specs are Sphinx-Needs documents in src/. The Markdown files in this
+# directory and its subdirectories are generated from them, at the paths of
+# their sources (src/network/x.rst gives network/x.md). Every target other than
 # help and image runs in a container built from the Dockerfile in this
 # directory, so that it uses the pinned toolchain.
 
@@ -21,6 +23,15 @@ DOCKER_RUN := $(DOCKER) run --rm -u "$$(id -u):$$(id -g)" -e HOME=/tmp \
 
 SOURCES := $(shell find src -name "*.rst" | sort)
 SPHINX := sphinx-build -W --keep-going -q src
+
+# Build the Markdown into _build/markdown.
+MD_BUILD := $(SPHINX) -b markdown _build/markdown
+# The generated Markdown files, in _build/markdown and in this directory.
+MD_BUILT := cd _build/markdown && find . -name "*.md" | sort
+# Only a file that starts with the comment that "make md" writes is generated: "make md" leaves
+# other Markdown files, such as a draft, alone.
+MD_HERE := find . -path ./_build -prune -o -path ./src -prune -o -path "./.*" -prune -o -name "*.md" -print | \
+	xargs -r awk "FNR == 1 && /^<!-- Generated from src\// { print FILENAME } { nextfile }" | sort
 
 .DEFAULT_GOAL := help
 
@@ -48,10 +59,20 @@ needs: image ## build _build/needs/needs.json
 fmt: image ## format the specs in place
 	$(DOCKER_RUN) docstrfmt -p pyproject.toml $(SOURCES)
 
+.PHONY: md
+md: image ## generate the Markdown specs in this directory and its subdirectories
+	$(DOCKER_RUN) sh -c 'rm -rf _build/markdown && $(MD_BUILD) && \
+		for f in $$($(MD_HERE)); do [ -e "_build/markdown/$$f" ] || rm "$$f"; done && \
+		for f in $$($(MD_BUILT)); do mkdir -p "$$(dirname "$$f")" && cp "_build/markdown/$$f" "$$f" || exit 1; done'
+
 .PHONY: validate
-validate: image ## check that the specs build without warnings and are formatted
-	$(DOCKER_RUN) sh -c '$(SPHINX) -b needs _build/needs && \
-		docstrfmt -p pyproject.toml --check $(SOURCES)'
+validate: image ## check that the specs build without warnings, are formatted, and match the Markdown
+	$(DOCKER_RUN) bash -c '$(SPHINX) -b needs _build/needs && \
+		docstrfmt -p pyproject.toml --check $(SOURCES) && \
+		rm -rf _build/markdown && $(MD_BUILD) && \
+		diff -u <($(MD_HERE)) <($(MD_BUILT)) && \
+		for f in $$($(MD_BUILT)); do diff -u "$$f" "_build/markdown/$$f" || exit 1; done' || \
+		{ echo "The specs are not built and formatted: run make fmt md and commit the result." >&2; exit 1; }
 
 # make diff compares commits, so a change is reported once it is committed. The
 # Git directory that a linked worktree refers to is outside REPO_DIR, so the

@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.abspath("ext"))
 project = "Moby behavior specifications"
 extensions = ["sphinx_needs", "spec_roles", "md_needs", "observed_from"]
 exclude_patterns = ["_build", "templates"]
-root_doc = "index"
+root_doc = "README"
 html_theme = "alabaster"
 html_show_sourcelink = False
 # Keep the source's straight quotes in the output.
