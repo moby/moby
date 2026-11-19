@@ -2,125 +2,317 @@
 
 # Swarm networking: lifecycle
 
-This document continues [Swarm networking surface area](swarm-networking.md). Its conventions, definitions and host requirements
-apply here.
+This document continues [swarm-networking.md](swarm-networking.md). Its conventions, definitions
+and host requirements apply here.
+
+<a id="swarm-lifecycle-requirements"></a>
+
+## Requirements
+
+<a id="REQ-SWARM-ADDRESS-REUSE"></a>
+
+**Requirement REQ-SWARM-ADDRESS-REUSE**: An overlay address reaches its current endpoint after it moves
+
+*Source kind:* issue · *Source:* https://github.com/moby/moby/issues/50232; https://github.com/moby/moby/issues/52661; https://docs.docker.com/engine/release-notes/17.10/#17100-ce
+
+*Refined by:* [SWARM-CONVERGE-ADDRESS-MOVE](#SWARM-CONVERGE-ADDRESS-MOVE), [SWARM-CONVERGE-ADDRESS-MOVE-MAC](#SWARM-CONVERGE-ADDRESS-MOVE-MAC), [SWARM-CONVERGE-ADDRESS-MOVE-REPEATED](#SWARM-CONVERGE-ADDRESS-MOVE-REPEATED)
+
+When an overlay address moves to another endpoint, for example when a replacement container gets
+the address back, peers reach the new endpoint. Stale neighbor and FDB entries do not misroute
+such an address.
+
+<a id="REQ-SWARM-ENC-AUTHENTICATED"></a>
+
+**Requirement REQ-SWARM-ENC-AUTHENTICATED**: Encrypted overlays drop VXLAN that did not arrive under IPsec
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/swarm/swarm-tutorial/#open-protocols-and-ports-between-the-hosts; https://docs.docker.com/engine/release-notes/17.03/#17030-ce; https://docs.docker.com/engine/release-notes/23.0/#2303; https://docs.docker.com/engine/release-notes/29/#2982
+
+*Refined by:* [SWARM-ENC-FORGED-VXLAN](#SWARM-ENC-FORGED-VXLAN), [SWARM-ENC-FORGED-VXLAN-FIREWALLD](#SWARM-ENC-FORGED-VXLAN-FIREWALLD), [SWARM-IPT-ENCRYPTED-INPUT-ACCEPT](#SWARM-IPT-ENCRYPTED-INPUT-ACCEPT)
+
+Docker discards plain VXLAN for an encrypted network.
+
+<a id="REQ-SWARM-ENC-KEY-ROTATION"></a>
+
+**Requirement REQ-SWARM-ENC-KEY-ROTATION**: A key rotation does not break encrypted overlay traffic
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/release-notes/17.03/#17030-ce; https://github.com/moby/moby/commit/4a04857a681d15e9fed49c6e72ef1e8e11be5962
+
+*Refined by:* [SWARM-ENC-KEY-ROTATION](#SWARM-ENC-KEY-ROTATION)
+
+A rotation of the keys of an encrypted overlay network does not break encrypted traffic between
+nodes, including nodes whose advertise address differs from their local address, as in a
+cross-datacenter Swarm.
+
+<a id="REQ-SWARM-FAULT-TOLERANT"></a>
+
+**Requirement REQ-SWARM-FAULT-TOLERANT**: Swarm mode keeps services available through node failures and membership changes
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/swarm/swarm-mode/; https://docs.docker.com/engine/swarm/how-swarm-mode-works/nodes/#manager-nodes; https://docs.docker.com/engine/swarm/admin_guide/#force-the-swarm-to-rebalance
+
+*Refined by:* [SWARM-CONVERGE-LEAVE-REMAINING-TASKS](#SWARM-CONVERGE-LEAVE-REMAINING-TASKS), [SWARM-CONVERGE-PARTITION-QUORUM-VIP](#SWARM-CONVERGE-PARTITION-QUORUM-VIP), [SWARM-RESTART-OTHER-NODES](#SWARM-RESTART-OTHER-NODES)
+
+Swarm mode keeps services running and available. A swarm with several managers recovers from the
+failure of a manager node without downtime. A node that is added to the swarm, or that
+reconnects after a period of unavailability, does not disrupt the running services, and a node
+with running tasks that becomes unavailable disrupts the end user minimally.
+
+<a id="REQ-SWARM-LEAVE"></a>
+
+**Requirement REQ-SWARM-LEAVE**: A node that leaves the Swarm stops running in Swarm mode
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/swarm/manage-nodes/#leave-the-swarm; https://docs.docker.com/reference/cli/docker/swarm/leave/
+
+*Refined by:* [SWARM-RESTART-LEAVE-INACTIVE](#SWARM-RESTART-LEAVE-INACTIVE)
+
+After docker swarm leave, the node's engine no longer runs in Swarm mode.
+
+<a id="REQ-SWARM-LEAVE-SWARM-NETWORKS-ONLY"></a>
+
+**Requirement REQ-SWARM-LEAVE-SWARM-NETWORKS-ONLY**: Swarm leave detaches containers only from Swarm-scoped networks
+
+*Source kind:* issue · *Source:* https://github.com/moby/moby/pull/30157: its commit message
+
+*Refines:* [PRIN-FAITHFUL](../principles.md#PRIN-FAITHFUL) · *Refined by:* [SWARM-RESTART-LEAVE-LOCAL-NETWORKS-KEPT](#SWARM-RESTART-LEAVE-LOCAL-NETWORKS-KEPT), [SWARM-RESTART-LEAVE-NETWORKS](#SWARM-RESTART-LEAVE-NETWORKS), [SWARM-RESTART-LEAVE-NETWORKS-CLI](#SWARM-RESTART-LEAVE-NETWORKS-CLI) · *Violated by:* [SWARM-RESTART-LEAVE-LOCAL-ATTACHABLE](#SWARM-RESTART-LEAVE-LOCAL-ATTACHABLE)
+
+When a node leaves the Swarm, the daemon disconnects its standalone containers from the
+Swarm-scoped networks that they are attached to, and removes those networks from the node.
+Containers keep their attachments to networks that are not Swarm-scoped.
+
+<a id="REQ-SWARM-NODE-FAILURE-LOGGED"></a>
+
+**Requirement REQ-SWARM-NODE-FAILURE-LOGGED**: A node logs its failure to program a load balancer or an ingress port
+
+*Source kind:* issue · *Source:* https://github.com/moby/moby/pull/53125; moby/moby daemon/libnetwork/service_linux.go: code comments on retrying the load-balancer and ingress setup at the next backend event
+
+*Refined by:* [SWARM-FAILREP-INGRESS-PORT](#SWARM-FAILREP-INGRESS-PORT), [SWARM-FAILREP-INGRESS-PORT-IN-USE](#SWARM-FAILREP-INGRESS-PORT-IN-USE), [SWARM-FAILREP-INGRESS-PORT-RECOVERY-LOG](#SWARM-FAILREP-INGRESS-PORT-RECOVERY-LOG), [SWARM-FAILREP-INGRESS-PORT-REPEATED](#SWARM-FAILREP-INGRESS-PORT-REPEATED), [SWARM-FAILREP-LB](#SWARM-FAILREP-LB), [SWARM-FAILREP-LB-RECOVERY-LOG](#SWARM-FAILREP-LB-RECOVERY-LOG), [SWARM-FAILREP-LB-REPEATED](#SWARM-FAILREP-LB-REPEATED)
+
+A node that cannot program a load-balancer service or backend, or publish an ingress port,
+reports it in the daemon log, and again on each retry while the cause holds. Once the cause has
+cleared, a retry reports no failure.
+
+<a id="REQ-SWARM-REJOIN-RECOVERY"></a>
+
+**Requirement REQ-SWARM-REJOIN-RECOVERY**: Reachability returns after a node fails or leaves and comes back
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/release-notes/29/#2990; https://docs.docker.com/engine/release-notes/29/#2980; https://github.com/moby/moby/issues/35807
+
+*Refined by:* [SWARM-CONVERGE-PARTITION-HEAL](#SWARM-CONVERGE-PARTITION-HEAL), [SWARM-CONVERGE-PARTITION-HEAL-PERSISTS](#SWARM-CONVERGE-PARTITION-HEAL-PERSISTS), [SWARM-CONVERGE-PARTITION-HEAL-PERSISTS-ACTIVE](#SWARM-CONVERGE-PARTITION-HEAL-PERSISTS-ACTIVE), [SWARM-CONVERGE-REJOIN-INGRESS-BACKENDS](#SWARM-CONVERGE-REJOIN-INGRESS-BACKENDS), [SWARM-CONVERGE-REJOIN-PUBLISHED-PORTS](#SWARM-CONVERGE-REJOIN-PUBLISHED-PORTS), [SWARM-CONVERGE-REJOIN-TASKS](#SWARM-CONVERGE-REJOIN-TASKS), [SWARM-CONVERGE-REJOIN-TASKS-FROM-OTHER-NODES](#SWARM-CONVERGE-REJOIN-TASKS-FROM-OTHER-NODES)
+
+When a node that failed, was cut off or left the Swarm comes back, overlay peers, service
+discovery and published ports reach it again and keep reaching it.
+
+<a id="REQ-SWARM-RESTART-RECOVERY"></a>
+
+**Requirement REQ-SWARM-RESTART-RECOVERY**: A node's data plane recovers after its daemon restarts or is killed
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/swarm/admin_guide/#recover-from-losing-the-quorum; https://docs.docker.com/engine/release-notes/29/#2990; https://docs.docker.com/engine/release-notes/17.04/#17040-ce; https://github.com/moby/moby/issues/49555: a report of such a device that maintainers triaged as a bug
+
+*Refined by:* [SWARM-ENC-VNI-REUSE-KILLED-DAEMON](#SWARM-ENC-VNI-REUSE-KILLED-DAEMON), [SWARM-RESTART-GRACEFUL-PUBLISHED-PORTS](#SWARM-RESTART-GRACEFUL-PUBLISHED-PORTS), [SWARM-RESTART-GRACEFUL-TASKS](#SWARM-RESTART-GRACEFUL-TASKS), [SWARM-RESTART-INGRESS-FROM-OTHER-NODES](#SWARM-RESTART-INGRESS-FROM-OTHER-NODES), [SWARM-RESTART-KILLED-PUBLISHED-PORTS](#SWARM-RESTART-KILLED-PUBLISHED-PORTS), [SWARM-RESTART-KILLED-TASKS](#SWARM-RESTART-KILLED-TASKS), [SWARM-RESTART-KILLED-VNI-REUSE](#SWARM-RESTART-KILLED-VNI-REUSE), [SWARM-RESTART-NODE-STATE-ACTIVE](#SWARM-RESTART-NODE-STATE-ACTIVE), [SWARM-RESTART-OTHER-NODES](#SWARM-RESTART-OTHER-NODES), [SWARM-RESTART-STALE-OVERLAY](#SWARM-RESTART-STALE-OVERLAY), [SWARM-RESTART-STALE-OVERLAY-WINDOWS](#SWARM-RESTART-STALE-OVERLAY-WINDOWS), [SWARM-RESTART-STALE-OVERLAY-WINDOWS-SHARED-VNI](#SWARM-RESTART-STALE-OVERLAY-WINDOWS-SHARED-VNI), [SWARM-RESTART-TASKS-FROM-OTHER-NODES](#SWARM-RESTART-TASKS-FROM-OTHER-NODES)
+
+After its daemon restarts, gracefully or after a crash, a node is back in the Swarm and serves
+its tasks and published ports. The other nodes' service discovery and load balancing include the
+node's tasks again. Encryption state that the node held before the restart does not block its
+overlay traffic. Devices that a killed daemon left for its overlay networks do not remain to
+block networks later.
+
+<a id="REQ-SWARM-SERVICE-NETWORK-UPDATE"></a>
+
+**Requirement REQ-SWARM-SERVICE-NETWORK-UPDATE**: A service update adds or removes the service's networks
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/swarm/networking/#attach-a-service-to-an-overlay-network; https://docs.docker.com/reference/cli/docker/service/update/#network-add; https://docs.docker.com/engine/release-notes/18.09/#18097
+
+*Refined by:* [SWARM-CHURN-NETWORK-ADD](#SWARM-CHURN-NETWORK-ADD), [SWARM-CHURN-NETWORK-ADD-SPEC](#SWARM-CHURN-NETWORK-ADD-SPEC), [SWARM-CHURN-NETWORK-ADD-SPEC-CLI](#SWARM-CHURN-NETWORK-ADD-SPEC-CLI), [SWARM-CHURN-NETWORK-REMOVE](#SWARM-CHURN-NETWORK-REMOVE), [SWARM-CHURN-NETWORK-REMOVE-SPEC](#SWARM-CHURN-NETWORK-REMOVE-SPEC), [SWARM-CHURN-NETWORK-REMOVE-SPEC-CLI](#SWARM-CHURN-NETWORK-REMOVE-SPEC-CLI), [SWARM-CHURN-NETWORK-REMOVE-VIP](#SWARM-CHURN-NETWORK-REMOVE-VIP)
+
+docker service update --network-add attaches a service to an existing network, and --network-rm
+detaches it. Service containers communicate over the overlay networks they are attached to.
+
+<a id="REQ-SWARM-STALE-FIREWALL-CLEANUP"></a>
+
+**Requirement REQ-SWARM-STALE-FIREWALL-CLEANUP**: At start, the daemon removes the DOCKER-INGRESS chain that 28.0.0 and earlier left
+
+*Source kind:* docs · *Source:* https://docs.docker.com/engine/release-notes/29/#2990
+
+*Refined by:* [SWARM-CLEAN-INGRESS-CHAIN](#SWARM-CLEAN-INGRESS-CHAIN)
+
+At start, the daemon removes the empty DOCKER-INGRESS iptables chain, and the FORWARD rule that
+jumps to it, that Docker Engine 28.0.0 and earlier left behind.
 
 <a id="swarm-lifecycle-rationales"></a>
 
 ## Rationales
 
-<a id="RAT-SWARM-PORTALLOC-AUTO-UPDATE-REASSIGNED"></a>
-
-**Rationale RAT-SWARM-PORTALLOC-AUTO-UPDATE-REASSIGNED**: Why a change to SWARM-PORTALLOC-AUTO-UPDATE-REASSIGNED should be deliberate
-
-*Rationale of:* [SWARM-PORTALLOC-AUTO-UPDATE-REASSIGNED](swarm-traffic.md#SWARM-PORTALLOC-AUTO-UPDATE-REASSIGNED)
-
-It catches a change that keeps a service's other auto-assigned ports across an update that adds
-or removes a port; clients and load balancers that were given today's numbers see other ports
-after such an update, and a fix would change which ports they must look up again, so the change
-should be deliberate.
-
 <a id="RAT-SWARM-CLEARTEXT-SENDERS-NOT-FILTERED"></a>
 
-**Rationale RAT-SWARM-CLEARTEXT-SENDERS-NOT-FILTERED**: Why a change to SWARM-ENC-CLEARTEXT-VXLAN-UNAUTHENTICATED should be deliberate
+**Rationale RAT-SWARM-CLEARTEXT-SENDERS-NOT-FILTERED**: On a cleartext overlay, limiting who can send VXLAN to a node is the operator's job
 
 *Rationale of:* [SWARM-ENC-CLEARTEXT-VXLAN-UNAUTHENTICATED](#SWARM-ENC-CLEARTEXT-VXLAN-UNAUTHENTICATED)
 
-It catches a change that makes cleartext overlays filter or authenticate VXLAN by sender; that
-could drop traffic from hosts that deployments route through today, and the documentation
-answers untrusted underlays with encryption, so it should be deliberate.
+VXLAN has no authentication. For a cleartext overlay network, the documentation leaves
+protection to the operator: firewall rules limit access to a node's data-path port, and an
+`encrypted` network is the answer where the network between the nodes is not trusted
+([*REQ-SWARM-ENC-AUTHENTICATED*](#REQ-SWARM-ENC-AUTHENTICATED)). A node therefore delivers VXLAN for a cleartext network's
+VNI whatever host sent it. A node that filtered these frames by sender would take over a part of
+the operator's job. It would also tie delivery to what the node knows about its peers at that
+moment: it would drop frames from a peer that it has not learned of yet. Such a filter should
+arrive as a designed feature, and not as a side effect of a change to the node's firewall rules.
 
-<a id="RAT-SWARM-FAILREP-LOG-NO-SERVICE"></a>
+<a id="RAT-SWARM-FAILURE-LOG-ENTRIES"></a>
 
-**Rationale RAT-SWARM-FAILREP-LOG-NO-SERVICE**: Why a change to SWARM-FAILREP-LOG-NO-SERVICE should be deliberate
+**Rationale RAT-SWARM-FAILURE-LOG-ENTRIES**: The daemon log is the only report of a node-local failure, and log alerts read its entries
 
-*Rationale of:* [SWARM-FAILREP-LOG-NO-SERVICE](#SWARM-FAILREP-LOG-NO-SERVICE)
+*Rationale of:* [SWARM-FAILREP-INGRESS-UNPUBLISH](#SWARM-FAILREP-INGRESS-UNPUBLISH), [SWARM-FAILREP-IPSEC](#SWARM-FAILREP-IPSEC), [SWARM-FAILREP-NOT-REPEATED](#SWARM-FAILREP-NOT-REPEATED), [SWARM-FAILREP-PEER](#SWARM-FAILREP-PEER), [SWARM-FAILREP-RECOVERY-UNREPORTED](#SWARM-FAILREP-RECOVERY-UNREPORTED)
 
-It catches a change to the content of these failure entries, such as naming the service or
-printing the security association; operators' log searches and alerts match the entries' text,
-so the change should be deliberate.
-
-<a id="RAT-SWARM-FAILREP-NOT-REPEATED"></a>
-
-**Rationale RAT-SWARM-FAILREP-NOT-REPEATED**: Why a change to SWARM-FAILREP-NOT-REPEATED should be deliberate
-
-*Rationale of:* [SWARM-FAILREP-NOT-REPEATED](#SWARM-FAILREP-NOT-REPEATED)
-
-It catches a change that makes a node report a failure to program cluster-scoped configuration,
-or try again, without a trigger, for example on a timer; that changes the volume and timing of
-the entries that operators' log alerts see, so the change should be deliberate.
-
-<a id="RAT-SWARM-STATE-REFUSAL-STATUS-MAPPED"></a>
-
-**Rationale RAT-SWARM-STATE-REFUSAL-STATUS-MAPPED**: Why a change to SWARM-INGRESS-HTTP400-STATE-REFUSAL should be deliberate
-
-*Rationale of:* [SWARM-INGRESS-HTTP400-STATE-REFUSAL](#SWARM-INGRESS-HTTP400-STATE-REFUSAL)
-
-It catches a change of the status of a request that the Swarm's state refuses, such as from 400
-to 409; clients branch on the status to decide whether to try again, so the change should be
-deliberate.
+A node reports a failure to program cluster-scoped configuration in its daemon log and nowhere
+else. [*REQ-SWARM-NODE-FAILURE-LOGGED*](#REQ-SWARM-NODE-FAILURE-LOGGED) promises this for a load-balancer service or backend
+and for an ingress port. The node also logs a failure to program an overlay peer, or an IPsec
+security association or policy for a peer, and a failure to unpublish a service's ingress ports
+([*SWARM-FAILREP-PEER*](#SWARM-FAILREP-PEER), [*SWARM-FAILREP-IPSEC*](#SWARM-FAILREP-IPSEC),
+[*SWARM-FAILREP-INGRESS-UNPUBLISH*](#SWARM-FAILREP-INGRESS-UNPUBLISH)), which no source promises. Dropping one of those
+entries, or lowering its level, would leave such a failure with no report at all. The
+requirement covers the report of a failure when it occurs and on each new attempt. It does not
+say that a node tries again by itself, and it does not say that a node reports that an attempt
+succeeded. Today a node does neither: its log gets no entry while nothing triggers a new
+attempt, and none at the default log level when an attempt recovers. An operator's log alerts
+are what reads these entries. A node that tried again on a timer, or that logged each recovery
+at the default level, would change the number and the timing of the entries on every node at
+once. A timer would also add work that repeats for as long as a cause holds. How a node tries
+again after a node-local failure, and what it then reports, should change by decision.
 
 <a id="RAT-SWARM-PEERS-FROM-GOSSIP"></a>
 
-**Rationale RAT-SWARM-PEERS-FROM-GOSSIP**: Why a change to SWARM-CONVERGE-PARTIAL-BLOCK should be deliberate
+**Rationale RAT-SWARM-PEERS-FROM-GOSSIP**: A node knows its peers from gossip, and does not test the data path to them
 
 *Rationale of:* [SWARM-CONVERGE-PARTIAL-BLOCK](#SWARM-CONVERGE-PARTIAL-BLOCK)
 
-It catches a change that makes a node detect a data-path-only block and drop or report the peer;
-the documentation makes the open data path a host requirement, so how the daemon reacts to its
-loss is a design choice that should be deliberate.
+The `Peers` that a node reports for an overlay network are the nodes that gossip
+tells it are on the network. The daemon does not probe the data path between nodes: that the
+firewalls and the physical network pass it is a host requirement
+([*SWARM-HOST-FIREWALL-CLUSTER-PORTS*](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS)). A block that stops data-path traffic and lets
+gossip through therefore changes nothing that a node reports. A node that detected such a block,
+and then dropped or flagged the peer, would be a second failure detector beside the one that the
+gossip already has. It would need a rule for a block in one direction only, and for a block on
+the traffic of some networks, such as ESP, and not of others. That should arrive as a designed
+feature.
 
-<a id="RAT-SWARM-FAILREP-RECOVERY-UNREPORTED"></a>
+<a id="RAT-SWARM-AUTO-VNI-DISTINCT"></a>
 
-**Rationale RAT-SWARM-FAILREP-RECOVERY-UNREPORTED**: Why a change to SWARM-FAILREP-RECOVERY-UNREPORTED should be deliberate
+**Rationale RAT-SWARM-AUTO-VNI-DISTINCT**: Automatic VNIs avoid the VNIs that other networks reserved
 
-*Rationale of:* [SWARM-FAILREP-RECOVERY-UNREPORTED](#SWARM-FAILREP-RECOVERY-UNREPORTED)
+*Rationale of:* [SWARM-SCALE-VNI-AUTO-DISTINCT](#SWARM-SCALE-VNI-AUTO-DISTINCT)
 
-It catches a change that makes the daemon log a node's recovery from a failure to program Swarm
-networking at the default log level; that adds entries that operators' log monitoring sees, so
-the change should be deliberate.
+The managers take automatic VNIs from the same pool that holds the VNIs that other overlay
+networks' `vxlanid_list` reserved. Two overlay networks with one VNI cannot both be
+programmed on a node, and their VXLAN traffic is the same on the underlay. An allocator change
+that let an automatic VNI equal a reserved one would make one of the two networks fail where
+both have tasks. Which VNIs the allocator may hand out should change by design.
+
+<a id="RAT-SWARM-FORWARDING-ENTRY-FAULTS-LATENT"></a>
+
+**Rationale RAT-SWARM-FORWARDING-ENTRY-FAULTS-LATENT**: A wrong neighbor or FDB entry misdirects traffic away from the event that left it
+
+*Rationale of:* [SWARM-CONVERGE-NO-OWN-ENTRIES](#SWARM-CONVERGE-NO-OWN-ENTRIES), [SWARM-CONVERGE-PARTITION-NO-ENTRIES](#SWARM-CONVERGE-PARTITION-NO-ENTRIES)
+
+The overlay driver's neighbor and FDB entries are permanent, and they decide where a frame for
+an address goes. An entry that should not exist does no harm at first. An entry for an endpoint
+on a node that was declared failed misdirects traffic when the endpoint's address is in use
+elsewhere after the partition heals. An entry for one of the node's own endpoints sends frames
+for a local container into the tunnel. In both cases the failure appears in traffic, at a
+distance from the event that left the entry. A change to which entries a node holds after these
+events should therefore be deliberate.
+
+<a id="RAT-SWARM-ENC-CIPHER"></a>
+
+**Rationale RAT-SWARM-ENC-CIPHER**: A security review records the cipher of encrypted overlay networks
+
+*Rationale of:* [SWARM-ENC-AES-GCM](#SWARM-ENC-AES-GCM)
+
+A security review of a deployment records the cipher that its encrypted overlay networks use.
+The overlay driver page named AES-GCM until it was rewritten. [*PRIN-SECURITY-NOT-WEAKENED*](../principles.md#PRIN-SECURITY-NOT-WEAKENED)
+covers a move to a weaker cipher. A move to another cipher at least as strong weakens nothing,
+but it changes what those reviews record. It should be made as a decision and stated in the
+release notes.
+
+<a id="RAT-SWARM-NODE-FAILURE-NOT-TASK-FAILURE"></a>
+
+**Rationale RAT-SWARM-NODE-FAILURE-NOT-TASK-FAILURE**: A node's failure to program a service is not the failure of a task
+
+*Rationale of:* [SWARM-FAILREP-UNPROGRAMMED-SERVICE](#SWARM-FAILREP-UNPROGRAMMED-SERVICE), [SWARM-FAILREP-UNPROGRAMMED-SERVICE-CLI](#SWARM-FAILREP-UNPROGRAMMED-SERVICE-CLI), [SWARM-FAILREP-UNPROGRAMMED-TASKS](#SWARM-FAILREP-UNPROGRAMMED-TASKS)
+
+When a node cannot program cluster-scoped configuration for a service, the fault lies with the
+node or with a peer, not with any one task. Reporting it in a task's state would blame the task:
+the orchestrator would replace a task that runs, and the replacement on the same node would meet
+the same fault. The node reports the failure in the daemon log only
+([*REQ-SWARM-NODE-FAILURE-LOGGED*](#REQ-SWARM-NODE-FAILURE-LOGGED)), and `GET /tasks`, `GET /services` and
+`docker service ls` show the service as healthy. Giving the failure a place in the API is a
+design decision about what it belongs to: the node, the service or the task. Flagging such a
+service in the CLI, with no change to the API, is the same decision.
 
 <a id="swarm-lifecycle-encryption"></a>
 
 ## Encryption
 
 Encrypted overlay networks are implemented on Linux nodes only
-([Known divergences & non-goals](#swarm-lifecycle-known-divergences-non-goals)). This section holds on Linux nodes, except
-where an expectation names Windows. The expectations about the traffic that an underlay host
-observes name `os` because they observe the data path. The missing-XFRM expectations name `none`
-because the daemon alone decides their verdict once XFRM is missing.
+([*SWARM-CTR-WINDOWS-ENCRYPTION*](swarm-traffic.md#SWARM-CTR-WINDOWS-ENCRYPTION)). This section holds on Linux nodes, except where an
+expectation names Windows. The expectations about the traffic that an underlay host observes name
+`os-linux` because they observe the data path. The missing-XFRM expectations name `none` because
+the daemon alone decides their verdict once XFRM is missing.
 
 <a id="SWARM-ENC-NO-CLEARTEXT"></a>
 
-**Expectation (detector) SWARM-ENC-NO-CLEARTEXT**: No cleartext VXLAN for an encrypted network's VNI crosses the underlay
+**Expectation (contract) SWARM-ENC-NO-CLEARTEXT**: No cleartext VXLAN for an encrypted network's VNI crosses the underlay
 
 *Observed from:* underlay · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM)
+*Refines:* [REQ-SWARM-ENC-CONFIDENTIAL](swarm-traffic.md#REQ-SWARM-ENC-CONFIDENTIAL) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-ENC-MATCHES](swarm-networking.md#SWARM-HOST-IPTABLES-ENC-MATCHES), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT) · *Concerned by:* [SWARM-CTR-WINDOWS-ENCRYPTION](swarm-traffic.md#SWARM-CTR-WINDOWS-ENCRYPTION)
 
 No cleartext VXLAN traffic is observable between nodes on the underlay network for the VNIs of
-`encrypted` overlay networks.
+`encrypted` overlay networks. This holds for each such network from when it is created,
+without a ceiling.
 
 <a id="SWARM-ENC-ESP"></a>
 
-**Expectation (detector) SWARM-ENC-ESP**: Underlay traffic for an encrypted network's VNI is IPsec ESP
+**Expectation (contract) SWARM-ENC-ESP**: Underlay traffic for an encrypted network's VNI is IPsec ESP
 
 *Observed from:* underlay · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM)
+*Refines:* [REQ-SWARM-ENC-CONFIDENTIAL](swarm-traffic.md#REQ-SWARM-ENC-CONFIDENTIAL) · *Exact form:* [SWARM-ENC-ESP-TRANSPORT-MODE](#SWARM-ENC-ESP-TRANSPORT-MODE) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-ENC-MATCHES](swarm-networking.md#SWARM-HOST-IPTABLES-ENC-MATCHES), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 Traffic between nodes on the underlay network for the VNIs of `encrypted` overlay
-networks is observable as IPsec ESP.
+networks is observable as IPsec ESP. This holds for each such network from when it is created,
+without a ceiling.
 
 <a id="SWARM-ENC-ESP-TRANSPORT-MODE"></a>
 
 **Expectation (detector) SWARM-ENC-ESP-TRANSPORT-MODE**: ESP is in transport mode and protects the VXLAN datagrams
 
-*Observed from:* underlay · *Depends on:* os-linux · *Platforms:* linux
+*Observed from:* underlay (decrypted with a node's keys) · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM)
+*Exact form of:* [SWARM-ENC-ESP](#SWARM-ENC-ESP) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-ENC-MATCHES](swarm-networking.md#SWARM-HOST-IPTABLES-ENC-MATCHES), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
-ESP is in transport mode and protects the VXLAN datagrams.
+ESP is in transport mode and protects the VXLAN datagrams. This holds for the VNI of each
+`encrypted` network from when the network is created, without a ceiling.
+
+<a id="SWARM-ENC-KEY-STRENGTH"></a>
+
+**Expectation (contract) SWARM-ENC-KEY-STRENGTH**: SAs use keys of at least 128 bits and ICVs of at least 64 bits
+
+*Observed from:* node · *Depends on:* none · *Platforms:* linux
+
+*Refines:* [PRIN-SECURITY-NOT-WEAKENED](../principles.md#PRIN-SECURITY-NOT-WEAKENED) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-ENC-MATCHES](swarm-networking.md#SWARM-HOST-IPTABLES-ENC-MATCHES), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
+
+An `encrypted` network's IPsec security associations encrypt with a key of at least 128
+bits, not counting a salt that the key material carries, and authenticate with an integrity
+check value of at least 64 bits.
+
+<a id="SWARM-ENC-AES-GCM"></a>
+
+**Expectation (detector) SWARM-ENC-AES-GCM**: Security associations use AES-GCM
+
+*Observed from:* node · *Depends on:* none · *Platforms:* linux
+
+*Exact form:* [SWARM-ENC-ALGORITHM](#SWARM-ENC-ALGORITHM) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-ENC-MATCHES](swarm-networking.md#SWARM-HOST-IPTABLES-ENC-MATCHES), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT) · *Rationale:* A security review records the cipher of encrypted overlay networks ([RAT-SWARM-ENC-CIPHER](#RAT-SWARM-ENC-CIPHER))
+
+An `encrypted` network's IPsec security associations use AES-GCM.
 
 <a id="SWARM-ENC-ALGORITHM"></a>
 
@@ -128,40 +320,81 @@ ESP is in transport mode and protects the VXLAN datagrams.
 
 *Observed from:* node · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM)
+*Exact form of:* [SWARM-ENC-AES-GCM](#SWARM-ENC-AES-GCM) · *Pins:* [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-ENC-MATCHES](swarm-networking.md#SWARM-HOST-IPTABLES-ENC-MATCHES), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT) · *Concerned by:* [SWARM-ENC-XFRM-ALGORITHM-UNCHECKED](#SWARM-ENC-XFRM-ALGORITHM-UNCHECKED)
 
 An encrypted network's IPsec security associations use `rfc4106(gcm(aes))` with a 64-bit ICV.
-See [Host requirements](swarm-networking.md#swarm-networking-host-requirements).
 
 <a id="SWARM-ENC-FORGED-VXLAN"></a>
 
-**Expectation (detector) SWARM-ENC-FORGED-VXLAN**: Forged cleartext VXLAN from the underlay does not reach encrypted tasks
+**Expectation (contract) SWARM-ENC-FORGED-VXLAN**: Forged cleartext VXLAN from the underlay does not reach encrypted tasks
 
 *Observed from:* underlay → task · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM)
+*Refines:* [REQ-SWARM-ENC-AUTHENTICATED](#REQ-SWARM-ENC-AUTHENTICATED) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-ENC-MATCHES](swarm-networking.md#SWARM-HOST-IPTABLES-ENC-MATCHES), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 A forged cleartext VXLAN datagram for the VNI of an `encrypted` overlay network,
-injected from the underlay, does not reach the network's tasks.
+injected from the underlay, does not reach the network's tasks. This holds from when the network
+is created, without a ceiling.
 
-<a id="SWARM-ENC-CLEARTEXT-PASSES"></a>
+<a id="SWARM-ENC-NO-CLEARTEXT-FIREWALLD"></a>
 
-**Expectation (detector) SWARM-ENC-CLEARTEXT-PASSES**: Cleartext VXLAN for a cleartext network's VNI passes between nodes
+**Expectation (contract) SWARM-ENC-NO-CLEARTEXT-FIREWALLD**: After a firewalld reload, no encrypted VNI's VXLAN crosses in cleartext
 
 *Observed from:* underlay · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM)
+*Refines:* [REQ-SWARM-ENC-CONFIDENTIAL](swarm-traffic.md#REQ-SWARM-ENC-CONFIDENTIAL) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-ENC-MATCHES](swarm-networking.md#SWARM-HOST-IPTABLES-ENC-MATCHES), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
+
+*Applies to:* A node with firewalld running, and an `encrypted` overlay network with a
+task on that node and a task on another node
+
+After a firewalld reload on the node, while the task on the node sends traffic to the task on
+the other node over the network, no cleartext VXLAN traffic for the network's VNI from the node
+is observable on the underlay network.
+
+<a id="SWARM-ENC-FORGED-VXLAN-FIREWALLD"></a>
+
+**Expectation (contract) SWARM-ENC-FORGED-VXLAN-FIREWALLD**: After a firewalld reload, forged VXLAN does not reach encrypted tasks
+
+*Observed from:* underlay → task · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-SWARM-ENC-AUTHENTICATED](#REQ-SWARM-ENC-AUTHENTICATED) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-ENC-MATCHES](swarm-networking.md#SWARM-HOST-IPTABLES-ENC-MATCHES), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
+
+*Applies to:* A node with firewalld running, and an `encrypted` overlay network with a
+task on that node
+
+After a firewalld reload on the node, a forged cleartext VXLAN datagram for the network's VNI,
+injected from the underlay to the node, with an inner frame addressed to the task's MAC and IP
+addresses on the network, does not reach the task.
+
+<a id="SWARM-ENC-CLEARTEXT-PASSES"></a>
+
+**Expectation (contract) SWARM-ENC-CLEARTEXT-PASSES**: Cleartext VXLAN for a cleartext network's VNI passes between nodes
+
+*Observed from:* underlay · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-SWARM-OVERLAY-CONNECTIVITY](swarm-networking.md#REQ-SWARM-OVERLAY-CONNECTIVITY) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 Cleartext VXLAN for a cleartext network's VNI passes between nodes, whether or not those nodes
 also have `encrypted` networks.
 
+<a id="SWARM-ENC-CLEARTEXT-VXLAN-UNAUTHENTICATED"></a>
+
+**Expectation (detector) SWARM-ENC-CLEARTEXT-VXLAN-UNAUTHENTICATED**: A Linux node delivers a cleartext network's VXLAN from any sender
+
+*Observed from:* underlay → task · *Depends on:* os-linux · *Platforms:* linux
+
+*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT) · *Rationale:* On a cleartext overlay, limiting who can send VXLAN to a node is the operator's job ([RAT-SWARM-CLEARTEXT-SENDERS-NOT-FILTERED](#RAT-SWARM-CLEARTEXT-SENDERS-NOT-FILTERED))
+
+A Linux node delivers VXLAN for a cleartext network's VNI from any host that can reach the
+node's data-path port. The frames reach the network's containers.
+
 <a id="SWARM-ENC-VNI-REUSE"></a>
 
-**Expectation (detector) SWARM-ENC-VNI-REUSE**: A cleartext network on a deleted encrypted network's VNI passes VXLAN
+**Expectation (contract) SWARM-ENC-VNI-REUSE**: A cleartext network on a deleted encrypted network's VNI passes VXLAN
 
 *Observed from:* underlay · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM)
+*Refines:* [REQ-SWARM-OVERLAY-CONNECTIVITY](swarm-networking.md#REQ-SWARM-OVERLAY-CONNECTIVITY) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-ENC-MATCHES](swarm-networking.md#SWARM-HOST-IPTABLES-ENC-MATCHES), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 *Applies to:* Two nodes on which an encrypted network was programmed
 
@@ -170,11 +403,11 @@ cleartext VXLAN between those nodes.
 
 <a id="SWARM-ENC-VNI-REUSE-KILLED-DAEMON"></a>
 
-**Expectation (detector) SWARM-ENC-VNI-REUSE-KILLED-DAEMON**: A VNI freed while the daemon was down passes cleartext traffic
+**Expectation (contract) SWARM-ENC-VNI-REUSE-KILLED-DAEMON**: A VNI freed while the daemon was down passes cleartext traffic
 
 *Observed from:* task · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM)
+*Refines:* [REQ-SWARM-OVERLAY-CONNECTIVITY](swarm-networking.md#REQ-SWARM-OVERLAY-CONNECTIVITY), [REQ-SWARM-RESTART-RECOVERY](#REQ-SWARM-RESTART-RECOVERY) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-ENC-MATCHES](swarm-networking.md#SWARM-HOST-IPTABLES-ENC-MATCHES), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT), [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN)
 
 *Applies to:* A node where an encrypted network is programmed
 
@@ -184,86 +417,124 @@ traffic to and from the node.
 
 <a id="SWARM-ENC-VNI-REUSE-WINDOWS"></a>
 
-**Expectation (detector) SWARM-ENC-VNI-REUSE-WINDOWS**: On a reused encrypted VNI, Windows containers reach Linux containers
+**Expectation (contract) SWARM-ENC-VNI-REUSE-WINDOWS**: On a reused encrypted VNI, Windows containers reach Linux containers
 
 *Observed from:* task, ctr · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM)
+*Refines:* [REQ-SWARM-OVERLAY-CONNECTIVITY](swarm-networking.md#REQ-SWARM-OVERLAY-CONNECTIVITY) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-ENC-MATCHES](swarm-networking.md#SWARM-HOST-IPTABLES-ENC-MATCHES), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT) · *Concerned by:* [SWARM-CTR-WINDOWS-ENCRYPTION](swarm-traffic.md#SWARM-CTR-WINDOWS-ENCRYPTION)
 
 *Applies to:* A cleartext network that is allocated the VNI of a deleted encrypted network
 
-Containers on Windows nodes on that network can exchange traffic with containers on the Linux
-nodes that had containers on the encrypted network.
+Containers on Windows nodes on that network exchange traffic with containers on the Linux nodes
+that had containers on the encrypted network.
 
 <a id="SWARM-ENC-KEY-ROTATION"></a>
 
-**Expectation (detector) SWARM-ENC-KEY-ROTATION**: Two key rotations leave no delivery gap longer than 1 second
+**Expectation (contract) SWARM-ENC-KEY-ROTATION**: Key rotations leave no delivery gap longer than 1 second
 
-*Observed from:* task, node · *Depends on:* os-linux · *Platforms:* linux
+*Observed from:* task · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-FIREWALL-ESP](swarm-networking.md#SWARM-HOST-FIREWALL-ESP), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM)
+*Refines:* [REQ-SWARM-ENC-KEY-ROTATION](#REQ-SWARM-ENC-KEY-ROTATION), [REQ-SWARM-OVERLAY-CONNECTIVITY](swarm-networking.md#REQ-SWARM-OVERLAY-CONNECTIVITY) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-FIREWALL-ESP](swarm-networking.md#SWARM-HOST-FIREWALL-ESP), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-ENC-MATCHES](swarm-networking.md#SWARM-HOST-IPTABLES-ENC-MATCHES), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT) · *Does not cover:* Encrypted traffic stops when a node pair exhausts an SA's sequence numbers ([SWARM-EW-ESP-SEQUENCE-EXHAUSTION](swarm-traffic.md#SWARM-EW-ESP-SEQUENCE-EXHAUSTION))
 
-Across two consecutive rotations of the network encryption keys, a UDP flow at a fixed rate
-between tasks on different nodes of an `encrypted` network has no gap in delivery longer
-than 1 second. This holds without any action by the operator.
+*Applies to:* An `encrypted` overlay network with tasks on two nodes, in a Swarm whose
+leader manager does not change, including two nodes that a one-to-one NAT between them
+separates, whose advertise and data-path addresses are the addresses that the NAT maps to
+addresses of their own interfaces, and whose routes to each other select those interface
+addresses as the source addresses
+
+Throughout a period of 24 hours plus the [*reassignment ceiling (300 s)*](#SWARM-CEIL-REASSIGNMENT), a UDP flow between tasks on the two nodes has no gap in delivery
+longer than 1 second.
+
+<a id="SWARM-ENC-KEY-ROTATION-INTERVAL"></a>
+
+**Expectation (contract) SWARM-ENC-KEY-ROTATION-INTERVAL**: Each node moves to new SAs at least once every 12 hours plus the ceiling
+
+*Observed from:* node, underlay · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [PRIN-SECURITY-NOT-WEAKENED](../principles.md#PRIN-SECURITY-NOT-WEAKENED) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-ENC-MATCHES](swarm-networking.md#SWARM-HOST-IPTABLES-ENC-MATCHES), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
+
+*Applies to:* An `encrypted` overlay network with tasks on two nodes, in a Swarm whose
+leader manager does not change
+
+In every period of 12 hours plus the [*reassignment ceiling (300 s)*](#SWARM-CEIL-REASSIGNMENT), each node installs, for the other node on the network, security
+associations with SPIs that it did not have at the start of the period. In every such period,
+the ESP packets that each node sends to the other node, while tasks on the two nodes exchange
+traffic on the network, also come to carry an SPI that its ESP packets to that node did not
+carry at the start of the period.
 
 <a id="SWARM-ENC-NO-KEYS"></a>
 
-**Expectation (detector) SWARM-ENC-NO-KEYS**: A node without the encryption keys rejects tasks on encrypted networks
+**Expectation (contract) SWARM-ENC-NO-KEYS**: Without the encryption keys, a task on an encrypted network does not run
 
 *Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-ENC-CONFIDENTIAL](swarm-traffic.md#REQ-SWARM-ENC-CONFIDENTIAL), [REQ-SWARM-TASK-ERRORS](swarm-networking.md#REQ-SWARM-TASK-ERRORS) · *Exact form:* [SWARM-ENC-NO-KEYS-MSG](#SWARM-ENC-NO-KEYS-MSG) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
 
 *Applies to:* A node that does not have the network encryption keys
 
-On that node, a task attached to an `encrypted` network is rejected.
+On that node, a task attached to an `encrypted` network does not reach the `running`
+state, and `GET /tasks` reports an error for the task.
 
 <a id="SWARM-ENC-NO-KEYS-MSG"></a>
 
-**Expectation (detector) SWARM-ENC-NO-KEYS-MSG**: A task rejected for missing keys reports encryption keys not present
+**Expectation (detector) SWARM-ENC-NO-KEYS-MSG**: A task on a node without the keys says encryption keys are not present
 
 *Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Exact form of:* [SWARM-ENC-NO-KEYS](#SWARM-ENC-NO-KEYS) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
 
 *Applies to:* A node that does not have the network encryption keys
 
-On that node, the error that `GET /tasks` reports for a rejected task on an
+On that node, the error that `GET /tasks` reports for such a task on an
 `encrypted` network contains `cannot join secure network: encryption keys not present`.
 
 <a id="SWARM-ENC-NO-XFRM"></a>
 
-**Expectation (detector) SWARM-ENC-NO-XFRM**: A host without XFRM netlink rejects tasks on encrypted networks
+**Expectation (contract) SWARM-ENC-NO-XFRM**: Without XFRM netlink, a task on an encrypted network does not run
 
 *Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux
 
-*Pins:* [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-ENC-CONFIDENTIAL](swarm-traffic.md#REQ-SWARM-ENC-CONFIDENTIAL), [REQ-SWARM-TASK-ERRORS](swarm-networking.md#REQ-SWARM-TASK-ERRORS) · *Exact form:* [SWARM-ENC-NO-XFRM-MSG](#SWARM-ENC-NO-XFRM-MSG) · *Pins:* [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Concerned by:* [SWARM-ENC-XFRM-ALGORITHM-UNCHECKED](#SWARM-ENC-XFRM-ALGORITHM-UNCHECKED)
 
 *Applies to:* A Linux host whose kernel does not offer the XFRM netlink interface
 
-On that host, a task attached to an `encrypted` network is rejected.
+On that host, a task attached to an `encrypted` network does not reach the `running`
+state, and `GET /tasks` reports an error for the task.
 
 <a id="SWARM-ENC-NO-XFRM-MSG"></a>
 
-**Expectation (detector) SWARM-ENC-NO-XFRM-MSG**: A task rejected for missing XFRM reports required modules are missing
+**Expectation (detector) SWARM-ENC-NO-XFRM-MSG**: A task on a host without XFRM says required modules are missing
 
 *Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux
 
-*Pins:* [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Exact form of:* [SWARM-ENC-NO-XFRM](#SWARM-ENC-NO-XFRM) · *Pins:* [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
 
 *Applies to:* A Linux host whose kernel does not offer the XFRM netlink interface
 
-On that host, the error that `GET /tasks` reports for a rejected task on an
+On that host, the error that `GET /tasks` reports for such a task on an
 `encrypted` network contains `cannot join secure network: required modules to install IPSEC rules are missing on host`.
+
+<a id="SWARM-ENC-XFRM-ALGORITHM-UNCHECKED"></a>
+
+**Expectation (defect) SWARM-ENC-XFRM-ALGORITHM-UNCHECKED**: Without rfc4106(gcm(aes)), encrypted tasks run but pass no traffic
+
+*Observed from:* api:mgr, api:active, task, log · *Depends on:* none · *Platforms:* linux
+
+*Pinned by:* [SWARM-ENC-NO-ALGORITHM-LOG](#SWARM-ENC-NO-ALGORITHM-LOG), [SWARM-ENC-NO-ALGORITHM-NO-TRAFFIC](#SWARM-ENC-NO-ALGORITHM-NO-TRAFFIC), [SWARM-ENC-NO-ALGORITHM-TASK-STARTS](#SWARM-ENC-NO-ALGORITHM-TASK-STARTS) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT) · *Concerns:* [SWARM-ENC-ALGORITHM](#SWARM-ENC-ALGORITHM), [SWARM-ENC-NO-XFRM](#SWARM-ENC-NO-XFRM) · *Violates:* [REQ-SWARM-ATTACH-FAILURE-START](swarm-networking.md#REQ-SWARM-ATTACH-FAILURE-START), [REQ-SWARM-ENC-CONFIDENTIAL](swarm-traffic.md#REQ-SWARM-ENC-CONFIDENTIAL), [REQ-SWARM-OVERLAY-CONNECTIVITY](swarm-networking.md#REQ-SWARM-OVERLAY-CONNECTIVITY)
+
+On a host whose kernel offers the XFRM netlink interface and does not offer
+`rfc4106(gcm(aes))`, `GET /tasks` reports the `Status.State` of a task on
+an `encrypted` network on that host as `running`, and `POST /containers/{id}/start` for a created container on an attachable `encrypted` network
+responds 204. The daemon logs a warning for each security association that it fails to add. The
+node's traffic on the network with other nodes does not pass.
 
 <a id="SWARM-ENC-NO-XFRM-CTR-START"></a>
 
-**Expectation (detector) SWARM-ENC-NO-XFRM-CTR-START**: Without XFRM netlink, a container on an encrypted network does not start
+**Expectation (contract) SWARM-ENC-NO-XFRM-CTR-START**: Without XFRM netlink, a container on an encrypted network does not start
 
 *Observed from:* api:active · *Depends on:* none · *Platforms:* linux
 
-*CLI form:* [SWARM-ENC-NO-XFRM-CTR-START-CLI](#SWARM-ENC-NO-XFRM-CTR-START-CLI) · *Pins:* [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Concerned by:* [SWARM-SCOPED-ATTACH-FAILURE-TIMEOUT](swarm-networking.md#SWARM-SCOPED-ATTACH-FAILURE-TIMEOUT)
+*Refines:* [REQ-SWARM-ATTACH-FAILURE-START](swarm-networking.md#REQ-SWARM-ATTACH-FAILURE-START), [REQ-SWARM-ENC-CONFIDENTIAL](swarm-traffic.md#REQ-SWARM-ENC-CONFIDENTIAL) · *Exact form:* [SWARM-ENC-NO-XFRM-CTR-START-HTTP500](#SWARM-ENC-NO-XFRM-CTR-START-HTTP500) · *CLI form:* [SWARM-ENC-NO-XFRM-CTR-START-CLI](#SWARM-ENC-NO-XFRM-CTR-START-CLI) · *Pins:* [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Concerned by:* [SWARM-ENC-NO-XFRM-CTR-START-HTTP500](#SWARM-ENC-NO-XFRM-CTR-START-HTTP500), [SWARM-SCOPED-ATTACH-FAILURE-TIMEOUT](swarm-networking.md#SWARM-SCOPED-ATTACH-FAILURE-TIMEOUT)
 
 *Applies to:* A Linux host whose kernel does not offer the XFRM netlink interface
 
@@ -272,71 +543,73 @@ attachable `encrypted` network responds with a 4xx or 5xx status.
 
 <a id="SWARM-ENC-NO-XFRM-CTR-START-HTTP500"></a>
 
-**Expectation (detector) SWARM-ENC-NO-XFRM-CTR-START-HTTP500**: Without XFRM netlink, a container start responds 500 after 20 seconds
+**Expectation (defect) SWARM-ENC-NO-XFRM-CTR-START-HTTP500**: Without XFRM netlink, a container start responds 500 after 20 seconds
 
 *Observed from:* api:active · *Depends on:* none · *Platforms:* linux
 
-*Pins:* [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Does not cover:* After an attachment times out, the next request skips the attachment ([SWARM-SCOPED-ATTACH-RETRY-SKIPS-ATTACHMENT](swarm-networking.md#SWARM-SCOPED-ATTACH-RETRY-SKIPS-ATTACHMENT))
+*Exact form of:* [SWARM-ENC-NO-XFRM-CTR-START](#SWARM-ENC-NO-XFRM-CTR-START) · *Pins:* [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM), [SWARM-SCOPED-ATTACH-FAILURE-TIMEOUT](swarm-networking.md#SWARM-SCOPED-ATTACH-FAILURE-TIMEOUT) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Does not cover:* After an attachment times out, the next request skips the attachment ([SWARM-SCOPED-ATTACH-RETRY-SKIPS-ATTACHMENT](swarm-networking.md#SWARM-SCOPED-ATTACH-RETRY-SKIPS-ATTACHMENT)) · *Concerns:* [SWARM-ENC-NO-XFRM-CTR-START](#SWARM-ENC-NO-XFRM-CTR-START) · *Violates:* [PRIN-ERRORS-ACTIONABLE](../principles.md#PRIN-ERRORS-ACTIONABLE)
 
 *Applies to:* A Linux host whose kernel does not offer the XFRM netlink interface
 
 On that host, `POST /containers/{id}/start` for a created or stopped container on an
-attachable `encrypted` network responds 500 after 20 seconds, with `attaching to network failed, make sure your network options are correct and check manager logs: context deadline exceeded`. See [Known divergences & non-goals](#swarm-lifecycle-known-divergences-non-goals).
+attachable `encrypted` network responds 500 after 20 seconds, with `attaching to network failed, make sure your network options are correct and check manager logs: context deadline exceeded`.
 
 <a id="SWARM-ENC-NO-XFRM-CTR-START-CLI"></a>
 
-**Expectation (detector) SWARM-ENC-NO-XFRM-CTR-START-CLI**: Without XFRM netlink, docker run on an encrypted network exits non-zero
+**Expectation (contract) SWARM-ENC-NO-XFRM-CTR-START-CLI**: Without XFRM netlink, docker run on an encrypted network exits non-zero
 
 *Observed from:* api:active · *Depends on:* cli · *Platforms:* linux
 
-*CLI form of:* [SWARM-ENC-NO-XFRM-CTR-START](#SWARM-ENC-NO-XFRM-CTR-START) · *Pins:* [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-ATTACH-FAILURE-START](swarm-networking.md#REQ-SWARM-ATTACH-FAILURE-START), [REQ-SWARM-ENC-CONFIDENTIAL](swarm-traffic.md#REQ-SWARM-ENC-CONFIDENTIAL) · *CLI form of:* [SWARM-ENC-NO-XFRM-CTR-START](#SWARM-ENC-NO-XFRM-CTR-START) · *Pins:* [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
 
 *Applies to:* A Linux host whose kernel does not offer the XFRM netlink interface
 
 On that host, `docker run -d --network` naming an attachable `encrypted` network
-exits non-zero.
+exits with status 125.
 
 <a id="SWARM-ENC-NO-XFRM-CTR-CREATED"></a>
 
-**Expectation (detector) SWARM-ENC-NO-XFRM-CTR-CREATED**: After a start fails without XFRM, the container stays created
+**Expectation (contract) SWARM-ENC-NO-XFRM-CTR-CREATED**: After a start fails without XFRM, the container stays created
 
 *Observed from:* api:active · *Depends on:* none · *Platforms:* linux
 
-*Pins:* [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-NET-START-FAILED-CONTAINER-KEPT](network-common.md#REQ-NET-START-FAILED-CONTAINER-KEPT) · *Pins:* [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
 
 *Applies to:* A Linux host whose kernel does not offer the XFRM netlink interface, and a created
-container without auto-remove (`--rm`) on an attachable `encrypted` network
+container without `HostConfig.AutoRemove` on an attachable `encrypted`
+network
 
-After `POST /containers/{id}/start` for the container fails on that host, the container
-stays in the created state.
+After `POST /containers/{id}/start` for the container responds with a 4xx or 5xx status
+on that host, `GET /containers/{id}/json` reports `State.Status` as
+`created`.
 
 <a id="SWARM-ENC-NO-XFRM-CTR-AUTO-REMOVE"></a>
 
-**Expectation (detector) SWARM-ENC-NO-XFRM-CTR-AUTO-REMOVE**: After a start fails without XFRM, an auto-remove container is removed
+**Expectation (contract) SWARM-ENC-NO-XFRM-CTR-AUTO-REMOVE**: After a start fails without XFRM, an auto-remove container is removed
 
 *Observed from:* api:active · *Depends on:* none · *Platforms:* linux
 
-*Pins:* [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [PRIN-NO-LEAKS](../principles.md#PRIN-NO-LEAKS), [REQ-NET-START-FAILED-AUTO-REMOVED](network-common.md#REQ-NET-START-FAILED-AUTO-REMOVED) · *Pins:* [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
 
 *Applies to:* A Linux host whose kernel does not offer the XFRM netlink interface, and a created
-container with auto-remove (`--rm`) on an attachable `encrypted` network
+container with `HostConfig.AutoRemove` on an attachable `encrypted` network
 
-After `POST /containers/{id}/start` for the container fails on that host, the container
-is removed.
+After `POST /containers/{id}/start` for the container responds with a 4xx or 5xx status
+on that host, `GET /containers/{id}/json` for the container responds 404.
 
 <a id="SWARM-ENC-NO-ALGORITHM-TASK-STARTS"></a>
 
-**Expectation (detector) SWARM-ENC-NO-ALGORITHM-TASK-STARTS**: Without rfc4106(gcm(aes)), a task on an encrypted network starts
+**Expectation (detector) SWARM-ENC-NO-ALGORITHM-TASK-STARTS**: Without rfc4106(gcm(aes)), a task on an encrypted network runs
 
 *Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux
 
-*Pins:* [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Pins:* [SWARM-ENC-XFRM-ALGORITHM-UNCHECKED](#SWARM-ENC-XFRM-ALGORITHM-UNCHECKED), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
 
 *Applies to:* A Linux host whose kernel offers the XFRM netlink interface but not
 `rfc4106(gcm(aes))`
 
-On that host, a task attached to an `encrypted` network starts. See
-[Known divergences & non-goals](#swarm-lifecycle-known-divergences-non-goals).
+On that host, `GET /tasks` reports the `Status.State` of a task attached to
+an `encrypted` network as `running`.
 
 <a id="SWARM-ENC-NO-ALGORITHM-NO-TRAFFIC"></a>
 
@@ -344,34 +617,33 @@ On that host, a task attached to an `encrypted` network starts. See
 
 *Observed from:* task · *Depends on:* none · *Platforms:* linux
 
-*Pins:* [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Pins:* [SWARM-ENC-XFRM-ALGORITHM-UNCHECKED](#SWARM-ENC-XFRM-ALGORITHM-UNCHECKED), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 *Applies to:* A Linux host whose kernel offers the XFRM netlink interface but not
 `rfc4106(gcm(aes))`
 
 The tasks on that host do not exchange traffic over an `encrypted` network with tasks on
-other nodes. See [Known divergences & non-goals](#swarm-lifecycle-known-divergences-non-goals).
+other nodes.
 
 <a id="SWARM-ENC-NO-ALGORITHM-LOG"></a>
 
-**Expectation (detector) SWARM-ENC-NO-ALGORITHM-LOG**: Without rfc4106(gcm(aes)), each failed SA logs a Failed Adding warning
+**Expectation (detector) SWARM-ENC-NO-ALGORITHM-LOG**: Without rfc4106(gcm(aes)), the daemon logs that adding each SA failed
 
 *Observed from:* log · *Depends on:* none · *Platforms:* linux
 
-*Pins:* [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Pins:* [SWARM-ENC-XFRM-ALGORITHM-UNCHECKED](#SWARM-ENC-XFRM-ALGORITHM-UNCHECKED), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 *Applies to:* A Linux host whose kernel offers the XFRM netlink interface but not
 `rfc4106(gcm(aes))`
 
 The daemon log of that host contains a warning-level entry that contains `Failed Adding`
-for each IPsec security association that it fails to add. See
-[Known divergences & non-goals](#swarm-lifecycle-known-divergences-non-goals).
+for each IPsec security association that it fails to add. The entry prints
+`%!s(PANIC=String method: runtime error: invalid memory address or nil pointer dereference)` in place of the security association, and gives the kernel's error. It does not
+name the algorithm that the kernel lacks.
 
 <a id="swarm-lifecycle-wire-format-interop"></a>
 
 ## Wire format & interop
-
-Everything here is hard contract. See [Interop premise](swarm-networking.md#swarm-networking-interop-premise).
 
 This section groups the expectations by the kind of overlay network that they apply to. Some
 expectations are about what an underlay host sees without the network's keys. Those expectations
@@ -384,83 +656,104 @@ not visible on the wire.
 
 <a id="SWARM-WIRE-ADDRESS-ASSIGNMENT"></a>
 
-**Expectation (detector) SWARM-WIRE-ADDRESS-ASSIGNMENT**: A container is reachable from other nodes with any IP and MAC assignment
+**Expectation (contract) SWARM-WIRE-ADDRESS-ASSIGNMENT**: A container is reachable from other nodes with any IP and MAC assignment
 
 *Observed from:* task, ctr · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-OVERLAY-CONNECTIVITY](swarm-networking.md#REQ-SWARM-OVERLAY-CONNECTIVITY) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 A container is reachable from other nodes whether its IP address and its MAC address are each
 assigned manually or automatically.
 
 <a id="SWARM-WIRE-MIXED-VERSIONS"></a>
 
-**Expectation (detector) SWARM-WIRE-MIXED-VERSIONS**: Cross-node expectations hold between workers of the previous and current release
+**Expectation (contract) SWARM-WIRE-MIXED-VERSIONS**: Cross-node expectations hold between workers of different releases
 
 *Observed from:* client, task, underlay · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [BR-HOST-FORWARDING-V4](bridge-networking.md#BR-HOST-FORWARDING-V4), [BR-HOST-NFTABLES](bridge-networking.md#BR-HOST-NFTABLES), [BR-HOST-NO-FORWARD-DROP](bridge-networking.md#BR-HOST-NO-FORWARD-DROP), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-FIREWALL-ESP](swarm-networking.md#SWARM-HOST-FIREWALL-ESP), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM)
+*Refines:* [REQ-SWARM-MIXED-VERSION-INTEROP](swarm-networking.md#REQ-SWARM-MIXED-VERSION-INTEROP) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
 
 *Applies to:* A Swarm whose managers run the release under test, and whose workers mix nodes of
-the previous release and the release under test
+the previous release and the release under test, where the nodes of the previous release all run
+one of the two releases that [../README.md](../README.md) calls *N−1*
 
-In that Swarm, the expectations of [East-west reachability](swarm-traffic.md#swarm-traffic-east-west-reachability),
-[Service discovery](swarm-traffic.md#swarm-traffic-service-discovery), [Load balancing (east-west VIP)](swarm-traffic.md#swarm-traffic-load-balancing-east-west-vip),
-[mode=ingress](swarm-traffic.md#swarm-traffic-api-value-mode-ingress) and [Encryption](#swarm-lifecycle-encryption) about traffic
-between nodes hold between nodes of different versions. So do the expectations of
-[Service discovery](swarm-traffic.md#swarm-traffic-service-discovery) about a name whose workload is on another node. Each of
-those expectations keeps its own type and dependencies. They hold on cleartext and
-`encrypted` overlays and on the ingress network.
+In that Swarm, the expectations of the following sections about traffic between nodes hold
+between nodes of different versions: in [swarm-traffic.md](swarm-traffic.md),
+[East-west reachability](swarm-traffic.md#swarm-traffic-east-west-reachability), [Load balancing (east-west VIP)](swarm-traffic.md#swarm-traffic-load-balancing-east-west-vip)
+with its subsections, and the [mode=ingress](swarm-traffic.md#swarm-traffic-api-value-mode-ingress) subsection of
+[Published ports](swarm-traffic.md#swarm-traffic-published-ports); in this document, [Encryption](#swarm-lifecycle-encryption). They
+also include the expectations of [Service discovery](swarm-traffic.md#swarm-traffic-service-discovery) about a name whose
+workload is on another node. Each of those expectations keeps its own category and dependencies.
+An expectation is about traffic between nodes when its statement is about traffic that one node
+of the Swarm sends to another, or about the encryption keys and security associations that a
+node keeps for such traffic. An expectation about traffic that another host on the underlay
+sends to a node is not among them. They hold on cleartext and `encrypted` overlays and
+on the ingress network. Other expectations, those of [Failure & lifecycle](#swarm-lifecycle-failure-lifecycle)
+included, are asserted only between nodes of the release under test. No expectation is asserted
+between two nodes of the previous release. An expectation that involves more than two nodes
+holds for every assignment of the two releases to its nodes in which none of the traffic between
+nodes that it states passes between two nodes of the previous release.
 
 <a id="SWARM-WIRE-NO-VXLAN"></a>
 
-**Expectation (detector) SWARM-WIRE-NO-VXLAN**: Without VXLAN devices, a task fails with error creating vxlan interface
+**Expectation (contract) SWARM-WIRE-NO-VXLAN**: Without VXLAN devices, a task on an overlay network does not run
 
 *Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux
 
-*Pins:* [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE)
+*Refines:* [REQ-SWARM-TASK-ERRORS](swarm-networking.md#REQ-SWARM-TASK-ERRORS) · *Exact form:* [SWARM-WIRE-NO-VXLAN-MSG](#SWARM-WIRE-NO-VXLAN-MSG) · *Pins:* [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE)
 
 *Applies to:* A Linux node whose kernel does not offer VXLAN devices
 
-On that node, a task attached to an overlay network is rejected. The error that `GET /tasks` reports for the task contains `error creating vxlan interface`. See
-[Host requirements](swarm-networking.md#swarm-networking-host-requirements).
+On that node, a task attached to an overlay network does not reach the `running` state, and
+`GET /tasks` reports an error for the task.
+
+<a id="SWARM-WIRE-NO-VXLAN-MSG"></a>
+
+**Expectation (detector) SWARM-WIRE-NO-VXLAN-MSG**: A task on a node without VXLAN says creating a vxlan interface failed
+
+*Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux
+
+*Exact form of:* [SWARM-WIRE-NO-VXLAN](#SWARM-WIRE-NO-VXLAN) · *Pins:* [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE)
+
+*Applies to:* A Linux node whose kernel does not offer VXLAN devices
+
+On that node, the error that `GET /tasks` reports for such a task on an overlay network
+contains `error creating vxlan interface`.
 
 <a id="swarm-lifecycle-cleartext-overlay-networks"></a>
 
 ### Cleartext overlay networks
 
-[Cluster & node configuration](swarm-networking.md#swarm-networking-cluster-node-configuration) pins the default data-path port.
-[Overlay networks](swarm-networking.md#swarm-networking-overlay-networks) pins the range of auto-allocated VNIs.
-
 <a id="SWARM-WIRECLEAR-UDP-PORT"></a>
 
-**Expectation (detector) SWARM-WIRECLEAR-UDP-PORT**: Overlay traffic travels in UDP to the configured data-path port
+**Expectation (contract) SWARM-WIRECLEAR-UDP-PORT**: Overlay traffic travels in UDP to the configured data-path port
 
 *Observed from:* underlay · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Does not cover:* Windows nodes ignore a non-default data-path port ([SWARM-CLUSTER-WINDOWS-DATA-PATH-PORT](swarm-networking.md#SWARM-CLUSTER-WINDOWS-DATA-PATH-PORT)) · *Concerned by:* [SWARM-EW-WINDOWS-V6-DATA-PATH](swarm-traffic.md#SWARM-EW-WINDOWS-V6-DATA-PATH)
+*Refines:* [REQ-SWARM-DATA-PATH-VXLAN](swarm-networking.md#REQ-SWARM-DATA-PATH-VXLAN) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT) · *Does not cover:* Windows nodes ignore a non-default data-path port ([SWARM-CLUSTER-WINDOWS-DATA-PATH-PORT](swarm-networking.md#SWARM-CLUSTER-WINDOWS-DATA-PATH-PORT)) · *Concerned by:* [SWARM-EW-WINDOWS-V6-DATA-PATH](swarm-traffic.md#SWARM-EW-WINDOWS-V6-DATA-PATH)
 
-UDP datagrams carry overlay traffic between hosts, over IPv4 or IPv6, to the configured
-data-path port.
+UDP datagrams carry the traffic of overlay networks between hosts, the ingress network included,
+over IPv4 or IPv6, to the configured data-path port.
 
 <a id="SWARM-WIRECLEAR-VXLAN-VNI"></a>
 
-**Expectation (detector) SWARM-WIRECLEAR-VXLAN-VNI**: Each datagram has a VXLAN header with the frame's overlay subnet VNI
+**Expectation (contract) SWARM-WIRECLEAR-VXLAN-VNI**: Each datagram has a VXLAN header with the frame's overlay subnet VNI
 
 *Observed from:* underlay · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-DATA-PATH-VXLAN](swarm-networking.md#REQ-SWARM-DATA-PATH-VXLAN) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
-A UDP datagram that carries overlay traffic between hosts has a VXLAN header. The header has the
-VNI of the overlay subnet that the frame in the datagram is on.
+A UDP datagram that carries the traffic of an overlay network between hosts, the ingress network
+included, has a VXLAN header. The header has the VNI of the overlay subnet that the frame in the
+datagram is on.
 
 <a id="SWARM-WIRECLEAR-ETHERNET-PAYLOAD"></a>
 
-**Expectation (detector) SWARM-WIRECLEAR-ETHERNET-PAYLOAD**: The VXLAN payload is an Ethernet frame of container-to-container traffic
+**Expectation (contract) SWARM-WIRECLEAR-ETHERNET-PAYLOAD**: The VXLAN payload is an Ethernet frame of container-to-container traffic
 
 *Observed from:* underlay · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-DATA-PATH-VXLAN](swarm-networking.md#REQ-SWARM-DATA-PATH-VXLAN) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 The VXLAN payload of a UDP datagram that carries overlay traffic between hosts is an Ethernet
 frame that carries container-to-container traffic.
@@ -469,40 +762,38 @@ frame that carries container-to-container traffic.
 
 ### Encrypted overlay networks
 
-Encrypted traffic between hosts is IPsec ESP. [Encryption](#swarm-lifecycle-encryption) covers the
-encryption and the rest of what an encrypted network promises. The expectations below are about the
-decrypted payload. The decrypted payload is the same whatever the encryption is. To see the payload,
-an underlay host must decrypt it with a node's keys. This subsection holds on Linux nodes, as
-[Encryption](#swarm-lifecycle-encryption) does.
+Encrypted traffic between hosts is IPsec ESP. The expectations below are about the decrypted
+payload. The decrypted payload is the same whatever the encryption is. To see the payload, an
+underlay host must decrypt it with a node's keys. This subsection holds on Linux nodes.
 
 <a id="SWARM-WIREENC-UDP-PORT"></a>
 
-**Expectation (detector) SWARM-WIREENC-UDP-PORT**: The decrypted payload is a UDP datagram to the configured data-path port
+**Expectation (contract) SWARM-WIREENC-UDP-PORT**: The decrypted payload is a UDP datagram to the configured data-path port
 
 *Observed from:* underlay (decrypted with a node's keys) · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM)
+*Refines:* [REQ-SWARM-DATA-PATH-VXLAN](swarm-networking.md#REQ-SWARM-DATA-PATH-VXLAN), [REQ-SWARM-ENC-CONFIDENTIAL](swarm-traffic.md#REQ-SWARM-ENC-CONFIDENTIAL) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-ENC-MATCHES](swarm-networking.md#SWARM-HOST-IPTABLES-ENC-MATCHES), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 The decrypted payload is a UDP datagram to the configured data-path port.
 
 <a id="SWARM-WIREENC-VXLAN-VNI"></a>
 
-**Expectation (detector) SWARM-WIREENC-VXLAN-VNI**: The decrypted datagram has a VXLAN header with the frame's subnet VNI
+**Expectation (contract) SWARM-WIREENC-VXLAN-VNI**: The decrypted datagram has a VXLAN header with the frame's subnet VNI
 
 *Observed from:* underlay (decrypted with a node's keys) · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM)
+*Refines:* [REQ-SWARM-DATA-PATH-VXLAN](swarm-networking.md#REQ-SWARM-DATA-PATH-VXLAN), [REQ-SWARM-ENC-CONFIDENTIAL](swarm-traffic.md#REQ-SWARM-ENC-CONFIDENTIAL) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-ENC-MATCHES](swarm-networking.md#SWARM-HOST-IPTABLES-ENC-MATCHES), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 The UDP datagram in the decrypted payload has a VXLAN header. The header has the VNI of the
 overlay subnet that the frame in the datagram is on.
 
 <a id="SWARM-WIREENC-ETHERNET-PAYLOAD"></a>
 
-**Expectation (detector) SWARM-WIREENC-ETHERNET-PAYLOAD**: The decrypted VXLAN payload is an Ethernet frame of container traffic
+**Expectation (contract) SWARM-WIREENC-ETHERNET-PAYLOAD**: The decrypted VXLAN payload is an Ethernet frame of container traffic
 
 *Observed from:* underlay (decrypted with a node's keys) · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM)
+*Refines:* [REQ-SWARM-DATA-PATH-VXLAN](swarm-networking.md#REQ-SWARM-DATA-PATH-VXLAN), [REQ-SWARM-ENC-CONFIDENTIAL](swarm-traffic.md#REQ-SWARM-ENC-CONFIDENTIAL) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-ENC-MATCHES](swarm-networking.md#SWARM-HOST-IPTABLES-ENC-MATCHES), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 The VXLAN payload of the UDP datagram in the decrypted payload is an Ethernet frame that carries
 container-to-container traffic.
@@ -511,17 +802,29 @@ container-to-container traffic.
 
 ## Failure & lifecycle
 
+In this section and its subsections, a service's running tasks are those that
+[Service discovery](swarm-traffic.md#swarm-traffic-service-discovery) in [swarm-traffic.md](swarm-traffic.md) defines, and a VIP
+load-balances across a set of tasks as [Load balancing (east-west VIP)](swarm-traffic.md#swarm-traffic-load-balancing-east-west-vip) in that
+document defines it. Where an expectation in this section times a ceiling from when `GET /tasks` first reports a task's state as `running`, the ceiling for a task with a healthcheck is
+timed from when its container first reports healthy.
+
 <a id="swarm-lifecycle-restart-and-reclamation"></a>
 
 ### Restart and reclamation
 
+In this subsection, a namespace, bridge, VXLAN device or HNS network that a killed daemon left is
+one that existed on the node when the daemon was killed. One that the restarted daemon creates is
+another object, even for the same network and under the same name or path: a namespace is told apart
+by the inode of its namespace file, a bridge or VXLAN device by the namespace that holds it, and an
+HNS network by its ID.
+
 <a id="SWARM-RESTART-NODE-STATE-ACTIVE"></a>
 
-**Expectation (detector) SWARM-RESTART-NODE-STATE-ACTIVE**: After a restart, GET /info reports the node active within the ceiling
+**Expectation (contract) SWARM-RESTART-NODE-STATE-ACTIVE**: After a restart, GET /info reports the node active within the ceiling
 
-*Observed from:* api · *Depends on:* none · *Platforms:* linux, windows
+*Observed from:* api:mgr, api:wkr · *Depends on:* none · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN)
+*Refines:* [REQ-SWARM-RESTART-RECOVERY](#REQ-SWARM-RESTART-RECOVERY) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN)
 
 *Applies to:* A node in a Swarm
 
@@ -531,35 +834,40 @@ ceiling (120 s)*](#SWARM-CEIL-REJOIN) after the daemon's API responds again.
 
 <a id="SWARM-RESTART-GRACEFUL-TASKS"></a>
 
-**Expectation (detector) SWARM-RESTART-GRACEFUL-TASKS**: After a graceful restart, node tasks are reachable within the ceiling
+**Expectation (contract) SWARM-RESTART-GRACEFUL-TASKS**: After a graceful restart, node tasks are reachable within the ceiling
 
 *Observed from:* task · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN)
+*Refines:* [REQ-SWARM-RESTART-RECOVERY](#REQ-SWARM-RESTART-RECOVERY) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT), [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN)
 
-*Applies to:* A service whose tasks are constrained to the node
+*Applies to:* A node, and a service whose tasks are constrained to it
 
-After a graceful daemon restart, the service's tasks on the node are reachable at their
-addresses on their overlay networks within the [*node leave and rejoin ceiling (120 s)*](#SWARM-CEIL-REJOIN).
+After a graceful restart of the node's daemon, each of the service's tasks on the node is
+reachable at its addresses on its overlay networks once the [*node leave and rejoin ceiling
+(120 s)*](#SWARM-CEIL-REJOIN) has passed from when the restart is complete, and the
+[*reassignment ceiling (300 s)*](#SWARM-CEIL-REASSIGNMENT) has passed from when
+`GET /tasks` first reports that task's state as `running`.
 
 <a id="SWARM-RESTART-GRACEFUL-PUBLISHED-PORTS"></a>
 
-**Expectation (detector) SWARM-RESTART-GRACEFUL-PUBLISHED-PORTS**: After a graceful restart, published ports answer within the ceiling
+**Expectation (contract) SWARM-RESTART-GRACEFUL-PUBLISHED-PORTS**: After a graceful restart, published ports answer within the ceiling
 
 *Observed from:* client · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN)
+*Refines:* [REQ-SWARM-RESTART-RECOVERY](#REQ-SWARM-RESTART-RECOVERY) · *Needs:* [BR-HOST-NO-FORWARD-DROP](bridge-networking.md#BR-HOST-NO-FORWARD-DROP), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT), [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN) · *Does not cover:* Auto-assignment gives an ingress port that a mode=host task holds ([SWARM-PUB-AUTO-ASSIGNED-PORT-HOST-MODE](swarm-traffic.md#SWARM-PUB-AUTO-ASSIGNED-PORT-HOST-MODE)), With firewalld, a docker-proxy port does not answer at a node's IPv6 address ([SWARM-PUB-FIREWALLD-V6-PROXY](swarm-traffic.md#SWARM-PUB-FIREWALLD-V6-PROXY)), A failure to publish one ingress port leaves the node publishing none ([SWARM-PUB-INGRESS-PORT-IN-USE](swarm-traffic.md#SWARM-PUB-INGRESS-PORT-IN-USE))
 
-After a graceful daemon restart, the node's published ports answer within the
-[*node leave and rejoin ceiling (120 s)*](#SWARM-CEIL-REJOIN).
+After a graceful daemon restart, each of the node's published ports answers once the
+[*node leave and rejoin ceiling (120 s)*](#SWARM-CEIL-REJOIN) has passed from when the
+restart is complete, and the [*reassignment ceiling (300 s)*](#SWARM-CEIL-REASSIGNMENT) has passed from when `GET /tasks` first reports the last of
+the tasks that the port is published for as `running`.
 
 <a id="SWARM-RESTART-OTHER-NODES"></a>
 
-**Expectation (detector) SWARM-RESTART-OTHER-NODES**: No event on a third node interrupts flows between other nodes
+**Expectation (contract) SWARM-RESTART-OTHER-NODES**: No event on a third node interrupts flows between other nodes
 
-*Observed from:* task, client · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
+*Observed from:* task, client · *Depends on:* os-linux, os-windows, upgrade · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-FAULT-TOLERANT](#REQ-SWARM-FAULT-TOLERANT), [REQ-SWARM-MIXED-VERSION-INTEROP](swarm-networking.md#REQ-SWARM-MIXED-VERSION-INTEROP), [REQ-SWARM-RESTART-RECOVERY](#REQ-SWARM-RESTART-RECOVERY) · *Needs:* [BR-HOST-NO-FORWARD-DROP](bridge-networking.md#BR-HOST-NO-FORWARD-DROP), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-ALLOCATION](#SWARM-CEIL-ALLOCATION), [SWARM-CEIL-FAILURE-DETECTION](#SWARM-CEIL-FAILURE-DETECTION), [SWARM-CEIL-PARTITION-HEAL](#SWARM-CEIL-PARTITION-HEAL), [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT), [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN)
 
 *Applies to:* A flow to a task, from a client on a node to a VIP or from a client outside the
 Swarm to a port that a node publishes, and a third node that is neither that node nor the task's
@@ -568,26 +876,34 @@ node
 No event on the third node interrupts the flow: no TCP flow is reset, and no TCP or UDP flow has
 a gap in delivery longer than 1 second. The events include a graceful restart of the third
 node's daemon, a kill and restart of it, an upgrade of its daemon from the previous release to
-the release under test, a node partition between the third node and the other nodes, the third
-node leaving the Swarm or joining it, and a change of leader manager to or from the third node.
-This holds in the Swarm of [*SWARM-WIRE-MIXED-VERSIONS*](#SWARM-WIRE-MIXED-VERSIONS), whose workers mix releases, when
-the client's node and the task's node run the release under test.
+the release under test, a node partition between the third node and the other nodes in which the
+managers' quorum is on the other nodes' side, the third node leaving the Swarm or joining it,
+and a change of leader manager to or from the third node. For each event, this holds from when
+the event starts until the ceiling of its class has passed: the [*node leave and rejoin ceiling
+(120 s)*](#SWARM-CEIL-REJOIN) from when a restart of the third node's daemon is complete,
+whether graceful, after a kill or after an upgrade, or from when its request to leave or join
+the Swarm responds; the [*failure detection ceiling (120 s)*](#SWARM-CEIL-FAILURE-DETECTION) from when the partition starts; the [*partition heal
+ceiling (180 s)*](#SWARM-CEIL-PARTITION-HEAL) from when the partition is removed, which
+is an event of its own; and the [*allocation ceiling (30 s)*](#SWARM-CEIL-ALLOCATION) from the change of leader. This holds in the Swarm of
+[*SWARM-WIRE-MIXED-VERSIONS*](#SWARM-WIRE-MIXED-VERSIONS), whose workers mix releases, when the client's node and the
+task's node run the release under test.
 
 <a id="SWARM-RESTART-STALE-OVERLAY"></a>
 
-**Expectation (detector) SWARM-RESTART-STALE-OVERLAY**: What a killed daemon left for overlays goes within the rejoin ceiling
+**Expectation (contract) SWARM-RESTART-STALE-OVERLAY**: What a killed daemon left for overlays goes within the rejoin ceiling
 
 *Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
 
-*Exact form:* [SWARM-RESTART-STALE-OVERLAY-REMOVAL](#SWARM-RESTART-STALE-OVERLAY-REMOVAL) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN)
+*Refines:* [PRIN-NO-LEAKS](../principles.md#PRIN-NO-LEAKS), [REQ-SWARM-RESTART-RECOVERY](#REQ-SWARM-RESTART-RECOVERY) · *Exact form:* [SWARM-RESTART-STALE-OVERLAY-REMOVAL](#SWARM-RESTART-STALE-OVERLAY-REMOVAL) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN)
 
-*Applies to:* A Linux node in a Swarm with an ingress network, whose daemon was killed and
-started again, and a namespace, bridge or VXLAN device that the killed daemon left for an
-overlay network or the ingress network
+*Applies to:* A Linux node in a Swarm with an ingress network, whose daemon was killed, and a
+namespace, bridge or VXLAN device that the killed daemon left for an overlay network or the
+ingress network
 
-Within the [*node leave and rejoin ceiling (120 s)*](#SWARM-CEIL-REJOIN) after the
-daemon's API responds again, no such namespace, bridge or VXLAN device remains on the node. A
-namespace remains while a mount of it remains on the node.
+The node's daemon is started again. Within the [*node leave and rejoin ceiling (120 s)*](#SWARM-CEIL-REJOIN) after the restart is complete, no such namespace, bridge or VXLAN device
+remains on the node. A namespace remains while a mount of it remains in the mount namespace that
+the daemon runs in, and a bridge or VXLAN device remains while the namespace that holds it
+remains.
 
 <a id="SWARM-RESTART-STALE-OVERLAY-REMOVAL"></a>
 
@@ -606,33 +922,31 @@ its bridge and VXLAN device. Until then, they stay.
 
 <a id="SWARM-RESTART-STALE-OVERLAY-WINDOWS"></a>
 
-**Expectation (detector) SWARM-RESTART-STALE-OVERLAY-WINDOWS**: A start on the overlay network removes a killed daemon's HNS network
+**Expectation (contract) SWARM-RESTART-STALE-OVERLAY-WINDOWS**: A start on the overlay network removes a killed daemon's HNS network
 
 *Observed from:* node · *Depends on:* os-windows · *Platforms:* windows
 
-*Needs:* [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY)
+*Refines:* [REQ-SWARM-RESTART-RECOVERY](#REQ-SWARM-RESTART-RECOVERY) · *Exact form:* [SWARM-RESTART-STALE-OVERLAY-REMOVAL-WINDOWS](#SWARM-RESTART-STALE-OVERLAY-REMOVAL-WINDOWS) · *Needs:* [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT) · *Concerned by:* [SWARM-RESTART-WINDOWS-HNS-ORPHANED](#SWARM-RESTART-WINDOWS-HNS-ORPHANED)
 
 *Applies to:* A Windows node whose daemon was killed and started again, and an HNS overlay
 network that the killed daemon left for an overlay network
 
 Once a task or standalone container on that overlay network starts on the node, the HNS network
-that the killed daemon left does not remain. See
-[Known divergences & non-goals](#swarm-lifecycle-known-divergences-non-goals).
+that the killed daemon left does not remain.
 
 <a id="SWARM-RESTART-STALE-OVERLAY-WINDOWS-SHARED-VNI"></a>
 
-**Expectation (detector) SWARM-RESTART-STALE-OVERLAY-WINDOWS-SHARED-VNI**: A start on a network with an overlapping VNI removes a stale HNS network
+**Expectation (contract) SWARM-RESTART-STALE-OVERLAY-WINDOWS-SHARED-VNI**: A start on a network with an overlapping VNI removes a stale HNS network
 
 *Observed from:* node · *Depends on:* os-windows · *Platforms:* windows
 
-*Needs:* [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY)
+*Refines:* [REQ-SWARM-RESTART-RECOVERY](#REQ-SWARM-RESTART-RECOVERY) · *Needs:* [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT) · *Concerned by:* [SWARM-RESTART-WINDOWS-HNS-ORPHANED](#SWARM-RESTART-WINDOWS-HNS-ORPHANED)
 
 *Applies to:* A Windows node whose daemon was killed and started again, and an HNS overlay
 network that the killed daemon left for an overlay network
 
 Once a task or standalone container starts on the node on another overlay network with a VNI
-that overlaps the HNS network's VNIs, the HNS network does not remain. See
-[Known divergences & non-goals](#swarm-lifecycle-known-divergences-non-goals).
+that overlaps the HNS network's VNIs, the HNS network does not remain.
 
 <a id="SWARM-RESTART-STALE-OVERLAY-REMOVAL-WINDOWS"></a>
 
@@ -640,22 +954,36 @@ that overlaps the HNS network's VNIs, the HNS network does not remain. See
 
 *Observed from:* node · *Depends on:* os-windows · *Platforms:* windows
 
-*Needs:* [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY)
+*Exact form of:* [SWARM-RESTART-STALE-OVERLAY-WINDOWS](#SWARM-RESTART-STALE-OVERLAY-WINDOWS) · *Pins:* [SWARM-RESTART-WINDOWS-HNS-ORPHANED](#SWARM-RESTART-WINDOWS-HNS-ORPHANED) · *Needs:* [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 *Applies to:* A Windows node whose daemon was killed and started again, and an HNS overlay
 network that the killed daemon left for an overlay network
 
 The HNS network remains until a task or standalone container starts on the node on that overlay
 network, or on another overlay network with a VNI that overlaps the HNS network's VNIs. After
-that, the HNS network does not remain. See [Known divergences & non-goals](#swarm-lifecycle-known-divergences-non-goals).
+that, the HNS network does not remain.
+
+<a id="SWARM-RESTART-WINDOWS-HNS-ORPHANED"></a>
+
+**Expectation (defect) SWARM-RESTART-WINDOWS-HNS-ORPHANED**: A Windows daemon keeps the HNS networks that it finds at start
+
+*Observed from:* node · *Depends on:* none · *Platforms:* windows
+
+*Pinned by:* [SWARM-RESTART-STALE-OVERLAY-REMOVAL-WINDOWS](#SWARM-RESTART-STALE-OVERLAY-REMOVAL-WINDOWS) · *Needs:* [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY) · *Within:* [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN) · *Concerns:* [SWARM-RESTART-STALE-OVERLAY-WINDOWS](#SWARM-RESTART-STALE-OVERLAY-WINDOWS), [SWARM-RESTART-STALE-OVERLAY-WINDOWS-SHARED-VNI](#SWARM-RESTART-STALE-OVERLAY-WINDOWS-SHARED-VNI) · *Violates:* [PRIN-NO-LEAKS](../principles.md#PRIN-NO-LEAKS)
+
+Every HNS overlay network that is on the node when the daemon starts stays in place. One of
+these networks is deleted only when a network with the same ID, or with an overlapping VNI, is
+programmed on the node. Thus the HNS network of a Swarm network that the node stopped using
+while the daemon was not running stays in place. The HNS endpoints that a killed daemon left on
+these networks also stay in place.
 
 <a id="SWARM-RESTART-KILLED-VNI-REUSE"></a>
 
-**Expectation (detector) SWARM-RESTART-KILLED-VNI-REUSE**: After a kill and restart, a network on a VNI used before passes traffic
+**Expectation (contract) SWARM-RESTART-KILLED-VNI-REUSE**: After a kill and restart, a network on a VNI used before passes traffic
 
 *Observed from:* node, task · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-OVERLAY-CONNECTIVITY](swarm-networking.md#REQ-SWARM-OVERLAY-CONNECTIVITY), [REQ-SWARM-RESTART-RECOVERY](#REQ-SWARM-RESTART-RECOVERY) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 *Applies to:* A node that used a VNI before its daemon was killed and restarted
 
@@ -665,51 +993,129 @@ another network.
 
 <a id="SWARM-RESTART-KILLED-TASKS"></a>
 
-**Expectation (detector) SWARM-RESTART-KILLED-TASKS**: After a kill and restart, node tasks are reachable within the ceiling
+**Expectation (contract) SWARM-RESTART-KILLED-TASKS**: After a kill and restart, node tasks are reachable within the ceiling
 
 *Observed from:* task · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN)
+*Refines:* [REQ-SWARM-RESTART-RECOVERY](#REQ-SWARM-RESTART-RECOVERY) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT), [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN)
 
-*Applies to:* A service whose tasks are constrained to the node
+*Applies to:* A node, and a service whose tasks are constrained to it
 
-After the daemon is killed and restarted, the service's tasks on the node are reachable at their
-addresses on their overlay networks within the [*node leave and rejoin ceiling (120 s)*](#SWARM-CEIL-REJOIN).
+After the node's daemon is killed and restarted, each of the service's tasks on the node is
+reachable at its addresses on its overlay networks once the [*node leave and rejoin ceiling
+(120 s)*](#SWARM-CEIL-REJOIN) has passed from when the restart is complete, and the
+[*reassignment ceiling (300 s)*](#SWARM-CEIL-REASSIGNMENT) has passed from when
+`GET /tasks` first reports that task's state as `running`.
 
 <a id="SWARM-RESTART-KILLED-PUBLISHED-PORTS"></a>
 
-**Expectation (detector) SWARM-RESTART-KILLED-PUBLISHED-PORTS**: After a kill and restart, published ports answer within the ceiling
+**Expectation (contract) SWARM-RESTART-KILLED-PUBLISHED-PORTS**: After a kill and restart, published ports answer within the ceiling
 
 *Observed from:* client · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN)
+*Refines:* [REQ-SWARM-RESTART-RECOVERY](#REQ-SWARM-RESTART-RECOVERY) · *Needs:* [BR-HOST-NO-FORWARD-DROP](bridge-networking.md#BR-HOST-NO-FORWARD-DROP), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT), [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN) · *Does not cover:* Auto-assignment gives an ingress port that a mode=host task holds ([SWARM-PUB-AUTO-ASSIGNED-PORT-HOST-MODE](swarm-traffic.md#SWARM-PUB-AUTO-ASSIGNED-PORT-HOST-MODE)), With firewalld, a docker-proxy port does not answer at a node's IPv6 address ([SWARM-PUB-FIREWALLD-V6-PROXY](swarm-traffic.md#SWARM-PUB-FIREWALLD-V6-PROXY)), A failure to publish one ingress port leaves the node publishing none ([SWARM-PUB-INGRESS-PORT-IN-USE](swarm-traffic.md#SWARM-PUB-INGRESS-PORT-IN-USE))
 
-After the daemon is killed and restarted, the node's published ports answer within the
-[*node leave and rejoin ceiling (120 s)*](#SWARM-CEIL-REJOIN).
+After the daemon is killed and restarted, each of the node's published ports answers once the
+[*node leave and rejoin ceiling (120 s)*](#SWARM-CEIL-REJOIN) has passed from when the
+restart is complete, and the [*reassignment ceiling (300 s)*](#SWARM-CEIL-REASSIGNMENT) has passed from when `GET /tasks` first reports the last of
+the tasks that the port is published for as `running`.
 
-<a id="SWARM-RESTART-LEAVE-NETWORKS"></a>
+<a id="SWARM-RESTART-TASKS-FROM-OTHER-NODES"></a>
 
-**Expectation (detector) SWARM-RESTART-LEAVE-NETWORKS**: After a leave, no Swarm-scoped network is listed or attached on the node
+**Expectation (contract) SWARM-RESTART-TASKS-FROM-OTHER-NODES**: After a restart, VIPs and tasks.\<service> on other nodes reach its tasks
+
+*Observed from:* task, ctr · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
+
+*Refines:* [REQ-SWARM-MESH-FOLLOWS-TASKS](swarm-traffic.md#REQ-SWARM-MESH-FOLLOWS-TASKS), [REQ-SWARM-RESTART-RECOVERY](#REQ-SWARM-RESTART-RECOVERY), [REQ-SWARM-SD-SERVICE-NAMES](swarm-traffic.md#REQ-SWARM-SD-SERVICE-NAMES), [REQ-SWARM-VIP-LOAD-BALANCING](swarm-traffic.md#REQ-SWARM-VIP-LOAD-BALANCING) · *Needs:* [DNS-HOST-IPTABLES-COMMAND](container-dns.md#DNS-HOST-IPTABLES-COMMAND), [DNS-HOST-IPTABLES-KERNEL](container-dns.md#DNS-HOST-IPTABLES-KERNEL), [DNS-HOST-IPTABLES-LEGACY-KERNEL](container-dns.md#DNS-HOST-IPTABLES-LEGACY-KERNEL), [DNS-HOST-IPTABLES-NFT-KERNEL](container-dns.md#DNS-HOST-IPTABLES-NFT-KERNEL), [DNS-HOST-NFT-COMMAND](container-dns.md#DNS-HOST-NFT-COMMAND), [DNS-HOST-NFTABLES-NAT](container-dns.md#DNS-HOST-NFTABLES-NAT), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LB-EXTENSIONS](swarm-networking.md#SWARM-HOST-IPTABLES-LB-EXTENSIONS), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT), [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN)
+
+*Applies to:* A node, a service in vip mode on an overlay network whose tasks are constrained to
+that node, and a task or container on that network on another node
+
+After the node's daemon restarts, gracefully or after it is killed, `tasks.<service>`
+resolves in that task or container to the addresses on that network of the service's running
+tasks, and its connections to the service's VIP reach them. Both hold once the
+[*node leave and rejoin ceiling (120 s)*](#SWARM-CEIL-REJOIN) has passed from when the
+restart is complete, and the [*reassignment ceiling (300 s)*](#SWARM-CEIL-REASSIGNMENT) has passed from when `GET /tasks` first reports each of those
+tasks' state as `running`.
+
+<a id="SWARM-RESTART-INGRESS-FROM-OTHER-NODES"></a>
+
+**Expectation (contract) SWARM-RESTART-INGRESS-FROM-OTHER-NODES**: After a restart, published ports on other nodes reach its tasks
+
+*Observed from:* client · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
+
+*Refines:* [REQ-SWARM-MESH-FOLLOWS-TASKS](swarm-traffic.md#REQ-SWARM-MESH-FOLLOWS-TASKS), [REQ-SWARM-RESTART-RECOVERY](#REQ-SWARM-RESTART-RECOVERY), [REQ-SWARM-ROUTING-MESH](swarm-networking.md#REQ-SWARM-ROUTING-MESH) · *Needs:* [BR-HOST-NO-FORWARD-DROP](bridge-networking.md#BR-HOST-NO-FORWARD-DROP), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LB-EXTENSIONS](swarm-networking.md#SWARM-HOST-IPTABLES-LB-EXTENSIONS), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT), [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN) · *Does not cover:* Auto-assignment gives an ingress port that a mode=host task holds ([SWARM-PUB-AUTO-ASSIGNED-PORT-HOST-MODE](swarm-traffic.md#SWARM-PUB-AUTO-ASSIGNED-PORT-HOST-MODE)), With firewalld, an ingress port does not answer at a node's IPv6 address ([SWARM-PUB-FIREWALLD-V6-INGRESS](swarm-traffic.md#SWARM-PUB-FIREWALLD-V6-INGRESS)), A failure to publish one ingress port leaves the node publishing none ([SWARM-PUB-INGRESS-PORT-IN-USE](swarm-traffic.md#SWARM-PUB-INGRESS-PORT-IN-USE))
+
+*Applies to:* A node, and a service whose tasks are constrained to that node and that publishes
+a port in ingress mode
+
+After the node's daemon restarts, gracefully or after it is killed, connections to the service's
+published port at the address of another node reach the service's running tasks. This holds once
+the [*node leave and rejoin ceiling (120 s)*](#SWARM-CEIL-REJOIN) has passed from when the
+restart is complete, and the [*reassignment ceiling (300 s)*](#SWARM-CEIL-REASSIGNMENT) has passed from when `GET /tasks` first reports each of those
+tasks' state as `running`.
+
+<a id="SWARM-RESTART-LEAVE-INACTIVE"></a>
+
+**Expectation (contract) SWARM-RESTART-LEAVE-INACTIVE**: After a leave, GET /info reports the node inactive
 
 *Observed from:* api:solo · *Depends on:* none · *Platforms:* linux, windows
 
-*CLI form:* [SWARM-RESTART-LEAVE-NETWORKS-CLI](#SWARM-RESTART-LEAVE-NETWORKS-CLI) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-LEAVE](#REQ-SWARM-LEAVE) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN)
+
+After `POST /swarm/leave` responds 200 on a node, `GET /info` on the node
+reports `Swarm.LocalNodeState` as `inactive`.
+
+<a id="SWARM-RESTART-LEAVE-NETWORKS"></a>
+
+**Expectation (contract) SWARM-RESTART-LEAVE-NETWORKS**: After a leave, no Swarm-scoped network is listed or attached on the node
+
+*Observed from:* api:solo · *Depends on:* none · *Platforms:* linux, windows
+
+*Refines:* [REQ-SWARM-LEAVE-SWARM-NETWORKS-ONLY](#REQ-SWARM-LEAVE-SWARM-NETWORKS-ONLY) · *CLI form:* [SWARM-RESTART-LEAVE-NETWORKS-CLI](#SWARM-RESTART-LEAVE-NETWORKS-CLI) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN) · *Concerned by:* [SWARM-RESTART-LEAVE-LOCAL-ATTACHABLE](#SWARM-RESTART-LEAVE-LOCAL-ATTACHABLE)
 
 After `POST /swarm/leave` responds 200 on a node, `GET /networks` on that node
 does not list any Swarm-scoped network, the ingress network included. The node's standalone
-containers keep running, and none of them is attached to a Swarm-scoped network. See
-[Known divergences & non-goals](#swarm-lifecycle-known-divergences-non-goals).
+containers keep running, and none of them is attached to a Swarm-scoped network.
 
 <a id="SWARM-RESTART-LEAVE-NETWORKS-CLI"></a>
 
-**Expectation (detector) SWARM-RESTART-LEAVE-NETWORKS-CLI**: On a worker, docker swarm leave removes every Swarm-scoped network
+**Expectation (contract) SWARM-RESTART-LEAVE-NETWORKS-CLI**: On a worker, docker swarm leave removes every Swarm-scoped network
 
 *Observed from:* api:solo · *Depends on:* cli · *Platforms:* linux, windows
 
-*CLI form of:* [SWARM-RESTART-LEAVE-NETWORKS](#SWARM-RESTART-LEAVE-NETWORKS) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-LEAVE-SWARM-NETWORKS-ONLY](#REQ-SWARM-LEAVE-SWARM-NETWORKS-ONLY) · *CLI form of:* [SWARM-RESTART-LEAVE-NETWORKS](#SWARM-RESTART-LEAVE-NETWORKS) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN)
 
 On a worker, `docker swarm leave` exits zero. `docker network ls` on that node then
 does not list any Swarm-scoped network, the ingress network included.
+
+<a id="SWARM-RESTART-LEAVE-LOCAL-NETWORKS-KEPT"></a>
+
+**Expectation (contract) SWARM-RESTART-LEAVE-LOCAL-NETWORKS-KEPT**: After a leave, a container keeps its networks that are not Swarm-scoped
+
+*Observed from:* api:solo · *Depends on:* none · *Platforms:* linux, windows
+
+*Refines:* [REQ-SWARM-LEAVE-SWARM-NETWORKS-ONLY](#REQ-SWARM-LEAVE-SWARM-NETWORKS-ONLY) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN) · *Does not cover:* Swarm leave disconnects containers from local attachable networks ([SWARM-RESTART-LEAVE-LOCAL-ATTACHABLE](#SWARM-RESTART-LEAVE-LOCAL-ATTACHABLE))
+
+*Applies to:* A node in a Swarm with a running standalone container that is attached to a
+network that is not Swarm-scoped
+
+After `POST /swarm/leave` responds 200 on the node, `GET /containers/{id}/json`
+for the container still lists that network in `NetworkSettings.Networks`, with a
+non-empty `EndpointID`.
+
+<a id="SWARM-RESTART-LEAVE-LOCAL-ATTACHABLE"></a>
+
+**Expectation (defect) SWARM-RESTART-LEAVE-LOCAL-ATTACHABLE**: Swarm leave disconnects containers from local attachable networks
+
+*Observed from:* api:solo, log · *Depends on:* none · *Platforms:* linux, windows
+
+*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN) · *Narrows:* [SWARM-RESTART-LEAVE-LOCAL-NETWORKS-KEPT](#SWARM-RESTART-LEAVE-LOCAL-NETWORKS-KEPT) · *Concerns:* [SWARM-RESTART-LEAVE-NETWORKS](#SWARM-RESTART-LEAVE-NETWORKS) · *Violates:* [REQ-SWARM-LEAVE-SWARM-NETWORKS-ONLY](#REQ-SWARM-LEAVE-SWARM-NETWORKS-ONLY)
+
+`POST /swarm/leave` disconnects every container on the node from each network that was
+created with `Attachable`. This includes node-local networks, such as user-defined
+bridge networks. The containers stay disconnected after the leave, and the node-local network
+stays. A warning that contains `is not a dynamic network` appears in the daemon log.
 
 <a id="swarm-lifecycle-convergence"></a>
 
@@ -719,8 +1125,8 @@ There are five convergence classes, each with a different dominant term. One bou
 of them.
 
 Each class has a ceiling. The ceiling is chosen by judgment to encode "a human would call this
-broken". It is never re-baselined. This keeps the ceiling free of flakes. The ceiling still catches
-the regression that matters: convergence that goes from seconds to minutes, or to never.
+broken". It is not lowered to follow measured convergence times. It bounds convergence that goes
+from seconds to minutes, or that never completes.
 
 <a id="SWARM-CEIL-REASSIGNMENT"></a>
 
@@ -728,10 +1134,10 @@ the regression that matters: convergence that goes from seconds to minutes, or t
 
 *Seconds:* 300
 
-*Bounds:* [BR-RULES-REFERENCE](bridge-networking.md#BR-RULES-REFERENCE), [BR-RULES-REFERENCE-NFT](bridge-networking.md#BR-RULES-REFERENCE-NFT), [DNS-NAMES-AAAA](container-dns.md#DNS-NAMES-AAAA), [DNS-NAMES-ADDRESS-ORDER](container-dns.md#DNS-NAMES-ADDRESS-ORDER), [DNS-NAMES-ADDRESS-RECORDS](container-dns.md#DNS-NAMES-ADDRESS-RECORDS), [DNS-NAMES-ADDRESS-TYPE-MISSING](container-dns.md#DNS-NAMES-ADDRESS-TYPE-MISSING), [DNS-NAMES-ADDRESS-TYPE-MISSING-NOERROR](container-dns.md#DNS-NAMES-ADDRESS-TYPE-MISSING-NOERROR), [DNS-NAMES-ALIAS](container-dns.md#DNS-NAMES-ALIAS), [DNS-NAMES-ALIAS-SHARED](container-dns.md#DNS-NAMES-ALIAS-SHARED), [DNS-NAMES-ANSWER-SIZE](container-dns.md#DNS-NAMES-ANSWER-SIZE), [DNS-NAMES-ANSWER-TRUNCATED](container-dns.md#DNS-NAMES-ANSWER-TRUNCATED), [DNS-NAMES-ANY-NETWORK](container-dns.md#DNS-NAMES-ANY-NETWORK), [DNS-NAMES-CASE](container-dns.md#DNS-NAMES-CASE), [DNS-NAMES-CONNECT](container-dns.md#DNS-NAMES-CONNECT), [DNS-NAMES-CTR-NAME](container-dns.md#DNS-NAMES-CTR-NAME), [DNS-NAMES-DISCONNECT](container-dns.md#DNS-NAMES-DISCONNECT), [DNS-NAMES-DNSNAMES](container-dns.md#DNS-NAMES-DNSNAMES), [DNS-NAMES-EXIT](container-dns.md#DNS-NAMES-EXIT), [DNS-NAMES-MX](container-dns.md#DNS-NAMES-MX), [DNS-NAMES-NETWORK-ORDER-FAMILY-MISSING](container-dns.md#DNS-NAMES-NETWORK-ORDER-FAMILY-MISSING), [DNS-NAMES-NETWORK-QUALIFIED](container-dns.md#DNS-NAMES-NETWORK-QUALIFIED), [DNS-NAMES-NETWORK-QUALIFIED-CASE-SENSITIVE](container-dns.md#DNS-NAMES-NETWORK-QUALIFIED-CASE-SENSITIVE), [DNS-NAMES-NETWORK-QUALIFIED-WHOLE-NAME](container-dns.md#DNS-NAMES-NETWORK-QUALIFIED-WHOLE-NAME), [DNS-NAMES-NETWORK-QUALIFIED-WHOLE-NAME-ONLY](container-dns.md#DNS-NAMES-NETWORK-QUALIFIED-WHOLE-NAME-ONLY), [DNS-NAMES-OTHER-NETWORK](container-dns.md#DNS-NAMES-OTHER-NETWORK), [DNS-NAMES-PTR](container-dns.md#DNS-NAMES-PTR), [DNS-NAMES-PTR-CASE-SENSITIVE](container-dns.md#DNS-NAMES-PTR-CASE-SENSITIVE), [DNS-NAMES-PTR-FORM](container-dns.md#DNS-NAMES-PTR-FORM), [DNS-NAMES-PTR-IPV6-ZERO-RUN](container-dns.md#DNS-NAMES-PTR-IPV6-ZERO-RUN), [DNS-NAMES-PTR-ROUND-TRIP](container-dns.md#DNS-NAMES-PTR-ROUND-TRIP), [DNS-NAMES-QUERY-TYPE-FORWARDED](container-dns.md#DNS-NAMES-QUERY-TYPE-FORWARDED), [DNS-NAMES-SHORT-ID-HOSTNAME](container-dns.md#DNS-NAMES-SHORT-ID-HOSTNAME), [DNS-NAMES-START](container-dns.md#DNS-NAMES-START), [DNS-NAMES-STOP](container-dns.md#DNS-NAMES-STOP), [DNS-NAMES-TTL](container-dns.md#DNS-NAMES-TTL), [DNS-RESOLV-CTR-NAME-BEFORE-SEARCH](container-dns.md#DNS-RESOLV-CTR-NAME-BEFORE-SEARCH), [NET-GW-INTERNAL-ONLY](network-common.md#NET-GW-INTERNAL-ONLY), [NET-GW-INTERNAL-ONLY-NO-EXTERNAL-ACCESS](network-common.md#NET-GW-INTERNAL-ONLY-NO-EXTERNAL-ACCESS), [NET-GW-WINDOWS-INTERNAL-OVERLAY-EGRESS](network-common.md#NET-GW-WINDOWS-INTERNAL-OVERLAY-EGRESS), [NET-GW-WINDOWS-INTERNAL-OVERLAY-ROUTE](network-common.md#NET-GW-WINDOWS-INTERNAL-OVERLAY-ROUTE), [NET-HOSTS-ADDRESSES](network-common.md#NET-HOSTS-ADDRESSES), [NET-HOSTS-LOCALHOST](network-common.md#NET-HOSTS-LOCALHOST), [NET-HOSTS-SERVICE-ALIASES](network-common.md#NET-HOSTS-SERVICE-ALIASES), [NET-HOSTS-SERVICE-ALIASES-DROPPED](network-common.md#NET-HOSTS-SERVICE-ALIASES-DROPPED), [NET-HOSTS-WINDOWS-EXTRA-HOSTS-IGNORED](network-common.md#NET-HOSTS-WINDOWS-EXTRA-HOSTS-IGNORED), [NET-IFACE-NAME-DEFAULT](network-common.md#NET-IFACE-NAME-DEFAULT), [NET-IFACE-NAME-REQUESTED](network-common.md#NET-IFACE-NAME-REQUESTED), [SWARM-CHURN-ROLLING-UPDATE-COMPLETE](#SWARM-CHURN-ROLLING-UPDATE-COMPLETE), [SWARM-CHURN-SCALE-FLAPPING](#SWARM-CHURN-SCALE-FLAPPING), [SWARM-CLUSTER-ADVERTISE-ADDRESS-IFACE](swarm-networking.md#SWARM-CLUSTER-ADVERTISE-ADDRESS-IFACE), [SWARM-CLUSTER-DATA-PATH-ADDRESS](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-ADDRESS), [SWARM-CLUSTER-DATA-PATH-ADDRESS-DEFAULT](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-ADDRESS-DEFAULT), [SWARM-CLUSTER-DATA-PATH-ADDRESS-IFACE](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-ADDRESS-IFACE), [SWARM-CLUSTER-DATA-PATH-ADDRESS-V6](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-ADDRESS-V6), [SWARM-CLUSTER-DATA-PATH-MIXED-VERSIONS-ACCEPTED](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-MIXED-VERSIONS-ACCEPTED), [SWARM-CLUSTER-DATA-PATH-PORT](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-PORT), [SWARM-CLUSTER-DATA-PATH-PORT-DEFAULT](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-PORT-DEFAULT), [SWARM-CLUSTER-GOSSIP-NO-CLEARTEXT](swarm-networking.md#SWARM-CLUSTER-GOSSIP-NO-CLEARTEXT), [SWARM-CLUSTER-IFACE-NAME-RESOLVED-ONCE](swarm-networking.md#SWARM-CLUSTER-IFACE-NAME-RESOLVED-ONCE), [SWARM-CLUSTER-VXLAN-SOURCE-ADDRESS](swarm-networking.md#SWARM-CLUSTER-VXLAN-SOURCE-ADDRESS), [SWARM-CLUSTER-VXLAN-SOURCE-NOT-DATA-PATH](swarm-networking.md#SWARM-CLUSTER-VXLAN-SOURCE-NOT-DATA-PATH), [SWARM-CLUSTER-WINDOWS-DATA-PATH-ADDRESS](swarm-networking.md#SWARM-CLUSTER-WINDOWS-DATA-PATH-ADDRESS), [SWARM-CLUSTER-WINDOWS-DATA-PATH-PORT](swarm-networking.md#SWARM-CLUSTER-WINDOWS-DATA-PATH-PORT), [SWARM-CONVERGE-ADDRESS-MOVE](#SWARM-CONVERGE-ADDRESS-MOVE), [SWARM-CONVERGE-ADDRESS-MOVE-MAC](#SWARM-CONVERGE-ADDRESS-MOVE-MAC), [SWARM-CONVERGE-ADDRESS-MOVE-REPEATED](#SWARM-CONVERGE-ADDRESS-MOVE-REPEATED), [SWARM-CONVERGE-TASK-REPLACED](#SWARM-CONVERGE-TASK-REPLACED), [SWARM-EW-WINDOWS-V6-DATA-PATH](swarm-traffic.md#SWARM-EW-WINDOWS-V6-DATA-PATH), [SWARM-FAILREP-INGRESS-PORT-MSG](#SWARM-FAILREP-INGRESS-PORT-MSG), [SWARM-INGRESS-CUSTOM-MTU](swarm-networking.md#SWARM-INGRESS-CUSTOM-MTU), [SWARM-INGRESS-CUSTOM-SUBNET-REACHABLE](swarm-networking.md#SWARM-INGRESS-CUSTOM-SUBNET-REACHABLE), [SWARM-INGRESS-DELETE-UNUSED](swarm-networking.md#SWARM-INGRESS-DELETE-UNUSED), [SWARM-INGRESS-DELETE-UNUSED-CLI](swarm-networking.md#SWARM-INGRESS-DELETE-UNUSED-CLI), [SWARM-INGRESS-LABEL-DELETE-RECREATE](swarm-networking.md#SWARM-INGRESS-LABEL-DELETE-RECREATE), [SWARM-INGRESS-LABEL-DELETE-STALE](swarm-networking.md#SWARM-INGRESS-LABEL-DELETE-STALE), [SWARM-INGRESS-LABEL-PARTLY-SUPPORTED](swarm-networking.md#SWARM-INGRESS-LABEL-PARTLY-SUPPORTED), [SWARM-INGRESS-LABEL-PUBLISH](swarm-networking.md#SWARM-INGRESS-LABEL-PUBLISH), [SWARM-INGRESS-LABEL-UNATTACHED-NODE](swarm-networking.md#SWARM-INGRESS-LABEL-UNATTACHED-NODE), [SWARM-OVL-PEERS](swarm-networking.md#SWARM-OVL-PEERS), [SWARM-OVL-STATIC-ADDRESS-RELEASED](swarm-networking.md#SWARM-OVL-STATIC-ADDRESS-RELEASED), [SWARM-OVL-STATUS-FULL-ID](swarm-networking.md#SWARM-OVL-STATUS-FULL-ID), [SWARM-OVL-STATUS-WORKER](swarm-networking.md#SWARM-OVL-STATUS-WORKER), [SWARM-OVL-VERBOSE-SERVICES](swarm-networking.md#SWARM-OVL-VERBOSE-SERVICES), [SWARM-OVL-VERBOSE-SERVICES-CLI](swarm-networking.md#SWARM-OVL-VERBOSE-SERVICES-CLI), [SWARM-OVL-VERBOSE-TASKS](swarm-networking.md#SWARM-OVL-VERBOSE-TASKS), [SWARM-OVL-VERBOSE-VIP](swarm-networking.md#SWARM-OVL-VERBOSE-VIP), [SWARM-OVL-VNI-AUTO-RANGE](swarm-networking.md#SWARM-OVL-VNI-AUTO-RANGE), [SWARM-OVL-VNI-LIST](swarm-networking.md#SWARM-OVL-VNI-LIST), [SWARM-OVLOPT-DSR](swarm-networking.md#SWARM-OVLOPT-DSR), [SWARM-OVLOPT-ENCRYPTED](swarm-networking.md#SWARM-OVLOPT-ENCRYPTED), [SWARM-OVLOPT-FLAG-ANY-VALUE](swarm-networking.md#SWARM-OVLOPT-FLAG-ANY-VALUE), [SWARM-OVLOPT-MTU](swarm-networking.md#SWARM-OVLOPT-MTU), [SWARM-RESTART-STALE-OVERLAY-REMOVAL](#SWARM-RESTART-STALE-OVERLAY-REMOVAL), [SWARM-SCOPED-ATTACHABLE-LAST-DETACH-DELETE](swarm-networking.md#SWARM-SCOPED-ATTACHABLE-LAST-DETACH-DELETE), [SWARM-SCOPED-ATTACHMENT-TASK-REMOVED](swarm-networking.md#SWARM-SCOPED-ATTACHMENT-TASK-REMOVED), [SWARM-SCOPED-CONFIG-FROM-SUBNET](swarm-networking.md#SWARM-SCOPED-CONFIG-FROM-SUBNET), [SWARM-SCOPED-NODE-LOCAL-IPAM-OPTIONS](swarm-networking.md#SWARM-SCOPED-NODE-LOCAL-IPAM-OPTIONS), [SWARM-SD-RENAME](swarm-traffic.md#SWARM-SD-RENAME)
+*Bounds:* [BR-RULES-REFERENCE](bridge-networking.md#BR-RULES-REFERENCE), [BR-RULES-REFERENCE-NFT](bridge-networking.md#BR-RULES-REFERENCE-NFT), [DNS-NAMES-AAAA](container-dns.md#DNS-NAMES-AAAA), [DNS-NAMES-ADDRESS-ORDER](container-dns.md#DNS-NAMES-ADDRESS-ORDER), [DNS-NAMES-ADDRESS-RECORDS](container-dns.md#DNS-NAMES-ADDRESS-RECORDS), [DNS-NAMES-ADDRESS-TYPE-MISSING](container-dns.md#DNS-NAMES-ADDRESS-TYPE-MISSING), [DNS-NAMES-ADDRESS-TYPE-MISSING-NOERROR](container-dns.md#DNS-NAMES-ADDRESS-TYPE-MISSING-NOERROR), [DNS-NAMES-ALIAS](container-dns.md#DNS-NAMES-ALIAS), [DNS-NAMES-ALIAS-SHARED](container-dns.md#DNS-NAMES-ALIAS-SHARED), [DNS-NAMES-ANSWER-SIZE](container-dns.md#DNS-NAMES-ANSWER-SIZE), [DNS-NAMES-ANSWER-TRUNCATED](container-dns.md#DNS-NAMES-ANSWER-TRUNCATED), [DNS-NAMES-ANY-NETWORK](container-dns.md#DNS-NAMES-ANY-NETWORK), [DNS-NAMES-CASE](container-dns.md#DNS-NAMES-CASE), [DNS-NAMES-CONNECT](container-dns.md#DNS-NAMES-CONNECT), [DNS-NAMES-CTR-NAME](container-dns.md#DNS-NAMES-CTR-NAME), [DNS-NAMES-DISCONNECT](container-dns.md#DNS-NAMES-DISCONNECT), [DNS-NAMES-DNSNAMES](container-dns.md#DNS-NAMES-DNSNAMES), [DNS-NAMES-EXIT](container-dns.md#DNS-NAMES-EXIT), [DNS-NAMES-MX](container-dns.md#DNS-NAMES-MX), [DNS-NAMES-NETWORK-ORDER-FAMILY-MISSING](container-dns.md#DNS-NAMES-NETWORK-ORDER-FAMILY-MISSING), [DNS-NAMES-NETWORK-QUALIFIED](container-dns.md#DNS-NAMES-NETWORK-QUALIFIED), [DNS-NAMES-NETWORK-QUALIFIED-CASE-SENSITIVE](container-dns.md#DNS-NAMES-NETWORK-QUALIFIED-CASE-SENSITIVE), [DNS-NAMES-NETWORK-QUALIFIED-WHOLE-NAME](container-dns.md#DNS-NAMES-NETWORK-QUALIFIED-WHOLE-NAME), [DNS-NAMES-NETWORK-QUALIFIED-WHOLE-NAME-ONLY](container-dns.md#DNS-NAMES-NETWORK-QUALIFIED-WHOLE-NAME-ONLY), [DNS-NAMES-OTHER-NETWORK](container-dns.md#DNS-NAMES-OTHER-NETWORK), [DNS-NAMES-PTR](container-dns.md#DNS-NAMES-PTR), [DNS-NAMES-PTR-CASE-SENSITIVE](container-dns.md#DNS-NAMES-PTR-CASE-SENSITIVE), [DNS-NAMES-PTR-FORM](container-dns.md#DNS-NAMES-PTR-FORM), [DNS-NAMES-PTR-IPV6-ZERO-RUN](container-dns.md#DNS-NAMES-PTR-IPV6-ZERO-RUN), [DNS-NAMES-PTR-ROUND-TRIP](container-dns.md#DNS-NAMES-PTR-ROUND-TRIP), [DNS-NAMES-QUERY-TYPE-FORWARDED](container-dns.md#DNS-NAMES-QUERY-TYPE-FORWARDED), [DNS-NAMES-SHORT-ID-HOSTNAME](container-dns.md#DNS-NAMES-SHORT-ID-HOSTNAME), [DNS-NAMES-START](container-dns.md#DNS-NAMES-START), [DNS-NAMES-STOP](container-dns.md#DNS-NAMES-STOP), [DNS-NAMES-TTL](container-dns.md#DNS-NAMES-TTL), [DNS-RESOLV-CTR-NAME-BEFORE-SEARCH](container-dns.md#DNS-RESOLV-CTR-NAME-BEFORE-SEARCH), [NET-GW-INTERNAL-ONLY](network-common.md#NET-GW-INTERNAL-ONLY), [NET-GW-INTERNAL-ONLY-NO-EXTERNAL-ACCESS](network-common.md#NET-GW-INTERNAL-ONLY-NO-EXTERNAL-ACCESS), [NET-GW-WINDOWS-INTERNAL-OVERLAY-EGRESS](network-common.md#NET-GW-WINDOWS-INTERNAL-OVERLAY-EGRESS), [NET-GW-WINDOWS-INTERNAL-OVERLAY-ROUTE](network-common.md#NET-GW-WINDOWS-INTERNAL-OVERLAY-ROUTE), [NET-HOSTS-ADDRESSES](network-common.md#NET-HOSTS-ADDRESSES), [NET-HOSTS-LOCALHOST](network-common.md#NET-HOSTS-LOCALHOST), [NET-HOSTS-SERVICE-ALIASES](network-common.md#NET-HOSTS-SERVICE-ALIASES), [NET-HOSTS-SERVICE-ALIASES-DROPPED](network-common.md#NET-HOSTS-SERVICE-ALIASES-DROPPED), [NET-HOSTS-WINDOWS-EXTRA-HOSTS-IGNORED](network-common.md#NET-HOSTS-WINDOWS-EXTRA-HOSTS-IGNORED), [NET-IFACE-NAME-DEFAULT](network-common.md#NET-IFACE-NAME-DEFAULT), [NET-IFACE-NAME-REQUESTED](network-common.md#NET-IFACE-NAME-REQUESTED), [SWARM-CHURN-DELETE-CTR-START](#SWARM-CHURN-DELETE-CTR-START), [SWARM-CHURN-DELETE-CTR-START-CLI](#SWARM-CHURN-DELETE-CTR-START-CLI), [SWARM-CHURN-DELETE-SHUTDOWN](#SWARM-CHURN-DELETE-SHUTDOWN), [SWARM-CHURN-DNSRR-TO-VIP-BALANCES](#SWARM-CHURN-DNSRR-TO-VIP-BALANCES), [SWARM-CHURN-DNSRR-TO-VIP-RESOLVES](#SWARM-CHURN-DNSRR-TO-VIP-RESOLVES), [SWARM-CHURN-NETWORK-ADD](#SWARM-CHURN-NETWORK-ADD), [SWARM-CHURN-NETWORK-REMOVE](#SWARM-CHURN-NETWORK-REMOVE), [SWARM-CHURN-ROLLING-UPDATE-COMPLETE](#SWARM-CHURN-ROLLING-UPDATE-COMPLETE), [SWARM-CHURN-ROLLING-UPDATE-VIP](#SWARM-CHURN-ROLLING-UPDATE-VIP), [SWARM-CHURN-SCALE-FLAPPING](#SWARM-CHURN-SCALE-FLAPPING), [SWARM-CHURN-STOPPING-TASK-FLOWS](#SWARM-CHURN-STOPPING-TASK-FLOWS), [SWARM-CHURN-VIP-TO-DNSRR-OLD-VIP](#SWARM-CHURN-VIP-TO-DNSRR-OLD-VIP), [SWARM-CHURN-VIP-TO-DNSRR-RESOLVES](#SWARM-CHURN-VIP-TO-DNSRR-RESOLVES), [SWARM-CLUSTER-ADVERTISE-ADDRESS-IFACE](swarm-networking.md#SWARM-CLUSTER-ADVERTISE-ADDRESS-IFACE), [SWARM-CLUSTER-DATA-PATH-ADDRESS](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-ADDRESS), [SWARM-CLUSTER-DATA-PATH-ADDRESS-DEFAULT](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-ADDRESS-DEFAULT), [SWARM-CLUSTER-DATA-PATH-ADDRESS-IFACE](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-ADDRESS-IFACE), [SWARM-CLUSTER-DATA-PATH-ADDRESS-V6](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-ADDRESS-V6), [SWARM-CLUSTER-DATA-PATH-MIXED-VERSIONS-ACCEPTED](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-MIXED-VERSIONS-ACCEPTED), [SWARM-CLUSTER-DATA-PATH-PORT](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-PORT), [SWARM-CLUSTER-DATA-PATH-PORT-DEFAULT](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-PORT-DEFAULT), [SWARM-CLUSTER-GOSSIP-NO-CLEARTEXT](swarm-networking.md#SWARM-CLUSTER-GOSSIP-NO-CLEARTEXT), [SWARM-CLUSTER-IFACE-NAME-RESOLVED-ONCE](swarm-networking.md#SWARM-CLUSTER-IFACE-NAME-RESOLVED-ONCE), [SWARM-CLUSTER-VXLAN-SOURCE-ADDRESS](swarm-networking.md#SWARM-CLUSTER-VXLAN-SOURCE-ADDRESS), [SWARM-CLUSTER-VXLAN-SOURCE-NOT-DATA-PATH](swarm-networking.md#SWARM-CLUSTER-VXLAN-SOURCE-NOT-DATA-PATH), [SWARM-CLUSTER-WINDOWS-DATA-PATH-ADDRESS](swarm-networking.md#SWARM-CLUSTER-WINDOWS-DATA-PATH-ADDRESS), [SWARM-CLUSTER-WINDOWS-DATA-PATH-PORT](swarm-networking.md#SWARM-CLUSTER-WINDOWS-DATA-PATH-PORT), [SWARM-CONVERGE-ADDRESS-MOVE](#SWARM-CONVERGE-ADDRESS-MOVE), [SWARM-CONVERGE-ADDRESS-MOVE-MAC](#SWARM-CONVERGE-ADDRESS-MOVE-MAC), [SWARM-CONVERGE-ADDRESS-MOVE-REPEATED](#SWARM-CONVERGE-ADDRESS-MOVE-REPEATED), [SWARM-CONVERGE-LEAVE-REMAINING-TASKS](#SWARM-CONVERGE-LEAVE-REMAINING-TASKS), [SWARM-CONVERGE-NO-OWN-ENTRIES](#SWARM-CONVERGE-NO-OWN-ENTRIES), [SWARM-CONVERGE-PARTITION-HEAL](#SWARM-CONVERGE-PARTITION-HEAL), [SWARM-CONVERGE-PARTITION-HEAL-PERSISTS](#SWARM-CONVERGE-PARTITION-HEAL-PERSISTS), [SWARM-CONVERGE-PARTITION-HEAL-PERSISTS-ACTIVE](#SWARM-CONVERGE-PARTITION-HEAL-PERSISTS-ACTIVE), [SWARM-CONVERGE-PARTITION-QUORUM-VIP](#SWARM-CONVERGE-PARTITION-QUORUM-VIP), [SWARM-CONVERGE-REJOIN-INGRESS-BACKENDS](#SWARM-CONVERGE-REJOIN-INGRESS-BACKENDS), [SWARM-CONVERGE-REJOIN-PUBLISHED-PORTS](#SWARM-CONVERGE-REJOIN-PUBLISHED-PORTS), [SWARM-CONVERGE-REJOIN-TASKS](#SWARM-CONVERGE-REJOIN-TASKS), [SWARM-CONVERGE-REJOIN-TASKS-FROM-OTHER-NODES](#SWARM-CONVERGE-REJOIN-TASKS-FROM-OTHER-NODES), [SWARM-CONVERGE-TASK-REPLACED](#SWARM-CONVERGE-TASK-REPLACED), [SWARM-CTR-ADDRESS](swarm-traffic.md#SWARM-CTR-ADDRESS), [SWARM-CTR-DEFAULT-ROUTE](swarm-traffic.md#SWARM-CTR-DEFAULT-ROUTE), [SWARM-CTR-MAC-GENERATED](swarm-traffic.md#SWARM-CTR-MAC-GENERATED), [SWARM-CTR-MAC-GENERATED-FORMAT](swarm-traffic.md#SWARM-CTR-MAC-GENERATED-FORMAT), [SWARM-CTR-MTU-CLEARTEXT](swarm-traffic.md#SWARM-CTR-MTU-CLEARTEXT), [SWARM-CTR-MTU-CLEARTEXT-V6](swarm-traffic.md#SWARM-CTR-MTU-CLEARTEXT-V6), [SWARM-CTR-MTU-CLEARTEXT-WINDOWS](swarm-traffic.md#SWARM-CTR-MTU-CLEARTEXT-WINDOWS), [SWARM-CTR-MTU-ENCRYPTED](swarm-traffic.md#SWARM-CTR-MTU-ENCRYPTED), [SWARM-CTR-MTU-ENCRYPTED-V6](swarm-traffic.md#SWARM-CTR-MTU-ENCRYPTED-V6), [SWARM-CTR-MTU-NO-FRAGMENT](swarm-traffic.md#SWARM-CTR-MTU-NO-FRAGMENT), [SWARM-CTR-MTU-OPTION-MIXED-PLATFORM](swarm-traffic.md#SWARM-CTR-MTU-OPTION-MIXED-PLATFORM), [SWARM-CTR-MTU-OUTER-SIZE](swarm-traffic.md#SWARM-CTR-MTU-OUTER-SIZE), [SWARM-CTR-MULTI-SUBNET-ROUTES](swarm-traffic.md#SWARM-CTR-MULTI-SUBNET-ROUTES), [SWARM-CTR-WINDOWS-ENCRYPTION](swarm-traffic.md#SWARM-CTR-WINDOWS-ENCRYPTION), [SWARM-CTR-WINDOWS-MTU-OPTION](swarm-traffic.md#SWARM-CTR-WINDOWS-MTU-OPTION), [SWARM-EGRESS-INTERNAL-ONLY](swarm-traffic.md#SWARM-EGRESS-INTERNAL-ONLY), [SWARM-EGRESS-MIXED-INTERNAL](swarm-traffic.md#SWARM-EGRESS-MIXED-INTERNAL), [SWARM-EGRESS-NO-NETWORK-DEFAULT-BRIDGE](swarm-traffic.md#SWARM-EGRESS-NO-NETWORK-DEFAULT-BRIDGE), [SWARM-EGRESS-NON-INTERNAL](swarm-traffic.md#SWARM-EGRESS-NON-INTERNAL), [SWARM-EGRESS-SOURCE-ADDRESS](swarm-traffic.md#SWARM-EGRESS-SOURCE-ADDRESS), [SWARM-EGRESS-WINDOWS-MIXED-INTERNAL](swarm-traffic.md#SWARM-EGRESS-WINDOWS-MIXED-INTERNAL), [SWARM-ENC-AES-GCM](#SWARM-ENC-AES-GCM), [SWARM-ENC-ALGORITHM](#SWARM-ENC-ALGORITHM), [SWARM-ENC-CLEARTEXT-PASSES](#SWARM-ENC-CLEARTEXT-PASSES), [SWARM-ENC-CLEARTEXT-VXLAN-UNAUTHENTICATED](#SWARM-ENC-CLEARTEXT-VXLAN-UNAUTHENTICATED), [SWARM-ENC-ESP](#SWARM-ENC-ESP), [SWARM-ENC-ESP-TRANSPORT-MODE](#SWARM-ENC-ESP-TRANSPORT-MODE), [SWARM-ENC-FORGED-VXLAN](#SWARM-ENC-FORGED-VXLAN), [SWARM-ENC-FORGED-VXLAN-FIREWALLD](#SWARM-ENC-FORGED-VXLAN-FIREWALLD), [SWARM-ENC-KEY-ROTATION](#SWARM-ENC-KEY-ROTATION), [SWARM-ENC-KEY-ROTATION-INTERVAL](#SWARM-ENC-KEY-ROTATION-INTERVAL), [SWARM-ENC-KEY-STRENGTH](#SWARM-ENC-KEY-STRENGTH), [SWARM-ENC-NO-ALGORITHM-LOG](#SWARM-ENC-NO-ALGORITHM-LOG), [SWARM-ENC-NO-ALGORITHM-NO-TRAFFIC](#SWARM-ENC-NO-ALGORITHM-NO-TRAFFIC), [SWARM-ENC-NO-CLEARTEXT](#SWARM-ENC-NO-CLEARTEXT), [SWARM-ENC-NO-CLEARTEXT-FIREWALLD](#SWARM-ENC-NO-CLEARTEXT-FIREWALLD), [SWARM-ENC-VNI-REUSE](#SWARM-ENC-VNI-REUSE), [SWARM-ENC-VNI-REUSE-KILLED-DAEMON](#SWARM-ENC-VNI-REUSE-KILLED-DAEMON), [SWARM-ENC-VNI-REUSE-WINDOWS](#SWARM-ENC-VNI-REUSE-WINDOWS), [SWARM-ENC-XFRM-ALGORITHM-UNCHECKED](#SWARM-ENC-XFRM-ALGORITHM-UNCHECKED), [SWARM-EW-BROADCAST-LOCAL](swarm-traffic.md#SWARM-EW-BROADCAST-LOCAL), [SWARM-EW-CROSS-SUBNET](swarm-traffic.md#SWARM-EW-CROSS-SUBNET), [SWARM-EW-ESP-SEQUENCE-EXHAUSTION](swarm-traffic.md#SWARM-EW-ESP-SEQUENCE-EXHAUSTION), [SWARM-EW-GW-NETWORK](swarm-traffic.md#SWARM-EW-GW-NETWORK), [SWARM-EW-MULTICAST-LOCAL](swarm-traffic.md#SWARM-EW-MULTICAST-LOCAL), [SWARM-EW-NO-SHARED-NETWORK](swarm-traffic.md#SWARM-EW-NO-SHARED-NETWORK), [SWARM-EW-OVERSIZE](swarm-traffic.md#SWARM-EW-OVERSIZE), [SWARM-EW-PROTOCOLS](swarm-traffic.md#SWARM-EW-PROTOCOLS), [SWARM-EW-UNICAST](swarm-traffic.md#SWARM-EW-UNICAST), [SWARM-EW-VIP-MULTIPLE-SUBNETS](swarm-traffic.md#SWARM-EW-VIP-MULTIPLE-SUBNETS), [SWARM-EW-WINDOWS-V6-DATA-PATH](swarm-traffic.md#SWARM-EW-WINDOWS-V6-DATA-PATH), [SWARM-FAILREP-INGRESS-PORT](#SWARM-FAILREP-INGRESS-PORT), [SWARM-FAILREP-INGRESS-PORT-IN-USE](#SWARM-FAILREP-INGRESS-PORT-IN-USE), [SWARM-FAILREP-INGRESS-PORT-MSG](#SWARM-FAILREP-INGRESS-PORT-MSG), [SWARM-FAILREP-INGRESS-PORT-RECOVERY](#SWARM-FAILREP-INGRESS-PORT-RECOVERY), [SWARM-FAILREP-INGRESS-PORT-RECOVERY-LOG](#SWARM-FAILREP-INGRESS-PORT-RECOVERY-LOG), [SWARM-FAILREP-INGRESS-PORT-REPEATED](#SWARM-FAILREP-INGRESS-PORT-REPEATED), [SWARM-FAILREP-INGRESS-UNPUBLISH](#SWARM-FAILREP-INGRESS-UNPUBLISH), [SWARM-FAILREP-IPSEC](#SWARM-FAILREP-IPSEC), [SWARM-FAILREP-IPSEC-MSG](#SWARM-FAILREP-IPSEC-MSG), [SWARM-FAILREP-LB](#SWARM-FAILREP-LB), [SWARM-FAILREP-LB-MSG-IPT](#SWARM-FAILREP-LB-MSG-IPT), [SWARM-FAILREP-LB-MSG-WINDOWS](#SWARM-FAILREP-LB-MSG-WINDOWS), [SWARM-FAILREP-LB-RECOVERY](#SWARM-FAILREP-LB-RECOVERY), [SWARM-FAILREP-LB-RECOVERY-LOG](#SWARM-FAILREP-LB-RECOVERY-LOG), [SWARM-FAILREP-LB-REPEATED](#SWARM-FAILREP-LB-REPEATED), [SWARM-FAILREP-NOT-REPEATED](#SWARM-FAILREP-NOT-REPEATED), [SWARM-FAILREP-PEER](#SWARM-FAILREP-PEER), [SWARM-FAILREP-PEER-MSG](#SWARM-FAILREP-PEER-MSG), [SWARM-FAILREP-RECOVERY-UNREPORTED](#SWARM-FAILREP-RECOVERY-UNREPORTED), [SWARM-GWNET-NO-INGRESS-FIRST-CTR](swarm-traffic.md#SWARM-GWNET-NO-INGRESS-FIRST-CTR), [SWARM-GWNET-NO-V6-ADDRESS](swarm-traffic.md#SWARM-GWNET-NO-V6-ADDRESS), [SWARM-GWNET-OPERATOR-CREATED](swarm-traffic.md#SWARM-GWNET-OPERATOR-CREATED), [SWARM-GWNET-OPERATOR-CREATED-ADDRESSES](swarm-traffic.md#SWARM-GWNET-OPERATOR-CREATED-ADDRESSES), [SWARM-GWNET-UNPUBLISHED-PORT](swarm-traffic.md#SWARM-GWNET-UNPUBLISHED-PORT), [SWARM-HAIRPIN-BRIDGE-CTR](swarm-traffic.md#SWARM-HAIRPIN-BRIDGE-CTR), [SWARM-HAIRPIN-HOST-MODE-SELF](swarm-traffic.md#SWARM-HAIRPIN-HOST-MODE-SELF), [SWARM-HAIRPIN-LOOPBACK](swarm-traffic.md#SWARM-HAIRPIN-LOOPBACK), [SWARM-HAIRPIN-NODE-ADDRESS](swarm-traffic.md#SWARM-HAIRPIN-NODE-ADDRESS), [SWARM-HAIRPIN-OTHER-NETWORK](swarm-traffic.md#SWARM-HAIRPIN-OTHER-NETWORK), [SWARM-HAIRPIN-SERVICE-NETWORK](swarm-traffic.md#SWARM-HAIRPIN-SERVICE-NETWORK), [SWARM-HAIRPIN-USERLAND-PROXY](swarm-traffic.md#SWARM-HAIRPIN-USERLAND-PROXY), [SWARM-HOSTPUB-CLIENT-SOURCE](swarm-traffic.md#SWARM-HOSTPUB-CLIENT-SOURCE), [SWARM-HOSTPUB-CLIENT-SOURCE-V6](swarm-traffic.md#SWARM-HOSTPUB-CLIENT-SOURCE-V6), [SWARM-HOSTPUB-LOCAL-TASK](swarm-traffic.md#SWARM-HOSTPUB-LOCAL-TASK), [SWARM-HOSTPUB-TASK-NODES-ONLY](swarm-traffic.md#SWARM-HOSTPUB-TASK-NODES-ONLY), [SWARM-INGPUB-CLIENT-SOURCE-HIDDEN](swarm-traffic.md#SWARM-INGPUB-CLIENT-SOURCE-HIDDEN), [SWARM-INGPUB-EVERY-NODE](swarm-traffic.md#SWARM-INGPUB-EVERY-NODE), [SWARM-INGPUB-FIREWALLD-RELOAD](swarm-traffic.md#SWARM-INGPUB-FIREWALLD-RELOAD), [SWARM-INGPUB-FLOW-SAME-TASK](swarm-traffic.md#SWARM-INGPUB-FLOW-SAME-TASK), [SWARM-INGPUB-NO-DEFAULT-ROUTE](swarm-traffic.md#SWARM-INGPUB-NO-DEFAULT-ROUTE), [SWARM-INGPUB-NO-EAST-WEST](swarm-traffic.md#SWARM-INGPUB-NO-EAST-WEST), [SWARM-INGPUB-WINDOWS-INGRESS-EGRESS](swarm-traffic.md#SWARM-INGPUB-WINDOWS-INGRESS-EGRESS), [SWARM-INGPUB-WINDOWS-INGRESS-ISOLATION](swarm-traffic.md#SWARM-INGPUB-WINDOWS-INGRESS-ISOLATION), [SWARM-INGRESS-CUSTOM-MTU](swarm-networking.md#SWARM-INGRESS-CUSTOM-MTU), [SWARM-INGRESS-CUSTOM-SUBNET-REACHABLE](swarm-networking.md#SWARM-INGRESS-CUSTOM-SUBNET-REACHABLE), [SWARM-INGRESS-DELETE-UNUSED](swarm-networking.md#SWARM-INGRESS-DELETE-UNUSED), [SWARM-INGRESS-DELETE-UNUSED-CLI](swarm-networking.md#SWARM-INGRESS-DELETE-UNUSED-CLI), [SWARM-INGRESS-LABEL-DELETE-RECREATE](swarm-networking.md#SWARM-INGRESS-LABEL-DELETE-RECREATE), [SWARM-INGRESS-LABEL-DELETE-STALE](swarm-networking.md#SWARM-INGRESS-LABEL-DELETE-STALE), [SWARM-INGRESS-LABEL-PARTLY-SUPPORTED](swarm-networking.md#SWARM-INGRESS-LABEL-PARTLY-SUPPORTED), [SWARM-INGRESS-LABEL-PUBLISH](swarm-networking.md#SWARM-INGRESS-LABEL-PUBLISH), [SWARM-INGRESS-LABEL-UNATTACHED-NODE](swarm-networking.md#SWARM-INGRESS-LABEL-UNATTACHED-NODE), [SWARM-IPT-DOCKER-USER](#SWARM-IPT-DOCKER-USER), [SWARM-IPT-ENCRYPTED-INPUT-ACCEPT](#SWARM-IPT-ENCRYPTED-INPUT-ACCEPT), [SWARM-LB-ANY-PORT](swarm-traffic.md#SWARM-LB-ANY-PORT), [SWARM-LB-DSR-DESTINATION](swarm-traffic.md#SWARM-LB-DSR-DESTINATION), [SWARM-LB-DSR-SOURCE](swarm-traffic.md#SWARM-LB-DSR-SOURCE), [SWARM-LB-FLOW-SAME-TASK](swarm-traffic.md#SWARM-LB-FLOW-SAME-TASK), [SWARM-LB-NAT-DESTINATION](swarm-traffic.md#SWARM-LB-NAT-DESTINATION), [SWARM-LB-NAT-SOURCE](swarm-traffic.md#SWARM-LB-NAT-SOURCE), [SWARM-LB-NAT-SOURCE-LB-ADDRESS](swarm-traffic.md#SWARM-LB-NAT-SOURCE-LB-ADDRESS), [SWARM-LB-NO-IPVS](swarm-traffic.md#SWARM-LB-NO-IPVS), [SWARM-LB-PROTOCOLS](swarm-traffic.md#SWARM-LB-PROTOCOLS), [SWARM-LB-ROOTLESS](swarm-traffic.md#SWARM-LB-ROOTLESS), [SWARM-LB-SELF-VIP](swarm-traffic.md#SWARM-LB-SELF-VIP), [SWARM-LB-SELF-VIP-DSR](swarm-traffic.md#SWARM-LB-SELF-VIP-DSR), [SWARM-LB-SELF-VIP-NAT](swarm-traffic.md#SWARM-LB-SELF-VIP-NAT), [SWARM-LB-TASK-ADDRESS](swarm-traffic.md#SWARM-LB-TASK-ADDRESS), [SWARM-LB-TASK-FREE-NODE](swarm-traffic.md#SWARM-LB-TASK-FREE-NODE), [SWARM-LB-WINDOWS-DSR](swarm-traffic.md#SWARM-LB-WINDOWS-DSR), [SWARM-LBDIST-INGRESS](swarm-traffic.md#SWARM-LBDIST-INGRESS), [SWARM-LBDIST-RECOVERY-INCOMPLETE](swarm-traffic.md#SWARM-LBDIST-RECOVERY-INCOMPLETE), [SWARM-LBDIST-VIP](swarm-traffic.md#SWARM-LBDIST-VIP), [SWARM-LBHEALTH-DRAIN-ESTABLISHED](swarm-traffic.md#SWARM-LBHEALTH-DRAIN-ESTABLISHED), [SWARM-LBHEALTH-DRAIN-LOCAL](swarm-traffic.md#SWARM-LBHEALTH-DRAIN-LOCAL), [SWARM-LBHEALTH-DRAIN-REMOTE](swarm-traffic.md#SWARM-LBHEALTH-DRAIN-REMOTE), [SWARM-LBHEALTH-DSR-OWN-VIP](swarm-traffic.md#SWARM-LBHEALTH-DSR-OWN-VIP), [SWARM-LBHEALTH-NO-HEALTHCHECK](swarm-traffic.md#SWARM-LBHEALTH-NO-HEALTHCHECK), [SWARM-LBHEALTH-PENDING](swarm-traffic.md#SWARM-LBHEALTH-PENDING), [SWARM-LBHEALTH-UNHEALTHY](swarm-traffic.md#SWARM-LBHEALTH-UNHEALTHY), [SWARM-OVL-PEERS](swarm-networking.md#SWARM-OVL-PEERS), [SWARM-OVL-STATIC-ADDRESS-RELEASED](swarm-networking.md#SWARM-OVL-STATIC-ADDRESS-RELEASED), [SWARM-OVL-STATUS-FULL-ID](swarm-networking.md#SWARM-OVL-STATUS-FULL-ID), [SWARM-OVL-STATUS-WORKER](swarm-networking.md#SWARM-OVL-STATUS-WORKER), [SWARM-OVL-VERBOSE-SERVICES](swarm-networking.md#SWARM-OVL-VERBOSE-SERVICES), [SWARM-OVL-VERBOSE-SERVICES-CLI](swarm-networking.md#SWARM-OVL-VERBOSE-SERVICES-CLI), [SWARM-OVL-VERBOSE-TASKS](swarm-networking.md#SWARM-OVL-VERBOSE-TASKS), [SWARM-OVL-VERBOSE-VIP](swarm-networking.md#SWARM-OVL-VERBOSE-VIP), [SWARM-OVL-VNI-AUTO-RANGE](swarm-networking.md#SWARM-OVL-VNI-AUTO-RANGE), [SWARM-OVL-VNI-LIST](swarm-networking.md#SWARM-OVL-VNI-LIST), [SWARM-OVLOPT-DSR](swarm-networking.md#SWARM-OVLOPT-DSR), [SWARM-OVLOPT-ENCRYPTED](swarm-networking.md#SWARM-OVLOPT-ENCRYPTED), [SWARM-OVLOPT-FLAG-ANY-VALUE](swarm-networking.md#SWARM-OVLOPT-FLAG-ANY-VALUE), [SWARM-OVLOPT-MTU](swarm-networking.md#SWARM-OVLOPT-MTU), [SWARM-PORTALLOC-CTR-START](swarm-traffic.md#SWARM-PORTALLOC-CTR-START), [SWARM-PORTALLOC-CTR-START-CLI](swarm-traffic.md#SWARM-PORTALLOC-CTR-START-CLI), [SWARM-PORTALLOC-CTR-START-HTTP500](swarm-traffic.md#SWARM-PORTALLOC-CTR-START-HTTP500), [SWARM-PORTALLOC-CTR-START-NO-TASK](swarm-traffic.md#SWARM-PORTALLOC-CTR-START-NO-TASK), [SWARM-PORTALLOC-PORT-ABOVE-65535](swarm-traffic.md#SWARM-PORTALLOC-PORT-ABOVE-65535), [SWARM-PORTALLOC-PORT-IN-USE](swarm-traffic.md#SWARM-PORTALLOC-PORT-IN-USE), [SWARM-PORTALLOC-PORT-IN-USE-OLD-TASKS](swarm-traffic.md#SWARM-PORTALLOC-PORT-IN-USE-OLD-TASKS), [SWARM-PORTALLOC-PORT-IN-USE-UNREACHABLE](swarm-traffic.md#SWARM-PORTALLOC-PORT-IN-USE-UNREACHABLE), [SWARM-PORTALLOC-PUBLISH-FAILED-PORTS-FREED](swarm-traffic.md#SWARM-PORTALLOC-PUBLISH-FAILED-PORTS-FREED), [SWARM-PORTALLOC-REPORTED-REACHABLE](swarm-traffic.md#SWARM-PORTALLOC-REPORTED-REACHABLE), [SWARM-PORTALLOC-WINDOWS-INGRESS-PORT-RESERVATION](swarm-traffic.md#SWARM-PORTALLOC-WINDOWS-INGRESS-PORT-RESERVATION), [SWARM-PUB-AUTO-ASSIGNED-PORT-HOST-MODE](swarm-traffic.md#SWARM-PUB-AUTO-ASSIGNED-PORT-HOST-MODE), [SWARM-PUB-FIREWALLD-V6-INGRESS](swarm-traffic.md#SWARM-PUB-FIREWALLD-V6-INGRESS), [SWARM-PUB-FIREWALLD-V6-PROXY](swarm-traffic.md#SWARM-PUB-FIREWALLD-V6-PROXY), [SWARM-PUB-INGRESS-PORT-IN-USE](swarm-traffic.md#SWARM-PUB-INGRESS-PORT-IN-USE), [SWARM-PUB-PORT-CHANGE](swarm-traffic.md#SWARM-PUB-PORT-CHANGE), [SWARM-PUB-PORT-CHANGE-OLD](swarm-traffic.md#SWARM-PUB-PORT-CHANGE-OLD), [SWARM-PUB-PORT-REMOVED](swarm-traffic.md#SWARM-PUB-PORT-REMOVED), [SWARM-PUB-PROTOCOLS](swarm-traffic.md#SWARM-PUB-PROTOCOLS), [SWARM-PUB-REPLIES](swarm-traffic.md#SWARM-PUB-REPLIES), [SWARM-PUB-SERVICE-REMOVED](swarm-traffic.md#SWARM-PUB-SERVICE-REMOVED), [SWARM-PUB-TARGET-PORT](swarm-traffic.md#SWARM-PUB-TARGET-PORT), [SWARM-PUB-TCP-UDP-ONE-SERVICE](swarm-traffic.md#SWARM-PUB-TCP-UDP-ONE-SERVICE), [SWARM-PUB-UDP-NO-LISTENER](swarm-traffic.md#SWARM-PUB-UDP-NO-LISTENER), [SWARM-PUB-UNPUBLISHED-PORT](swarm-traffic.md#SWARM-PUB-UNPUBLISHED-PORT), [SWARM-PUB-V6-DELIVERY](swarm-traffic.md#SWARM-PUB-V6-DELIVERY), [SWARM-PUB-V6-NO-USERLAND-PROXY](swarm-traffic.md#SWARM-PUB-V6-NO-USERLAND-PROXY), [SWARM-PUB-V6-USERLAND-PROXY](swarm-traffic.md#SWARM-PUB-V6-USERLAND-PROXY), [SWARM-PUB-V6-USERLAND-PROXY-LOCAL](swarm-traffic.md#SWARM-PUB-V6-USERLAND-PROXY-LOCAL), [SWARM-RESTART-GRACEFUL-PUBLISHED-PORTS](#SWARM-RESTART-GRACEFUL-PUBLISHED-PORTS), [SWARM-RESTART-GRACEFUL-TASKS](#SWARM-RESTART-GRACEFUL-TASKS), [SWARM-RESTART-INGRESS-FROM-OTHER-NODES](#SWARM-RESTART-INGRESS-FROM-OTHER-NODES), [SWARM-RESTART-KILLED-PUBLISHED-PORTS](#SWARM-RESTART-KILLED-PUBLISHED-PORTS), [SWARM-RESTART-KILLED-TASKS](#SWARM-RESTART-KILLED-TASKS), [SWARM-RESTART-KILLED-VNI-REUSE](#SWARM-RESTART-KILLED-VNI-REUSE), [SWARM-RESTART-OTHER-NODES](#SWARM-RESTART-OTHER-NODES), [SWARM-RESTART-STALE-OVERLAY-REMOVAL](#SWARM-RESTART-STALE-OVERLAY-REMOVAL), [SWARM-RESTART-STALE-OVERLAY-REMOVAL-WINDOWS](#SWARM-RESTART-STALE-OVERLAY-REMOVAL-WINDOWS), [SWARM-RESTART-STALE-OVERLAY-WINDOWS](#SWARM-RESTART-STALE-OVERLAY-WINDOWS), [SWARM-RESTART-STALE-OVERLAY-WINDOWS-SHARED-VNI](#SWARM-RESTART-STALE-OVERLAY-WINDOWS-SHARED-VNI), [SWARM-RESTART-TASKS-FROM-OTHER-NODES](#SWARM-RESTART-TASKS-FROM-OTHER-NODES), [SWARM-SCALE-INGRESS-PORT-REUSE](#SWARM-SCALE-INGRESS-PORT-REUSE), [SWARM-SCALE-MANY-NETWORKS](#SWARM-SCALE-MANY-NETWORKS), [SWARM-SCALE-PORT-PROTOCOLS](#SWARM-SCALE-PORT-PROTOCOLS), [SWARM-SCALE-PORT-PROTOCOLS-REMOVAL](#SWARM-SCALE-PORT-PROTOCOLS-REMOVAL), [SWARM-SCALE-VNI-REUSE](#SWARM-SCALE-VNI-REUSE), [SWARM-SCALE-WINDOWS-SCTP](#SWARM-SCALE-WINDOWS-SCTP), [SWARM-SCOPED-ATTACHABLE-LAST-DETACH-DELETE](swarm-networking.md#SWARM-SCOPED-ATTACHABLE-LAST-DETACH-DELETE), [SWARM-SCOPED-ATTACHMENT-TASK-REMOVED](swarm-networking.md#SWARM-SCOPED-ATTACHMENT-TASK-REMOVED), [SWARM-SCOPED-CONFIG-FROM-SUBNET](swarm-networking.md#SWARM-SCOPED-CONFIG-FROM-SUBNET), [SWARM-SCOPED-NODE-LOCAL-IPAM-OPTIONS](swarm-networking.md#SWARM-SCOPED-NODE-LOCAL-IPAM-OPTIONS), [SWARM-SD-ALIAS](swarm-traffic.md#SWARM-SD-ALIAS), [SWARM-SD-ALIAS-DROPPED-UPDATE](swarm-traffic.md#SWARM-SD-ALIAS-DROPPED-UPDATE), [SWARM-SD-ALIAS-ROLLING-UPDATE](swarm-traffic.md#SWARM-SD-ALIAS-ROLLING-UPDATE), [SWARM-SD-DNSRR](swarm-traffic.md#SWARM-SD-DNSRR), [SWARM-SD-HEALTH-PENDING](swarm-traffic.md#SWARM-SD-HEALTH-PENDING), [SWARM-SD-INGRESS-ONLY](swarm-traffic.md#SWARM-SD-INGRESS-ONLY), [SWARM-SD-NODE-LOCAL](swarm-traffic.md#SWARM-SD-NODE-LOCAL), [SWARM-SD-NODE-LOCAL-BEFORE-HEALTHY](swarm-traffic.md#SWARM-SD-NODE-LOCAL-BEFORE-HEALTHY), [SWARM-SD-NODE-LOCAL-NO-SERVICE](swarm-traffic.md#SWARM-SD-NODE-LOCAL-NO-SERVICE), [SWARM-SD-PREFER-SWARM-SCOPED](swarm-traffic.md#SWARM-SD-PREFER-SWARM-SCOPED), [SWARM-SD-RENAME](swarm-traffic.md#SWARM-SD-RENAME), [SWARM-SD-SERVICE-NAME-UPSTREAM](swarm-traffic.md#SWARM-SD-SERVICE-NAME-UPSTREAM), [SWARM-SD-SERVICE-REMOVED](swarm-traffic.md#SWARM-SD-SERVICE-REMOVED), [SWARM-SD-TASK-NAME](swarm-traffic.md#SWARM-SD-TASK-NAME), [SWARM-SD-TASK-NAME-GLOBAL](swarm-traffic.md#SWARM-SD-TASK-NAME-GLOBAL), [SWARM-SD-TASK-NAME-REPLICATED](swarm-traffic.md#SWARM-SD-TASK-NAME-REPLICATED), [SWARM-SD-TASK-STOPPED](swarm-traffic.md#SWARM-SD-TASK-STOPPED), [SWARM-SD-TASKS](swarm-traffic.md#SWARM-SD-TASKS), [SWARM-SD-TASKS-ALIAS](swarm-traffic.md#SWARM-SD-TASKS-ALIAS), [SWARM-SD-VIP](swarm-traffic.md#SWARM-SD-VIP), [SWARM-SD-VIP-NO-REPLICAS](swarm-traffic.md#SWARM-SD-VIP-NO-REPLICAS), [SWARM-SD-VIP-NO-TASKS](swarm-traffic.md#SWARM-SD-VIP-NO-TASKS), [SWARM-SD-VIP-NONE-HEALTHY](swarm-traffic.md#SWARM-SD-VIP-NONE-HEALTHY), [SWARM-SD-VIP-UNREACHABLE](swarm-traffic.md#SWARM-SD-VIP-UNREACHABLE), [SWARM-SD-WINDOWS-RESOLVER-PREFERENCE](swarm-traffic.md#SWARM-SD-WINDOWS-RESOLVER-PREFERENCE), [SWARM-WIRE-ADDRESS-ASSIGNMENT](#SWARM-WIRE-ADDRESS-ASSIGNMENT), [SWARM-WIRECLEAR-ETHERNET-PAYLOAD](#SWARM-WIRECLEAR-ETHERNET-PAYLOAD), [SWARM-WIRECLEAR-UDP-PORT](#SWARM-WIRECLEAR-UDP-PORT), [SWARM-WIRECLEAR-VXLAN-VNI](#SWARM-WIRECLEAR-VXLAN-VNI), [SWARM-WIREENC-ETHERNET-PAYLOAD](#SWARM-WIREENC-ETHERNET-PAYLOAD), [SWARM-WIREENC-UDP-PORT](#SWARM-WIREENC-UDP-PORT), [SWARM-WIREENC-VXLAN-VNI](#SWARM-WIREENC-VXLAN-VNI)
 
 An address moving to another endpoint, a task replaced by one on another node, or a new task,
-service or endpoint.
+service or endpoint. [README.md](README.md#readme-timing) lists the other changes in this class.
 
 Its dominant term is gossip propagation and FDB reprogramming.
 
@@ -743,7 +1149,7 @@ The change is complete when the new endpoint or task is running.
 
 *Seconds:* 180
 
-*Bounds:* [SWARM-CONVERGE-PARTITION-HEAL](#SWARM-CONVERGE-PARTITION-HEAL)
+*Bounds:* [SWARM-CONVERGE-PARTITION-HEAL](#SWARM-CONVERGE-PARTITION-HEAL), [SWARM-CONVERGE-PARTITION-HEAL-PERSISTS](#SWARM-CONVERGE-PARTITION-HEAL-PERSISTS), [SWARM-CONVERGE-PARTITION-HEAL-PERSISTS-ACTIVE](#SWARM-CONVERGE-PARTITION-HEAL-PERSISTS-ACTIVE), [SWARM-RESTART-OTHER-NODES](#SWARM-RESTART-OTHER-NODES)
 
 Its dominant term is reconnection to the failed peers, then full-state syncs.
 
@@ -755,12 +1161,14 @@ The change is complete when the partition is removed.
 
 *Seconds:* 120
 
-*Bounds:* [DNS-NAMES-SWARM-LEAVE-RECORDS](container-dns.md#DNS-NAMES-SWARM-LEAVE-RECORDS), [NET-API-GWBRIDGE-INGRESS-SBOX](network-common.md#NET-API-GWBRIDGE-INGRESS-SBOX), [SWARM-CLUSTER-ADVERTISE-ADDRESS-IFACE](swarm-networking.md#SWARM-CLUSTER-ADVERTISE-ADDRESS-IFACE), [SWARM-CLUSTER-ADVERTISE-IFACE-RESOLVED-ONCE](swarm-networking.md#SWARM-CLUSTER-ADVERTISE-IFACE-RESOLVED-ONCE), [SWARM-CLUSTER-DATA-PATH-ADDRESS](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-ADDRESS), [SWARM-CLUSTER-DATA-PATH-ADDRESS-DEFAULT](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-ADDRESS-DEFAULT), [SWARM-CLUSTER-DATA-PATH-ADDRESS-IFACE](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-ADDRESS-IFACE), [SWARM-CLUSTER-DATA-PATH-ADDRESS-MIXED-VERSION](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-ADDRESS-MIXED-VERSION), [SWARM-CLUSTER-DATA-PATH-ADDRESS-V6](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-ADDRESS-V6), [SWARM-CLUSTER-DATA-PATH-MIXED-VERSIONS-ACCEPTED](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-MIXED-VERSIONS-ACCEPTED), [SWARM-CLUSTER-DATA-PATH-PORT](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-PORT), [SWARM-CLUSTER-DATA-PATH-PORT-ZERO](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-PORT-ZERO), [SWARM-CLUSTER-GOSSIP-ADVERTISE-ADDRESS](swarm-networking.md#SWARM-CLUSTER-GOSSIP-ADVERTISE-ADDRESS), [SWARM-CLUSTER-GOSSIP-LISTEN-ADDRESS](swarm-networking.md#SWARM-CLUSTER-GOSSIP-LISTEN-ADDRESS), [SWARM-CLUSTER-IFACE-NAME-RESOLVED-ONCE](swarm-networking.md#SWARM-CLUSTER-IFACE-NAME-RESOLVED-ONCE), [SWARM-CLUSTER-INFO-MANAGER](swarm-networking.md#SWARM-CLUSTER-INFO-MANAGER), [SWARM-CLUSTER-INFO-MANAGER-CLI](swarm-networking.md#SWARM-CLUSTER-INFO-MANAGER-CLI), [SWARM-CLUSTER-INFO-MANAGER-DEFAULT-POOL](swarm-networking.md#SWARM-CLUSTER-INFO-MANAGER-DEFAULT-POOL), [SWARM-CLUSTER-INFO-MANAGER-DEFAULT-POOL-CLI](swarm-networking.md#SWARM-CLUSTER-INFO-MANAGER-DEFAULT-POOL-CLI), [SWARM-CLUSTER-INFO-WORKER](swarm-networking.md#SWARM-CLUSTER-INFO-WORKER), [SWARM-CLUSTER-INFO-WORKER-CLI](swarm-networking.md#SWARM-CLUSTER-INFO-WORKER-CLI), [SWARM-CLUSTER-SUBNET-SIZE-WITHOUT-POOL-DROPPED](swarm-networking.md#SWARM-CLUSTER-SUBNET-SIZE-WITHOUT-POOL-DROPPED), [SWARM-CLUSTER-SUBNET-SIZE-ZERO](swarm-networking.md#SWARM-CLUSTER-SUBNET-SIZE-ZERO), [SWARM-CLUSTER-SUBNET-SIZE-ZERO-UNALLOCATED](swarm-networking.md#SWARM-CLUSTER-SUBNET-SIZE-ZERO-UNALLOCATED), [SWARM-CLUSTER-WINDOWS-DATA-PATH-ADDRESS](swarm-networking.md#SWARM-CLUSTER-WINDOWS-DATA-PATH-ADDRESS), [SWARM-CLUSTER-WINDOWS-DATA-PATH-PORT](swarm-networking.md#SWARM-CLUSTER-WINDOWS-DATA-PATH-PORT), [SWARM-CONVERGE-LEAVE-NO-ENTRIES](#SWARM-CONVERGE-LEAVE-NO-ENTRIES), [SWARM-CONVERGE-LEAVE-REMAINING-TASKS](#SWARM-CONVERGE-LEAVE-REMAINING-TASKS), [SWARM-CONVERGE-REJOIN-INGRESS-BACKENDS](#SWARM-CONVERGE-REJOIN-INGRESS-BACKENDS), [SWARM-CONVERGE-REJOIN-PUBLISHED-PORTS](#SWARM-CONVERGE-REJOIN-PUBLISHED-PORTS), [SWARM-CONVERGE-REJOIN-TASKS](#SWARM-CONVERGE-REJOIN-TASKS), [SWARM-EW-WINDOWS-V6-DATA-PATH](swarm-traffic.md#SWARM-EW-WINDOWS-V6-DATA-PATH), [SWARM-GWNET-AFTER-INIT](swarm-traffic.md#SWARM-GWNET-AFTER-INIT), [SWARM-GWNET-AFTER-JOIN](swarm-traffic.md#SWARM-GWNET-AFTER-JOIN), [SWARM-INGRESS-DEFAULT](swarm-networking.md#SWARM-INGRESS-DEFAULT), [SWARM-INGRESS-LABEL-DELETE-STALE](swarm-networking.md#SWARM-INGRESS-LABEL-DELETE-STALE), [SWARM-INGRESS-LABEL-PARTLY-SUPPORTED](swarm-networking.md#SWARM-INGRESS-LABEL-PARTLY-SUPPORTED), [SWARM-INGRESS-LIST-EVERY-NODE](swarm-networking.md#SWARM-INGRESS-LIST-EVERY-NODE), [SWARM-RESTART-GRACEFUL-PUBLISHED-PORTS](#SWARM-RESTART-GRACEFUL-PUBLISHED-PORTS), [SWARM-RESTART-GRACEFUL-TASKS](#SWARM-RESTART-GRACEFUL-TASKS), [SWARM-RESTART-KILLED-PUBLISHED-PORTS](#SWARM-RESTART-KILLED-PUBLISHED-PORTS), [SWARM-RESTART-KILLED-TASKS](#SWARM-RESTART-KILLED-TASKS), [SWARM-RESTART-NODE-STATE-ACTIVE](#SWARM-RESTART-NODE-STATE-ACTIVE), [SWARM-RESTART-STALE-OVERLAY](#SWARM-RESTART-STALE-OVERLAY), [SWARM-RESTART-STALE-OVERLAY-REMOVAL](#SWARM-RESTART-STALE-OVERLAY-REMOVAL)
+*Bounds:* [DNS-NAMES-SWARM-LEAVE-RECORDS](container-dns.md#DNS-NAMES-SWARM-LEAVE-RECORDS), [NET-API-GWBRIDGE-INGRESS-SBOX](network-common.md#NET-API-GWBRIDGE-INGRESS-SBOX), [SWARM-CLUSTER-ADVERTISE-ADDRESS-IFACE](swarm-networking.md#SWARM-CLUSTER-ADVERTISE-ADDRESS-IFACE), [SWARM-CLUSTER-ADVERTISE-IFACE-RESOLVED-ONCE](swarm-networking.md#SWARM-CLUSTER-ADVERTISE-IFACE-RESOLVED-ONCE), [SWARM-CLUSTER-DATA-PATH-ADDRESS](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-ADDRESS), [SWARM-CLUSTER-DATA-PATH-ADDRESS-DEFAULT](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-ADDRESS-DEFAULT), [SWARM-CLUSTER-DATA-PATH-ADDRESS-IFACE](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-ADDRESS-IFACE), [SWARM-CLUSTER-DATA-PATH-ADDRESS-MIXED-VERSION](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-ADDRESS-MIXED-VERSION), [SWARM-CLUSTER-DATA-PATH-ADDRESS-V6](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-ADDRESS-V6), [SWARM-CLUSTER-DATA-PATH-MIXED-VERSIONS-ACCEPTED](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-MIXED-VERSIONS-ACCEPTED), [SWARM-CLUSTER-DATA-PATH-PORT](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-PORT), [SWARM-CLUSTER-DATA-PATH-PORT-ZERO](swarm-networking.md#SWARM-CLUSTER-DATA-PATH-PORT-ZERO), [SWARM-CLUSTER-GOSSIP-ADVERTISE-ADDRESS](swarm-networking.md#SWARM-CLUSTER-GOSSIP-ADVERTISE-ADDRESS), [SWARM-CLUSTER-GOSSIP-LISTEN-ADDRESS](swarm-networking.md#SWARM-CLUSTER-GOSSIP-LISTEN-ADDRESS), [SWARM-CLUSTER-IFACE-NAME-RESOLVED-ONCE](swarm-networking.md#SWARM-CLUSTER-IFACE-NAME-RESOLVED-ONCE), [SWARM-CLUSTER-INFO-MANAGER](swarm-networking.md#SWARM-CLUSTER-INFO-MANAGER), [SWARM-CLUSTER-INFO-MANAGER-CLI](swarm-networking.md#SWARM-CLUSTER-INFO-MANAGER-CLI), [SWARM-CLUSTER-INFO-MANAGER-DEFAULT-POOL](swarm-networking.md#SWARM-CLUSTER-INFO-MANAGER-DEFAULT-POOL), [SWARM-CLUSTER-INFO-MANAGER-DEFAULT-POOL-CLI](swarm-networking.md#SWARM-CLUSTER-INFO-MANAGER-DEFAULT-POOL-CLI), [SWARM-CLUSTER-INFO-WORKER](swarm-networking.md#SWARM-CLUSTER-INFO-WORKER), [SWARM-CLUSTER-INFO-WORKER-CLI](swarm-networking.md#SWARM-CLUSTER-INFO-WORKER-CLI), [SWARM-CLUSTER-SUBNET-SIZE-WITHOUT-POOL-DROPPED](swarm-networking.md#SWARM-CLUSTER-SUBNET-SIZE-WITHOUT-POOL-DROPPED), [SWARM-CLUSTER-SUBNET-SIZE-ZERO](swarm-networking.md#SWARM-CLUSTER-SUBNET-SIZE-ZERO), [SWARM-CLUSTER-SUBNET-SIZE-ZERO-UNALLOCATED](swarm-networking.md#SWARM-CLUSTER-SUBNET-SIZE-ZERO-UNALLOCATED), [SWARM-CLUSTER-WINDOWS-DATA-PATH-ADDRESS](swarm-networking.md#SWARM-CLUSTER-WINDOWS-DATA-PATH-ADDRESS), [SWARM-CLUSTER-WINDOWS-DATA-PATH-PORT](swarm-networking.md#SWARM-CLUSTER-WINDOWS-DATA-PATH-PORT), [SWARM-CONVERGE-LEAVE-NO-ENTRIES](#SWARM-CONVERGE-LEAVE-NO-ENTRIES), [SWARM-CONVERGE-LEAVE-REMAINING-TASKS](#SWARM-CONVERGE-LEAVE-REMAINING-TASKS), [SWARM-CONVERGE-REJOIN-INGRESS-BACKENDS](#SWARM-CONVERGE-REJOIN-INGRESS-BACKENDS), [SWARM-CONVERGE-REJOIN-PUBLISHED-PORTS](#SWARM-CONVERGE-REJOIN-PUBLISHED-PORTS), [SWARM-CONVERGE-REJOIN-TASKS](#SWARM-CONVERGE-REJOIN-TASKS), [SWARM-CONVERGE-REJOIN-TASKS-FROM-OTHER-NODES](#SWARM-CONVERGE-REJOIN-TASKS-FROM-OTHER-NODES), [SWARM-ENC-VNI-REUSE-KILLED-DAEMON](#SWARM-ENC-VNI-REUSE-KILLED-DAEMON), [SWARM-EW-WINDOWS-V6-DATA-PATH](swarm-traffic.md#SWARM-EW-WINDOWS-V6-DATA-PATH), [SWARM-GWNET-AFTER-INIT](swarm-traffic.md#SWARM-GWNET-AFTER-INIT), [SWARM-GWNET-AFTER-JOIN](swarm-traffic.md#SWARM-GWNET-AFTER-JOIN), [SWARM-GWNET-NO-INGRESS](swarm-traffic.md#SWARM-GWNET-NO-INGRESS), [SWARM-INGRESS-DEFAULT](swarm-networking.md#SWARM-INGRESS-DEFAULT), [SWARM-INGRESS-LABEL-DELETE-STALE](swarm-networking.md#SWARM-INGRESS-LABEL-DELETE-STALE), [SWARM-INGRESS-LABEL-PARTLY-SUPPORTED](swarm-networking.md#SWARM-INGRESS-LABEL-PARTLY-SUPPORTED), [SWARM-INGRESS-LIST-EVERY-NODE](swarm-networking.md#SWARM-INGRESS-LIST-EVERY-NODE), [SWARM-RESTART-GRACEFUL-PUBLISHED-PORTS](#SWARM-RESTART-GRACEFUL-PUBLISHED-PORTS), [SWARM-RESTART-GRACEFUL-TASKS](#SWARM-RESTART-GRACEFUL-TASKS), [SWARM-RESTART-INGRESS-FROM-OTHER-NODES](#SWARM-RESTART-INGRESS-FROM-OTHER-NODES), [SWARM-RESTART-KILLED-PUBLISHED-PORTS](#SWARM-RESTART-KILLED-PUBLISHED-PORTS), [SWARM-RESTART-KILLED-TASKS](#SWARM-RESTART-KILLED-TASKS), [SWARM-RESTART-LEAVE-INACTIVE](#SWARM-RESTART-LEAVE-INACTIVE), [SWARM-RESTART-LEAVE-LOCAL-ATTACHABLE](#SWARM-RESTART-LEAVE-LOCAL-ATTACHABLE), [SWARM-RESTART-LEAVE-LOCAL-NETWORKS-KEPT](#SWARM-RESTART-LEAVE-LOCAL-NETWORKS-KEPT), [SWARM-RESTART-LEAVE-NETWORKS](#SWARM-RESTART-LEAVE-NETWORKS), [SWARM-RESTART-LEAVE-NETWORKS-CLI](#SWARM-RESTART-LEAVE-NETWORKS-CLI), [SWARM-RESTART-NODE-STATE-ACTIVE](#SWARM-RESTART-NODE-STATE-ACTIVE), [SWARM-RESTART-OTHER-NODES](#SWARM-RESTART-OTHER-NODES), [SWARM-RESTART-STALE-OVERLAY](#SWARM-RESTART-STALE-OVERLAY), [SWARM-RESTART-STALE-OVERLAY-REMOVAL](#SWARM-RESTART-STALE-OVERLAY-REMOVAL), [SWARM-RESTART-TASKS-FROM-OTHER-NODES](#SWARM-RESTART-TASKS-FROM-OTHER-NODES), [SWARM-RESTART-WINDOWS-HNS-ORPHANED](#SWARM-RESTART-WINDOWS-HNS-ORPHANED)
+
+A node's `POST /swarm/init`, `POST /swarm/join` or `POST /swarm/leave`,
+on that node and on the other nodes, and a restart of a node's daemon.
 
 Its dominant term is full cluster re-formation and network re-programming.
 
-The change is complete when the rejoined node's task is running. For a rejoined node that runs
-no task, the change is complete when `POST /swarm/join` responds.
+For an init, a join or a leave, the change is complete when the request responds.
 
 <a id="SWARM-CEIL-ALLOCATION"></a>
 
@@ -768,11 +1176,12 @@ no task, the change is complete when `POST /swarm/join` responds.
 
 *Seconds:* 30
 
-*Bounds:* [DNS-NAMES-EXIT](container-dns.md#DNS-NAMES-EXIT), [DNS-NAMES-STOP](container-dns.md#DNS-NAMES-STOP), [SWARM-CHURN-ROLLING-UPDATE-VIP](#SWARM-CHURN-ROLLING-UPDATE-VIP), [SWARM-CLUSTER-ADDRESS-POOL-ALLOCATION](swarm-networking.md#SWARM-CLUSTER-ADDRESS-POOL-ALLOCATION), [SWARM-CLUSTER-SUBNET-SIZE-WITHOUT-POOL-DROPPED](swarm-networking.md#SWARM-CLUSTER-SUBNET-SIZE-WITHOUT-POOL-DROPPED), [SWARM-INGRESS-CUSTOM-SUBNET](swarm-networking.md#SWARM-INGRESS-CUSTOM-SUBNET), [SWARM-INGRESS-LABEL-ATTACHABLE](swarm-networking.md#SWARM-INGRESS-LABEL-ATTACHABLE), [SWARM-INGRESS-LABEL-PARTLY-SUPPORTED](swarm-networking.md#SWARM-INGRESS-LABEL-PARTLY-SUPPORTED), [SWARM-INGRESS-LABEL-SECOND](swarm-networking.md#SWARM-INGRESS-LABEL-SECOND), [SWARM-INGRESS-LABEL-SECOND-LOG](swarm-networking.md#SWARM-INGRESS-LABEL-SECOND-LOG), [SWARM-INGRESS-LIST-EVERY-NODE](swarm-networking.md#SWARM-INGRESS-LIST-EVERY-NODE), [SWARM-LBHEALTH-DRAIN-REMOTE](swarm-traffic.md#SWARM-LBHEALTH-DRAIN-REMOTE), [SWARM-LBHEALTH-UNHEALTHY](swarm-traffic.md#SWARM-LBHEALTH-UNHEALTHY), [SWARM-OVL-ALLOCATION-FAILURE-UNREPORTED](swarm-networking.md#SWARM-OVL-ALLOCATION-FAILURE-UNREPORTED), [SWARM-OVL-AUXILIARY-ADDRESSES](swarm-networking.md#SWARM-OVL-AUXILIARY-ADDRESSES), [SWARM-OVL-AUXILIARY-ADDRESSES-IGNORED](swarm-networking.md#SWARM-OVL-AUXILIARY-ADDRESSES-IGNORED), [SWARM-OVL-IPRANGE](swarm-networking.md#SWARM-OVL-IPRANGE), [SWARM-OVL-IPRANGE-GATEWAY](swarm-networking.md#SWARM-OVL-IPRANGE-GATEWAY), [SWARM-OVL-MTU-ANY-VALUE](swarm-networking.md#SWARM-OVL-MTU-ANY-VALUE), [SWARM-OVL-MTU-ANY-VALUE-CLI](swarm-networking.md#SWARM-OVL-MTU-ANY-VALUE-CLI), [SWARM-OVL-STATUS-FULL-ID](swarm-networking.md#SWARM-OVL-STATUS-FULL-ID), [SWARM-OVL-STATUS-IN-USE](swarm-networking.md#SWARM-OVL-STATUS-IN-USE), [SWARM-OVL-STATUS-PER-SUBNET](swarm-networking.md#SWARM-OVL-STATUS-PER-SUBNET), [SWARM-OVL-V6-ADDRESSING](swarm-networking.md#SWARM-OVL-V6-ADDRESSING), [SWARM-OVL-VERBOSE-TASKS](swarm-networking.md#SWARM-OVL-VERBOSE-TASKS), [SWARM-OVL-VIP-INGRESS](swarm-networking.md#SWARM-OVL-VIP-INGRESS), [SWARM-OVL-VIP-LEADER-CHANGE](swarm-networking.md#SWARM-OVL-VIP-LEADER-CHANGE), [SWARM-OVL-VIP-NODE-LOCAL](swarm-networking.md#SWARM-OVL-VIP-NODE-LOCAL), [SWARM-OVL-VIP-PER-NETWORK](swarm-networking.md#SWARM-OVL-VIP-PER-NETWORK), [SWARM-OVL-VIP-PER-NETWORK-CLI](swarm-networking.md#SWARM-OVL-VIP-PER-NETWORK-CLI), [SWARM-OVL-VIP-UPDATE](swarm-networking.md#SWARM-OVL-VIP-UPDATE), [SWARM-OVL-VNI-AUTO-RANGE](swarm-networking.md#SWARM-OVL-VNI-AUTO-RANGE), [SWARM-OVL-VNI-DUPLICATE](swarm-networking.md#SWARM-OVL-VNI-DUPLICATE), [SWARM-OVL-VNI-LIST](swarm-networking.md#SWARM-OVL-VNI-LIST), [SWARM-OVL-VNI-LIST-LONG](swarm-networking.md#SWARM-OVL-VNI-LIST-LONG), [SWARM-OVL-VNI-LIST-LONG-SURPLUS-DROPPED](swarm-networking.md#SWARM-OVL-VNI-LIST-LONG-SURPLUS-DROPPED), [SWARM-OVL-VNI-LIST-REPORTED](swarm-networking.md#SWARM-OVL-VNI-LIST-REPORTED), [SWARM-OVL-VNI-LIST-SHORT](swarm-networking.md#SWARM-OVL-VNI-LIST-SHORT), [SWARM-OVLOPT-VNI-LIST](swarm-networking.md#SWARM-OVLOPT-VNI-LIST), [SWARM-SCOPED-CREATE-ALLOCATED](swarm-networking.md#SWARM-SCOPED-CREATE-ALLOCATED), [SWARM-SCOPED-INSPECT](swarm-networking.md#SWARM-SCOPED-INSPECT), [SWARM-SCOPED-PLUGIN-IPAM-ON-LEADER](swarm-networking.md#SWARM-SCOPED-PLUGIN-IPAM-ON-LEADER), [SWARM-SCOPED-PLUGIN-LEADER-CHANGE-ALLOCATION](swarm-networking.md#SWARM-SCOPED-PLUGIN-LEADER-CHANGE-ALLOCATION), [SWARM-SCOPED-PLUGIN-LEADER-CHANGE-LOG](swarm-networking.md#SWARM-SCOPED-PLUGIN-LEADER-CHANGE-LOG), [SWARM-SCOPED-PLUGIN-LEADER-CHANGE-TASKS](swarm-networking.md#SWARM-SCOPED-PLUGIN-LEADER-CHANGE-TASKS), [SWARM-SCOPED-PLUGIN-ON-LEADER](swarm-networking.md#SWARM-SCOPED-PLUGIN-ON-LEADER), [SWARM-SCOPED-PLUGIN-UNTAGGED-IPAM](swarm-networking.md#SWARM-SCOPED-PLUGIN-UNTAGGED-IPAM), [SWARM-SCOPED-PLUGIN-UNTAGGED-NAME](swarm-networking.md#SWARM-SCOPED-PLUGIN-UNTAGGED-NAME), [SWARM-SD-ALIAS-ROLLING-UPDATE](swarm-traffic.md#SWARM-SD-ALIAS-ROLLING-UPDATE)
+*Bounds:* [DNS-NAMES-EXIT](container-dns.md#DNS-NAMES-EXIT), [DNS-NAMES-STOP](container-dns.md#DNS-NAMES-STOP), [SWARM-CHURN-NETWORK-REMOVE-VIP](#SWARM-CHURN-NETWORK-REMOVE-VIP), [SWARM-CHURN-ROLLING-UPDATE-VIP](#SWARM-CHURN-ROLLING-UPDATE-VIP), [SWARM-CLUSTER-ADDRESS-POOL-ALLOCATION](swarm-networking.md#SWARM-CLUSTER-ADDRESS-POOL-ALLOCATION), [SWARM-CLUSTER-SUBNET-SIZE-WITHOUT-POOL-DROPPED](swarm-networking.md#SWARM-CLUSTER-SUBNET-SIZE-WITHOUT-POOL-DROPPED), [SWARM-CTR-ADDRESS](swarm-traffic.md#SWARM-CTR-ADDRESS), [SWARM-HOSTPUB-PLACEMENT-PENDING](swarm-traffic.md#SWARM-HOSTPUB-PLACEMENT-PENDING), [SWARM-HOSTPUB-TARGET-OUT-OF-RANGE](swarm-traffic.md#SWARM-HOSTPUB-TARGET-OUT-OF-RANGE), [SWARM-INGRESS-CUSTOM-SUBNET](swarm-networking.md#SWARM-INGRESS-CUSTOM-SUBNET), [SWARM-INGRESS-LABEL-ATTACHABLE](swarm-networking.md#SWARM-INGRESS-LABEL-ATTACHABLE), [SWARM-INGRESS-LABEL-PARTLY-SUPPORTED](swarm-networking.md#SWARM-INGRESS-LABEL-PARTLY-SUPPORTED), [SWARM-INGRESS-LABEL-SECOND](swarm-networking.md#SWARM-INGRESS-LABEL-SECOND), [SWARM-INGRESS-LABEL-SECOND-LOG](swarm-networking.md#SWARM-INGRESS-LABEL-SECOND-LOG), [SWARM-INGRESS-LIST-EVERY-NODE](swarm-networking.md#SWARM-INGRESS-LIST-EVERY-NODE), [SWARM-LBHEALTH-DRAIN-REMOTE](swarm-traffic.md#SWARM-LBHEALTH-DRAIN-REMOTE), [SWARM-LBHEALTH-UNHEALTHY](swarm-traffic.md#SWARM-LBHEALTH-UNHEALTHY), [SWARM-OVL-ALLOCATION-FAILURE-UNREPORTED](swarm-networking.md#SWARM-OVL-ALLOCATION-FAILURE-UNREPORTED), [SWARM-OVL-AUXILIARY-ADDRESSES](swarm-networking.md#SWARM-OVL-AUXILIARY-ADDRESSES), [SWARM-OVL-AUXILIARY-ADDRESSES-IGNORED](swarm-networking.md#SWARM-OVL-AUXILIARY-ADDRESSES-IGNORED), [SWARM-OVL-IPRANGE](swarm-networking.md#SWARM-OVL-IPRANGE), [SWARM-OVL-IPRANGE-GATEWAY](swarm-networking.md#SWARM-OVL-IPRANGE-GATEWAY), [SWARM-OVL-MTU-ANY-VALUE](swarm-networking.md#SWARM-OVL-MTU-ANY-VALUE), [SWARM-OVL-MTU-ANY-VALUE-CLI](swarm-networking.md#SWARM-OVL-MTU-ANY-VALUE-CLI), [SWARM-OVL-STATUS-FULL-ID](swarm-networking.md#SWARM-OVL-STATUS-FULL-ID), [SWARM-OVL-STATUS-IN-USE](swarm-networking.md#SWARM-OVL-STATUS-IN-USE), [SWARM-OVL-STATUS-PER-SUBNET](swarm-networking.md#SWARM-OVL-STATUS-PER-SUBNET), [SWARM-OVL-V6-ADDRESSING](swarm-networking.md#SWARM-OVL-V6-ADDRESSING), [SWARM-OVL-VERBOSE-TASKS](swarm-networking.md#SWARM-OVL-VERBOSE-TASKS), [SWARM-OVL-VIP-INGRESS](swarm-networking.md#SWARM-OVL-VIP-INGRESS), [SWARM-OVL-VIP-LEADER-CHANGE](swarm-networking.md#SWARM-OVL-VIP-LEADER-CHANGE), [SWARM-OVL-VIP-NODE-LOCAL](swarm-networking.md#SWARM-OVL-VIP-NODE-LOCAL), [SWARM-OVL-VIP-PER-NETWORK](swarm-networking.md#SWARM-OVL-VIP-PER-NETWORK), [SWARM-OVL-VIP-PER-NETWORK-CLI](swarm-networking.md#SWARM-OVL-VIP-PER-NETWORK-CLI), [SWARM-OVL-VIP-UPDATE](swarm-networking.md#SWARM-OVL-VIP-UPDATE), [SWARM-OVL-VNI-AUTO-RANGE](swarm-networking.md#SWARM-OVL-VNI-AUTO-RANGE), [SWARM-OVL-VNI-DUPLICATE](swarm-networking.md#SWARM-OVL-VNI-DUPLICATE), [SWARM-OVL-VNI-LIST](swarm-networking.md#SWARM-OVL-VNI-LIST), [SWARM-OVL-VNI-LIST-LONG](swarm-networking.md#SWARM-OVL-VNI-LIST-LONG), [SWARM-OVL-VNI-LIST-LONG-SURPLUS-DROPPED](swarm-networking.md#SWARM-OVL-VNI-LIST-LONG-SURPLUS-DROPPED), [SWARM-OVL-VNI-LIST-REPORTED](swarm-networking.md#SWARM-OVL-VNI-LIST-REPORTED), [SWARM-OVL-VNI-LIST-SHORT](swarm-networking.md#SWARM-OVL-VNI-LIST-SHORT), [SWARM-OVLOPT-VNI-LIST](swarm-networking.md#SWARM-OVLOPT-VNI-LIST), [SWARM-PORTALLOC-AUTO](swarm-traffic.md#SWARM-PORTALLOC-AUTO), [SWARM-PORTALLOC-AUTO-KEPT](swarm-traffic.md#SWARM-PORTALLOC-AUTO-KEPT), [SWARM-PORTALLOC-AUTO-RANGE](swarm-traffic.md#SWARM-PORTALLOC-AUTO-RANGE), [SWARM-PORTALLOC-AUTO-REASSIGNED](swarm-traffic.md#SWARM-PORTALLOC-AUTO-REASSIGNED), [SWARM-PORTALLOC-AUTO-SKIPS-CHOSEN](swarm-traffic.md#SWARM-PORTALLOC-AUTO-SKIPS-CHOSEN), [SWARM-PORTALLOC-AUTO-UPDATE-REASSIGNED](swarm-traffic.md#SWARM-PORTALLOC-AUTO-UPDATE-REASSIGNED), [SWARM-PORTALLOC-CHOSEN](swarm-traffic.md#SWARM-PORTALLOC-CHOSEN), [SWARM-PORTALLOC-CHOSEN-FULL-RANGE](swarm-traffic.md#SWARM-PORTALLOC-CHOSEN-FULL-RANGE), [SWARM-PORTALLOC-CHOSEN-OUT-OF-RANGE](swarm-traffic.md#SWARM-PORTALLOC-CHOSEN-OUT-OF-RANGE), [SWARM-PORTALLOC-CTR-START-NO-TASK](swarm-traffic.md#SWARM-PORTALLOC-CTR-START-NO-TASK), [SWARM-PORTALLOC-OTHER-PROTOCOL](swarm-traffic.md#SWARM-PORTALLOC-OTHER-PROTOCOL), [SWARM-PORTALLOC-PORT-ABOVE-65535](swarm-traffic.md#SWARM-PORTALLOC-PORT-ABOVE-65535), [SWARM-PORTALLOC-REPORTED](swarm-traffic.md#SWARM-PORTALLOC-REPORTED), [SWARM-PORTALLOC-REPORTED-REACHABLE](swarm-traffic.md#SWARM-PORTALLOC-REPORTED-REACHABLE), [SWARM-PUB-AUTO-ASSIGNED-PORT-HOST-MODE](swarm-traffic.md#SWARM-PUB-AUTO-ASSIGNED-PORT-HOST-MODE), [SWARM-PUB-PORT-CHANGE-OLD](swarm-traffic.md#SWARM-PUB-PORT-CHANGE-OLD), [SWARM-PUB-PORT-REMOVED](swarm-traffic.md#SWARM-PUB-PORT-REMOVED), [SWARM-PUB-PUBLISH-ADD-AUTO-NUMBER](swarm-traffic.md#SWARM-PUB-PUBLISH-ADD-AUTO-NUMBER), [SWARM-PUB-SERVICE-REMOVED](swarm-traffic.md#SWARM-PUB-SERVICE-REMOVED), [SWARM-RESTART-OTHER-NODES](#SWARM-RESTART-OTHER-NODES), [SWARM-SCALE-INGRESS-PORT-REUSE](#SWARM-SCALE-INGRESS-PORT-REUSE), [SWARM-SCALE-UNALLOCATABLE-INSPECT](#SWARM-SCALE-UNALLOCATABLE-INSPECT), [SWARM-SCALE-UNALLOCATABLE-LOG](#SWARM-SCALE-UNALLOCATABLE-LOG), [SWARM-SCALE-UNALLOCATABLE-SERVICE](#SWARM-SCALE-UNALLOCATABLE-SERVICE), [SWARM-SCALE-UNALLOCATABLE-SERVICE-LOG](#SWARM-SCALE-UNALLOCATABLE-SERVICE-LOG), [SWARM-SCALE-VNI-AUTO-DISTINCT](#SWARM-SCALE-VNI-AUTO-DISTINCT), [SWARM-SCALE-VNI-REUSE](#SWARM-SCALE-VNI-REUSE), [SWARM-SCOPED-CREATE-ALLOCATED](swarm-networking.md#SWARM-SCOPED-CREATE-ALLOCATED), [SWARM-SCOPED-INSPECT](swarm-networking.md#SWARM-SCOPED-INSPECT), [SWARM-SCOPED-PLUGIN-IPAM-ON-LEADER](swarm-networking.md#SWARM-SCOPED-PLUGIN-IPAM-ON-LEADER), [SWARM-SCOPED-PLUGIN-LEADER-CHANGE-ALLOCATION](swarm-networking.md#SWARM-SCOPED-PLUGIN-LEADER-CHANGE-ALLOCATION), [SWARM-SCOPED-PLUGIN-LEADER-CHANGE-LOG](swarm-networking.md#SWARM-SCOPED-PLUGIN-LEADER-CHANGE-LOG), [SWARM-SCOPED-PLUGIN-LEADER-CHANGE-TASKS](swarm-networking.md#SWARM-SCOPED-PLUGIN-LEADER-CHANGE-TASKS), [SWARM-SCOPED-PLUGIN-ON-LEADER](swarm-networking.md#SWARM-SCOPED-PLUGIN-ON-LEADER), [SWARM-SCOPED-PLUGIN-UNTAGGED-IPAM](swarm-networking.md#SWARM-SCOPED-PLUGIN-UNTAGGED-IPAM), [SWARM-SCOPED-PLUGIN-UNTAGGED-NAME](swarm-networking.md#SWARM-SCOPED-PLUGIN-UNTAGGED-NAME), [SWARM-SD-ALIAS-DROPPED-UPDATE](swarm-traffic.md#SWARM-SD-ALIAS-DROPPED-UPDATE), [SWARM-SD-ALIAS-ROLLING-UPDATE](swarm-traffic.md#SWARM-SD-ALIAS-ROLLING-UPDATE), [SWARM-SD-DNSRR-NO-VIP](swarm-traffic.md#SWARM-SD-DNSRR-NO-VIP), [SWARM-SD-SERVICE-NAME-UPSTREAM](swarm-traffic.md#SWARM-SD-SERVICE-NAME-UPSTREAM), [SWARM-SD-SERVICE-REMOVED](swarm-traffic.md#SWARM-SD-SERVICE-REMOVED), [SWARM-SD-TASK-STOPPED](swarm-traffic.md#SWARM-SD-TASK-STOPPED), [SWARM-SD-VIP-NO-TASKS](swarm-traffic.md#SWARM-SD-VIP-NO-TASKS), [SWARM-SD-VIP-UNREACHABLE](swarm-traffic.md#SWARM-SD-VIP-UNREACHABLE)
 
 A Swarm-scoped network that can be allocated, or the endpoint (VIPs and published ports) of a
 service whose networks are allocated. Also the leader's failed attempt to allocate a network or
-a service's endpoint, and what follows from it.
+a service's endpoint, and what follows from it. [README.md](README.md#readme-timing) lists the other
+changes in this class.
 
 Its dominant term is the allocator of the leader manager.
 
@@ -784,7 +1193,7 @@ For allocation, the change is complete when `POST /networks/create`, `POST /serv
 
 *Seconds:* 120
 
-*Bounds:* [SWARM-CONVERGE-PARTITION-DETECTION](#SWARM-CONVERGE-PARTITION-DETECTION)
+*Bounds:* [SWARM-CONVERGE-PARTIAL-BLOCK](#SWARM-CONVERGE-PARTIAL-BLOCK), [SWARM-CONVERGE-PARTITION-NO-ENTRIES](#SWARM-CONVERGE-PARTITION-NO-ENTRIES), [SWARM-CONVERGE-PARTITION-QUORUM-VIP](#SWARM-CONVERGE-PARTITION-QUORUM-VIP), [SWARM-RESTART-OTHER-NODES](#SWARM-RESTART-OTHER-NODES)
 
 The nodes on one side of a partition declare the nodes on the other side failed.
 
@@ -799,16 +1208,13 @@ update that does not replace a task is complete when the request responds. For a
 is complete when the request that removes the object responds. For a restart of a node's daemon, the
 change is complete when the daemon's API responds again and `GET /info` on the node reports
 `Swarm.LocalNodeState` as `active`. How long a node takes to be `active` again is
-bounded too: an expectation of [Restart and reclamation](#swarm-lifecycle-restart-and-reclamation) times it from when the
-daemon's API responds again. For a change in a task's health, or the exit of its container, the
-change is complete when the task's node emits the container's `health_status` or
-`die` event. For a change of a task's desired state away from `running`, the change is
-complete when `GET /tasks` first reports the new `DesiredState`. For a change of
-leader, the change is complete when `GET /nodes` on a manager reports
-`ManagerStatus.Leader` as true for the new leader. For an expectation about what holds
-once no container of a service is running, the change is complete when the last of those containers
-emits its `die` event. For an expectation about a removal that reaches a node late, the
-ceiling starts when the removal can reach the node.
+bounded too: [*SWARM-RESTART-NODE-STATE-ACTIVE*](#SWARM-RESTART-NODE-STATE-ACTIVE) times it from when the daemon's API responds
+again. For a change in a task's health, or the exit of its container, the change is complete when
+the task's node emits the container's `health_status` or `die` event. For a
+change of a task's desired state away from `running`, the change is complete when `GET /tasks` first reports the new `DesiredState`. For a change of leader, the change is
+complete when `GET /nodes` on a manager reports `ManagerStatus.Leader` as true
+for the new leader. For an expectation about what holds once no container of a service is running,
+the change is complete when the last of those containers emits its `die` event.
 
 A node partition divides the nodes of a Swarm into two sides, and blocks all traffic between the
 nodes of one side and the nodes of the other, in both directions. The managers that hold a quorum
@@ -824,67 +1230,56 @@ the orchestrator replaces the tasks on that side.
 
 <a id="SWARM-CONVERGE-ADDRESS-MOVE"></a>
 
-**Expectation (detector) SWARM-CONVERGE-ADDRESS-MOVE**: A moved overlay address is reachable at its new endpoint in the ceiling
+**Expectation (contract) SWARM-CONVERGE-ADDRESS-MOVE**: A moved overlay address is reachable at its new endpoint in the ceiling
 
 *Observed from:* task, ctr · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
+*Refines:* [REQ-SWARM-ADDRESS-REUSE](#REQ-SWARM-ADDRESS-REUSE) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 After overlay address X moves from endpoint S1 to S2, a client that could reach X at S1 reaches
-it at S2. The client does this within the reassignment ceiling, without a manual **ip
-neigh**, **arp -d** or host flush. This holds whether S2 is on S1's node or on another
-node. It also holds whether the client is on S1's node, S2's node or a third node.
+it at S2. The client does this within the [*reassignment ceiling (300 s)*](#SWARM-CEIL-REASSIGNMENT), without a manual **ip neigh**, **arp -d** or host
+flush. This holds whether S2 is on S1's node or on another node. It also holds whether the
+client is on S1's node, S2's node or a third node.
 
 <a id="SWARM-CONVERGE-ADDRESS-MOVE-REPEATED"></a>
 
-**Expectation (detector) SWARM-CONVERGE-ADDRESS-MOVE-REPEATED**: Repeated moves of an address converge, even when learned out of order
+**Expectation (contract) SWARM-CONVERGE-ADDRESS-MOVE-REPEATED**: Repeated moves of an address converge, even when learned out of order
 
 *Observed from:* task, ctr · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
+*Refines:* [REQ-SWARM-ADDRESS-REUSE](#REQ-SWARM-ADDRESS-REUSE) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
-Overlay address X moves any number of times between endpoints. Within the reassignment ceiling,
-a client that could reach X at its previous endpoint reaches X at its current endpoint. This
-also holds on a node that learns of the removal of X's previous endpoint only after it learned
-of X's new endpoint. That node can be the node of the new endpoint or any other node.
+Overlay address X moves any number of times between endpoints. Within the [*reassignment
+ceiling (300 s)*](#SWARM-CEIL-REASSIGNMENT), a client that could reach X at its previous
+endpoint reaches X at its current endpoint. This also holds on a node that learns of the removal
+of X's previous endpoint only after it learned of X's new endpoint. This holds on the node of
+the new endpoint and on every other node.
 
 <a id="SWARM-CONVERGE-ADDRESS-MOVE-MAC"></a>
 
-**Expectation (detector) SWARM-CONVERGE-ADDRESS-MOVE-MAC**: A moved address is reachable whether or not its MAC address moves too
+**Expectation (contract) SWARM-CONVERGE-ADDRESS-MOVE-MAC**: A moved address is reachable whether or not its MAC address moves too
 
 *Observed from:* task, ctr · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
+*Refines:* [REQ-SWARM-ADDRESS-REUSE](#REQ-SWARM-ADDRESS-REUSE) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
-Overlay address X moves between endpoints. Within the reassignment ceiling, a client that could
-reach X at its previous endpoint reaches X at its new endpoint. This holds whether or not the
-MAC address moves with X.
+Overlay address X moves between endpoints. Within the [*reassignment ceiling
+(300 s)*](#SWARM-CEIL-REASSIGNMENT), a client that could reach X at its previous endpoint
+reaches X at its new endpoint. This holds whether or not the MAC address moves with X.
 
 <a id="SWARM-CONVERGE-TASK-REPLACED"></a>
 
-**Expectation (detector) SWARM-CONVERGE-TASK-REPLACED**: A client reaches a task's replacement on another node within the ceiling
+**Expectation (contract) SWARM-CONVERGE-TASK-REPLACED**: A client reaches a task's replacement on another node within the ceiling
 
 *Observed from:* task, ctr · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
+*Refines:* [REQ-SWARM-MESH-FOLLOWS-TASKS](swarm-traffic.md#REQ-SWARM-MESH-FOLLOWS-TASKS) · *Needs:* [DNS-HOST-IPTABLES-COMMAND](container-dns.md#DNS-HOST-IPTABLES-COMMAND), [DNS-HOST-IPTABLES-KERNEL](container-dns.md#DNS-HOST-IPTABLES-KERNEL), [DNS-HOST-IPTABLES-LEGACY-KERNEL](container-dns.md#DNS-HOST-IPTABLES-LEGACY-KERNEL), [DNS-HOST-IPTABLES-NFT-KERNEL](container-dns.md#DNS-HOST-IPTABLES-NFT-KERNEL), [DNS-HOST-NFT-COMMAND](container-dns.md#DNS-HOST-NFT-COMMAND), [DNS-HOST-NFTABLES-NAT](container-dns.md#DNS-HOST-NFTABLES-NAT), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LB-EXTENSIONS](swarm-networking.md#SWARM-HOST-IPTABLES-LB-EXTENSIONS), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 When a task is replaced by one on another node, a client that could reach the old task reaches
 the new one. It reaches the new task at the address that `GET /tasks` reports for it, at
 the address that `tasks.<service>` resolves to, and, in vip mode, through the
-service's VIP. The client does this within the reassignment ceiling, without manual
-intervention. This holds whether the client is on the old task's node, the new task's node or a
-third node.
-
-<a id="SWARM-CONVERGE-PARTITION-DETECTION"></a>
-
-**Expectation (detector) SWARM-CONVERGE-PARTITION-DETECTION**: Each side of a partition declares the other failed within the ceiling
-
-*Observed from:* api:mgr, api:wkr · *Depends on:* none · *Platforms:* linux, windows
-
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-FAILURE-DETECTION](#SWARM-CEIL-FAILURE-DETECTION)
-
-During a node partition, each side declares the other side's nodes failed within the
-failure-detection ceiling.
+service's VIP. The client does this within the [*reassignment ceiling (300 s)*](#SWARM-CEIL-REASSIGNMENT), without manual intervention. This holds whether the client is on the
+old task's node, the new task's node or a third node.
 
 <a id="SWARM-CONVERGE-PARTITION-NO-ENTRIES"></a>
 
@@ -892,26 +1287,25 @@ failure-detection ceiling.
 
 *Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-FAILURE-DETECTION](#SWARM-CEIL-FAILURE-DETECTION) · *Rationale:* A wrong neighbor or FDB entry misdirects traffic away from the event that left it ([RAT-SWARM-FORWARDING-ENTRY-FAULTS-LATENT](#RAT-SWARM-FORWARDING-ENTRY-FAULTS-LATENT))
 
-*Applies to:* Linux nodes on one side of a node partition, which have declared the nodes on the
-other side failed
+*Applies to:* Linux nodes on one side of a node partition
 
 Those nodes do not hold overlay neighbor or FDB entries for the other side's endpoints.
 
 <a id="SWARM-CONVERGE-PARTITION-QUORUM-VIP"></a>
 
-**Expectation (detector) SWARM-CONVERGE-PARTITION-QUORUM-VIP**: On the quorum side of a partition, VIP flows reach that side's tasks
+**Expectation (contract) SWARM-CONVERGE-PARTITION-QUORUM-VIP**: On the quorum side of a partition, VIP flows reach that side's tasks
 
 *Observed from:* task, ctr · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-FAULT-TOLERANT](#REQ-SWARM-FAULT-TOLERANT), [REQ-SWARM-MESH-FOLLOWS-TASKS](swarm-traffic.md#REQ-SWARM-MESH-FOLLOWS-TASKS) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LB-EXTENSIONS](swarm-networking.md#SWARM-HOST-IPTABLES-LB-EXTENSIONS), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-FAILURE-DETECTION](#SWARM-CEIL-FAILURE-DETECTION), [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
-*Applies to:* A node partition in which the side with the managers' quorum has declared the
-other side's nodes failed, and a service with running tasks on both sides
+*Applies to:* A node partition, and a service with running tasks on both sides
 
-Every flow that starts on a node of that side and goes to the service's VIP reaches a task on
-that side.
+Within the [*failure detection ceiling (120 s)*](#SWARM-CEIL-FAILURE-DETECTION), every
+flow that starts on a node of the side with the managers' quorum and goes to the service's VIP
+reaches a task on that side.
 
 <a id="SWARM-CONVERGE-NO-OWN-ENTRIES"></a>
 
@@ -919,30 +1313,48 @@ that side.
 
 *Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT) · *Rationale:* A wrong neighbor or FDB entry misdirects traffic away from the event that left it ([RAT-SWARM-FORWARDING-ENTRY-FAULTS-LATENT](#RAT-SWARM-FORWARDING-ENTRY-FAULTS-LATENT))
 
 A node's VXLAN device does not hold a neighbor or FDB entry for any of the node's own endpoints.
 
 <a id="SWARM-CONVERGE-PARTITION-HEAL"></a>
 
-**Expectation (detector) SWARM-CONVERGE-PARTITION-HEAL**: Reachability converges within the ceiling after a partition heals
+**Expectation (contract) SWARM-CONVERGE-PARTITION-HEAL**: After a partition heals, each side reaches the other's overlay addresses
 
 *Observed from:* task, ctr · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-PARTITION-HEAL](#SWARM-CEIL-PARTITION-HEAL)
+*Refines:* [REQ-SWARM-REJOIN-RECOVERY](#REQ-SWARM-REJOIN-RECOVERY) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-PARTITION-HEAL](#SWARM-CEIL-PARTITION-HEAL), [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 *Applies to:* A node partition in which each side has declared the other side's nodes failed
 
-After the partition heals, reachability between the two sides converges within the
-partition-heal ceiling.
+After the partition is removed, each task or container on one side reaches each task or
+container on the other side at its address on every overlay network that both are attached to.
+This holds for each such end that is running when the partition is removed, including a task
+that the orchestrator started during the partition, once the [*partition heal ceiling
+(180 s)*](#SWARM-CEIL-PARTITION-HEAL) has passed from when the partition is removed, and
+the [*reassignment ceiling (300 s)*](#SWARM-CEIL-REASSIGNMENT) has passed from
+when the last of the two ends runs.
+
+<a id="SWARM-CONVERGE-PARTIAL-BLOCK"></a>
+
+**Expectation (detector) SWARM-CONVERGE-PARTIAL-BLOCK**: Nodes whose data path is blocked keep listing each other in Peers
+
+*Observed from:* api:active · *Depends on:* none · *Platforms:* linux, windows
+
+*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-FAILURE-DETECTION](#SWARM-CEIL-FAILURE-DETECTION) · *Rationale:* A node knows its peers from gossip, and does not test the data path to them ([RAT-SWARM-PEERS-FROM-GOSSIP](#RAT-SWARM-PEERS-FROM-GOSSIP))
+
+While a firewall between two nodes drops their data-path traffic (UDP to the data-path port, or
+ESP on an `encrypted` network), in one direction or both, and lets their gossip through,
+each node keeps listing the other in the `Peers` that `GET /networks/{id}`
+reports for each overlay network that both nodes have a local attachment to.
 
 <a id="SWARM-CONVERGE-PARTITION-HEAL-PERSISTS"></a>
 
-**Expectation (detector) SWARM-CONVERGE-PARTITION-HEAL-PERSISTS**: Reachability restored after a partition heals outlasts FDB aging
+**Expectation (contract) SWARM-CONVERGE-PARTITION-HEAL-PERSISTS**: Reachability restored after a partition heals outlasts FDB aging
 
 *Observed from:* task, ctr · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-REJOIN-RECOVERY](#REQ-SWARM-REJOIN-RECOVERY) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-PARTITION-HEAL](#SWARM-CEIL-PARTITION-HEAL), [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 *Applies to:* A node partition between Linux nodes, in which each side has declared the other
 side's nodes failed
@@ -953,11 +1365,11 @@ kernel's learned-FDB aging time. That aging time is 300 s by default.
 
 <a id="SWARM-CONVERGE-PARTITION-HEAL-PERSISTS-ACTIVE"></a>
 
-**Expectation (detector) SWARM-CONVERGE-PARTITION-HEAL-PERSISTS-ACTIVE**: Reachability restored while containers send during the heal persists
+**Expectation (contract) SWARM-CONVERGE-PARTITION-HEAL-PERSISTS-ACTIVE**: Reachability restored while containers send during the heal persists
 
 *Observed from:* task, ctr · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-REJOIN-RECOVERY](#REQ-SWARM-REJOIN-RECOVERY) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-PARTITION-HEAL](#SWARM-CEIL-PARTITION-HEAL), [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 *Applies to:* A node partition between Linux nodes, in which each side has declared the other
 side's nodes failed
@@ -968,71 +1380,98 @@ after they stay silent for longer than the kernel's learned-FDB aging time.
 
 <a id="SWARM-CONVERGE-REJOIN-TASKS"></a>
 
-**Expectation (detector) SWARM-CONVERGE-REJOIN-TASKS**: After a leave and rejoin, new tasks are reachable within the ceiling
+**Expectation (contract) SWARM-CONVERGE-REJOIN-TASKS**: After a leave and rejoin, new tasks are reachable within the ceiling
 
 *Observed from:* task, ctr · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN)
+*Refines:* [REQ-SWARM-REJOIN-RECOVERY](#REQ-SWARM-REJOIN-RECOVERY) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT), [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN)
 
-A node leaves the Swarm with `POST /swarm/leave` and rejoins with `POST /swarm/join`. Within the leave-and-rejoin ceiling, the tasks placed on the node after the rejoin
-are reachable at their overlay addresses from that node and from other nodes. Such tasks include
+A node leaves the Swarm with `POST /swarm/leave` and rejoins with `POST /swarm/join`. A task placed on the node after the rejoin is reachable at its overlay addresses
+from that node and from other nodes. It is reachable once the [*node leave and rejoin ceiling
+(120 s)*](#SWARM-CEIL-REJOIN) has passed from the response to `POST /swarm/join`,
+and the [*reassignment ceiling (300 s)*](#SWARM-CEIL-REASSIGNMENT) has passed
+from when `GET /tasks` first reports the task's state as `running`. Such tasks include
 a global service's tasks.
 
 <a id="SWARM-CONVERGE-REJOIN-PUBLISHED-PORTS"></a>
 
-**Expectation (detector) SWARM-CONVERGE-REJOIN-PUBLISHED-PORTS**: After a leave and rejoin, published ports answer within the ceiling
+**Expectation (contract) SWARM-CONVERGE-REJOIN-PUBLISHED-PORTS**: After a leave and rejoin, published ports answer within the ceiling
 
 *Observed from:* client · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN)
+*Refines:* [REQ-SWARM-REJOIN-RECOVERY](#REQ-SWARM-REJOIN-RECOVERY) · *Needs:* [BR-HOST-NO-FORWARD-DROP](bridge-networking.md#BR-HOST-NO-FORWARD-DROP), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT), [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN) · *Does not cover:* Auto-assignment gives an ingress port that a mode=host task holds ([SWARM-PUB-AUTO-ASSIGNED-PORT-HOST-MODE](swarm-traffic.md#SWARM-PUB-AUTO-ASSIGNED-PORT-HOST-MODE)), With firewalld, a docker-proxy port does not answer at a node's IPv6 address ([SWARM-PUB-FIREWALLD-V6-PROXY](swarm-traffic.md#SWARM-PUB-FIREWALLD-V6-PROXY)), A failure to publish one ingress port leaves the node publishing none ([SWARM-PUB-INGRESS-PORT-IN-USE](swarm-traffic.md#SWARM-PUB-INGRESS-PORT-IN-USE))
 
-After a node leaves the Swarm with `POST /swarm/leave` and rejoins with `POST /swarm/join`, its published ports answer within the leave-and-rejoin ceiling.
+After a node leaves the Swarm with `POST /swarm/leave` and rejoins with `POST /swarm/join`, each of its published ports answers once the [*node leave and rejoin ceiling
+(120 s)*](#SWARM-CEIL-REJOIN) has passed from the response to `POST /swarm/join`,
+and the [*reassignment ceiling (300 s)*](#SWARM-CEIL-REASSIGNMENT) has passed
+from when `GET /tasks` first reports the last of the tasks that the port is published
+for as `running`.
 
 <a id="SWARM-CONVERGE-REJOIN-INGRESS-BACKENDS"></a>
 
-**Expectation (detector) SWARM-CONVERGE-REJOIN-INGRESS-BACKENDS**: After a rejoin, published ports on any node reach the node's new tasks
+**Expectation (contract) SWARM-CONVERGE-REJOIN-INGRESS-BACKENDS**: After a rejoin, published ports on any node reach the node's new tasks
 
 *Observed from:* client · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN)
+*Refines:* [REQ-SWARM-MESH-FOLLOWS-TASKS](swarm-traffic.md#REQ-SWARM-MESH-FOLLOWS-TASKS), [REQ-SWARM-REJOIN-RECOVERY](#REQ-SWARM-REJOIN-RECOVERY) · *Needs:* [BR-HOST-NO-FORWARD-DROP](bridge-networking.md#BR-HOST-NO-FORWARD-DROP), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LB-EXTENSIONS](swarm-networking.md#SWARM-HOST-IPTABLES-LB-EXTENSIONS), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT), [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN) · *Does not cover:* Auto-assignment gives an ingress port that a mode=host task holds ([SWARM-PUB-AUTO-ASSIGNED-PORT-HOST-MODE](swarm-traffic.md#SWARM-PUB-AUTO-ASSIGNED-PORT-HOST-MODE)), With firewalld, an ingress port does not answer at a node's IPv6 address ([SWARM-PUB-FIREWALLD-V6-INGRESS](swarm-traffic.md#SWARM-PUB-FIREWALLD-V6-INGRESS)), A failure to publish one ingress port leaves the node publishing none ([SWARM-PUB-INGRESS-PORT-IN-USE](swarm-traffic.md#SWARM-PUB-INGRESS-PORT-IN-USE))
 
-A node leaves the Swarm with `POST /swarm/leave` and rejoins with `POST /swarm/join`. Within the leave-and-rejoin ceiling, connections to a service's published port on
-any node reach the service's tasks placed on the rejoined node after the rejoin. An example is a
-global service's tasks.
+A node leaves the Swarm with `POST /swarm/leave` and rejoins with `POST /swarm/join`. Connections to a service's published port on any node reach the service's running
+tasks placed on the rejoined node after the rejoin. They reach such a task once the
+[*node leave and rejoin ceiling (120 s)*](#SWARM-CEIL-REJOIN) has passed from the response
+to `POST /swarm/join`, and the [*reassignment ceiling (300 s)*](#SWARM-CEIL-REASSIGNMENT) has passed from when `GET /tasks` first reports the task's
+state as `running`. An example is a global service's tasks.
+
+<a id="SWARM-CONVERGE-REJOIN-TASKS-FROM-OTHER-NODES"></a>
+
+**Expectation (contract) SWARM-CONVERGE-REJOIN-TASKS-FROM-OTHER-NODES**: After a leave and rejoin, other nodes' VIPs and names reach its new tasks
+
+*Observed from:* task, ctr · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
+
+*Refines:* [REQ-SWARM-MESH-FOLLOWS-TASKS](swarm-traffic.md#REQ-SWARM-MESH-FOLLOWS-TASKS), [REQ-SWARM-REJOIN-RECOVERY](#REQ-SWARM-REJOIN-RECOVERY), [REQ-SWARM-SD-SERVICE-NAMES](swarm-traffic.md#REQ-SWARM-SD-SERVICE-NAMES), [REQ-SWARM-VIP-LOAD-BALANCING](swarm-traffic.md#REQ-SWARM-VIP-LOAD-BALANCING) · *Needs:* [DNS-HOST-IPTABLES-COMMAND](container-dns.md#DNS-HOST-IPTABLES-COMMAND), [DNS-HOST-IPTABLES-KERNEL](container-dns.md#DNS-HOST-IPTABLES-KERNEL), [DNS-HOST-IPTABLES-LEGACY-KERNEL](container-dns.md#DNS-HOST-IPTABLES-LEGACY-KERNEL), [DNS-HOST-IPTABLES-NFT-KERNEL](container-dns.md#DNS-HOST-IPTABLES-NFT-KERNEL), [DNS-HOST-NFT-COMMAND](container-dns.md#DNS-HOST-NFT-COMMAND), [DNS-HOST-NFTABLES-NAT](container-dns.md#DNS-HOST-NFTABLES-NAT), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LB-EXTENSIONS](swarm-networking.md#SWARM-HOST-IPTABLES-LB-EXTENSIONS), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT), [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN)
+
+*Applies to:* A service in vip mode on an overlay network, and a task or container on that
+network on a node other than the one that leaves and rejoins
+
+A node leaves the Swarm with `POST /swarm/leave` and rejoins with `POST /swarm/join`. `tasks.<service>` resolves in that task or container to the addresses on
+that network of the service's running tasks, including those placed on the rejoined node after
+the rejoin, and its connections to the service's VIP reach them. Both hold once the
+[*node leave and rejoin ceiling (120 s)*](#SWARM-CEIL-REJOIN) has passed from the response
+to `POST /swarm/join`, and the [*reassignment ceiling (300 s)*](#SWARM-CEIL-REASSIGNMENT) has passed from when `GET /tasks` first reports each of those
+tasks' state as `running`.
 
 <a id="SWARM-CONVERGE-LEAVE-REMAINING-TASKS"></a>
 
-**Expectation (detector) SWARM-CONVERGE-LEAVE-REMAINING-TASKS**: After a node leaves, new VIP and port flows reach the remaining tasks
+**Expectation (contract) SWARM-CONVERGE-LEAVE-REMAINING-TASKS**: After a node leaves, new VIP and port flows reach the remaining tasks
 
 *Observed from:* task, ctr, client · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN)
+*Refines:* [REQ-SWARM-FAULT-TOLERANT](#REQ-SWARM-FAULT-TOLERANT), [REQ-SWARM-MESH-FOLLOWS-TASKS](swarm-traffic.md#REQ-SWARM-MESH-FOLLOWS-TASKS) · *Needs:* [BR-HOST-NO-FORWARD-DROP](bridge-networking.md#BR-HOST-NO-FORWARD-DROP), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LB-EXTENSIONS](swarm-networking.md#SWARM-HOST-IPTABLES-LB-EXTENSIONS), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT), [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN) · *Does not cover:* Auto-assignment gives an ingress port that a mode=host task holds ([SWARM-PUB-AUTO-ASSIGNED-PORT-HOST-MODE](swarm-traffic.md#SWARM-PUB-AUTO-ASSIGNED-PORT-HOST-MODE)), With firewalld, a docker-proxy port does not answer at a node's IPv6 address ([SWARM-PUB-FIREWALLD-V6-PROXY](swarm-traffic.md#SWARM-PUB-FIREWALLD-V6-PROXY)), A failure to publish one ingress port leaves the node publishing none ([SWARM-PUB-INGRESS-PORT-IN-USE](swarm-traffic.md#SWARM-PUB-INGRESS-PORT-IN-USE))
 
 *Applies to:* A service with a running task on each of two or more nodes
 
 One of those nodes leaves the Swarm with `POST /swarm/leave`. Within the
-leave-and-rejoin ceiling after the leave, every new flow to the service's VIP from a node still
-in the Swarm reaches a running task on a node still in the Swarm. So does every new flow to the
-service's published port on such a node.
+[*node leave and rejoin ceiling (120 s)*](#SWARM-CEIL-REJOIN) after the leave, every new
+flow to the service's VIP from a node still in the Swarm reaches a running task on a node still
+in the Swarm. So does every new flow to the service's published port on such a node.
 
 <a id="SWARM-CONVERGE-LEAVE-NO-ENTRIES"></a>
 
-**Expectation (detector) SWARM-CONVERGE-LEAVE-NO-ENTRIES**: Other nodes hold no neighbor or FDB entries for a node that left
+**Expectation (contract) SWARM-CONVERGE-LEAVE-NO-ENTRIES**: Other nodes hold no neighbor or FDB entries for a node that left
 
 *Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN)
+*Refines:* [PRIN-NO-LEAKS](../principles.md#PRIN-NO-LEAKS) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REJOIN](#SWARM-CEIL-REJOIN)
 
-Within the leave-and-rejoin ceiling after `POST /swarm/leave` responds 200 on a node,
-the other nodes do not hold overlay neighbor or FDB entries for its endpoints.
+Within the [*node leave and rejoin ceiling (120 s)*](#SWARM-CEIL-REJOIN) after
+`POST /swarm/leave` responds 200 on a node, the other nodes do not hold overlay neighbor
+or FDB entries for its endpoints.
 
 In the expectations of this subsection, a node's overlay neighbor and FDB entries are the permanent
-entries that the daemon programs. Entries that the kernel learns from traffic are not included. The
-persistence contract holds whether or not containers send traffic as the partition heals. A bug
-revealed the persistence contract. In that bug, reachability after a heal depended on an entry that
-the kernel learned from the peer's traffic. Reachability broke when that entry expired. The fix is
-in [moby/moby#53663](https://github.com/moby/moby/pull/53663). The expectation names `os`
-because how learned and permanent FDB entries interact is behavior of the kernel's VXLAN driver.
+entries that the daemon programs. Entries that the kernel learns from traffic are not included.
+[*SWARM-CONVERGE-PARTITION-HEAL-PERSISTS*](#SWARM-CONVERGE-PARTITION-HEAL-PERSISTS) holds whether or not containers send traffic as the
+partition heals. [*SWARM-CONVERGE-PARTITION-HEAL-PERSISTS-ACTIVE*](#SWARM-CONVERGE-PARTITION-HEAL-PERSISTS-ACTIVE) names the case in which they
+do. The expectations name `os-linux` because how learned and permanent FDB entries interact is
+behavior of the kernel's VXLAN driver.
 
 <a id="swarm-lifecycle-churn"></a>
 
@@ -1046,51 +1485,66 @@ always its tasks.
 
 <a id="SWARM-CHURN-ROLLING-UPDATE-VIP"></a>
 
-**Expectation (detector) SWARM-CHURN-ROLLING-UPDATE-VIP**: During a rolling update, the VIP's outages never exceed the ceiling
+**Expectation (contract) SWARM-CHURN-ROLLING-UPDATE-VIP**: During a rolling update, the VIP's outages never exceed the ceiling
 
 *Observed from:* task, ctr · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-ALLOCATION](#SWARM-CEIL-ALLOCATION)
+*Refines:* [REQ-SWARM-ROLLING-UPDATE](swarm-traffic.md#REQ-SWARM-ROLLING-UPDATE) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LB-EXTENSIONS](swarm-networking.md#SWARM-HOST-IPTABLES-LB-EXTENSIONS), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-ALLOCATION](#SWARM-CEIL-ALLOCATION), [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT) · *Concerned by:* [SWARM-CHURN-STOPPING-TASK-FLOWS](#SWARM-CHURN-STOPPING-TASK-FLOWS)
 
-A service has a rolling update in which at least one task keeps running throughout. Examples are
-an update in start-first order and an update of fewer tasks at a time than are running. During
-the update, the VIP does not stop answering for longer than the allocation ceiling: within any
-interval of that length, some new flow to the VIP succeeds. See
-[Known divergences & non-goals](#swarm-lifecycle-known-divergences-non-goals).
+A service has a rolling update in which at least one task keeps running throughout, and that
+changes neither the service's endpoint mode nor its `TaskTemplate.Networks`. Examples
+are an update in start-first order and an update of fewer tasks at a time than are running.
+During the update, the VIP does not stop answering for longer than the [*allocation
+ceiling (30 s)*](#SWARM-CEIL-ALLOCATION): new flows to the VIP started more than that
+length apart, and every new flow to the VIP started between them, do not all fail to answer.
 
 <a id="SWARM-CHURN-ROLLING-UPDATE-COMPLETE"></a>
 
-**Expectation (detector) SWARM-CHURN-ROLLING-UPDATE-COMPLETE**: After a rolling update, new flows reach running tasks within the ceiling
+**Expectation (contract) SWARM-CHURN-ROLLING-UPDATE-COMPLETE**: After a rolling update, new VIP flows reach running tasks in the ceiling
 
 *Observed from:* task, ctr · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
+*Refines:* [REQ-SWARM-MESH-FOLLOWS-TASKS](swarm-traffic.md#REQ-SWARM-MESH-FOLLOWS-TASKS), [REQ-SWARM-ROLLING-UPDATE](swarm-traffic.md#REQ-SWARM-ROLLING-UPDATE) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LB-EXTENSIONS](swarm-networking.md#SWARM-HOST-IPTABLES-LB-EXTENSIONS), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT) · *Concerned by:* [SWARM-CHURN-STOPPING-TASK-FLOWS](#SWARM-CHURN-STOPPING-TASK-FLOWS)
 
-A service has a rolling update in which at least one task keeps running throughout. Examples are
-an update in start-first order and an update of fewer tasks at a time than are running. Once the
-update completes, every new flow reaches a running task within the reassignment ceiling. See
-[Known divergences & non-goals](#swarm-lifecycle-known-divergences-non-goals).
+A service has a rolling update in which at least one task keeps running throughout, and that
+changes neither the service's endpoint mode nor its `TaskTemplate.Networks`. Examples
+are an update in start-first order and an update of fewer tasks at a time than are running. Once
+the update completes, every new flow to the service's VIP reaches a running task within the
+[*reassignment ceiling (300 s)*](#SWARM-CEIL-REASSIGNMENT).
 
 <a id="SWARM-CHURN-SCALE-FLAPPING"></a>
 
-**Expectation (detector) SWARM-CHURN-SCALE-FLAPPING**: After rapid scaling between 1 and 5, VIP flows reach running tasks
+**Expectation (contract) SWARM-CHURN-SCALE-FLAPPING**: After rapid scaling between 1 and 5, VIP flows reach running tasks
 
 *Observed from:* task, ctr · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
+*Refines:* [REQ-SWARM-MESH-FOLLOWS-TASKS](swarm-traffic.md#REQ-SWARM-MESH-FOLLOWS-TASKS) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LB-EXTENSIONS](swarm-networking.md#SWARM-HOST-IPTABLES-LB-EXTENSIONS), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT) · *Concerned by:* [SWARM-CHURN-STOPPING-TASK-FLOWS](#SWARM-CHURN-STOPPING-TASK-FLOWS)
 
 A service's replica count is changed at least 10 times, alternating between 1 and 5. Each update
 is sent as soon as the previous update responds. Once the scaling stops, every new flow to the
-service's VIP reaches a running task within the reassignment ceiling. See
-[Known divergences & non-goals](#swarm-lifecycle-known-divergences-non-goals).
+service's VIP reaches a running task within the [*reassignment ceiling (300 s)*](#SWARM-CEIL-REASSIGNMENT).
+
+<a id="SWARM-CHURN-STOPPING-TASK-FLOWS"></a>
+
+**Expectation (defect) SWARM-CHURN-STOPPING-TASK-FLOWS**: Other nodes send new flows to a task after it stops
+
+*Observed from:* task, client · *Depends on:* none · *Platforms:* linux, windows
+
+*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT) · *Narrows:* [SWARM-PORTALLOC-PORT-IN-USE-OLD-TASKS](swarm-traffic.md#SWARM-PORTALLOC-PORT-IN-USE-OLD-TASKS) · *Concerns:* [SWARM-CHURN-ROLLING-UPDATE-COMPLETE](#SWARM-CHURN-ROLLING-UPDATE-COMPLETE), [SWARM-CHURN-ROLLING-UPDATE-VIP](#SWARM-CHURN-ROLLING-UPDATE-VIP), [SWARM-CHURN-SCALE-FLAPPING](#SWARM-CHURN-SCALE-FLAPPING), [SWARM-LBHEALTH-DRAIN-REMOTE](swarm-traffic.md#SWARM-LBHEALTH-DRAIN-REMOTE), [SWARM-PUB-PORT-CHANGE-OLD](swarm-traffic.md#SWARM-PUB-PORT-CHANGE-OLD), [SWARM-PUB-SERVICE-REMOVED](swarm-traffic.md#SWARM-PUB-SERVICE-REMOVED) · *Violates:* [REQ-SWARM-LB-GRACEFUL-DRAIN](swarm-traffic.md#REQ-SWARM-LB-GRACEFUL-DRAIN), [REQ-SWARM-MESH-FOLLOWS-TASKS](swarm-traffic.md#REQ-SWARM-MESH-FOLLOWS-TASKS), [REQ-SWARM-ROLLING-UPDATE](swarm-traffic.md#REQ-SWARM-ROLLING-UPDATE)
+
+A task leaves load balancing on its own node at once, and 2 s later the daemon sends its
+container the stop signal (the container's first `kill` event), whether or not the
+other nodes have withdrawn the task by then. A node that has not withdrawn the task when its
+container exits (its `die` event) sends new flows to it after that, through the VIP
+and through published ports, and those flows fail.
 
 <a id="SWARM-CHURN-DELETE-CREATE"></a>
 
-**Expectation (detector) SWARM-CHURN-DELETE-CREATE**: Networks left by a racing delete and create can each be deleted
+**Expectation (contract) SWARM-CHURN-DELETE-CREATE**: Each network left by a racing delete and create is deleted on request
 
-*Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux, windows
+*Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-NETWORK-DELETE](swarm-networking.md#REQ-SWARM-NETWORK-DELETE) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
 
 *Applies to:* A Swarm-scoped network
 
@@ -1098,11 +1552,11 @@ service's VIP reaches a running task within the reassignment ceiling. See
 
 <a id="SWARM-CHURN-DELETE-CREATE-RECREATE"></a>
 
-**Expectation (detector) SWARM-CHURN-DELETE-CREATE-RECREATE**: After a racing delete and create, the name can be created again
+**Expectation (contract) SWARM-CHURN-DELETE-CREATE-RECREATE**: After a racing delete and create, the name is created again
 
-*Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux, windows
+*Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-NETWORK-CREATE-ON-MANAGER](swarm-networking.md#REQ-SWARM-NETWORK-CREATE-ON-MANAGER) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
 
 *Applies to:* A Swarm-scoped network
 
@@ -1111,11 +1565,11 @@ remains, `POST /networks/create` with that name responds 201, and `GET /networks
 
 <a id="SWARM-CHURN-DELETE-CTR-START"></a>
 
-**Expectation (detector) SWARM-CHURN-DELETE-CTR-START**: A delete racing a container start fails, or succeeds and the start fails
+**Expectation (contract) SWARM-CHURN-DELETE-CTR-START**: A delete racing a container start fails, or succeeds and the start fails
 
 *Observed from:* api:mgr, api:active · *Depends on:* none · *Platforms:* linux, windows
 
-*CLI form:* [SWARM-CHURN-DELETE-CTR-START-CLI](#SWARM-CHURN-DELETE-CTR-START-CLI) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Concerned by:* [SWARM-SCOPED-ATTACH-FAILURE-TIMEOUT](swarm-networking.md#SWARM-SCOPED-ATTACH-FAILURE-TIMEOUT)
+*Refines:* [REQ-SWARM-ATTACH-FAILURE-START](swarm-networking.md#REQ-SWARM-ATTACH-FAILURE-START), [REQ-SWARM-NETWORK-DELETE](swarm-networking.md#REQ-SWARM-NETWORK-DELETE) · *CLI form:* [SWARM-CHURN-DELETE-CTR-START-CLI](#SWARM-CHURN-DELETE-CTR-START-CLI) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT) · *Concerned by:* [SWARM-SCOPED-ATTACH-FAILURE-TIMEOUT](swarm-networking.md#SWARM-SCOPED-ATTACH-FAILURE-TIMEOUT)
 
 *Applies to:* A created or stopped standalone container on a Swarm-scoped attachable network
 
@@ -1126,11 +1580,11 @@ network, and the start fails.
 
 <a id="SWARM-CHURN-DELETE-CTR-START-REFUSED"></a>
 
-**Expectation (detector) SWARM-CHURN-DELETE-CTR-START-REFUSED**: When a racing delete succeeds, the container start responds 4xx or 5xx
+**Expectation (contract) SWARM-CHURN-DELETE-CTR-START-REFUSED**: When a racing delete succeeds, the container start responds 4xx or 5xx
 
 *Observed from:* api:mgr, api:active · *Depends on:* none · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-ATTACH-FAILURE-START](swarm-networking.md#REQ-SWARM-ATTACH-FAILURE-START), [REQ-SWARM-NETWORK-DELETE](swarm-networking.md#REQ-SWARM-NETWORK-DELETE) · *Exact form:* [SWARM-CHURN-DELETE-CTR-START-REFUSED-HTTP500](#SWARM-CHURN-DELETE-CTR-START-REFUSED-HTTP500) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Concerned by:* [SWARM-CHURN-DELETE-CTR-START-REFUSED-HTTP500](#SWARM-CHURN-DELETE-CTR-START-REFUSED-HTTP500)
 
 *Applies to:* A created or stopped standalone container on a Swarm-scoped attachable network
 
@@ -1139,27 +1593,26 @@ a 4xx or 5xx status.
 
 <a id="SWARM-CHURN-DELETE-CTR-START-REFUSED-HTTP500"></a>
 
-**Expectation (detector) SWARM-CHURN-DELETE-CTR-START-REFUSED-HTTP500**: When a racing delete succeeds, the container start responds 500
+**Expectation (defect) SWARM-CHURN-DELETE-CTR-START-REFUSED-HTTP500**: When a racing delete succeeds, the container start responds 500
 
 *Observed from:* api:mgr, api:active · *Depends on:* none · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Does not cover:* After an attachment times out, the next request skips the attachment ([SWARM-SCOPED-ATTACH-RETRY-SKIPS-ATTACHMENT](swarm-networking.md#SWARM-SCOPED-ATTACH-RETRY-SKIPS-ATTACHMENT)) · *Concerned by:* [SWARM-CLUSTER-HTTP500-REFUSED](swarm-networking.md#SWARM-CLUSTER-HTTP500-REFUSED)
+*Exact form of:* [SWARM-CHURN-DELETE-CTR-START-REFUSED](#SWARM-CHURN-DELETE-CTR-START-REFUSED) · *Pins:* [SWARM-CLUSTER-HTTP500-REFUSED](swarm-networking.md#SWARM-CLUSTER-HTTP500-REFUSED), [SWARM-SCOPED-ATTACH-FAILURE-TIMEOUT](swarm-networking.md#SWARM-SCOPED-ATTACH-FAILURE-TIMEOUT) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Does not cover:* After an attachment times out, the next request skips the attachment ([SWARM-SCOPED-ATTACH-RETRY-SKIPS-ATTACHMENT](swarm-networking.md#SWARM-SCOPED-ATTACH-RETRY-SKIPS-ATTACHMENT)) · *Concerns:* [SWARM-CHURN-DELETE-CTR-START-REFUSED](#SWARM-CHURN-DELETE-CTR-START-REFUSED) · *Concerned by:* [SWARM-CLUSTER-HTTP500-REFUSED](swarm-networking.md#SWARM-CLUSTER-HTTP500-REFUSED) · *Violates:* [PRIN-ERRORS-ACTIONABLE](../principles.md#PRIN-ERRORS-ACTIONABLE), [REQ-NET-API-ERROR-STATUS](network-common.md#REQ-NET-API-ERROR-STATUS)
 
 *Applies to:* A created or stopped standalone container on a Swarm-scoped attachable network
 
 `DELETE /networks/{id}` on a manager for that network races `POST /containers/{id}/start` for the container. When the delete responds 204, the start gives one of
 two responses. The first is 500 at once, with a message that contains `network <ref> not found`. `<ref>` is the network's full ID if the container has been started before.
 Otherwise it is the network name or ID that the container was created with. The second is 500
-after 20 seconds, with `attaching to network failed, make sure your network options are correct and check manager logs: context deadline exceeded`. See
-[Known divergences & non-goals](#swarm-lifecycle-known-divergences-non-goals).
+after 20 seconds, with `attaching to network failed, make sure your network options are correct and check manager logs: context deadline exceeded`.
 
 <a id="SWARM-CHURN-DELETE-SHUTDOWN"></a>
 
-**Expectation (detector) SWARM-CHURN-DELETE-SHUTDOWN**: A delete racing the last task's shutdown fails or removes the network
+**Expectation (contract) SWARM-CHURN-DELETE-SHUTDOWN**: A delete racing the last task's shutdown fails or removes the network
 
 *Observed from:* api:mgr, api:active · *Depends on:* none · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-NETWORK-DELETE](swarm-networking.md#REQ-SWARM-NETWORK-DELETE) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 *Applies to:* A node with exactly one task or container on a network
 
@@ -1173,95 +1626,106 @@ not list the network.
 
 <a id="SWARM-CHURN-DELETE-CTR-START-CLI"></a>
 
-**Expectation (detector) SWARM-CHURN-DELETE-CTR-START-CLI**: docker network rm racing docker run fails, or succeeds and run fails
+**Expectation (contract) SWARM-CHURN-DELETE-CTR-START-CLI**: docker network rm racing docker run fails, or succeeds and run fails
 
 *Observed from:* api:mgr, api:active · *Depends on:* cli · *Platforms:* linux, windows
 
-*CLI form of:* [SWARM-CHURN-DELETE-CTR-START](#SWARM-CHURN-DELETE-CTR-START) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-ATTACH-FAILURE-START](swarm-networking.md#REQ-SWARM-ATTACH-FAILURE-START), [REQ-SWARM-NETWORK-DELETE](swarm-networking.md#REQ-SWARM-NETWORK-DELETE) · *CLI form of:* [SWARM-CHURN-DELETE-CTR-START](#SWARM-CHURN-DELETE-CTR-START) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
-When `docker network rm` on a manager races `docker run -d --network` naming the
+*Applies to:* A Swarm-scoped attachable network
+
+When `docker network rm` on a manager races `docker run -d --network` naming that
 network, one of two outcomes occurs. In the first, `docker network rm` exits non-zero, and
 the container runs attached to the network. In the second, `docker network rm` exits zero,
 `docker network ls` on a manager then does not list the network, and `docker run -d`
-exits non-zero.
+exits with status 125.
 
 <a id="SWARM-CHURN-VIP-TO-DNSRR-RESOLVES"></a>
 
-**Expectation (detector) SWARM-CHURN-VIP-TO-DNSRR-RESOLVES**: After a change from vip to dnsrr, the service name resolves to its tasks
+**Expectation (contract) SWARM-CHURN-VIP-TO-DNSRR-RESOLVES**: After a change from vip to dnsrr, the service name resolves to its tasks
 
 *Observed from:* task, ctr · *Depends on:* none · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-ENDPOINT-MODE-UPDATE](swarm-traffic.md#REQ-SWARM-ENDPOINT-MODE-UPDATE) · *Needs:* [DNS-HOST-IPTABLES-COMMAND](container-dns.md#DNS-HOST-IPTABLES-COMMAND), [DNS-HOST-IPTABLES-KERNEL](container-dns.md#DNS-HOST-IPTABLES-KERNEL), [DNS-HOST-IPTABLES-LEGACY-KERNEL](container-dns.md#DNS-HOST-IPTABLES-LEGACY-KERNEL), [DNS-HOST-IPTABLES-NFT-KERNEL](container-dns.md#DNS-HOST-IPTABLES-NFT-KERNEL), [DNS-HOST-NFT-COMMAND](container-dns.md#DNS-HOST-NFT-COMMAND), [DNS-HOST-NFTABLES-NAT](container-dns.md#DNS-HOST-NFTABLES-NAT), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 After `POST /services/{id}/update` changes a service's endpoint mode from `vip` to
 `dnsrr`, `<service>` resolves to the addresses of the running tasks.
 
 <a id="SWARM-CHURN-VIP-TO-DNSRR-OLD-VIP"></a>
 
-**Expectation (detector) SWARM-CHURN-VIP-TO-DNSRR-OLD-VIP**: After a change from vip to dnsrr, the old VIP does not reach the service
+**Expectation (contract) SWARM-CHURN-VIP-TO-DNSRR-OLD-VIP**: After a change from vip to dnsrr, the old VIP does not reach the service
 
 *Observed from:* task, ctr · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-ENDPOINT-MODE-UPDATE](swarm-traffic.md#REQ-SWARM-ENDPOINT-MODE-UPDATE) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 After a service's endpoint mode changes from `vip` to `dnsrr`, its old VIP does not reach
 the service.
 
 <a id="SWARM-CHURN-DNSRR-TO-VIP-RESOLVES"></a>
 
-**Expectation (detector) SWARM-CHURN-DNSRR-TO-VIP-RESOLVES**: After a change from dnsrr to vip, the service name resolves to its VIP
+**Expectation (contract) SWARM-CHURN-DNSRR-TO-VIP-RESOLVES**: After a change from dnsrr to vip, the service name resolves to its VIP
 
 *Observed from:* task, ctr · *Depends on:* none · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-ENDPOINT-MODE-UPDATE](swarm-traffic.md#REQ-SWARM-ENDPOINT-MODE-UPDATE) · *Needs:* [DNS-HOST-IPTABLES-COMMAND](container-dns.md#DNS-HOST-IPTABLES-COMMAND), [DNS-HOST-IPTABLES-KERNEL](container-dns.md#DNS-HOST-IPTABLES-KERNEL), [DNS-HOST-IPTABLES-LEGACY-KERNEL](container-dns.md#DNS-HOST-IPTABLES-LEGACY-KERNEL), [DNS-HOST-IPTABLES-NFT-KERNEL](container-dns.md#DNS-HOST-IPTABLES-NFT-KERNEL), [DNS-HOST-NFT-COMMAND](container-dns.md#DNS-HOST-NFT-COMMAND), [DNS-HOST-NFTABLES-NAT](container-dns.md#DNS-HOST-NFTABLES-NAT), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 After `POST /services/{id}/update` changes a service's endpoint mode from `dnsrr` to
 `vip`, `<service>` resolves to the service VIP.
 
 <a id="SWARM-CHURN-DNSRR-TO-VIP-BALANCES"></a>
 
-**Expectation (detector) SWARM-CHURN-DNSRR-TO-VIP-BALANCES**: After a change from dnsrr to vip, the VIP load-balances across the tasks
+**Expectation (contract) SWARM-CHURN-DNSRR-TO-VIP-BALANCES**: After a change from dnsrr to vip, the VIP load-balances across the tasks
 
 *Observed from:* task, ctr · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-ENDPOINT-MODE-UPDATE](swarm-traffic.md#REQ-SWARM-ENDPOINT-MODE-UPDATE) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LB-EXTENSIONS](swarm-networking.md#SWARM-HOST-IPTABLES-LB-EXTENSIONS), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT) · *Does not cover:* In DSR mode, a task's connections to its own VIP reach only itself ([SWARM-LBHEALTH-DSR-OWN-VIP](swarm-traffic.md#SWARM-LBHEALTH-DSR-OWN-VIP))
 
 After a service's endpoint mode changes from `dnsrr` to `vip`, the service's VIP
-load-balances across the service's tasks.
+load-balances across the service's running tasks.
 
 <a id="SWARM-CHURN-NETWORK-ADD"></a>
 
-**Expectation (detector) SWARM-CHURN-NETWORK-ADD**: A service is reachable on a network that an update adds to it
+**Expectation (contract) SWARM-CHURN-NETWORK-ADD**: A service is reachable on a network that an update adds to it
 
 *Observed from:* task, ctr · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*CLI form:* [SWARM-CHURN-NETWORK-ADD-SPEC-CLI](#SWARM-CHURN-NETWORK-ADD-SPEC-CLI) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-SERVICE-NETWORK-UPDATE](#REQ-SWARM-SERVICE-NETWORK-UPDATE) · *Needs:* [DNS-HOST-IPTABLES-COMMAND](container-dns.md#DNS-HOST-IPTABLES-COMMAND), [DNS-HOST-IPTABLES-KERNEL](container-dns.md#DNS-HOST-IPTABLES-KERNEL), [DNS-HOST-IPTABLES-LEGACY-KERNEL](container-dns.md#DNS-HOST-IPTABLES-LEGACY-KERNEL), [DNS-HOST-IPTABLES-NFT-KERNEL](container-dns.md#DNS-HOST-IPTABLES-NFT-KERNEL), [DNS-HOST-NFT-COMMAND](container-dns.md#DNS-HOST-NFT-COMMAND), [DNS-HOST-NFTABLES-NAT](container-dns.md#DNS-HOST-NFTABLES-NAT), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LB-EXTENSIONS](swarm-networking.md#SWARM-HOST-IPTABLES-LB-EXTENSIONS), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
-*Applies to:* A service, and an overlay network that the service is not attached to
+*Applies to:* A service, an overlay network that the service is not attached to, and a client on
+that network that shares no other network with the service
 
 After `POST /services/{id}/update` adds the network to
-`TaskTemplate.Networks`, the service is reachable on that network.
+`TaskTemplate.Networks`, `tasks.<service>` resolves in the client to the
+addresses on that network of the service's running tasks, and the client reaches each of those
+tasks at that address. For a service in the `vip` endpoint mode, `<service>`
+resolves in the client to the service's VIP on that network, and the client's connections to
+that VIP reach the service's running tasks.
 
 <a id="SWARM-CHURN-NETWORK-REMOVE"></a>
 
-**Expectation (detector) SWARM-CHURN-NETWORK-REMOVE**: A service is not reachable on a network that an update removes from it
+**Expectation (contract) SWARM-CHURN-NETWORK-REMOVE**: A service is not reachable on a network that an update removes from it
 
 *Observed from:* task, ctr · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*CLI form:* [SWARM-CHURN-NETWORK-REMOVE-SPEC-CLI](#SWARM-CHURN-NETWORK-REMOVE-SPEC-CLI) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-SERVICE-NETWORK-UPDATE](#REQ-SWARM-SERVICE-NETWORK-UPDATE) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
-*Applies to:* A service attached to a Swarm-scoped network
+*Applies to:* A service attached to a Swarm-scoped network, and a client on that network that
+shares no other network with the service
 
 After `POST /services/{id}/update` removes the network from
-`TaskTemplate.Networks`, the service is not reachable on that network.
+`TaskTemplate.Networks`, neither `<service>` nor
+`tasks.<service>` resolves in the client to an address of any of the service's tasks
+or to the VIP that the service had on that network, and the client's connections to that VIP
+reach none of the service's tasks.
 
 <a id="SWARM-CHURN-NETWORK-REMOVE-VIP"></a>
 
-**Expectation (detector) SWARM-CHURN-NETWORK-REMOVE-VIP**: A service reports no VIP on a network that an update removes
+**Expectation (contract) SWARM-CHURN-NETWORK-REMOVE-VIP**: A service reports no VIP on a network that an update removes
 
-*Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux, windows
+*Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-SERVICE-NETWORK-UPDATE](#REQ-SWARM-SERVICE-NETWORK-UPDATE) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-ALLOCATION](#SWARM-CEIL-ALLOCATION)
 
 *Applies to:* A service attached to a Swarm-scoped network
 
@@ -1269,26 +1733,54 @@ After `POST /services/{id}/update` removes the network from
 `TaskTemplate.Networks`, `GET /services/{id}` does not report a VIP on that
 network.
 
+<a id="SWARM-CHURN-NETWORK-ADD-SPEC"></a>
+
+**Expectation (contract) SWARM-CHURN-NETWORK-ADD-SPEC**: A service update that adds a network stores it
+
+*Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux
+
+*Refines:* [REQ-SWARM-SERVICE-NETWORK-UPDATE](#REQ-SWARM-SERVICE-NETWORK-UPDATE) · *CLI form:* [SWARM-CHURN-NETWORK-ADD-SPEC-CLI](#SWARM-CHURN-NETWORK-ADD-SPEC-CLI) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+
+*Applies to:* A service, and a Swarm-scoped network that the service is not attached to
+
+`POST /services/{id}/update` that adds the network to `TaskTemplate.Networks`
+responds 200. `GET /services/{id}` then reports the network in
+`TaskTemplate.Networks`.
+
 <a id="SWARM-CHURN-NETWORK-ADD-SPEC-CLI"></a>
 
-**Expectation (detector) SWARM-CHURN-NETWORK-ADD-SPEC-CLI**: docker service update --network-add adds the network to the service
+**Expectation (contract) SWARM-CHURN-NETWORK-ADD-SPEC-CLI**: docker service update --network-add adds the network to the service
 
-*Observed from:* api:mgr · *Depends on:* cli · *Platforms:* linux, windows
+*Observed from:* api:mgr · *Depends on:* cli · *Platforms:* linux
 
-*CLI form of:* [SWARM-CHURN-NETWORK-ADD](#SWARM-CHURN-NETWORK-ADD) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-SERVICE-NETWORK-UPDATE](#REQ-SWARM-SERVICE-NETWORK-UPDATE) · *CLI form of:* [SWARM-CHURN-NETWORK-ADD-SPEC](#SWARM-CHURN-NETWORK-ADD-SPEC) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
 
 *Applies to:* A service, and a Swarm-scoped network that the service is not attached to
 
 `docker service update --network-add` naming that network, for the service, exits zero.
 `docker service inspect` then prints the network in `TaskTemplate.Networks`.
 
+<a id="SWARM-CHURN-NETWORK-REMOVE-SPEC"></a>
+
+**Expectation (contract) SWARM-CHURN-NETWORK-REMOVE-SPEC**: A service update that removes a network stores the removal
+
+*Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux
+
+*Refines:* [REQ-SWARM-SERVICE-NETWORK-UPDATE](#REQ-SWARM-SERVICE-NETWORK-UPDATE) · *CLI form:* [SWARM-CHURN-NETWORK-REMOVE-SPEC-CLI](#SWARM-CHURN-NETWORK-REMOVE-SPEC-CLI) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+
+*Applies to:* A service attached to a Swarm-scoped network
+
+`POST /services/{id}/update` that removes the network from
+`TaskTemplate.Networks` responds 200. `GET /services/{id}` then does not
+report the network in `TaskTemplate.Networks`.
+
 <a id="SWARM-CHURN-NETWORK-REMOVE-SPEC-CLI"></a>
 
-**Expectation (detector) SWARM-CHURN-NETWORK-REMOVE-SPEC-CLI**: docker service update --network-rm removes the network from the service
+**Expectation (contract) SWARM-CHURN-NETWORK-REMOVE-SPEC-CLI**: docker service update --network-rm removes the network from the service
 
-*Observed from:* api:mgr · *Depends on:* cli · *Platforms:* linux, windows
+*Observed from:* api:mgr · *Depends on:* cli · *Platforms:* linux
 
-*CLI form of:* [SWARM-CHURN-NETWORK-REMOVE](#SWARM-CHURN-NETWORK-REMOVE) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-SERVICE-NETWORK-UPDATE](#REQ-SWARM-SERVICE-NETWORK-UPDATE) · *CLI form of:* [SWARM-CHURN-NETWORK-REMOVE-SPEC](#SWARM-CHURN-NETWORK-REMOVE-SPEC) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
 
 *Applies to:* A service attached to a Swarm-scoped network
 
@@ -1302,11 +1794,11 @@ network.
 
 <a id="SWARM-SCALE-VNI-REUSE"></a>
 
-**Expectation (detector) SWARM-SCALE-VNI-REUSE**: After create-delete cycles, a deleted network's VNI can be requested
+**Expectation (contract) SWARM-SCALE-VNI-REUSE**: After create-delete cycles, a deleted network's VNI is accepted again
 
-*Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux, windows
+*Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-OVERLAY-VNI-LIST](swarm-networking.md#REQ-SWARM-OVERLAY-VNI-LIST) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-ALLOCATION](#SWARM-CEIL-ALLOCATION), [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 After at least 10 cycles in which an overlay network is created and deleted, `POST /networks/create` for an overlay network, with a `vxlanid_list` that has a VNI that a
 deleted network used, responds 201. `GET /networks/{id}` on a manager then reports that
@@ -1314,11 +1806,11 @@ VNI in `Options`.
 
 <a id="SWARM-SCALE-INGRESS-PORT-REUSE"></a>
 
-**Expectation (detector) SWARM-SCALE-INGRESS-PORT-REUSE**: A removed service's ingress published port can be published again
+**Expectation (contract) SWARM-SCALE-INGRESS-PORT-REUSE**: A removed service's ingress port is accepted for a new service
 
-*Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux, windows
+*Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-PORT-ALLOCATION](swarm-traffic.md#REQ-SWARM-PORT-ALLOCATION) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-ALLOCATION](#SWARM-CEIL-ALLOCATION), [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 *Applies to:* A Swarm with a service that publishes a port in ingress mode
 
@@ -1329,9 +1821,9 @@ the same port responds 201. `GET /services/{id}` then reports that port.
 
 **Expectation (detector) SWARM-SCALE-VNI-AUTO-DISTINCT**: Allocated VNIs differ from the VNIs in other networks' vxlanid_list
 
-*Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux, windows
+*Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-ALLOCATION](#SWARM-CEIL-ALLOCATION) · *Rationale:* Automatic VNIs avoid the VNIs that other networks reserved ([RAT-SWARM-AUTO-VNI-DISTINCT](#RAT-SWARM-AUTO-VNI-DISTINCT))
 
 An overlay network is created without `vxlanid_list`. The VNIs allocated to the network
 differ from the VNIs in the `vxlanid_list` of each other overlay network that exists
@@ -1339,158 +1831,182 @@ when the network is created.
 
 <a id="SWARM-SCALE-MANY-NETWORKS"></a>
 
-**Expectation (detector) SWARM-SCALE-MANY-NETWORKS**: At least 100 overlay networks pass traffic between two nodes
+**Expectation (contract) SWARM-SCALE-MANY-NETWORKS**: At least 100 overlay networks pass traffic between two nodes
 
 *Observed from:* task · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-OVERLAY-CONNECTIVITY](swarm-networking.md#REQ-SWARM-OVERLAY-CONNECTIVITY) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 At least 100 overlay networks, each with a task on each of two nodes, all pass traffic between
 the nodes.
 
-<a id="SWARM-SCALE-UNALLOCATABLE-CREATE"></a>
-
-**Expectation (detector) SWARM-SCALE-UNALLOCATABLE-CREATE**: Creating an overlay network that cannot be allocated responds 201
-
-*Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux, windows
-
-*CLI form:* [SWARM-SCALE-UNALLOCATABLE-CREATE-CLI](#SWARM-SCALE-UNALLOCATABLE-CREATE-CLI) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
-
-`POST /networks/create` for an overlay network that cannot be allocated responds 201. An
-example is a network whose address pool is exhausted. `GET /networks` on a manager then
-lists the network. See [Known divergences & non-goals](#swarm-lifecycle-known-divergences-non-goals).
-
-<a id="SWARM-SCALE-UNALLOCATABLE-CREATE-CLI"></a>
-
-**Expectation (detector) SWARM-SCALE-UNALLOCATABLE-CREATE-CLI**: docker network create for an unallocatable overlay network exits zero
-
-*Observed from:* api:mgr · *Depends on:* cli · *Platforms:* linux, windows
-
-*CLI form of:* [SWARM-SCALE-UNALLOCATABLE-CREATE](#SWARM-SCALE-UNALLOCATABLE-CREATE) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
-
-`docker network create` for an overlay network that cannot be allocated exits zero, and
-`docker network ls` on a manager then lists the network.
-
 <a id="SWARM-SCALE-UNALLOCATABLE-LOG"></a>
 
-**Expectation (detector) SWARM-SCALE-UNALLOCATABLE-LOG**: The leader logs an error with Failed allocation for network and its ID
+**Expectation (detector) SWARM-SCALE-UNALLOCATABLE-LOG**: The leader logs an error that it failed to allocate the network
 
-*Observed from:* log · *Depends on:* none · *Platforms:* linux, windows
+*Observed from:* log · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Pins:* [SWARM-OVL-ALLOCATION-FAILURE-UNREPORTED](swarm-networking.md#SWARM-OVL-ALLOCATION-FAILURE-UNREPORTED) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-ALLOCATION](#SWARM-CEIL-ALLOCATION)
 
 *Applies to:* An overlay network that cannot be allocated
 
 The daemon log of the leader manager reports the failure at error level, in an entry that
-contains `Failed allocation for network` and the network's ID. On a manager that just
-became leader, the entry can contain `failed allocating network` and the network's ID in
-place of that text.
+contains `Failed allocation for network` and the network's ID. For a network that a manager
+finds unallocated when it becomes leader, the entry contains `failed allocating network`
+and the network's ID in place of that text.
 
 <a id="SWARM-SCALE-UNALLOCATABLE-INSPECT"></a>
 
 **Expectation (detector) SWARM-SCALE-UNALLOCATABLE-INSPECT**: An unallocatable network inspects with empty Driver, IPAM and Options
 
-*Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux, windows
+*Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Pins:* [SWARM-OVL-ALLOCATION-FAILURE-UNREPORTED](swarm-networking.md#SWARM-OVL-ALLOCATION-FAILURE-UNREPORTED) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-ALLOCATION](#SWARM-CEIL-ALLOCATION)
 
 *Applies to:* An overlay network that cannot be allocated
 
 On a manager, `GET /networks/{id}` for that network responds 200 with an empty
 `Driver`, `IPAM` and `Options`, and without
 `Status`. This is so even when `POST /networks/create` named a driver or a
-subnet. The response does not report the failure in any field. See
-[Known divergences & non-goals](#swarm-lifecycle-known-divergences-non-goals).
+subnet. The response does not report the failure in any field.
 
 <a id="SWARM-SCALE-UNALLOCATABLE-CTR-START"></a>
 
-**Expectation (detector) SWARM-SCALE-UNALLOCATABLE-CTR-START**: A container start on an unallocatable network responds 500 after 20 s
+**Expectation (contract) SWARM-SCALE-UNALLOCATABLE-CTR-START**: A container start on an unallocatable network fails
 
 *Observed from:* api:active · *Depends on:* none · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Concerned by:* [SWARM-OVL-ALLOCATION-FAILURE-UNREPORTED](swarm-networking.md#SWARM-OVL-ALLOCATION-FAILURE-UNREPORTED), [SWARM-OVL-VNI-DUPLICATE](swarm-networking.md#SWARM-OVL-VNI-DUPLICATE), [SWARM-SCOPED-ATTACH-FAILURE-TIMEOUT](swarm-networking.md#SWARM-SCOPED-ATTACH-FAILURE-TIMEOUT)
+*Refines:* [REQ-SWARM-ATTACH-FAILURE-START](swarm-networking.md#REQ-SWARM-ATTACH-FAILURE-START) · *Exact form:* [SWARM-SCALE-UNALLOCATABLE-CTR-START-HTTP500](#SWARM-SCALE-UNALLOCATABLE-CTR-START-HTTP500) · *CLI form:* [SWARM-SCALE-UNALLOCATABLE-CTR-START-CLI](#SWARM-SCALE-UNALLOCATABLE-CTR-START-CLI) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Concerned by:* [SWARM-OVL-ALLOCATION-FAILURE-UNREPORTED](swarm-networking.md#SWARM-OVL-ALLOCATION-FAILURE-UNREPORTED), [SWARM-OVL-VNI-DUPLICATE](swarm-networking.md#SWARM-OVL-VNI-DUPLICATE), [SWARM-SCALE-UNALLOCATABLE-CREATE](#SWARM-SCALE-UNALLOCATABLE-CREATE), [SWARM-SCALE-UNALLOCATABLE-CTR-START-HTTP500](#SWARM-SCALE-UNALLOCATABLE-CTR-START-HTTP500), [SWARM-SCOPED-ATTACH-FAILURE-TIMEOUT](swarm-networking.md#SWARM-SCOPED-ATTACH-FAILURE-TIMEOUT)
+
+*Applies to:* An attachable overlay network that cannot be allocated, and a created or stopped
+container on that network, on any node
+
+`POST /containers/{id}/start` for the container responds with a 4xx or 5xx status.
+
+<a id="SWARM-SCALE-UNALLOCATABLE-CTR-START-HTTP500"></a>
+
+**Expectation (defect) SWARM-SCALE-UNALLOCATABLE-CTR-START-HTTP500**: A container start on an unallocatable network responds 500 after 20 s
+
+*Observed from:* api:active · *Depends on:* none · *Platforms:* linux, windows
+
+*Exact form of:* [SWARM-SCALE-UNALLOCATABLE-CTR-START](#SWARM-SCALE-UNALLOCATABLE-CTR-START) · *Pins:* [SWARM-SCOPED-ATTACH-FAILURE-TIMEOUT](swarm-networking.md#SWARM-SCOPED-ATTACH-FAILURE-TIMEOUT) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Does not cover:* After an attachment times out, the next request skips the attachment ([SWARM-SCOPED-ATTACH-RETRY-SKIPS-ATTACHMENT](swarm-networking.md#SWARM-SCOPED-ATTACH-RETRY-SKIPS-ATTACHMENT)) · *Concerns:* [SWARM-SCALE-UNALLOCATABLE-CTR-START](#SWARM-SCALE-UNALLOCATABLE-CTR-START) · *Violates:* [PRIN-ERRORS-ACTIONABLE](../principles.md#PRIN-ERRORS-ACTIONABLE), [REQ-NET-API-ERROR-STATUS](network-common.md#REQ-NET-API-ERROR-STATUS)
 
 *Applies to:* An attachable overlay network that cannot be allocated, and a created or stopped
 container on that network, on any node
 
 `POST /containers/{id}/start` for the container responds 500 after 20 seconds with
-`attaching to network failed, make sure your network options are correct and check manager logs: context deadline exceeded`. See
-[Known divergences & non-goals](#swarm-lifecycle-known-divergences-non-goals).
+`attaching to network failed, make sure your network options are correct and check manager logs: context deadline exceeded`.
 
 <a id="SWARM-SCALE-UNALLOCATABLE-CTR-START-CLI"></a>
 
-**Expectation (detector) SWARM-SCALE-UNALLOCATABLE-CTR-START-CLI**: docker run on an unallocatable attachable network exits non-zero
+**Expectation (contract) SWARM-SCALE-UNALLOCATABLE-CTR-START-CLI**: docker run on an unallocatable attachable network exits non-zero
 
 *Observed from:* api:active · *Depends on:* cli · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Concerned by:* [SWARM-OVL-VNI-DUPLICATE-CLI](swarm-networking.md#SWARM-OVL-VNI-DUPLICATE-CLI)
+*Refines:* [REQ-SWARM-ATTACH-FAILURE-START](swarm-networking.md#REQ-SWARM-ATTACH-FAILURE-START) · *CLI form of:* [SWARM-SCALE-UNALLOCATABLE-CTR-START](#SWARM-SCALE-UNALLOCATABLE-CTR-START) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Concerned by:* [SWARM-OVL-VNI-DUPLICATE-CLI](swarm-networking.md#SWARM-OVL-VNI-DUPLICATE-CLI), [SWARM-SCALE-UNALLOCATABLE-CREATE-CLI](#SWARM-SCALE-UNALLOCATABLE-CREATE-CLI)
 
 *Applies to:* An attachable overlay network that cannot be allocated
 
-On any node, `docker run -d --network` naming that network exits non-zero and prints the
-daemon's error.
+On any node, `docker run -d --network` naming that network exits with status 125 and prints
+the daemon's error.
+
+<a id="SWARM-SCALE-UNALLOCATABLE-CREATE"></a>
+
+**Expectation (defect) SWARM-SCALE-UNALLOCATABLE-CREATE**: An overlay network that cannot be allocated is created without a warning
+
+*Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux
+
+*CLI form:* [SWARM-SCALE-UNALLOCATABLE-CREATE-CLI](#SWARM-SCALE-UNALLOCATABLE-CREATE-CLI) · *Pins:* [SWARM-OVL-ALLOCATION-FAILURE-UNREPORTED](swarm-networking.md#SWARM-OVL-ALLOCATION-FAILURE-UNREPORTED) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Concerns:* [SWARM-SCALE-UNALLOCATABLE-CTR-START](#SWARM-SCALE-UNALLOCATABLE-CTR-START) · *Violates:* [PRIN-WARN-AHEAD](../principles.md#PRIN-WARN-AHEAD)
+
+`POST /networks/create` for an overlay network that cannot be allocated responds 201
+without a warning that the network cannot be allocated. An example is a network whose address
+pool is exhausted. `GET /networks` on a manager then lists the network.
+
+<a id="SWARM-SCALE-UNALLOCATABLE-CREATE-CLI"></a>
+
+**Expectation (defect) SWARM-SCALE-UNALLOCATABLE-CREATE-CLI**: docker network create for an unallocatable overlay network exits zero
+
+*Observed from:* api:mgr · *Depends on:* cli · *Platforms:* linux
+
+*CLI form of:* [SWARM-SCALE-UNALLOCATABLE-CREATE](#SWARM-SCALE-UNALLOCATABLE-CREATE) · *Pins:* [SWARM-OVL-ALLOCATION-FAILURE-UNREPORTED](swarm-networking.md#SWARM-OVL-ALLOCATION-FAILURE-UNREPORTED) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Concerns:* [SWARM-SCALE-UNALLOCATABLE-CTR-START-CLI](#SWARM-SCALE-UNALLOCATABLE-CTR-START-CLI) · *Violates:* [PRIN-WARN-AHEAD](../principles.md#PRIN-WARN-AHEAD)
+
+`docker network create` for an overlay network that cannot be allocated exits zero and
+prints no warning, and `docker network ls` on a manager then lists the network.
 
 <a id="SWARM-SCALE-UNALLOCATABLE-SERVICE"></a>
 
-**Expectation (detector) SWARM-SCALE-UNALLOCATABLE-SERVICE**: A service on an unallocatable network is created but its tasks stay new
+**Expectation (defect) SWARM-SCALE-UNALLOCATABLE-SERVICE**: On an unallocatable network, a service gets no warning; tasks stay new
 
-*Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux, windows
+*Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Pins:* [SWARM-OVL-ALLOCATION-FAILURE-UNREPORTED](swarm-networking.md#SWARM-OVL-ALLOCATION-FAILURE-UNREPORTED) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-ALLOCATION](#SWARM-CEIL-ALLOCATION) · *Concerns:* [SWARM-SCALE-UNALLOCATABLE-SERVICE-LOG](#SWARM-SCALE-UNALLOCATABLE-SERVICE-LOG) · *Violates:* [PRIN-WARN-AHEAD](../principles.md#PRIN-WARN-AHEAD), [REQ-SWARM-TASK-ERRORS](swarm-networking.md#REQ-SWARM-TASK-ERRORS)
 
 *Applies to:* An overlay network that cannot be allocated
 
-`POST /services/create` for a service on that network responds 201. The service's tasks
-stay in the `new` state, with desired state `running`, and do not start. See
-[Known divergences & non-goals](#swarm-lifecycle-known-divergences-non-goals).
+`POST /services/create` for a service on that network responds 201 without a warning
+about the network. The service's tasks stay in the `new` state, with desired state
+`running`, and do not start.
 
 <a id="SWARM-SCALE-UNALLOCATABLE-SERVICE-LOG"></a>
 
-**Expectation (detector) SWARM-SCALE-UNALLOCATABLE-SERVICE-LOG**: The leader logs Failed allocation for service on unallocatable networks
+**Expectation (detector) SWARM-SCALE-UNALLOCATABLE-SERVICE-LOG**: The leader logs that it failed to allocate a vip service on the network
 
-*Observed from:* log · *Depends on:* none · *Platforms:* linux, windows
+*Observed from:* log · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Pins:* [SWARM-OVL-ALLOCATION-FAILURE-UNREPORTED](swarm-networking.md#SWARM-OVL-ALLOCATION-FAILURE-UNREPORTED) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-ALLOCATION](#SWARM-CEIL-ALLOCATION) · *Concerned by:* [SWARM-SCALE-UNALLOCATABLE-SERVICE](#SWARM-SCALE-UNALLOCATABLE-SERVICE)
 
 *Applies to:* An overlay network that cannot be allocated
 
-After `POST /services/create` for a service on that network responds 201, the daemon log
-of the leader manager reports the failure at error level. The entry contains `Failed allocation for service` and the service's ID. See
-[Known divergences & non-goals](#swarm-lifecycle-known-divergences-non-goals).
+After `POST /services/create` for a service in vip mode on that network responds 201,
+the daemon log of the leader manager reports the failure at error level. The entry contains
+`Failed allocation for service` and the service's ID.
 
 <a id="SWARM-SCALE-PORT-PROTOCOLS"></a>
 
-**Expectation (detector) SWARM-SCALE-PORT-PROTOCOLS**: Services publishing one port number in different protocols both answer
+**Expectation (contract) SWARM-SCALE-PORT-PROTOCOLS**: Services publishing one port number in different protocols both answer
 
 *Observed from:* client · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-ROUTING-MESH](swarm-networking.md#REQ-SWARM-ROUTING-MESH) · *Needs:* [BR-HOST-NO-FORWARD-DROP](bridge-networking.md#BR-HOST-NO-FORWARD-DROP), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LB-EXTENSIONS](swarm-networking.md#SWARM-HOST-IPTABLES-LB-EXTENSIONS), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPTABLES-SCTP-MATCH](swarm-networking.md#SWARM-HOST-IPTABLES-SCTP-MATCH), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-IPVS-SCTP](swarm-networking.md#SWARM-HOST-IPVS-SCTP), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-SCTP](swarm-networking.md#SWARM-HOST-SCTP), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT) · *Does not cover:* Auto-assignment gives an ingress port that a mode=host task holds ([SWARM-PUB-AUTO-ASSIGNED-PORT-HOST-MODE](swarm-traffic.md#SWARM-PUB-AUTO-ASSIGNED-PORT-HOST-MODE)), With firewalld, a docker-proxy port does not answer at a node's IPv6 address ([SWARM-PUB-FIREWALLD-V6-PROXY](swarm-traffic.md#SWARM-PUB-FIREWALLD-V6-PROXY)), A failure to publish one ingress port leaves the node publishing none ([SWARM-PUB-INGRESS-PORT-IN-USE](swarm-traffic.md#SWARM-PUB-INGRESS-PORT-IN-USE)), SCTP does not pass to or from containers on Windows nodes ([SWARM-SCALE-WINDOWS-SCTP](#SWARM-SCALE-WINDOWS-SCTP))
 
-*Applies to:* A Swarm with a service that publishes a port
+*Applies to:* A Swarm with a service that publishes a port in ingress mode
 
-After a new service publishes the same port number under a different protocol, both services are
-reachable on their published ports.
+After a new service publishes the same port number in ingress mode under a different protocol,
+both services are reachable on their published ports.
 
 <a id="SWARM-SCALE-PORT-PROTOCOLS-REMOVAL"></a>
 
-**Expectation (detector) SWARM-SCALE-PORT-PROTOCOLS-REMOVAL**: Removing one of two same-port services leaves the other reachable
+**Expectation (contract) SWARM-SCALE-PORT-PROTOCOLS-REMOVAL**: Removing one of two same-port services leaves the other reachable
 
 *Observed from:* client · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-ROUTING-MESH](swarm-networking.md#REQ-SWARM-ROUTING-MESH) · *Needs:* [BR-HOST-NO-FORWARD-DROP](bridge-networking.md#BR-HOST-NO-FORWARD-DROP), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LB-EXTENSIONS](swarm-networking.md#SWARM-HOST-IPTABLES-LB-EXTENSIONS), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPTABLES-SCTP-MATCH](swarm-networking.md#SWARM-HOST-IPTABLES-SCTP-MATCH), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-IPVS-SCTP](swarm-networking.md#SWARM-HOST-IPVS-SCTP), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-SCTP](swarm-networking.md#SWARM-HOST-SCTP), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT) · *Does not cover:* Auto-assignment gives an ingress port that a mode=host task holds ([SWARM-PUB-AUTO-ASSIGNED-PORT-HOST-MODE](swarm-traffic.md#SWARM-PUB-AUTO-ASSIGNED-PORT-HOST-MODE)), With firewalld, a docker-proxy port does not answer at a node's IPv6 address ([SWARM-PUB-FIREWALLD-V6-PROXY](swarm-traffic.md#SWARM-PUB-FIREWALLD-V6-PROXY)), A failure to publish one ingress port leaves the node publishing none ([SWARM-PUB-INGRESS-PORT-IN-USE](swarm-traffic.md#SWARM-PUB-INGRESS-PORT-IN-USE)), SCTP does not pass to or from containers on Windows nodes ([SWARM-SCALE-WINDOWS-SCTP](#SWARM-SCALE-WINDOWS-SCTP))
 
-*Applies to:* A Swarm with two services that publish the same port number under different
-protocols
+*Applies to:* A Swarm with two services that publish the same port number in ingress mode under
+different protocols
 
 When one of the services is removed, the other service stays reachable on its published port.
 This holds throughout the removal and after it.
+
+<a id="SWARM-SCALE-WINDOWS-SCTP"></a>
+
+**Expectation (defect) SWARM-SCALE-WINDOWS-SCTP**: SCTP does not pass to or from containers on Windows nodes
+
+*Observed from:* task, client, api:mgr · *Depends on:* os-windows · *Platforms:* windows
+
+*Needs:* [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT) · *Narrows:* [SWARM-EW-PROTOCOLS](swarm-traffic.md#SWARM-EW-PROTOCOLS), [SWARM-LB-PROTOCOLS](swarm-traffic.md#SWARM-LB-PROTOCOLS), [SWARM-PUB-PROTOCOLS](swarm-traffic.md#SWARM-PUB-PROTOCOLS), [SWARM-SCALE-PORT-PROTOCOLS](#SWARM-SCALE-PORT-PROTOCOLS), [SWARM-SCALE-PORT-PROTOCOLS-REMOVAL](#SWARM-SCALE-PORT-PROTOCOLS-REMOVAL) · *Violates:* [PRIN-FAILS-CLOSED](../principles.md#PRIN-FAILS-CLOSED), [REQ-SWARM-OVERLAY-CONNECTIVITY](swarm-networking.md#REQ-SWARM-OVERLAY-CONNECTIVITY), [REQ-SWARM-PUB-PROTOCOLS](swarm-traffic.md#REQ-SWARM-PUB-PROTOCOLS), [REQ-SWARM-ROUTING-MESH](swarm-networking.md#REQ-SWARM-ROUTING-MESH), [REQ-SWARM-VIP-LOAD-BALANCING](swarm-traffic.md#REQ-SWARM-VIP-LOAD-BALANCING)
+
+SCTP does not pass to or from containers on Windows nodes, directly or through a VIP. A task on
+a Windows node that publishes an SCTP port in `mode=host` fails with an error that
+contains `SCTP is unsupported on windows`. On a Windows node, a port published as
+SCTP in `mode=ingress` is published as TCP.
 
 <a id="swarm-lifecycle-firewall-backend-transition"></a>
 
 ### Firewall-backend transition
 
-A switch of a node in a Swarm to or from the nftables backend is not asserted
-([Known divergences & non-goals](#swarm-lifecycle-known-divergences-non-goals)).
+No expectation of these specs is asserted on a node in a Swarm with the nftables backend, and a
+switch of a node in a Swarm to or from the nftables backend is not asserted either.
 
 <a id="swarm-lifecycle-failure-reporting"></a>
 
@@ -1501,70 +2017,74 @@ configuration is what a node programs for the Swarm outside the network namespac
 container. Examples are encryption parameters for a peer, a load-balancer backend, the firewall
 rules that publish an ingress port, and an FDB entry. The affected service continues to look healthy
 from `api:mgr` while that node's data plane is wrong. The daemon log is the only channel that
-reports the failure. This makes the daemon log part of the observable contract. A failure to add a
-task's ingress rules in its own network namespace is not such a failure: the task does not start,
-and `GET /tasks` reports the error ([mode=ingress](swarm-traffic.md#swarm-traffic-api-value-mode-ingress)). A failure
-to add or remove a VIP alias on a load-balancer endpoint, or to find that endpoint's interface, is a
-failure to program the load-balancer service. Under the iptables backend, so is a failure to add the
-service's firewall-mark rule.
+reports the failure. A failure to add a task's ingress rules in its own network namespace is not
+such a failure: the task does not start, and `GET /tasks` reports the error
+([*SWARM-INGPUB-INGRESS-RULES-FAILED*](swarm-traffic.md#SWARM-INGPUB-INGRESS-RULES-FAILED)). A failure to add or remove a VIP alias on a
+load-balancer endpoint, or to find that endpoint's interface, is a failure to program the
+load-balancer service. Under the iptables backend, so is a failure to add the service's
+firewall-mark rule.
 
 <a id="SWARM-FAILREP-LB"></a>
 
-**Expectation (detector) SWARM-FAILREP-LB**: A node-local load-balancer programming failure is logged at error level
+**Expectation (contract) SWARM-FAILREP-LB**: A node-local load-balancer programming failure is logged at error level
 
 *Observed from:* log · *Depends on:* none · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-NODE-FAILURE-LOGGED](#REQ-SWARM-NODE-FAILURE-LOGGED) · *Exact form:* [SWARM-FAILREP-LB-MSG-IPT](#SWARM-FAILREP-LB-MSG-IPT), [SWARM-FAILREP-LB-MSG-WINDOWS](#SWARM-FAILREP-LB-MSG-WINDOWS) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 The daemon log of a node reports a node-local failure to program a load-balancer service or
-backend at error level. See [Known divergences & non-goals](#swarm-lifecycle-known-divergences-non-goals).
+backend at error level.
 
 <a id="SWARM-FAILREP-LB-MSG-IPT"></a>
 
-**Expectation (detector) SWARM-FAILREP-LB-MSG-IPT**: A Linux load-balancer failure entry contains one of seven messages
+**Expectation (detector) SWARM-FAILREP-LB-MSG-IPT**: With iptables, a load-balancer failure entry has one of twelve messages
 
 *Observed from:* log · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Exact form of:* [SWARM-FAILREP-LB](#SWARM-FAILREP-LB) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 A daemon log entry for a node-local failure to program a load-balancer service or backend
 contains `Failed to create an ipvs handle`, `Failed find interface name for endpoint`,
-`Failed add IP alias`, `Failed to remove IP alias`, `Failed to add firewall mark rule`, `Failed to create a new service for vip` or `Failed to create real server`.
+`Failed add IP alias`, `Failed to remove IP alias`, `Failed to add firewall mark rule`, `Failed to create a new service for vip`, `Failed to create real server`,
+`Failed to delete real server`, `Failed to set LB weight of real server`, `Failed to delete service for vip`, `Failed to delete firewall mark rule` or `addLBBackend`.
+No entry names the service. The entries about an ipvs handle, a firewall mark rule, a service
+and a real server identify the load-balancer sandbox only by prefixes of its ID and of its
+container ID. The entry about an ipvs handle adds the path of its network namespace.
 
 <a id="SWARM-FAILREP-LB-MSG-WINDOWS"></a>
 
-**Expectation (detector) SWARM-FAILREP-LB-MSG-WINDOWS**: A Windows load-balancer failure entry has Failed to add ILB/ELB policy
+**Expectation (detector) SWARM-FAILREP-LB-MSG-WINDOWS**: A Windows load-balancer failure entry has one of seven messages
 
 *Observed from:* log · *Depends on:* none · *Platforms:* windows
 
-*Needs:* [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY)
+*Exact form of:* [SWARM-FAILREP-LB](#SWARM-FAILREP-LB) · *Needs:* [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 A daemon log entry for a node-local failure to program a load-balancer service or backend
-contains `Failed to add ILB policy` or `Failed to add ELB policy`.
+contains `Failed to add ILB policy`, `Failed to add ELB policy`, `Failed to find load balancer IP for network`, `Failed to find HNS ID for endpoint`, `Failed to remove HNS ILB policylist`, `Failed to remove HNS ELB policylist` or `Failed to find policies for service`.
 
 <a id="SWARM-FAILREP-INGRESS-PORT"></a>
 
-**Expectation (detector) SWARM-FAILREP-INGRESS-PORT**: A node-local failure to publish an ingress port is logged at error level
+**Expectation (contract) SWARM-FAILREP-INGRESS-PORT**: A node-local failure to publish an ingress port is logged at error level
 
 *Observed from:* log · *Depends on:* none · *Platforms:* linux
 
-*Exact form:* [SWARM-FAILREP-INGRESS-PORT-MSG](#SWARM-FAILREP-INGRESS-PORT-MSG) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-NODE-FAILURE-LOGGED](#REQ-SWARM-NODE-FAILURE-LOGGED) · *Exact form:* [SWARM-FAILREP-INGRESS-PORT-MSG](#SWARM-FAILREP-INGRESS-PORT-MSG) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 The daemon log of a node reports a node-local failure to publish an ingress port at error level.
 
 <a id="SWARM-FAILREP-INGRESS-PORT-IN-USE"></a>
 
-**Expectation (detector) SWARM-FAILREP-INGRESS-PORT-IN-USE**: A failure to publish an ingress port in use is logged with the port
+**Expectation (contract) SWARM-FAILREP-INGRESS-PORT-IN-USE**: A failure to publish an ingress port in use is logged with the port
 
 *Observed from:* log · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [PRIN-ERRORS-ACTIONABLE](../principles.md#PRIN-ERRORS-ACTIONABLE), [REQ-SWARM-NODE-FAILURE-LOGGED](#REQ-SWARM-NODE-FAILURE-LOGGED) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT) · *Concerned by:* [SWARM-PUB-INGRESS-PORT-IN-USE](swarm-traffic.md#SWARM-PUB-INGRESS-PORT-IN-USE)
 
 *Applies to:* A Linux node where a port is in use by a process or container, and a service that
 publishes that port in ingress mode
 
-The daemon log of the node reports the node-local failure to publish that port at error level.
-The entry contains the port number.
+The daemon log of the node reports a node-local failure to publish an ingress port at error
+level, as for any such failure. The entry contains the port number.
 
 <a id="SWARM-FAILREP-INGRESS-PORT-MSG"></a>
 
@@ -1576,28 +2096,43 @@ The entry contains the port number.
 
 The daemon log entry for a node-local failure to publish an ingress port contains `Failed to publish this service's Swarm ingress ports on this node`.
 
-<a id="SWARM-FAILREP-PEER"></a>
+<a id="SWARM-FAILREP-INGRESS-UNPUBLISH"></a>
 
-**Expectation (detector) SWARM-FAILREP-PEER**: A failed overlay peer entry is logged as a warning with its addresses
+**Expectation (detector) SWARM-FAILREP-INGRESS-UNPUBLISH**: A failure to unpublish a service's ingress ports is logged as an error
 
 *Observed from:* log · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT) · *Rationale:* The daemon log is the only report of a node-local failure, and log alerts read its entries ([RAT-SWARM-FAILURE-LOG-ENTRIES](#RAT-SWARM-FAILURE-LOG-ENTRIES))
 
-The daemon log of a node reports a node-local failure to program an overlay peer's FDB or
-neighbor entry at warning level. The entry contains the network's ID, the address of the peer's
-endpoint, and the data-path address of the peer's node.
+*Applies to:* A Linux node that publishes a service's ingress ports
+
+When the node removes the service's last backend from the ingress network's load balancer, for
+example after the service is removed, and it fails to unpublish the service's ingress ports, the
+daemon log of the node contains an error-level entry that contains `Failed to unpublish this service's Swarm ingress ports on this node`.
+
+<a id="SWARM-FAILREP-PEER"></a>
+
+**Expectation (detector) SWARM-FAILREP-PEER**: A failure to program an overlay peer is logged as a warning
+
+*Observed from:* log · *Depends on:* none · *Platforms:* linux, windows
+
+*Exact form:* [SWARM-FAILREP-PEER-MSG](#SWARM-FAILREP-PEER-MSG) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT) · *Rationale:* The daemon log is the only report of a node-local failure, and log alerts read its entries ([RAT-SWARM-FAILURE-LOG-ENTRIES](#RAT-SWARM-FAILURE-LOG-ENTRIES))
+
+The daemon log of a node reports a node-local failure to program an overlay peer at warning
+level. On a Linux node, that is the peer's FDB or neighbor entry. On a Windows node, it is the
+peer's HNS remote endpoint.
 
 <a id="SWARM-FAILREP-PEER-MSG"></a>
 
-**Expectation (detector) SWARM-FAILREP-PEER-MSG**: A failed overlay peer entry logs overlay: failed to add peer entry
+**Expectation (detector) SWARM-FAILREP-PEER-MSG**: The daemon logs that it failed to add or delete an overlay peer entry
 
-*Observed from:* log · *Depends on:* none · *Platforms:* linux
+*Observed from:* log · *Depends on:* none · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Exact form of:* [SWARM-FAILREP-PEER](#SWARM-FAILREP-PEER) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
-The daemon log entry for a node-local failure to program an overlay peer's FDB or neighbor entry
-contains `overlay: failed to add peer entry`. Its `nid` field is the network's full ID.
+The daemon log entry for a node-local failure to program an overlay peer contains `overlay: failed to add peer entry` or `overlay: failed to delete peer entry`. The entry contains the
+network's ID, the address of the peer's endpoint, and the data-path address of the peer's node.
+Its `nid` field is the network's full ID.
 
 <a id="SWARM-FAILREP-IPSEC"></a>
 
@@ -1605,19 +2140,32 @@ contains `overlay: failed to add peer entry`. Its `nid` field is the network's f
 
 *Observed from:* log · *Depends on:* none · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Exact form:* [SWARM-FAILREP-IPSEC-MSG](#SWARM-FAILREP-IPSEC-MSG) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT) · *Rationale:* The daemon log is the only report of a node-local failure, and log alerts read its entries ([RAT-SWARM-FAILURE-LOG-ENTRIES](#RAT-SWARM-FAILURE-LOG-ENTRIES))
 
 The daemon log of a node reports a node-local failure to program an IPsec security association
-or policy for a peer. The entry is at warning level. For a security association, it contains
-`Failed Adding fSA{` or `Failed Adding rSA{`. For a policy, it contains `Adding fSP{`. See [Known divergences & non-goals](#swarm-lifecycle-known-divergences-non-goals).
+or policy for a peer at warning level.
+
+<a id="SWARM-FAILREP-IPSEC-MSG"></a>
+
+**Expectation (detector) SWARM-FAILREP-IPSEC-MSG**: A failed IPsec SA or policy logs a warning that names fSA, rSA or fSP
+
+*Observed from:* log · *Depends on:* none · *Platforms:* linux
+
+*Exact form of:* [SWARM-FAILREP-IPSEC](#SWARM-FAILREP-IPSEC) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
+
+The daemon log entry for a node-local failure to program an IPsec security association for a
+peer contains `Failed Adding fSA{`, `Failed Adding rSA{`, `Failed Removing fSA{`
+or `Failed Removing rSA{`. The entry for a policy contains `Adding fSP{`,
+`Removing fSP{` or `Failed to update fSP{`. The entry for a security association
+prints `%!s(PANIC=String method: runtime error: invalid memory address or nil pointer dereference)` in place of the association, and does not name the peer.
 
 <a id="SWARM-FAILREP-LB-REPEATED"></a>
 
-**Expectation (detector) SWARM-FAILREP-LB-REPEATED**: Each new task retries the load balancer and logs the failure again
+**Expectation (contract) SWARM-FAILREP-LB-REPEATED**: Each new task retries the load balancer and logs the failure again
 
 *Observed from:* log · *Depends on:* none · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-NODE-FAILURE-LOGGED](#REQ-SWARM-NODE-FAILURE-LOGGED) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 *Applies to:* A node where a node-local failure to program the load-balancer service or a
 backend for a service occurred, and its cause still holds
@@ -1626,35 +2174,106 @@ A task is then added to the service. The node tries again to program the load-ba
 or backend for that task, and the daemon log of the node reports the failure again. The report
 is not suppressed after the first one.
 
+<a id="SWARM-FAILREP-INGRESS-PORT-REPEATED"></a>
+
+**Expectation (contract) SWARM-FAILREP-INGRESS-PORT-REPEATED**: Each new task retries the ingress ports and logs the failure again
+
+*Observed from:* log · *Depends on:* none · *Platforms:* linux
+
+*Refines:* [REQ-SWARM-NODE-FAILURE-LOGGED](#REQ-SWARM-NODE-FAILURE-LOGGED) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
+
+*Applies to:* A Linux node where a node-local failure to publish a service's ingress ports
+occurred, and its cause still holds
+
+A task is then added to the service. The node tries again to publish the service's ingress
+ports, and the daemon log of the node reports the failure again. The report is not suppressed
+after the first one.
+
+<a id="SWARM-FAILREP-NOT-REPEATED"></a>
+
+**Expectation (detector) SWARM-FAILREP-NOT-REPEATED**: Node-local failures are not reported again without a new attempt
+
+*Observed from:* log · *Depends on:* none · *Platforms:* linux, windows
+
+*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT) · *Rationale:* The daemon log is the only report of a node-local failure, and log alerts read its entries ([RAT-SWARM-FAILURE-LOG-ENTRIES](#RAT-SWARM-FAILURE-LOG-ENTRIES))
+
+A node reports a node-local failure to program cluster-scoped configuration when the failure
+occurs. While the cause holds and nothing changes in the Swarm, the node does not try again, and
+its daemon log gets no further entry about the failure. Nothing changes in the Swarm while no
+service, task, network or node is created, updated or removed, no node's daemon restarts, no
+node is partitioned from the others, and the encryption keys do not rotate.
+
 <a id="SWARM-FAILREP-LB-RECOVERY"></a>
 
-**Expectation (detector) SWARM-FAILREP-LB-RECOVERY**: After a load-balancer failure clears, a new task gets the node's flows
+**Expectation (contract) SWARM-FAILREP-LB-RECOVERY**: After a load-balancer failure clears, a new task gets the node's flows
 
-*Observed from:* task, client · *Depends on:* none · *Platforms:* linux, windows
+*Observed from:* task, client · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-MESH-FOLLOWS-TASKS](swarm-traffic.md#REQ-SWARM-MESH-FOLLOWS-TASKS) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LB-EXTENSIONS](swarm-networking.md#SWARM-HOST-IPTABLES-LB-EXTENSIONS), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT) · *Concerned by:* [SWARM-LBDIST-RECOVERY-INCOMPLETE](swarm-traffic.md#SWARM-LBDIST-RECOVERY-INCOMPLETE)
 
 *Applies to:* A node where a node-local failure to program the load-balancer service or a
 backend for a service occurred
 
 The cause of the failure clears. A task that is then added to the service receives new flows to
 the service that start on that node. This holds when the failure was to program the
-load-balancer service, and when it was to program a backend. See
-[Known divergences & non-goals](#swarm-lifecycle-known-divergences-non-goals).
+load-balancer service, and when it was to program a backend.
 
 <a id="SWARM-FAILREP-LB-RECOVERY-LOG"></a>
 
-**Expectation (detector) SWARM-FAILREP-LB-RECOVERY-LOG**: After a load-balancer failure clears, a new task gets no failure logged
+**Expectation (contract) SWARM-FAILREP-LB-RECOVERY-LOG**: After a load-balancer failure clears, a new task gets no failure logged
 
 *Observed from:* log · *Depends on:* none · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-NODE-FAILURE-LOGGED](#REQ-SWARM-NODE-FAILURE-LOGGED) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 *Applies to:* A node where a node-local failure to program the load-balancer service or a
 backend for a service occurred
 
-The cause of the failure clears. A task is then added to the service. The daemon log of that
-node does not report a failure for that task.
+The cause of the failure clears. A task is then added to the service. After the task is added,
+no new entry in the daemon log of that node reports a failure to program the load-balancer
+service or a backend for that task.
+
+<a id="SWARM-FAILREP-INGRESS-PORT-RECOVERY"></a>
+
+**Expectation (contract) SWARM-FAILREP-INGRESS-PORT-RECOVERY**: After an ingress publish failure clears, a new task brings the ports up
+
+*Observed from:* client · *Depends on:* os-linux · *Platforms:* linux
+
+*Refines:* [REQ-SWARM-ROUTING-MESH](swarm-networking.md#REQ-SWARM-ROUTING-MESH) · *Needs:* [BR-HOST-NO-FORWARD-DROP](bridge-networking.md#BR-HOST-NO-FORWARD-DROP), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LB-EXTENSIONS](swarm-networking.md#SWARM-HOST-IPTABLES-LB-EXTENSIONS), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPVS](swarm-networking.md#SWARM-HOST-IPVS), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT) · *Does not cover:* With firewalld, an ingress port does not answer at a node's IPv6 address ([SWARM-PUB-FIREWALLD-V6-INGRESS](swarm-traffic.md#SWARM-PUB-FIREWALLD-V6-INGRESS)) · *Concerned by:* [SWARM-PUB-INGRESS-PORT-IN-USE](swarm-traffic.md#SWARM-PUB-INGRESS-PORT-IN-USE)
+
+*Applies to:* A Linux node where publishing a service's ingress ports failed
+
+The cause of the failure clears. A task is then added to the service. Within the
+[*reassignment ceiling (300 s)*](#SWARM-CEIL-REASSIGNMENT) after that task runs,
+clients reach the service's tasks at the node's address on each of the service's published
+ports.
+
+<a id="SWARM-FAILREP-INGRESS-PORT-RECOVERY-LOG"></a>
+
+**Expectation (contract) SWARM-FAILREP-INGRESS-PORT-RECOVERY-LOG**: After an ingress publish failure clears, a new task gets no failure logged
+
+*Observed from:* log · *Depends on:* none · *Platforms:* linux
+
+*Refines:* [REQ-SWARM-NODE-FAILURE-LOGGED](#REQ-SWARM-NODE-FAILURE-LOGGED) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
+
+*Applies to:* A Linux node where publishing a service's ingress ports failed
+
+The cause of the failure clears. A task is then added to the service. After the task is added,
+no new entry in the daemon log of that node reports a failure to publish the service's ingress
+ports.
+
+<a id="SWARM-FAILREP-RECOVERY-UNREPORTED"></a>
+
+**Expectation (detector) SWARM-FAILREP-RECOVERY-UNREPORTED**: Recovery from a node-local failure is not reported
+
+*Observed from:* log · *Depends on:* none · *Platforms:* linux, windows
+
+*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT) · *Rationale:* The daemon log is the only report of a node-local failure, and log alerts read its entries ([RAT-SWARM-FAILURE-LOG-ENTRIES](#RAT-SWARM-FAILURE-LOG-ENTRIES))
+
+At the default log level, a successful attempt that follows a failure adds no entry to the
+node's daemon log about it: after the attempt, no entry that contains the ID or name of the
+service, or the address of the peer endpoint or node, that the failed configuration was for
+reports that the attempt succeeded or that the failure cleared.
 
 <a id="SWARM-FAILREP-UNPROGRAMMED-TASKS"></a>
 
@@ -1662,7 +2281,7 @@ node does not report a failure for that task.
 
 *Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux, windows
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Rationale:* A node's failure to program a service is not the failure of a task ([RAT-SWARM-NODE-FAILURE-NOT-TASK-FAILURE](#RAT-SWARM-NODE-FAILURE-NOT-TASK-FAILURE))
 
 *Applies to:* A node that cannot program cluster-scoped configuration for a service
 
@@ -1674,7 +2293,7 @@ node does not report a failure for that task.
 
 *Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux, windows
 
-*CLI form:* [SWARM-FAILREP-UNPROGRAMMED-SERVICE-CLI](#SWARM-FAILREP-UNPROGRAMMED-SERVICE-CLI) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*CLI form:* [SWARM-FAILREP-UNPROGRAMMED-SERVICE-CLI](#SWARM-FAILREP-UNPROGRAMMED-SERVICE-CLI) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Rationale:* A node's failure to program a service is not the failure of a task ([RAT-SWARM-NODE-FAILURE-NOT-TASK-FAILURE](#RAT-SWARM-NODE-FAILURE-NOT-TASK-FAILURE))
 
 *Applies to:* A node that cannot program cluster-scoped configuration for a service
 
@@ -1683,11 +2302,11 @@ node does not report a failure for that task.
 
 <a id="SWARM-FAILREP-SERVICE-PS"></a>
 
-**Expectation (detector) SWARM-FAILREP-SERVICE-PS**: docker service ps --no-trunc lists tasks with their states and errors
+**Expectation (contract) SWARM-FAILREP-SERVICE-PS**: docker service ps --no-trunc lists tasks with their states and errors
 
-*Observed from:* api:mgr · *Depends on:* cli · *Platforms:* linux, windows
+*Observed from:* api:mgr · *Depends on:* cli · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-SWARM-TASK-ERRORS](swarm-networking.md#REQ-SWARM-TASK-ERRORS) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
 
 `docker service ps --no-trunc` for a service lists the service's tasks, with their states
 and errors.
@@ -1698,72 +2317,65 @@ and errors.
 
 *Observed from:* api:mgr · *Depends on:* cli · *Platforms:* linux, windows
 
-*CLI form of:* [SWARM-FAILREP-UNPROGRAMMED-SERVICE](#SWARM-FAILREP-UNPROGRAMMED-SERVICE) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*CLI form of:* [SWARM-FAILREP-UNPROGRAMMED-SERVICE](#SWARM-FAILREP-UNPROGRAMMED-SERVICE) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Rationale:* A node's failure to program a service is not the failure of a task ([RAT-SWARM-NODE-FAILURE-NOT-TASK-FAILURE](#RAT-SWARM-NODE-FAILURE-NOT-TASK-FAILURE))
 
 *Applies to:* A node that cannot program cluster-scoped configuration for a service
 
 `docker service ls` prints the service's replicas as all running.
-
-[Known divergences & non-goals](#swarm-lifecycle-known-divergences-non-goals) lists four gaps in this reporting and recovery as
-known divergences:
-
-- An unchanged condition is not reported again.
-- Recovery is not reported at all.
-- None of the load-balancer entries names the service.
-- Recovery is incomplete.
 
 <a id="swarm-lifecycle-firewall-anchors-host-integration"></a>
 
 ## Firewall anchors & host integration
 
 The content of Moby's firewall rules is not an interface. A backend change replaces exactly that
-content. [Rule content](bridge-networking.md#bridge-networking-rule-content) pins the bridge driver's rules with detectors only,
-the rules for Swarm ingress ports included. This section covers the overlay driver's own firewall
-state. It also covers how Swarm traffic meets the bridge driver's firewall anchors.
-[bridge-networking.md](bridge-networking.md) specifies those anchors, `DOCKER-USER`
-among them. This section holds on Linux nodes.
+content. [Rule content](bridge-networking.md#bridge-networking-rule-content) in [bridge-networking.md](bridge-networking.md)
+states the bridge driver's rules in detectors only, the rules for Swarm ingress ports included. This
+section covers the overlay driver's own firewall state. It also covers how Swarm traffic meets the
+bridge driver's firewall anchors. [bridge-networking.md](bridge-networking.md) specifies those
+anchors, `DOCKER-USER` among them. This section holds on Linux nodes.
 
 <a id="swarm-lifecycle-nftables"></a>
 
 ### nftables
 
-The overlay driver's nftables table on a node in a Swarm is not asserted
-([Known divergences & non-goals](#swarm-lifecycle-known-divergences-non-goals)).
+The overlay driver's nftables table on a node in a Swarm is not asserted.
 
 <a id="swarm-lifecycle-iptables"></a>
 
 ### iptables
 
-The expectations in this subsection hold under the iptables backend.
-[DOCKER-USER](bridge-networking.md#bridge-networking-ipt-chain-docker-user) specifies the `DOCKER-USER` chain itself.
-Swarm ingress ports do not have a chain of their own. The bridge driver's anchors also cover them
-because the bridge driver publishes them like any other published port.
+The expectations in this subsection hold under the iptables backend. The
+[DOCKER-USER](bridge-networking.md#bridge-networking-ipt-chain-docker-user) section of [bridge-networking.md](bridge-networking.md) specifies the `DOCKER-USER` chain itself. Swarm ingress ports do not
+have a chain of their own. The bridge driver's anchors also cover them because the bridge driver
+publishes them like any other published port.
 
 <a id="SWARM-IPT-DOCKER-USER"></a>
 
-**Expectation (detector) SWARM-IPT-DOCKER-USER**: No daemon rule accepts Swarm published-port traffic before DOCKER-USER
+**Expectation (contract) SWARM-IPT-DOCKER-USER**: No daemon rule accepts Swarm published-port traffic before DOCKER-USER
 
 *Observed from:* client · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [REQ-BR-DOCKER-USER](bridge-networking.md#REQ-BR-DOCKER-USER) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
-Traffic to and from a Swarm published port, in ingress mode and `mode=host`, is
-evaluated by an operator's `DOCKER-USER` rules. No rule that the daemon programs
-accepts that traffic before the `DOCKER-USER` chain.
+Traffic to and from a Swarm published port, in ingress mode and `mode=host`, that the
+node forwards, not relaying it through **docker-proxy**, is evaluated by an operator's
+`DOCKER-USER` rules. No rule that the daemon programs accepts that traffic before the
+`DOCKER-USER` chain.
 
 <a id="SWARM-IPT-ENCRYPTED-INPUT-ACCEPT"></a>
 
-**Expectation (detector) SWARM-IPT-ENCRYPTED-INPUT-ACCEPT**: An INPUT rule accepting VXLAN lets no cleartext into encrypted networks
+**Expectation (contract) SWARM-IPT-ENCRYPTED-INPUT-ACCEPT**: An INPUT rule accepting VXLAN lets no cleartext into encrypted networks
 
 *Observed from:* underlay → task or ctr · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM)
+*Refines:* [REQ-SWARM-ENC-AUTHENTICATED](#REQ-SWARM-ENC-AUTHENTICATED) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-COMMAND), [SWARM-HOST-IPTABLES-ENC-MATCHES](swarm-networking.md#SWARM-HOST-IPTABLES-ENC-MATCHES), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-ROUTE-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN), [SWARM-HOST-XFRM](swarm-networking.md#SWARM-HOST-XFRM) · *Within:* [SWARM-CEIL-REASSIGNMENT](#SWARM-CEIL-REASSIGNMENT)
 
 *Applies to:* A node where an encrypted network is programmed, and an operator's rule at the end
 of the filter table's `INPUT` chain that accepts incoming VXLAN traffic
 
 Cleartext VXLAN for that network's VNI that arrives at the node does not reach the network's
-tasks or containers.
+tasks or containers. This holds whenever the network is programmed on the node and the
+operator's rule is in place, without a ceiling.
 
 <a id="swarm-lifecycle-cross-generation-cleanup"></a>
 
@@ -1773,17 +2385,17 @@ This subsection covers the upgrade path that a packager exercises. A node that r
 upgraded to *N*, possibly with a different firewall backend. A generation is the firewall state that
 one release creates under one firewall backend. A previous generation is such state that a daemon
 left on the node before the current start of the daemon.
-[Cross-generation cleanup](bridge-networking.md#bridge-networking-cross-generation-cleanup) gives the daemon-wide expectations and the reason
-why cleanup depends on names. The expectations here cover state that belongs to Swarm and the
-overlay driver.
+[Cross-generation cleanup](bridge-networking.md#bridge-networking-cross-generation-cleanup) in [bridge-networking.md](bridge-networking.md)
+gives the daemon-wide expectations and the reason why cleanup depends on names. The expectations
+here cover state that belongs to Swarm and the overlay driver.
 
 <a id="SWARM-CLEAN-INGRESS-CHAIN"></a>
 
-**Expectation (detector) SWARM-CLEAN-INGRESS-CHAIN**: The daemon removes the DOCKER-INGRESS chain an old release left at start
+**Expectation (contract) SWARM-CLEAN-INGRESS-CHAIN**: The daemon removes the DOCKER-INGRESS chain an old release left at start
 
 *Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Refines:* [PRIN-NO-LEAKS](../principles.md#PRIN-NO-LEAKS), [REQ-SWARM-STALE-FIREWALL-CLEANUP](#REQ-SWARM-STALE-FIREWALL-CLEANUP) · *Exact form:* [SWARM-CLEAN-INGRESS-CHAIN-IPT](#SWARM-CLEAN-INGRESS-CHAIN-IPT), [SWARM-CLEAN-INGRESS-CHAIN-NFT](#SWARM-CLEAN-INGRESS-CHAIN-NFT) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-CLEANUP-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-CLEANUP-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
 
 *Applies to:* A node with the state that a daemon of release 28.0.0 or earlier left with the
 iptables backend: a `DOCKER-INGRESS` chain in the filter and nat tables, the rule
@@ -1800,7 +2412,7 @@ After the daemon starts, the filter and nat tables do not contain that chain.
 
 *Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Exact form of:* [SWARM-CLEAN-INGRESS-CHAIN](#SWARM-CLEAN-INGRESS-CHAIN) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
 
 *Applies to:* A node with a `DOCKER-INGRESS` chain in the filter or nat table
 
@@ -1813,7 +2425,7 @@ chain.
 
 *Observed from:* node · *Depends on:* os-linux · *Platforms:* linux
 
-*Needs:* [BR-HOST-FORWARDING-V4](bridge-networking.md#BR-HOST-FORWARDING-V4), [BR-HOST-NFTABLES](bridge-networking.md#BR-HOST-NFTABLES), [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
+*Exact form of:* [SWARM-CLEAN-INGRESS-CHAIN](#SWARM-CLEAN-INGRESS-CHAIN) · *Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-CLEANUP-COMMAND](swarm-networking.md#SWARM-HOST-IPTABLES-CLEANUP-COMMAND), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
 
 *Applies to:* A node with a `DOCKER-INGRESS` chain in the filter or nat table, and a
 jump from the filter table's `FORWARD` chain to `DOCKER-FORWARD` or
@@ -1821,212 +2433,3 @@ jump from the filter table's `FORWARD` chain to `DOCKER-FORWARD` or
 
 After the daemon first starts after a switch to nftables, the filter and nat tables do not
 contain that chain.
-
-<a id="SWARM-CLEAN-INGRESS-CHAIN-NAME"></a>
-
-**Expectation (detector) SWARM-CLEAN-INGRESS-CHAIN-NAME**: Cleanup searches the filter and nat tables for a fixed chain name
-
-*Observed from:* node · *Depends on:* none · *Platforms:* linux
-
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
-
-The name that cleanup uses for the `DOCKER-INGRESS` chain does not change. Cleanup
-searches the filter and nat tables for that chain.
-
-<a id="swarm-lifecycle-known-divergences-non-goals"></a>
-
-## Known divergences & non-goals
-
-Each divergence gives one of two things: a current behavior that differs from what a user might
-expect, or a capability that Moby does not provide. A change to the behavior in any divergence is a
-behavior change. Make such a change only on purpose.
-
-<a id="SWARM-ENC-CLEARTEXT-VXLAN-UNAUTHENTICATED"></a>
-
-**Expectation (detector) SWARM-ENC-CLEARTEXT-VXLAN-UNAUTHENTICATED**: VXLAN on cleartext overlays
-
-*Observed from:* task · *Depends on:* os-linux, os-windows · *Platforms:* linux, windows
-
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Rationale:* Why a change to SWARM-ENC-CLEARTEXT-VXLAN-UNAUTHENTICATED should be deliberate ([RAT-SWARM-CLEARTEXT-SENDERS-NOT-FILTERED](#RAT-SWARM-CLEARTEXT-SENDERS-NOT-FILTERED))
-
-Not authenticated. A Linux node delivers VXLAN for a cleartext network's VNI from any host that
-can reach the node's data-path port. The frames reach the network's containers. For an encrypted
-network, the node drops VXLAN for the network's VNI that did not arrive under IPsec
-([Encryption](#swarm-lifecycle-encryption)).
-
-<a id="SWARM-CLUSTER-WINDOWS-V6-DATA-PATH"></a>
-
-**Expectation (detector) SWARM-CLUSTER-WINDOWS-V6-DATA-PATH**: IPv6 data path on Windows
-
-*Observed from:* task · *Depends on:* none · *Platforms:* windows
-
-*Needs:* [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY)
-
-Not supported. Windows nodes cannot exchange overlay traffic with Linux nodes over an IPv6
-underlay.
-
-<a id="SWARM-EGRESS-WINDOWS-INTERNAL-ONLY"></a>
-
-**Expectation (detector) SWARM-EGRESS-WINDOWS-INTERNAL-ONLY**: Egress from internal overlays on Windows
-
-*Observed from:* task · *Depends on:* none · *Platforms:* windows
-
-*Needs:* [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY)
-
-Not prevented. A Windows container attached only to `internal` overlays has egress
-([Egress & the gateway network](swarm-traffic.md#swarm-traffic-egress-the-gateway-network)).
-
-<a id="SWARM-EW-WINDOWS-SCTP"></a>
-
-**Expectation (detector) SWARM-EW-WINDOWS-SCTP**: SCTP on Windows
-
-*Observed from:* task · *Depends on:* os-windows · *Platforms:* windows
-
-*Needs:* [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY)
-
-Not supported. Windows does not have SCTP. SCTP does not pass to or from containers on Windows
-nodes, directly or through a VIP ([East-west reachability](swarm-traffic.md#swarm-traffic-east-west-reachability),
-[Load balancing (east-west VIP)](swarm-traffic.md#swarm-traffic-load-balancing-east-west-vip)). A task on a Windows node that publishes an
-SCTP port in `mode=host` fails with an error that contains `SCTP is unsupported on windows`. On a Windows node, a port published as SCTP in
-`mode=ingress` is published as TCP. That port then collides with a TCP port of the
-same number ([Published ports](swarm-traffic.md#swarm-traffic-published-ports), [*SWARM-SCALE-PORT-PROTOCOLS*](#SWARM-SCALE-PORT-PROTOCOLS)).
-
-<a id="SWARM-RESTART-WINDOWS-HNS-ORPHANED"></a>
-
-**Expectation (detector) SWARM-RESTART-WINDOWS-HNS-ORPHANED**: Orphaned HNS networks on Windows
-
-*Observed from:* node · *Depends on:* none · *Platforms:* windows
-
-*Needs:* [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY)
-
-Not reclaimed. Every HNS overlay network that is on the node when the daemon starts stays in
-place. One of these networks is deleted only when a network with the same ID, or with an
-overlapping VNI, is programmed on the node. Thus the HNS network of a Swarm network that the
-node stopped using while the daemon was not running stays in place
-([Restart and reclamation](#swarm-lifecycle-restart-and-reclamation)). The HNS endpoints that a killed daemon left on
-these networks also stay in place.
-
-<a id="SWARM-CHURN-STOPPING-TASK-FLOWS"></a>
-
-**Expectation (detector) SWARM-CHURN-STOPPING-TASK-FLOWS**: Flows to a stopping task from other nodes
-
-*Observed from:* task · *Depends on:* none · *Platforms:* linux, windows
-
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
-
-Not drained reliably. A task leaves load balancing on its own node at once, and the task is
-stopped 2 s later. Another node may not learn of the withdrawal by that time. That node
-continues to send new flows to the task after the task stops, through the VIP and through
-published ports. Those flows fail until that node learns of the withdrawal
-([Health and drain](swarm-traffic.md#swarm-traffic-health-and-drain), [Churn](#swarm-lifecycle-churn)).
-
-<a id="SWARM-FAILREP-NOT-REPEATED"></a>
-
-**Expectation (detector) SWARM-FAILREP-NOT-REPEATED**: Node-local failures are not reported again without a new attempt
-
-*Observed from:* log · *Depends on:* none · *Platforms:* linux, windows
-
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Rationale:* Why a change to SWARM-FAILREP-NOT-REPEATED should be deliberate ([RAT-SWARM-FAILREP-NOT-REPEATED](#RAT-SWARM-FAILREP-NOT-REPEATED))
-
-A node reports a failure to program cluster-scoped configuration only when something triggers a
-new attempt. An example of a trigger is a change to the service that the configuration is for,
-or to its tasks. Example: a node's data plane is wrong for an hour, and nothing triggers a new
-attempt. In that hour, the node says nothing after its first reports. An operator who did not
-see the first reports cannot discover the condition.
-
-<a id="SWARM-FAILREP-RECOVERY-UNREPORTED"></a>
-
-**Expectation (detector) SWARM-FAILREP-RECOVERY-UNREPORTED**: Recovery from a node-local failure is not reported
-
-*Observed from:* log · *Depends on:* none · *Platforms:* linux, windows
-
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Rationale:* Why a change to SWARM-FAILREP-RECOVERY-UNREPORTED should be deliberate ([RAT-SWARM-FAILREP-RECOVERY-UNREPORTED](#RAT-SWARM-FAILREP-RECOVERY-UNREPORTED))
-
-At the default log level, a successful attempt does not log anything. An operator sees the
-failures stop, and sees nothing else. No log entry or report tells the operator that the node's
-data plane is correct again.
-
-<a id="SWARM-FAILREP-LOG-NO-SERVICE"></a>
-
-**Expectation (detector) SWARM-FAILREP-LOG-NO-SERVICE**: Failure log entries do not name the service
-
-*Observed from:* log · *Depends on:* none · *Platforms:* linux, windows
-
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Rationale:* Why a change to SWARM-FAILREP-LOG-NO-SERVICE should be deliberate ([RAT-SWARM-FAILREP-LOG-NO-SERVICE](#RAT-SWARM-FAILREP-LOG-NO-SERVICE))
-
-On Linux nodes, a log entry for a load-balancer failure names the network, the VIP or a
-backend's address. Some of these entries contain only internal identifiers. Examples are a
-prefix of a container ID and the path of a network namespace. No entry names the service. An
-entry for a failure to program an IPsec security association prints `%!s(PANIC=String method: runtime error: invalid memory address or nil pointer dereference)` in place of the
-association. That entry does not name the peer ([Failure reporting](#swarm-lifecycle-failure-reporting)).
-
-<a id="SWARM-INGRESS-HTTP400-STATE-REFUSAL"></a>
-
-**Expectation (detector) SWARM-INGRESS-HTTP400-STATE-REFUSAL**: HTTP 400 when the Swarm's state refuses a request
-
-*Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux, windows
-
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Rationale:* Why a change to SWARM-INGRESS-HTTP400-STATE-REFUSAL should be deliberate ([RAT-SWARM-STATE-REFUSAL-STATUS-MAPPED](#RAT-SWARM-STATE-REFUSAL-STATUS-MAPPED))
-
-Misleading. A request that the Swarm's current state refuses responds 400, the status for a
-malformed request. An identical request succeeds once that state changes. The daemon maps the
-gRPC codes `FailedPrecondition` and `InvalidArgument` to 400. Examples are a service with a
-port in ingress mode in a Swarm without an ingress network, and `DELETE /networks/{id}`
-for a network that a service or task uses. Others are `DELETE /networks/{id}` for the
-ingress network while a service publishes a port in ingress mode, and a service that chooses a
-port that another service publishes ([Swarm-scoped networks](swarm-networking.md#swarm-networking-swarm-scoped-networks),
-[The ingress network](swarm-networking.md#swarm-networking-the-ingress-network), [Port allocation](swarm-traffic.md#swarm-traffic-port-allocation)).
-
-<a id="SWARM-ENC-XFRM-ALGORITHM-UNCHECKED"></a>
-
-**Expectation (detector) SWARM-ENC-XFRM-ALGORITHM-UNCHECKED**: XFRM algorithm support is not checked
-
-*Observed from:* api:mgr · *Depends on:* none · *Platforms:* linux
-
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
-
-Not detected. Before a task or container joins an `encrypted` network, the daemon checks
-only that the kernel offers the XFRM netlink interface. On a host whose kernel does not offer
-`rfc4106(gcm(aes))`, the task starts, and the daemon logs a warning for each security
-association that it fails to add. The node's IPsec policies are in place, so its traffic on the
-network with other nodes does not pass ([Encryption](#swarm-lifecycle-encryption)).
-
-<a id="SWARM-CONVERGE-PARTIAL-BLOCK"></a>
-
-**Expectation (detector) SWARM-CONVERGE-PARTIAL-BLOCK**: Partial blocks between nodes
-
-*Observed from:* api:active · *Depends on:* none · *Platforms:* linux, windows
-
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN) · *Rationale:* Why a change to SWARM-CONVERGE-PARTIAL-BLOCK should be deliberate ([RAT-SWARM-PEERS-FROM-GOSSIP](#RAT-SWARM-PEERS-FROM-GOSSIP))
-
-Not covered. A firewall that blocks only the data path between two nodes (the data-path port, or
-ESP on an `encrypted` network) while gossip flows is not detected. The nodes stay peers,
-and the overlay traffic between them is dropped. A block in one direction only is not covered
-either.
-
-<a id="SWARM-NFT-BACKEND"></a>
-
-**Expectation (detector) SWARM-NFT-BACKEND**: Swarm under the nftables backend
-
-*Observed from:* api · *Depends on:* none · *Platforms:* linux
-
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
-
-Not asserted. A node in a Swarm can run the nftables backend. No expectation of these specs is
-asserted on such a node, and a switch of a node in a Swarm to or from the nftables backend is
-not asserted either.
-
-<a id="SWARM-RESTART-LEAVE-LOCAL-ATTACHABLE"></a>
-
-**Expectation (detector) SWARM-RESTART-LEAVE-LOCAL-ATTACHABLE**: Node-local attachable networks on Swarm leave
-
-*Observed from:* api:solo · *Depends on:* none · *Platforms:* linux, windows
-
-*Needs:* [NET-HOST-FIREWALL-PASSES-TRAFFIC](network-common.md#NET-HOST-FIREWALL-PASSES-TRAFFIC), [NET-HOST-NETNS](network-common.md#NET-HOST-NETNS), [SWARM-HOST-BR-NETFILTER](swarm-networking.md#SWARM-HOST-BR-NETFILTER), [SWARM-HOST-FIREWALL-CLUSTER-PORTS](swarm-networking.md#SWARM-HOST-FIREWALL-CLUSTER-PORTS), [SWARM-HOST-HNS-OVERLAY](swarm-networking.md#SWARM-HOST-HNS-OVERLAY), [SWARM-HOST-IPTABLES-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-KERNEL), [SWARM-HOST-IPTABLES-LEGACY-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-LEGACY-KERNEL), [SWARM-HOST-IPTABLES-NFT-KERNEL](swarm-networking.md#SWARM-HOST-IPTABLES-NFT-KERNEL), [SWARM-HOST-NETNS-VETH-BRIDGE](swarm-networking.md#SWARM-HOST-NETNS-VETH-BRIDGE), [SWARM-HOST-VXLAN](swarm-networking.md#SWARM-HOST-VXLAN)
-
-Disconnected. `POST /swarm/leave` disconnects every container on the node from each
-network that was created with `Attachable`. This includes node-local networks, such
-as user-defined bridge networks. The containers stay disconnected after the leave, and the
-node-local network stays. A warning that contains `is not a dynamic network` appears in the
-daemon log. Only Swarm-scoped networks are meant to be disconnected
-([Restart and reclamation](#swarm-lifecycle-restart-and-reclamation)).

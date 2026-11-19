@@ -409,7 +409,7 @@ def _local(props, required=()):
 # layer satisfies are "expected" rules: they are violations for each document
 # except those in LAX_DOCS, for which they are info, reported without failing
 # the build. A document leaves LAX_DOCS once its items satisfy them.
-LAX_DOCS = ["network/swarm-networking", "network/swarm-traffic", "network/swarm-lifecycle"]
+LAX_DOCS = []
 
 
 def _docnames():
@@ -571,7 +571,7 @@ needs_schema_definitions["schemas"] += [
     {
         "id": "requirement-is-refined",
         "message": "a requirement is refined by an expectation",
-        "severity": "info",
+        "severity": "violation",
         "select": {"properties": {"type": {"const": "req"},
                                   "violates": dict(_STABLE_VIOLATION, minContains=0, maxContains=0)}},
         "validate": {"network_back": {"refines": {"type": "array", "contains": _local({"type": {"const": "expectation"}}), "minContains": 1}}},
@@ -579,7 +579,7 @@ needs_schema_definitions["schemas"] += [
     {
         "id": "provisional-requirement-is-used",
         "message": f"a requirement that violates {STABLE} is the provisional basis of an expectation",
-        "severity": "info",
+        "severity": "violation",
         "select": {"properties": {"type": {"const": "req"}, "violates": _STABLE_VIOLATION}, "required": ["violates"]},
         "validate": {"network_back": {"provisional_on": {"type": "array", "contains": _local({"type": {"const": "expectation"}}), "minContains": 1}}},
     },

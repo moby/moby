@@ -1923,7 +1923,7 @@ In a Swarm
     :observed_from: client, task → underlay
     :depends_on: os-linux
     :platforms: linux
-    :refines: REQ-NET-PRUNE-UNUSED, REQ-SWARM-ROUTING-MESH
+    :refines: REQ-NET-PRUNE-UNUSED, REQ-SWARM-ROUTING-MESH, REQ-SWARM-OVERLAY-EGRESS
     :needs: SWARM-HOST-IPVS, SWARM-HOST-IPTABLES-COMMAND, SWARM-HOST-IPTABLES-LB-EXTENSIONS, SWARM-HOST-IPTABLES-LEGACY-MANGLE-KERNEL, BR-HOST-NO-FORWARD-DROP
 
     *Applies to:* A Linux node in a Swarm that has an ingress network created with
@@ -2762,7 +2762,7 @@ In a Swarm
     :within: SWARM-CEIL-REASSIGNMENT
     :narrows: NET-GW-INTERNAL-ONLY-NO-EXTERNAL-ACCESS, NET-GW-INTERNAL-ONLY
     :concerns: SWARM-EGRESS-INTERNAL-ONLY
-    :violates: REQ-NET-INTERNAL-NO-EXTERNAL-ACCESS
+    :violates: REQ-SWARM-OVERLAY-EGRESS, REQ-NET-INTERNAL-NO-EXTERNAL-ACCESS
 
     A Windows container attached only to ``internal`` overlays reaches addresses outside those
     networks.
