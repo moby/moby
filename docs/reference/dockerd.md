@@ -789,6 +789,18 @@ You can also configure the timeout with the `default-stop-timeout` option in the
 [daemon configuration file](#daemon-configuration-file). You can reload this
 option without restarting the daemon.
 
+### Default namespace modes
+
+The `default-cgroupns-mode` option in the
+[daemon configuration file](#daemon-configuration-file), or the
+`--default-cgroupns-mode` flag, sets the default cgroup namespace mode for new
+containers, either `host` or `private`. If unset, the default is `host` on
+cgroup v1 hosts, and `private` on cgroup v2 hosts.
+
+The `default-ipc-mode` option, or the `--default-ipc-mode` flag, sets the
+default IPC mode for new containers, either `private` or `shareable`. The
+default is `private`.
+
 ### Default `ulimit` settings
 
 The `--default-ulimit` flag lets you set the default `ulimit` options to use for
@@ -1264,6 +1276,7 @@ The following is a full example of the allowed configuration options on Linux:
   "default-cgroupns-mode": "private",
   "default-gateway": "",
   "default-gateway-v6": "",
+  "default-ipc-mode": "private",
   "default-network-opts": {},
   "default-runtime": "runc",
   "default-shm-size": "64M",
