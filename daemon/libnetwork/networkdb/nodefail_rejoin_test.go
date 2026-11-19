@@ -20,6 +20,13 @@ import (
 func newTestNetworkDBWithPeer(t *testing.T) (*NetworkDB, *eventDelegate, *memberlist.Node, func(ltime lamport.Time, typ TableEvent_Type, key string, value []byte)) {
 	t.Helper()
 	nDB := newNetworkDB(DefaultConfig())
+	// newNetworkDB starts the broadcaster's run goroutine, and nothing but
+	// Close stops it. These tests never Close -- there is no cluster to
+	// leave -- so it has to be stopped here. Outside a bubble that is a
+	// leak; inside one it is fatal, because a goroutine still running when
+	// the bubble ends is reported as a deadlock and takes the test binary
+	// with it.
+	t.Cleanup(func() { _ = nDB.broadcaster.Close() })
 	nDB.networkBroadcasts = &memberlist.TransmitLimitedQueue{}
 	nDB.nodeBroadcasts = &memberlist.TransmitLimitedQueue{}
 	assert.NilError(t, nDB.JoinNetwork("network1"))
@@ -52,89 +59,93 @@ func newTestNetworkDBWithPeer(t *testing.T) (*NetworkDB, *eventDelegate, *member
 // both are remembered and put back as soon as it comes back, without anything
 // being re-sent.
 func TestFailedNodeEntriesHiddenAndRestored(t *testing.T) {
-	nDB, ed, mn, deliver := newTestNetworkDBWithPeer(t)
+	runBubbled(t, func(t *testing.T) {
+		nDB, ed, mn, deliver := newTestNetworkDBWithPeer(t)
 
-	watch, cancel := nDB.Watch("table1", "network1")
-	defer cancel()
+		watch, cancel := nDB.Watch("table1", "network1")
+		defer cancel()
 
-	deliver(2, TableEventTypeCreate, "key1", []byte("v1"))
-	ed.NotifyLeave(mn)
+		deliver(2, TableEventTypeCreate, "key1", []byte("v1"))
+		ed.NotifyLeave(mn)
 
-	// The entry must stop being visible, and the watchers must be told that
-	// it is gone: what it describes cannot be reached either.
-	_, err := nDB.GetEntry("table1", "network1", "key1")
-	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound), "entry owned by a failed node should not be visible")
-	assert.Check(t, is.Len(nDB.GetTableByNetwork("table1", "network1"), 0))
-	assert.Check(t, is.DeepEqual(drainChannel(watch.C), []events.Event{
-		WatchEvent{Table: "table1", NetworkID: "network1", Key: "key1", Value: []byte("v1")},
-		WatchEvent{Table: "table1", NetworkID: "network1", Key: "key1", Prev: []byte("v1")},
-	}))
+		// The entry must stop being visible, and the watchers must be told that
+		// it is gone: what it describes cannot be reached either.
+		_, err := nDB.GetEntry("table1", "network1", "key1")
+		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound), "entry owned by a failed node should not be visible")
+		assert.Check(t, is.Len(nDB.GetTableByNetwork("table1", "network1"), 0))
+		assert.Check(t, is.DeepEqual(drainChannel(watch.C), []events.Event{
+			WatchEvent{Table: "table1", NetworkID: "network1", Key: "key1", Value: []byte("v1")},
+			WatchEvent{Table: "table1", NetworkID: "network1", Key: "key1", Prev: []byte("v1")},
+		}))
 
-	// The entry is still in the store, aging out.
-	nDB.RLock()
-	e, rawErr := nDB.getEntry("table1", "network1", "key1")
-	nDB.RUnlock()
-	assert.NilError(t, rawErr)
-	assert.Check(t, is.Equal(nDB.config.reapEntryInterval, e.reapTime), "hidden entry should age out")
+		// The entry is still in the store, aging out.
+		nDB.RLock()
+		e, rawErr := nDB.getEntry("table1", "network1", "key1")
+		nDB.RUnlock()
+		assert.NilError(t, rawErr)
+		assert.Check(t, is.Equal(nDB.config.reapEntryInterval, e.reapTime), "hidden entry should age out")
 
-	// The node must no longer be a peer, but the attachment must be
-	// remembered.
-	nDB.RLock()
-	nn := slices.Clone(nDB.networkNodes["network1"])
-	attachments := maps.Clone(nDB.networks["node1"])
-	nDB.RUnlock()
-	assert.Check(t, !slices.Contains(nn, "node1"), "node1 should not be a peer of network1 while failed")
-	assert.Check(t, is.Contains(attachments, "network1"), "node1's attachment to network1 should be remembered")
+		// The node must no longer be a peer, but the attachment must be
+		// remembered.
+		nDB.RLock()
+		nn := slices.Clone(nDB.networkNodes["network1"])
+		attachments := maps.Clone(nDB.networks["node1"])
+		nDB.RUnlock()
+		assert.Check(t, !slices.Contains(nn, "node1"), "node1 should not be a peer of network1 while failed")
+		assert.Check(t, is.Contains(attachments, "network1"), "node1's attachment to network1 should be remembered")
 
-	// Coming back must put it in the peer list again and publish the entry
-	// again, with nothing having to be re-sent.
-	ed.NotifyJoin(mn)
+		// Coming back must put it in the peer list again and publish the entry
+		// again, with nothing having to be re-sent.
+		ed.NotifyJoin(mn)
 
-	nDB.RLock()
-	nn = slices.Clone(nDB.networkNodes["network1"])
-	e, rawErr = nDB.getEntry("table1", "network1", "key1")
-	nDB.RUnlock()
-	assert.Check(t, is.Contains(nn, "node1"), "node1 should be a peer of network1 again")
-	assert.NilError(t, rawErr)
-	assert.Check(t, is.Equal(time.Duration(0), e.reapTime), "restored entry should no longer age")
+		nDB.RLock()
+		nn = slices.Clone(nDB.networkNodes["network1"])
+		e, rawErr = nDB.getEntry("table1", "network1", "key1")
+		nDB.RUnlock()
+		assert.Check(t, is.Contains(nn, "node1"), "node1 should be a peer of network1 again")
+		assert.NilError(t, rawErr)
+		assert.Check(t, is.Equal(time.Duration(0), e.reapTime), "restored entry should no longer age")
 
-	v, err := nDB.GetEntry("table1", "network1", "key1")
-	assert.NilError(t, err)
-	assert.Check(t, is.Equal("v1", string(v)))
-	assert.Check(t, is.DeepEqual(drainChannel(watch.C), []events.Event{
-		WatchEvent{Table: "table1", NetworkID: "network1", Key: "key1", Value: []byte("v1")},
-	}))
+		v, err := nDB.GetEntry("table1", "network1", "key1")
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal("v1", string(v)))
+		assert.Check(t, is.DeepEqual(drainChannel(watch.C), []events.Event{
+			WatchEvent{Table: "table1", NetworkID: "network1", Key: "key1", Value: []byte("v1")},
+		}))
+	})
 }
 
 // TestLeftNodeClearsNetworkMembership checks that a node which gracefully
 // leaves the cluster is removed from the peer lists for good: nothing is
 // remembered for it, unlike for a failed node.
 func TestLeftNodeClearsNetworkMembership(t *testing.T) {
-	nDB, _, _, deliver := newTestNetworkDBWithPeer(t)
-	deliver(2, TableEventTypeCreate, "key1", []byte("v1"))
+	runBubbled(t, func(t *testing.T) {
+		nDB, _, _, deliver := newTestNetworkDBWithPeer(t)
+		deliver(2, TableEventTypeCreate, "key1", []byte("v1"))
 
-	watch, cancel := nDB.Watch("table1", "network1")
-	defer cancel()
+		watch, cancel := nDB.Watch("table1", "network1")
+		defer cancel()
 
-	nDB.Lock()
-	ok := nDB.forgetNode(t.Context(), "node1")
-	nDB.Unlock()
-	assert.Assert(t, ok)
+		nDB.Lock()
+		ok := nDB.forgetNode(t.Context(), "node1")
+		nDB.Unlock()
+		assert.Assert(t, ok)
 
-	nDB.RLock()
-	present := slices.Contains(nDB.networkNodes["network1"], "node1")
-	_, hasNetworks := nDB.networks["node1"]
-	_, rawErr := nDB.getEntry("table1", "network1", "key1")
-	nDB.RUnlock()
-	assert.Check(t, !present, "node1 should be removed from networkNodes after leave")
-	assert.Check(t, !hasNetworks, "node1's attachments should be forgotten after leave")
-	assert.Check(t, is.ErrorType(rawErr, cerrdefs.IsNotFound), "node1's entries should be deleted after leave")
+		nDB.RLock()
+		present := slices.Contains(nDB.networkNodes["network1"], "node1")
+		_, hasNetworks := nDB.networks["node1"]
+		_, rawErr := nDB.getEntry("table1", "network1", "key1")
+		nDB.RUnlock()
+		assert.Check(t, !present, "node1 should be removed from networkNodes after leave")
+		assert.Check(t, !hasNetworks, "node1's attachments should be forgotten after leave")
+		assert.Check(t, is.ErrorType(rawErr, cerrdefs.IsNotFound), "node1's entries should be deleted after leave")
 
-	// Watchers see the snapshot of the entry and then its deletion.
-	assert.Check(t, is.DeepEqual(drainChannel(watch.C), []events.Event{
-		WatchEvent{Table: "table1", NetworkID: "network1", Key: "key1", Value: []byte("v1")},
-		WatchEvent{Table: "table1", NetworkID: "network1", Key: "key1", Prev: []byte("v1")},
-	}))
+		// Watchers see the snapshot of the entry and then its deletion.
+		assert.Check(t, is.DeepEqual(drainChannel(watch.C), []events.Event{
+			WatchEvent{Table: "table1", NetworkID: "network1", Key: "key1", Value: []byte("v1")},
+			WatchEvent{Table: "table1", NetworkID: "network1", Key: "key1", Prev: []byte("v1")},
+		}))
+	})
 }
 
 // TestFailedNodeRelayedEventsRemembered checks that an update relayed by
@@ -142,187 +153,199 @@ func TestLeftNodeClearsNetworkMembership(t *testing.T) {
 // down — hidden and with bounded retention — and is what gets published when
 // the owner is back.
 func TestFailedNodeRelayedEventsRemembered(t *testing.T) {
-	nDB, ed, mn, deliver := newTestNetworkDBWithPeer(t)
+	runBubbled(t, func(t *testing.T) {
+		nDB, ed, mn, deliver := newTestNetworkDBWithPeer(t)
 
-	watch, cancel := nDB.Watch("table1", "network1")
-	defer cancel()
+		watch, cancel := nDB.Watch("table1", "network1")
+		defer cancel()
 
-	ed.NotifyLeave(mn)
+		ed.NotifyLeave(mn)
 
-	// An update for the failed owner, relayed by a node which can still
-	// reach it.
-	deliver(2, TableEventTypeCreate, "key1", []byte("relayed"))
+		// An update for the failed owner, relayed by a node which can still
+		// reach it.
+		deliver(2, TableEventTypeCreate, "key1", []byte("relayed"))
 
-	_, err := nDB.GetEntry("table1", "network1", "key1")
-	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound), "relayed update should not be visible while the owner is down")
+		_, err := nDB.GetEntry("table1", "network1", "key1")
+		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound), "relayed update should not be visible while the owner is down")
 
-	// It is remembered, with bounded retention.
-	nDB.RLock()
-	e, rawErr := nDB.getEntry("table1", "network1", "key1")
-	nDB.RUnlock()
-	assert.NilError(t, rawErr)
-	assert.Check(t, is.Equal("relayed", string(e.value)))
-	assert.Check(t, is.Equal(nDB.config.reapEntryInterval, e.reapTime), "remembered entry should age out")
+		// It is remembered, with bounded retention.
+		nDB.RLock()
+		e, rawErr := nDB.getEntry("table1", "network1", "key1")
+		nDB.RUnlock()
+		assert.NilError(t, rawErr)
+		assert.Check(t, is.Equal("relayed", string(e.value)))
+		assert.Check(t, is.Equal(nDB.config.reapEntryInterval, e.reapTime), "remembered entry should age out")
 
-	// A fresher relayed update replaces what is remembered.
-	deliver(3, TableEventTypeUpdate, "key1", []byte("fresher"))
+		// A fresher relayed update replaces what is remembered.
+		deliver(3, TableEventTypeUpdate, "key1", []byte("fresher"))
 
-	// Nothing was published while the owner was down, and the freshest state
-	// remembered is what gets published when it returns.
-	ed.NotifyJoin(mn)
-	v, err := nDB.GetEntry("table1", "network1", "key1")
-	assert.NilError(t, err)
-	assert.Check(t, is.Equal("fresher", string(v)), "the freshest state known should be restored")
-	assert.Check(t, is.DeepEqual(drainChannel(watch.C), []events.Event{
-		WatchEvent{Table: "table1", NetworkID: "network1", Key: "key1", Value: []byte("fresher")},
-	}))
+		// Nothing was published while the owner was down, and the freshest state
+		// remembered is what gets published when it returns.
+		ed.NotifyJoin(mn)
+		v, err := nDB.GetEntry("table1", "network1", "key1")
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal("fresher", string(v)), "the freshest state known should be restored")
+		assert.Check(t, is.DeepEqual(drainChannel(watch.C), []events.Event{
+			WatchEvent{Table: "table1", NetworkID: "network1", Key: "key1", Value: []byte("fresher")},
+		}))
+	})
 }
 
 // TestFailedNodeRelayedDeleteKept checks that an entry deleted while its owner
 // was down does not come back when the owner does.
 func TestFailedNodeRelayedDeleteKept(t *testing.T) {
-	nDB, ed, mn, deliver := newTestNetworkDBWithPeer(t)
-	deliver(2, TableEventTypeCreate, "key1", []byte("v1"))
+	runBubbled(t, func(t *testing.T) {
+		nDB, ed, mn, deliver := newTestNetworkDBWithPeer(t)
+		deliver(2, TableEventTypeCreate, "key1", []byte("v1"))
 
-	watch, cancel := nDB.Watch("table1", "network1")
-	defer cancel()
+		watch, cancel := nDB.Watch("table1", "network1")
+		defer cancel()
 
-	ed.NotifyLeave(mn)
-	deliver(3, TableEventTypeDelete, "key1", []byte("v1"))
+		ed.NotifyLeave(mn)
+		deliver(3, TableEventTypeDelete, "key1", []byte("v1"))
 
-	ed.NotifyJoin(mn)
-	_, err := nDB.GetEntry("table1", "network1", "key1")
-	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound), "an entry deleted while its owner was down should stay deleted")
-	assert.Check(t, is.DeepEqual(drainChannel(watch.C), []events.Event{
-		WatchEvent{Table: "table1", NetworkID: "network1", Key: "key1", Value: []byte("v1")},
-		WatchEvent{Table: "table1", NetworkID: "network1", Key: "key1", Prev: []byte("v1")},
-	}), "watchers should see the delete once, and the entry should not come back")
+		ed.NotifyJoin(mn)
+		_, err := nDB.GetEntry("table1", "network1", "key1")
+		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound), "an entry deleted while its owner was down should stay deleted")
+		assert.Check(t, is.DeepEqual(drainChannel(watch.C), []events.Event{
+			WatchEvent{Table: "table1", NetworkID: "network1", Key: "key1", Value: []byte("v1")},
+			WatchEvent{Table: "table1", NetworkID: "network1", Key: "key1", Prev: []byte("v1")},
+		}), "watchers should see the delete once, and the entry should not come back")
+	})
 }
 
 // TestFailedThenLeftDropsRememberedState checks that a graceful leave of a
 // failed node drops what was remembered for it without notifying watchers a
 // second time.
 func TestFailedThenLeftDropsRememberedState(t *testing.T) {
-	nDB, ed, mn, deliver := newTestNetworkDBWithPeer(t)
-	deliver(2, TableEventTypeCreate, "key1", []byte("v1"))
+	runBubbled(t, func(t *testing.T) {
+		nDB, ed, mn, deliver := newTestNetworkDBWithPeer(t)
+		deliver(2, TableEventTypeCreate, "key1", []byte("v1"))
 
-	watch, cancel := nDB.Watch("table1", "network1")
-	defer cancel()
+		watch, cancel := nDB.Watch("table1", "network1")
+		defer cancel()
 
-	ed.NotifyLeave(mn)
+		ed.NotifyLeave(mn)
 
-	nDB.Lock()
-	ok := nDB.forgetNode(t.Context(), "node1")
-	nDB.Unlock()
-	assert.Assert(t, ok)
+		nDB.Lock()
+		ok := nDB.forgetNode(t.Context(), "node1")
+		nDB.Unlock()
+		assert.Assert(t, ok)
 
-	nDB.RLock()
-	_, rawErr := nDB.getEntry("table1", "network1", "key1")
-	_, hasNetworks := nDB.networks["node1"]
-	nDB.RUnlock()
-	assert.Check(t, is.ErrorType(rawErr, cerrdefs.IsNotFound), "remembered entry should be dropped on leave")
-	assert.Check(t, !hasNetworks, "attachments should be dropped on leave")
+		nDB.RLock()
+		_, rawErr := nDB.getEntry("table1", "network1", "key1")
+		_, hasNetworks := nDB.networks["node1"]
+		nDB.RUnlock()
+		assert.Check(t, is.ErrorType(rawErr, cerrdefs.IsNotFound), "remembered entry should be dropped on leave")
+		assert.Check(t, !hasNetworks, "attachments should be dropped on leave")
 
-	// Watchers were told once, when the node failed.
-	assert.Check(t, is.DeepEqual(drainChannel(watch.C), []events.Event{
-		WatchEvent{Table: "table1", NetworkID: "network1", Key: "key1", Value: []byte("v1")},
-		WatchEvent{Table: "table1", NetworkID: "network1", Key: "key1", Prev: []byte("v1")},
-	}))
+		// Watchers were told once, when the node failed.
+		assert.Check(t, is.DeepEqual(drainChannel(watch.C), []events.Event{
+			WatchEvent{Table: "table1", NetworkID: "network1", Key: "key1", Value: []byte("v1")},
+			WatchEvent{Table: "table1", NetworkID: "network1", Key: "key1", Prev: []byte("v1")},
+		}))
+	})
 }
 
 // TestFailedNodeEntriesExpire checks that entries remembered for a failed node
 // age out, so that they cannot be restored after whatever would delete them
 // expired.
 func TestFailedNodeEntriesExpire(t *testing.T) {
-	nDB, ed, mn, deliver := newTestNetworkDBWithPeer(t)
-	deliver(2, TableEventTypeCreate, "key1", []byte("v1"))
+	runBubbled(t, func(t *testing.T) {
+		nDB, ed, mn, deliver := newTestNetworkDBWithPeer(t)
+		deliver(2, TableEventTypeCreate, "key1", []byte("v1"))
 
-	watch, cancel := nDB.Watch("table1", "network1")
-	defer cancel()
+		watch, cancel := nDB.Watch("table1", "network1")
+		defer cancel()
 
-	ed.NotifyLeave(mn)
+		ed.NotifyLeave(mn)
 
-	// Age the remembered entry past its retention.
-	nDB.Lock()
-	e, rawErr := nDB.getEntry("table1", "network1", "key1")
-	if rawErr == nil {
-		e.reapTime = time.Second
-	}
-	nDB.Unlock()
-	assert.NilError(t, rawErr)
+		// Age the remembered entry past its retention.
+		nDB.Lock()
+		e, rawErr := nDB.getEntry("table1", "network1", "key1")
+		if rawErr == nil {
+			e.reapTime = time.Second
+		}
+		nDB.Unlock()
+		assert.NilError(t, rawErr)
 
-	nDB.reapTableEntries()
+		nDB.reapTableEntries()
 
-	nDB.RLock()
-	_, rawErr = nDB.getEntry("table1", "network1", "key1")
-	nDB.RUnlock()
-	assert.Check(t, is.ErrorType(rawErr, cerrdefs.IsNotFound), "remembered entry should expire")
+		nDB.RLock()
+		_, rawErr = nDB.getEntry("table1", "network1", "key1")
+		nDB.RUnlock()
+		assert.Check(t, is.ErrorType(rawErr, cerrdefs.IsNotFound), "remembered entry should expire")
 
-	// Nothing is left to restore when the node returns.
-	ed.NotifyJoin(mn)
-	assert.Check(t, is.DeepEqual(drainChannel(watch.C), []events.Event{
-		WatchEvent{Table: "table1", NetworkID: "network1", Key: "key1", Value: []byte("v1")},
-		WatchEvent{Table: "table1", NetworkID: "network1", Key: "key1", Prev: []byte("v1")},
-	}), "nothing should be restored after the remembered entry expired")
+		// Nothing is left to restore when the node returns.
+		ed.NotifyJoin(mn)
+		assert.Check(t, is.DeepEqual(drainChannel(watch.C), []events.Event{
+			WatchEvent{Table: "table1", NetworkID: "network1", Key: "key1", Value: []byte("v1")},
+			WatchEvent{Table: "table1", NetworkID: "network1", Key: "key1", Prev: []byte("v1")},
+		}), "nothing should be restored after the remembered entry expired")
+	})
 }
 
 // TestWatchSnapshotSkipsHiddenEntries checks that a watch created while a node
 // is failed does not receive synthesized create events for hidden entries.
 func TestWatchSnapshotSkipsHiddenEntries(t *testing.T) {
-	nDB, ed, mn, deliver := newTestNetworkDBWithPeer(t)
+	runBubbled(t, func(t *testing.T) {
+		nDB, ed, mn, deliver := newTestNetworkDBWithPeer(t)
 
-	// A second, healthy remote node with an entry of its own.
-	ed.NotifyJoin(&memberlist.Node{Name: "node2", Addr: net.IPv4(1, 2, 3, 5)})
-	nDB.handleNetworkEvent(&NetworkEvent{
-		Type:      NetworkEventTypeJoin,
-		LTime:     2,
-		NodeName:  "node2",
-		NetworkID: "network1",
+		// A second, healthy remote node with an entry of its own.
+		ed.NotifyJoin(&memberlist.Node{Name: "node2", Addr: net.IPv4(1, 2, 3, 5)})
+		nDB.handleNetworkEvent(&NetworkEvent{
+			Type:      NetworkEventTypeJoin,
+			LTime:     2,
+			NodeName:  "node2",
+			NetworkID: "network1",
+		})
+
+		deliver(2, TableEventTypeCreate, "key1", []byte("hidden"))
+
+		d := &delegate{nDB}
+		msgs := messageBuffer{t: t}
+		appendNode2TableEvent := tableEventHelper(&msgs, "node2", "network1", "table1")
+		appendNode2TableEvent(3, TableEventTypeCreate, "key2", []byte("visible"))
+		d.NotifyMsg(msgs.Compound())
+
+		ed.NotifyLeave(mn)
+
+		watch, cancel := nDB.Watch("table1", "network1")
+		defer cancel()
+		assert.Check(t, is.DeepEqual(drainChannel(watch.C), []events.Event{
+			WatchEvent{Table: "table1", NetworkID: "network1", Key: "key2", Value: []byte("visible")},
+		}), "only the entry of the healthy node should be synthesized")
 	})
-
-	deliver(2, TableEventTypeCreate, "key1", []byte("hidden"))
-
-	d := &delegate{nDB}
-	msgs := messageBuffer{t: t}
-	appendNode2TableEvent := tableEventHelper(&msgs, "node2", "network1", "table1")
-	appendNode2TableEvent(3, TableEventTypeCreate, "key2", []byte("visible"))
-	d.NotifyMsg(msgs.Compound())
-
-	ed.NotifyLeave(mn)
-
-	watch, cancel := nDB.Watch("table1", "network1")
-	defer cancel()
-	assert.Check(t, is.DeepEqual(drainChannel(watch.C), []events.Event{
-		WatchEvent{Table: "table1", NetworkID: "network1", Key: "key2", Value: []byte("visible")},
-	}), "only the entry of the healthy node should be synthesized")
 }
 
 // TestBulkSyncFromInactiveNodeRemembered checks that a bulk sync from a node we
 // consider failed (as happens across an asymmetric partition) is merged and
 // remembered, hidden until the node returns.
 func TestBulkSyncFromInactiveNodeRemembered(t *testing.T) {
-	nDB, ed, mn, _ := newTestNetworkDBWithPeer(t)
-	ed.NotifyLeave(mn)
+	runBubbled(t, func(t *testing.T) {
+		nDB, ed, mn, _ := newTestNetworkDBWithPeer(t)
+		ed.NotifyLeave(mn)
 
-	payload := &messageBuffer{t: t}
-	tableEventHelper(payload, "node1", "network1", "table1")(2, TableEventTypeCreate, "key1", []byte("synced"))
+		payload := &messageBuffer{t: t}
+		tableEventHelper(payload, "node1", "network1", "table1")(2, TableEventTypeCreate, "key1", []byte("synced"))
 
-	msgs := &messageBuffer{t: t}
-	msgs.Append(MessageTypeBulkSync, &BulkSyncMessage{
-		LTime:    2,
-		NodeName: "node1",
-		Networks: []string{"network1"},
-		Payload:  payload.Compound(),
+		msgs := &messageBuffer{t: t}
+		msgs.Append(MessageTypeBulkSync, &BulkSyncMessage{
+			LTime:    2,
+			NodeName: "node1",
+			Networks: []string{"network1"},
+			Payload:  payload.Compound(),
+		})
+		(&delegate{nDB}).NotifyMsg(msgs.Compound())
+
+		nDB.RLock()
+		e, rawErr := nDB.getEntry("table1", "network1", "key1")
+		nDB.RUnlock()
+		assert.NilError(t, rawErr)
+		assert.Check(t, is.Equal("synced", string(e.value)))
+		_, err := nDB.GetEntry("table1", "network1", "key1")
+		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound), "the synced entry should stay hidden while its owner is inactive")
 	})
-	(&delegate{nDB}).NotifyMsg(msgs.Compound())
-
-	nDB.RLock()
-	e, rawErr := nDB.getEntry("table1", "network1", "key1")
-	nDB.RUnlock()
-	assert.NilError(t, rawErr)
-	assert.Check(t, is.Equal("synced", string(e.value)))
-	_, err := nDB.GetEntry("table1", "network1", "key1")
-	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound), "the synced entry should stay hidden while its owner is inactive")
 }
 
 // TestHiddenEntriesDoNotExistForPublicAPI checks that the public write API
