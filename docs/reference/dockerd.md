@@ -911,6 +911,22 @@ the host.
 For details about how to use this feature, as well as limitations, see
 [Isolate containers with a user namespace](https://docs.docker.com/engine/security/userns-remap/).
 
+The `userns-remap` option in the
+[daemon configuration file](#daemon-configuration-file), or the
+`--userns-remap` flag, enables user namespaces for containers, and accepts the
+following values:
+
+- `default` makes the daemon use the `dockremap` user and group, creating them
+  if they don't exist.
+- A user name or UID, optionally followed by a group name or GID, for example
+  `testuser`, `testuser:testuser`, or `1000:1000`. If you omit the group, the
+  daemon uses the group with the same name or ID as the user.
+
+The daemon uses the subordinate ID ranges of the user, from `/etc/subuid` and
+`/etc/subgid`, as the user namespace mappings for container processes. It looks
+up the entries in both files by the user's name or UID, so the group doesn't
+affect the mappings.
+
 ### Configure host gateway IP
 
 The Docker daemon supports a special `host-gateway` value for the `--add-host`
