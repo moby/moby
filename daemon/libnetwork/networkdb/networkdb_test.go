@@ -5,17 +5,18 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"text/tabwriter"
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
-	"github.com/docker/go-events"
 	"github.com/hashicorp/memberlist"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"golang.org/x/sync/errgroup"
@@ -119,220 +120,104 @@ func (p *peerList) set(addrs ...string) {
 	p.addrs = addrs
 }
 
-// waitFor polls cond until it holds, failing the test if it never does.
-func waitFor(t TestingT, what string, cond func() bool) {
-	t.Helper()
-	poll.WaitOn(t, func(t poll.LogT) poll.Result {
-		if cond() {
-			return poll.Success()
-		}
-		return poll.Continue("waiting for %s", what)
-	}, poll.WithDelay(100*time.Millisecond), poll.WithTimeout(60*time.Second))
-}
-
-func (nDB *NetworkDB) verifyNodeExistence(t *testing.T, node string, present bool) {
-	t.Helper()
-	for range 80 {
-		nDB.RLock()
-		_, ok := nDB.nodes[node]
-		nDB.RUnlock()
-		if present == ok {
-			return
-		}
-
-		time.Sleep(50 * time.Millisecond)
-	}
-
-	t.Errorf("%v(%v): expected node %s existence in the cluster = %v, got %v", nDB.config.Hostname, nDB.config.NodeID, node, present, !present)
-}
-
-func (nDB *NetworkDB) verifyNetworkExistence(t *testing.T, node string, id string, present bool) {
-	t.Helper()
-
-	const sleepInterval = 50 * time.Millisecond
-	var maxRetries int64
-	if dl, ok := t.Deadline(); ok {
-		maxRetries = int64(time.Until(dl) / sleepInterval)
-	} else {
-		maxRetries = 80
-	}
-	var ok, leaving bool
-	for i := int64(0); i < maxRetries; i++ {
-		nDB.RLock()
-		var vn *network
-		if node == nDB.config.NodeID {
-			if n, ok := nDB.thisNodeNetworks[id]; ok {
-				vn = &n.network
-			}
-		} else {
-			if nn, nnok := nDB.networks[node]; nnok {
-				if n, ok := nn[id]; ok {
-					vn = n
-				}
-			}
-		}
-		ok = vn != nil
-		leaving = ok && vn.leaving
-		nDB.RUnlock()
-
-		if present == (ok && !leaving) {
-			return
-		}
-
-		time.Sleep(sleepInterval)
-	}
-
-	if present {
-		t.Errorf("%v(%v): want node %v to be a member of network %q, got that it is not a member (ok=%v, leaving=%v)",
-			nDB.config.Hostname, nDB.config.NodeID, node, id, ok, leaving)
-	} else {
-		t.Errorf("%v(%v): want node %v to not be a member of network %q, got that it is a member (ok=%v, leaving=%v)",
-			nDB.config.Hostname, nDB.config.NodeID, node, id, ok, leaving)
-	}
-}
-
-func (nDB *NetworkDB) verifyEntryExistence(t *testing.T, tname, nid, key, value string, present bool) {
-	t.Helper()
-	n := 80
-	var v []byte
-	for range n {
-		var err error
-		v, err = nDB.GetEntry(tname, nid, key)
-		if present && err == nil && string(v) == value {
-			return
-		}
-		if cerrdefs.IsNotFound(err) && !present {
-			return
-		}
-		if err != nil && !cerrdefs.IsNotFound(err) {
-			t.Errorf("%v(%v): unexpected error while getting entry %v/%v in network %q: %v",
-				nDB.config.Hostname, nDB.config.NodeID, tname, key, nid, err)
-		}
-
-		time.Sleep(50 * time.Millisecond)
-	}
-
-	t.Errorf("%v(%v): want entry %v/%v in network %q to be (present=%v, value=%q), got (present=%v, value=%q)",
-		nDB.config.Hostname, nDB.config.NodeID, tname, key, nid, present, value, !present, string(v))
-}
-
-func testWatch(t *testing.T, ch chan events.Event, tname, nid, key, prev, value string) {
-	t.Helper()
-	select {
-	case rcvdEv := <-ch:
-		typ, ok := rcvdEv.(WatchEvent)
-		if assert.Check(t, ok, "expected WatchEvent, got %T", rcvdEv) {
-			assert.Check(t, is.Equal(tname, typ.Table))
-			assert.Check(t, is.Equal(nid, typ.NetworkID))
-			assert.Check(t, is.Equal(key, typ.Key))
-			if prev == "" {
-				assert.Check(t, is.Nil(typ.Prev))
-			} else {
-				assert.Check(t, is.Equal(prev, string(typ.Prev)))
-			}
-			if value == "" {
-				assert.Check(t, is.Nil(typ.Value))
-			} else {
-				assert.Check(t, is.Equal(value, string(typ.Value)))
-			}
-		}
-	case <-time.After(time.Second):
-		t.Fail()
-		return
-	}
-}
-
+// TestNetworkDBSimple checks that a cluster forms and tears down cleanly. Both
+// halves are newMemCluster's job, so all the body has to do is say what having
+// formed means.
 func TestNetworkDBSimple(t *testing.T) {
-	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
-	closeNetworkDBInstances(t, dbs)
+	runInCluster(t, 2, DefaultConfig(), func(t *testing.T, c *memCluster) {
+		for _, db := range c.dbs {
+			assert.Check(t, is.Len(db.ClusterPeers(), len(c.dbs)))
+		}
+	})
 }
 
 func TestNetworkDBJoinLeaveNetwork(t *testing.T) {
-	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
-	defer closeNetworkDBInstances(t, dbs)
+	runInCluster(t, 2, DefaultConfig(), func(t *testing.T, c *memCluster) {
+		dbs := c.dbs
 
-	err := dbs[0].JoinNetwork("network1")
-	assert.NilError(t, err)
+		err := dbs[0].JoinNetwork("network1")
+		assert.NilError(t, err)
 
-	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
+		dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
 
-	err = dbs[0].LeaveNetwork("network1")
-	assert.NilError(t, err)
+		err = dbs[0].LeaveNetwork("network1")
+		assert.NilError(t, err)
 
-	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", false)
+		dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", false)
+	})
 }
 
 func TestNetworkDBJoinLeaveNetworks(t *testing.T) {
-	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
-	defer closeNetworkDBInstances(t, dbs)
+	runInCluster(t, 2, DefaultConfig(), func(t *testing.T, c *memCluster) {
+		dbs := c.dbs
 
-	n := 10
-	for i := 1; i <= n; i++ {
-		err := dbs[0].JoinNetwork(fmt.Sprintf("network0%d", i))
-		assert.NilError(t, err)
-	}
+		n := 10
+		for i := 1; i <= n; i++ {
+			err := dbs[0].JoinNetwork(fmt.Sprintf("network0%d", i))
+			assert.NilError(t, err)
+		}
 
-	for i := 1; i <= n; i++ {
-		err := dbs[1].JoinNetwork(fmt.Sprintf("network1%d", i))
-		assert.NilError(t, err)
-	}
+		for i := 1; i <= n; i++ {
+			err := dbs[1].JoinNetwork(fmt.Sprintf("network1%d", i))
+			assert.NilError(t, err)
+		}
 
-	for i := 1; i <= n; i++ {
-		dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, fmt.Sprintf("network0%d", i), true)
-	}
+		for i := 1; i <= n; i++ {
+			dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, fmt.Sprintf("network0%d", i), true)
+		}
 
-	for i := 1; i <= n; i++ {
-		dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, fmt.Sprintf("network1%d", i), true)
-	}
+		for i := 1; i <= n; i++ {
+			dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, fmt.Sprintf("network1%d", i), true)
+		}
 
-	for i := 1; i <= n; i++ {
-		err := dbs[0].LeaveNetwork(fmt.Sprintf("network0%d", i))
-		assert.NilError(t, err)
-	}
+		for i := 1; i <= n; i++ {
+			err := dbs[0].LeaveNetwork(fmt.Sprintf("network0%d", i))
+			assert.NilError(t, err)
+		}
 
-	for i := 1; i <= n; i++ {
-		err := dbs[1].LeaveNetwork(fmt.Sprintf("network1%d", i))
-		assert.NilError(t, err)
-	}
+		for i := 1; i <= n; i++ {
+			err := dbs[1].LeaveNetwork(fmt.Sprintf("network1%d", i))
+			assert.NilError(t, err)
+		}
 
-	for i := 1; i <= n; i++ {
-		dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, fmt.Sprintf("network0%d", i), false)
-	}
+		for i := 1; i <= n; i++ {
+			dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, fmt.Sprintf("network0%d", i), false)
+		}
 
-	for i := 1; i <= n; i++ {
-		dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, fmt.Sprintf("network1%d", i), false)
-	}
-
+		for i := 1; i <= n; i++ {
+			dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, fmt.Sprintf("network1%d", i), false)
+		}
+	})
 }
 
 func TestNetworkDBCRUDTableEntry(t *testing.T) {
-	dbs := createNetworkDBInstances(t, 3, "node", DefaultConfig())
-	defer closeNetworkDBInstances(t, dbs)
+	runInCluster(t, 3, DefaultConfig(), func(t *testing.T, c *memCluster) {
+		dbs := c.dbs
 
-	err := dbs[0].JoinNetwork("network1")
-	assert.NilError(t, err)
+		err := dbs[0].JoinNetwork("network1")
+		assert.NilError(t, err)
 
-	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
+		dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
 
-	err = dbs[1].JoinNetwork("network1")
-	assert.NilError(t, err)
+		err = dbs[1].JoinNetwork("network1")
+		assert.NilError(t, err)
 
-	err = dbs[0].CreateEntry("test_table", "network1", "test_key", []byte("test_value"))
-	assert.NilError(t, err)
+		err = dbs[0].CreateEntry("test_table", "network1", "test_key", []byte("test_value"))
+		assert.NilError(t, err)
 
-	dbs[1].verifyEntryExistence(t, "test_table", "network1", "test_key", "test_value", true)
-	dbs[2].verifyEntryExistence(t, "test_table", "network1", "test_key", "test_value", false)
+		dbs[1].verifyEntryExistence(t, "test_table", "network1", "test_key", "test_value", true)
+		dbs[2].verifyEntryExistence(t, "test_table", "network1", "test_key", "test_value", false)
 
-	err = dbs[0].UpdateEntry("test_table", "network1", "test_key", []byte("test_updated_value"))
-	assert.NilError(t, err)
+		err = dbs[0].UpdateEntry("test_table", "network1", "test_key", []byte("test_updated_value"))
+		assert.NilError(t, err)
 
-	dbs[1].verifyEntryExistence(t, "test_table", "network1", "test_key", "test_updated_value", true)
+		dbs[1].verifyEntryExistence(t, "test_table", "network1", "test_key", "test_updated_value", true)
 
-	err = dbs[0].DeleteEntry("test_table", "network1", "test_key")
-	assert.NilError(t, err)
+		err = dbs[0].DeleteEntry("test_table", "network1", "test_key")
+		assert.NilError(t, err)
 
-	dbs[1].verifyEntryExistence(t, "test_table", "network1", "test_key", "", false)
-
+		dbs[1].verifyEntryExistence(t, "test_table", "network1", "test_key", "", false)
+	})
 }
 
 // TestCreateEntryOverTombstone checks that a key can be created again while
@@ -415,167 +300,163 @@ func (nDB *NetworkDB) dumpTable(t *testing.T, tname string) {
 }
 
 func TestNetworkDBCRUDTableEntries(t *testing.T) {
-	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
-	defer closeNetworkDBInstances(t, dbs)
+	runInCluster(t, 2, DefaultConfig(), func(t *testing.T, c *memCluster) {
+		dbs := c.dbs
 
-	err := dbs[0].JoinNetwork("network1")
-	assert.NilError(t, err)
-
-	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
-
-	err = dbs[1].JoinNetwork("network1")
-	assert.NilError(t, err)
-
-	dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, "network1", true)
-
-	n := 10
-	for i := 1; i <= n; i++ {
-		err = dbs[0].CreateEntry("test_table", "network1",
-			fmt.Sprintf("test_key0%d", i),
-			fmt.Appendf(nil, "test_value0%d", i))
+		err := dbs[0].JoinNetwork("network1")
 		assert.NilError(t, err)
-	}
 
-	for i := 1; i <= n; i++ {
-		err = dbs[1].CreateEntry("test_table", "network1",
-			fmt.Sprintf("test_key1%d", i),
-			fmt.Appendf(nil, "test_value1%d", i))
+		dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
+
+		err = dbs[1].JoinNetwork("network1")
 		assert.NilError(t, err)
-	}
 
-	for n := range dbs {
-		dbs[n].dumpTable(t, "test_table")
-	}
+		dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, "network1", true)
 
-	for i := 1; i <= n; i++ {
-		dbs[0].verifyEntryExistence(t, "test_table", "network1",
-			fmt.Sprintf("test_key1%d", i),
-			fmt.Sprintf("test_value1%d", i), true)
-	}
+		n := 10
+		for i := 1; i <= n; i++ {
+			err = dbs[0].CreateEntry("test_table", "network1",
+				fmt.Sprintf("test_key0%d", i),
+				fmt.Appendf(nil, "test_value0%d", i))
+			assert.NilError(t, err)
+		}
 
-	for i := 1; i <= n; i++ {
-		dbs[1].verifyEntryExistence(t, "test_table", "network1",
-			fmt.Sprintf("test_key0%d", i),
-			fmt.Sprintf("test_value0%d", i), true)
-	}
+		for i := 1; i <= n; i++ {
+			err = dbs[1].CreateEntry("test_table", "network1",
+				fmt.Sprintf("test_key1%d", i),
+				fmt.Appendf(nil, "test_value1%d", i))
+			assert.NilError(t, err)
+		}
 
-	for n := range dbs {
-		dbs[n].dumpTable(t, "test_table")
-	}
+		for n := range dbs {
+			dbs[n].dumpTable(t, "test_table")
+		}
 
-	// Verify deletes
-	for i := 1; i <= n; i++ {
-		err = dbs[0].DeleteEntry("test_table", "network1",
-			fmt.Sprintf("test_key0%d", i))
-		assert.NilError(t, err)
-	}
+		for i := 1; i <= n; i++ {
+			dbs[0].verifyEntryExistence(t, "test_table", "network1",
+				fmt.Sprintf("test_key1%d", i),
+				fmt.Sprintf("test_value1%d", i), true)
+		}
 
-	for i := 1; i <= n; i++ {
-		err = dbs[1].DeleteEntry("test_table", "network1",
-			fmt.Sprintf("test_key1%d", i))
-		assert.NilError(t, err)
-	}
+		for i := 1; i <= n; i++ {
+			dbs[1].verifyEntryExistence(t, "test_table", "network1",
+				fmt.Sprintf("test_key0%d", i),
+				fmt.Sprintf("test_value0%d", i), true)
+		}
 
-	for i := 1; i <= n; i++ {
-		dbs[0].verifyEntryExistence(t, "test_table", "network1",
-			fmt.Sprintf("test_key1%d", i), "", false)
-	}
+		for n := range dbs {
+			dbs[n].dumpTable(t, "test_table")
+		}
 
-	for i := 1; i <= n; i++ {
-		dbs[1].verifyEntryExistence(t, "test_table", "network1",
-			fmt.Sprintf("test_key0%d", i), "", false)
-	}
+		// Verify deletes
+		for i := 1; i <= n; i++ {
+			err = dbs[0].DeleteEntry("test_table", "network1",
+				fmt.Sprintf("test_key0%d", i))
+			assert.NilError(t, err)
+		}
 
-	for n := range dbs {
-		dbs[n].dumpTable(t, "test_table")
-	}
+		for i := 1; i <= n; i++ {
+			err = dbs[1].DeleteEntry("test_table", "network1",
+				fmt.Sprintf("test_key1%d", i))
+			assert.NilError(t, err)
+		}
 
+		for i := 1; i <= n; i++ {
+			dbs[0].verifyEntryExistence(t, "test_table", "network1",
+				fmt.Sprintf("test_key1%d", i), "", false)
+		}
+
+		for i := 1; i <= n; i++ {
+			dbs[1].verifyEntryExistence(t, "test_table", "network1",
+				fmt.Sprintf("test_key0%d", i), "", false)
+		}
+
+		for n := range dbs {
+			dbs[n].dumpTable(t, "test_table")
+		}
+	})
 }
 
 func TestNetworkDBNodeLeave(t *testing.T) {
-	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
-	// Closing is what this test does rather than how it tidies up, so the
-	// teardown tracks what is still running: NetworkDB.Close is not
-	// idempotent, and a second call panics inside memberlist.Leave.
-	live := append([]*NetworkDB(nil), dbs...)
-	defer func() { closeNetworkDBInstances(t, live) }()
+	runInCluster(t, 2, DefaultConfig(), func(t *testing.T, c *memCluster) {
+		dbs := c.dbs
 
-	err := dbs[0].JoinNetwork("network1")
-	assert.NilError(t, err)
+		err := dbs[0].JoinNetwork("network1")
+		assert.NilError(t, err)
 
-	err = dbs[1].JoinNetwork("network1")
-	assert.NilError(t, err)
+		err = dbs[1].JoinNetwork("network1")
+		assert.NilError(t, err)
 
-	err = dbs[0].CreateEntry("test_table", "network1", "test_key", []byte("test_value"))
-	assert.NilError(t, err)
+		err = dbs[0].CreateEntry("test_table", "network1", "test_key", []byte("test_value"))
+		assert.NilError(t, err)
 
-	dbs[1].verifyEntryExistence(t, "test_table", "network1", "test_key", "test_value", true)
+		dbs[1].verifyEntryExistence(t, "test_table", "network1", "test_key", "test_value", true)
 
-	dbs[0].Close()
-	live = []*NetworkDB{dbs[1]}
-	dbs[1].verifyEntryExistence(t, "test_table", "network1", "test_key", "test_value", false)
-	dbs[1].Close()
-	live = nil
+		c.closeNode(0)
+		dbs[1].verifyEntryExistence(t, "test_table", "network1", "test_key", "test_value", false)
+	})
 }
 
 func TestNetworkDBWatch(t *testing.T) {
-	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
-	defer closeNetworkDBInstances(t, dbs)
-	err := dbs[0].JoinNetwork("network1")
-	assert.NilError(t, err)
+	runInCluster(t, 2, DefaultConfig(), func(t *testing.T, c *memCluster) {
+		dbs := c.dbs
 
-	err = dbs[1].JoinNetwork("network1")
-	assert.NilError(t, err)
+		err := dbs[0].JoinNetwork("network1")
+		assert.NilError(t, err)
 
-	ch, cancel := dbs[1].Watch("", "")
+		err = dbs[1].JoinNetwork("network1")
+		assert.NilError(t, err)
 
-	err = dbs[0].CreateEntry("test_table", "network1", "test_key", []byte("test_value"))
-	assert.NilError(t, err)
+		ch, cancel := dbs[1].Watch("", "")
 
-	testWatch(t, ch.C, "test_table", "network1", "test_key", "", "test_value")
+		err = dbs[0].CreateEntry("test_table", "network1", "test_key", []byte("test_value"))
+		assert.NilError(t, err)
 
-	err = dbs[0].UpdateEntry("test_table", "network1", "test_key", []byte("test_updated_value"))
-	assert.NilError(t, err)
+		testWatch(t, ch.C, "test_table", "network1", "test_key", "", "test_value")
 
-	testWatch(t, ch.C, "test_table", "network1", "test_key", "test_value", "test_updated_value")
+		err = dbs[0].UpdateEntry("test_table", "network1", "test_key", []byte("test_updated_value"))
+		assert.NilError(t, err)
 
-	err = dbs[0].DeleteEntry("test_table", "network1", "test_key")
-	assert.NilError(t, err)
+		testWatch(t, ch.C, "test_table", "network1", "test_key", "test_value", "test_updated_value")
 
-	testWatch(t, ch.C, "test_table", "network1", "test_key", "test_updated_value", "")
+		err = dbs[0].DeleteEntry("test_table", "network1", "test_key")
+		assert.NilError(t, err)
 
-	cancel()
+		testWatch(t, ch.C, "test_table", "network1", "test_key", "test_updated_value", "")
+
+		cancel()
+	})
 }
 
 func TestNetworkDBBulkSync(t *testing.T) {
-	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
-	defer closeNetworkDBInstances(t, dbs)
+	runInCluster(t, 2, DefaultConfig(), func(t *testing.T, c *memCluster) {
+		dbs := c.dbs
 
-	err := dbs[0].JoinNetwork("network1")
-	assert.NilError(t, err)
-
-	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
-
-	n := 1000
-	for i := 1; i <= n; i++ {
-		err = dbs[0].CreateEntry("test_table", "network1",
-			fmt.Sprintf("test_key0%d", i),
-			fmt.Appendf(nil, "test_value0%d", i))
+		err := dbs[0].JoinNetwork("network1")
 		assert.NilError(t, err)
-	}
 
-	err = dbs[1].JoinNetwork("network1")
-	assert.NilError(t, err)
+		dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
 
-	dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, "network1", true)
+		n := 1000
+		for i := 1; i <= n; i++ {
+			err = dbs[0].CreateEntry("test_table", "network1",
+				fmt.Sprintf("test_key0%d", i),
+				fmt.Appendf(nil, "test_value0%d", i))
+			assert.NilError(t, err)
+		}
 
-	for i := 1; i <= n; i++ {
-		dbs[1].verifyEntryExistence(t, "test_table", "network1",
-			fmt.Sprintf("test_key0%d", i),
-			fmt.Sprintf("test_value0%d", i), true)
+		err = dbs[1].JoinNetwork("network1")
 		assert.NilError(t, err)
-	}
 
+		dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, "network1", true)
+
+		for i := 1; i <= n; i++ {
+			dbs[1].verifyEntryExistence(t, "test_table", "network1",
+				fmt.Sprintf("test_key0%d", i),
+				fmt.Sprintf("test_value0%d", i), true)
+			assert.NilError(t, err)
+		}
+	})
 }
 
 // TestBulkSyncWithFailedPeer checks that a bulk sync is still sent to a peer
@@ -584,287 +465,309 @@ func TestNetworkDBBulkSync(t *testing.T) {
 // known about is reported as unreachable, so that the caller does not count the
 // sync as completed.
 func TestBulkSyncWithFailedPeer(t *testing.T) {
-	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
-	defer closeNetworkDBInstances(t, dbs)
+	runInCluster(t, 2, DefaultConfig(), func(t *testing.T, c *memCluster) {
+		dbs := c.dbs
 
-	assert.NilError(t, dbs[0].JoinNetwork("network1"))
-	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
-	assert.NilError(t, dbs[1].JoinNetwork("network1"))
-	dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, "network1", true)
+		assert.NilError(t, dbs[0].JoinNetwork("network1"))
+		dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
+		assert.NilError(t, dbs[1].JoinNetwork("network1"))
+		dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, "network1", true)
 
-	// Make node0 consider node1 failed while node1 is still very much alive.
-	// Nothing moves it back to active: a node event for a peer which is not in
-	// the memberlist node list is ignored, and memberlist only notifies a join
-	// for a node it sees coming back.
-	dbs[0].Lock()
-	ok := dbs[0].failNode(t.Context(), dbs[1].config.NodeID)
-	dbs[0].Unlock()
-	assert.Assert(t, ok)
+		// Make node0 consider node1 failed while node1 is still very much alive.
+		// Nothing moves it back to active: a node event for a peer which is not in
+		// the memberlist node list is ignored, and memberlist only notifies a join
+		// for a node it sees coming back.
+		dbs[0].Lock()
+		ok := dbs[0].failNode(t.Context(), dbs[1].config.NodeID)
+		dbs[0].Unlock()
+		assert.Assert(t, ok)
 
-	assert.NilError(t, dbs[0].bulkSyncNode([]string{"network1"}, dbs[1].config.NodeID, false))
-	assert.Check(t, is.ErrorContains(
-		dbs[0].bulkSyncNode([]string{"network1"}, "nosuchnode", false), "unknown node"))
+		assert.NilError(t, dbs[0].bulkSyncNode([]string{"network1"}, dbs[1].config.NodeID, false))
+		assert.Check(t, is.ErrorContains(
+			dbs[0].bulkSyncNode([]string{"network1"}, "nosuchnode", false), "unknown node"))
+	})
 }
 
 // Regression test for https://github.com/moby/moby/issues/51701
 func TestNetworkDBBulkSyncNodeConcurrent(t *testing.T) {
-	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
-	defer closeNetworkDBInstances(t, dbs)
+	runInCluster(t, 2, DefaultConfig(), func(t *testing.T, c *memCluster) {
+		dbs := c.dbs
 
-	err := dbs[0].JoinNetwork("network1")
-	assert.NilError(t, err)
-
-	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
-
-	err = dbs[1].JoinNetwork("network1")
-	assert.NilError(t, err)
-
-	dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, "network1", true)
-
-	for i := range 50 {
-		err = dbs[0].CreateEntry("test_table", "network1",
-			fmt.Sprintf("key%d", i),
-			fmt.Appendf(nil, "val%d", i))
+		err := dbs[0].JoinNetwork("network1")
 		assert.NilError(t, err)
-	}
 
-	const N = 4
-	start := make(chan struct{})
-	var eg errgroup.Group
-	for i := range N {
-		eg.Go(func() error {
-			<-start
-			err := dbs[1].bulkSyncNode(
-				[]string{"network1"}, dbs[0].config.NodeID, true)
-			if err != nil {
-				return fmt.Errorf("[%d] %w", i, err)
-			}
-			return nil
-		})
-	}
-	close(start)
-	assert.NilError(t, eg.Wait())
+		dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
 
-	// No bulk sync should have timed out. On broken code this is N-1.
-	assert.Equal(t, dbs[1].bulkSyncAckTimeouts.Load(), uint64(0),
-		"expected 0 bulk sync timeouts, but some ack channels were orphaned")
+		err = dbs[1].JoinNetwork("network1")
+		assert.NilError(t, err)
 
-	dbs[1].RLock()
-	defer dbs[1].RUnlock()
-	assert.Assert(t, is.Len(dbs[1].bulkSyncAckTbl, 0),
-		"bulkSyncAckTbl should be empty after all syncs complete")
+		dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, "network1", true)
+
+		for i := range 50 {
+			err = dbs[0].CreateEntry("test_table", "network1",
+				fmt.Sprintf("key%d", i),
+				fmt.Appendf(nil, "val%d", i))
+			assert.NilError(t, err)
+		}
+
+		const N = 4
+		start := make(chan struct{})
+		var eg errgroup.Group
+		for i := range N {
+			eg.Go(func() error {
+				<-start
+				err := dbs[1].bulkSyncNode(
+					[]string{"network1"}, dbs[0].config.NodeID, true)
+				if err != nil {
+					return fmt.Errorf("[%d] %w", i, err)
+				}
+				return nil
+			})
+		}
+		close(start)
+		assert.NilError(t, eg.Wait())
+
+		// No bulk sync should have timed out. On broken code this is N-1.
+		assert.Equal(t, dbs[1].bulkSyncAckTimeouts.Load(), uint64(0),
+			"expected 0 bulk sync timeouts, but some ack channels were orphaned")
+
+		dbs[1].RLock()
+		defer dbs[1].RUnlock()
+		assert.Assert(t, is.Len(dbs[1].bulkSyncAckTbl, 0),
+			"bulkSyncAckTbl should be empty after all syncs complete")
+	})
 }
 
 func TestNetworkDBCRUDMediumCluster(t *testing.T) {
-	n := 5
+	const n = 5
 
-	dbs := createNetworkDBInstances(t, n, "node", DefaultConfig())
-	defer closeNetworkDBInstances(t, dbs)
+	runInCluster(t, n, DefaultConfig(), func(t *testing.T, c *memCluster) {
+		dbs := c.dbs
 
-	// Shake out any data races.
-	done := make(chan struct{})
-	defer close(done)
-	for _, db := range dbs {
-		go func(db *NetworkDB) {
-			for {
-				select {
-				case <-done:
-					return
-				default:
+		// Shake out any data races. The sleep is what makes these
+		// readers legal inside a bubble: a goroutine which never blocks
+		// keeps the bubble from ever quiescing, so synctest.Wait would
+		// hang forever and every verify* below with it. Parked on a
+		// timer the reader is durably blocked between reads, which
+		// costs nothing -- the sleep is virtual -- and still interleaves
+		// reads with the writes under test.
+		done := make(chan struct{})
+		defer close(done)
+		for _, db := range dbs {
+			go func(db *NetworkDB) {
+				for {
+					select {
+					case <-done:
+						return
+					case <-time.After(time.Millisecond):
+					}
+					_ = db.GetTableByNetwork("test_table", "network1")
 				}
-				_ = db.GetTableByNetwork("test_table", "network1")
-			}
-		}(db)
-	}
-
-	for i := range n {
-		for j := range n {
-			if i == j {
-				continue
-			}
-
-			dbs[i].verifyNodeExistence(t, dbs[j].config.NodeID, true)
+			}(db)
 		}
-	}
 
-	for i := range n {
-		err := dbs[i].JoinNetwork("network1")
+		for i := range n {
+			for j := range n {
+				if i == j {
+					continue
+				}
+
+				dbs[i].verifyNodeExistence(t, dbs[j].config.NodeID, true)
+			}
+		}
+
+		for i := range n {
+			err := dbs[i].JoinNetwork("network1")
+			assert.NilError(t, err)
+		}
+
+		for i := range n {
+			for j := range n {
+				dbs[i].verifyNetworkExistence(t, dbs[j].config.NodeID, "network1", true)
+			}
+		}
+
+		err := dbs[0].CreateEntry("test_table", "network1", "test_key", []byte("test_value"))
 		assert.NilError(t, err)
-	}
 
-	for i := range n {
-		for j := range n {
-			dbs[i].verifyNetworkExistence(t, dbs[j].config.NodeID, "network1", true)
+		for i := 1; i < n; i++ {
+			dbs[i].verifyEntryExistence(t, "test_table", "network1", "test_key", "test_value", true)
 		}
-	}
 
-	err := dbs[0].CreateEntry("test_table", "network1", "test_key", []byte("test_value"))
-	assert.NilError(t, err)
+		err = dbs[0].UpdateEntry("test_table", "network1", "test_key", []byte("test_updated_value"))
+		assert.NilError(t, err)
 
-	for i := 1; i < n; i++ {
-		dbs[i].verifyEntryExistence(t, "test_table", "network1", "test_key", "test_value", true)
-	}
+		for i := 1; i < n; i++ {
+			dbs[i].verifyEntryExistence(t, "test_table", "network1", "test_key", "test_updated_value", true)
+		}
 
-	err = dbs[0].UpdateEntry("test_table", "network1", "test_key", []byte("test_updated_value"))
-	assert.NilError(t, err)
+		err = dbs[0].DeleteEntry("test_table", "network1", "test_key")
+		assert.NilError(t, err)
 
-	for i := 1; i < n; i++ {
-		dbs[i].verifyEntryExistence(t, "test_table", "network1", "test_key", "test_updated_value", true)
-	}
+		for i := 1; i < n; i++ {
+			dbs[i].verifyEntryExistence(t, "test_table", "network1", "test_key", "", false)
+		}
 
-	err = dbs[0].DeleteEntry("test_table", "network1", "test_key")
-	assert.NilError(t, err)
-
-	for i := 1; i < n; i++ {
-		dbs[i].verifyEntryExistence(t, "test_table", "network1", "test_key", "", false)
-	}
-
-	for i := 1; i < n; i++ {
-		_, err = dbs[i].GetEntry("test_table", "network1", "test_key")
-		assert.Check(t, is.ErrorContains(err, ""))
-		assert.Check(t, is.Contains(err.Error(), "deleted and pending garbage collection"), err)
-	}
-
+		for i := 1; i < n; i++ {
+			_, err = dbs[i].GetEntry("test_table", "network1", "test_key")
+			assert.Check(t, is.ErrorContains(err, ""))
+			assert.Check(t, is.Contains(err.Error(), "deleted and pending garbage collection"), err)
+		}
+	})
 }
 
 func TestNetworkDBNodeJoinLeaveIteration(t *testing.T) {
-	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
-	defer closeNetworkDBInstances(t, dbs)
+	runInCluster(t, 2, DefaultConfig(), func(t *testing.T, c *memCluster) {
+		dbs := c.dbs
 
-	dbChangeWitness := func(nDB *NetworkDB) func(network string, expectNodeCount int) {
-		staleNetworkTime := nDB.networkClock.Time()
-		return func(network string, expectNodeCount int) {
-			check := func(t poll.LogT) poll.Result {
-				networkTime := nDB.networkClock.Time()
-				if networkTime <= staleNetworkTime {
-					return poll.Continue("network time is stale, no change registered yet.")
+		dbChangeWitness := func(nDB *NetworkDB) func(network string, expectNodeCount int) {
+			staleNetworkTime := nDB.networkClock.Time()
+			return func(network string, expectNodeCount int) {
+				check := func(t poll.LogT) poll.Result {
+					networkTime := nDB.networkClock.Time()
+					if networkTime <= staleNetworkTime {
+						return poll.Continue("network time is stale, no change registered yet.")
+					}
+					count := -1
+					nDB.Lock()
+					if nodes, ok := nDB.networkNodes[network]; ok {
+						count = len(nodes)
+					}
+					nDB.Unlock()
+					if count != expectNodeCount {
+						return poll.Continue("current number of nodes is %d, expect %d.", count, expectNodeCount)
+					}
+					return poll.Success()
 				}
-				count := -1
-				nDB.Lock()
-				if nodes, ok := nDB.networkNodes[network]; ok {
-					count = len(nodes)
-				}
-				nDB.Unlock()
-				if count != expectNodeCount {
-					return poll.Continue("current number of nodes is %d, expect %d.", count, expectNodeCount)
-				}
-				return poll.Success()
+				t.Helper()
+				poll.WaitOn(t, check, poll.WithTimeout(3*time.Second), poll.WithDelay(5*time.Millisecond))
 			}
-			t.Helper()
-			poll.WaitOn(t, check, poll.WithTimeout(3*time.Second), poll.WithDelay(5*time.Millisecond))
 		}
-	}
 
-	// Single node Join/Leave
-	witness0 := dbChangeWitness(dbs[0])
-	err := dbs[0].JoinNetwork("network1")
-	assert.NilError(t, err)
-	witness0("network1", 1)
+		// Single node Join/Leave
+		witness0 := dbChangeWitness(dbs[0])
+		err := dbs[0].JoinNetwork("network1")
+		assert.NilError(t, err)
+		witness0("network1", 1)
 
-	witness0 = dbChangeWitness(dbs[0])
-	err = dbs[0].LeaveNetwork("network1")
-	assert.NilError(t, err)
-	witness0("network1", 0)
+		witness0 = dbChangeWitness(dbs[0])
+		err = dbs[0].LeaveNetwork("network1")
+		assert.NilError(t, err)
+		witness0("network1", 0)
 
-	// Multiple nodes Join/Leave
-	witness0, witness1 := dbChangeWitness(dbs[0]), dbChangeWitness(dbs[1])
-	err = dbs[0].JoinNetwork("network1")
-	assert.NilError(t, err)
+		// Multiple nodes Join/Leave
+		witness0, witness1 := dbChangeWitness(dbs[0]), dbChangeWitness(dbs[1])
+		err = dbs[0].JoinNetwork("network1")
+		assert.NilError(t, err)
 
-	err = dbs[1].JoinNetwork("network1")
-	assert.NilError(t, err)
+		err = dbs[1].JoinNetwork("network1")
+		assert.NilError(t, err)
 
-	// Wait for the propagation on db[0]
-	dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, "network1", true)
-	witness0("network1", 2)
-	if n, ok := dbs[0].thisNodeNetworks["network1"]; !ok || n.leaving {
-		t.Fatal("The network should not be marked as leaving")
-	}
+		// Wait for the propagation on db[0]
+		dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, "network1", true)
+		witness0("network1", 2)
+		if n, ok := dbs[0].thisNodeNetworks["network1"]; !ok || n.leaving {
+			t.Fatal("The network should not be marked as leaving")
+		}
 
-	// Wait for the propagation on db[1]
-	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
-	witness1("network1", 2)
-	if n, ok := dbs[1].thisNodeNetworks["network1"]; !ok || n.leaving {
-		t.Fatal("The network should not be marked as leaving")
-	}
+		// Wait for the propagation on db[1]
+		dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
+		witness1("network1", 2)
+		if n, ok := dbs[1].thisNodeNetworks["network1"]; !ok || n.leaving {
+			t.Fatal("The network should not be marked as leaving")
+		}
 
-	// Try a quick leave/join
-	witness0, witness1 = dbChangeWitness(dbs[0]), dbChangeWitness(dbs[1])
-	err = dbs[0].LeaveNetwork("network1")
-	assert.NilError(t, err)
-	err = dbs[0].JoinNetwork("network1")
-	assert.NilError(t, err)
+		// Try a quick leave/join
+		witness0, witness1 = dbChangeWitness(dbs[0]), dbChangeWitness(dbs[1])
+		err = dbs[0].LeaveNetwork("network1")
+		assert.NilError(t, err)
+		err = dbs[0].JoinNetwork("network1")
+		assert.NilError(t, err)
 
-	dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, "network1", true)
-	witness0("network1", 2)
+		dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, "network1", true)
+		witness0("network1", 2)
 
-	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
-	witness1("network1", 2)
-
+		dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
+		witness1("network1", 2)
+	})
 }
 
 func TestNetworkDBGarbageCollection(t *testing.T) {
-	keysWriteDelete := 5
+	const keysWriteDelete = 5
 	config := DefaultConfig()
+	// Still shortened, even though the waits below are now virtual. Virtual
+	// time is free in wall-clock but not in CPU: every gossip and push-pull
+	// tick in the skipped-over interval still executes. Sleeping through the
+	// real 30-minute reapEntryInterval would run thousands of gossip rounds
+	// across three nodes to observe one reap.
 	config.reapEntryInterval = 30 * time.Second
 	config.StatsPrintPeriod = 15 * time.Second
 
-	dbs := createNetworkDBInstances(t, 3, "node", config)
-	defer closeNetworkDBInstances(t, dbs)
+	runInCluster(t, 3, config, func(t *testing.T, c *memCluster) {
+		dbs := c.dbs
 
-	// 2 Nodes join network
-	err := dbs[0].JoinNetwork("network1")
-	assert.NilError(t, err)
-
-	err = dbs[1].JoinNetwork("network1")
-	assert.NilError(t, err)
-
-	for i := range keysWriteDelete {
-		err = dbs[i%2].CreateEntry("testTable", "network1", "key-"+strconv.Itoa(i), []byte("value"))
+		// 2 Nodes join network
+		err := dbs[0].JoinNetwork("network1")
 		assert.NilError(t, err)
-	}
-	time.Sleep(time.Second)
-	for i := range keysWriteDelete {
-		err = dbs[i%2].DeleteEntry("testTable", "network1", "key-"+strconv.Itoa(i))
+
+		err = dbs[1].JoinNetwork("network1")
 		assert.NilError(t, err)
-	}
-	for i := range 2 {
-		dbs[i].Lock()
-		assert.Check(t, is.Equal(int64(keysWriteDelete), dbs[i].thisNodeNetworks["network1"].entriesNumber.Load()), "entries number should match")
-		dbs[i].Unlock()
-	}
 
-	// from this point the timer for the garbage collection started, wait 5 seconds and then join a new node
-	time.Sleep(5 * time.Second)
-
-	err = dbs[2].JoinNetwork("network1")
-	assert.NilError(t, err)
-	for i := range 3 {
-		dbs[i].Lock()
-		assert.Check(t, is.Equal(int64(keysWriteDelete), dbs[i].thisNodeNetworks["network1"].entriesNumber.Load()), "entries number should match")
-		dbs[i].Unlock()
-	}
-	// Wait for the reaper instead of assuming it runs on schedule.
-	poll.WaitOn(t, func(t poll.LogT) poll.Result {
-		for _, db := range dbs {
-			db.Lock()
-			entries := db.thisNodeNetworks["network1"].entriesNumber.Load()
-			db.Unlock()
-			if entries != 0 {
-				return poll.Continue("%s still has %d entries", db.config.Hostname, entries)
-			}
+		for i := range keysWriteDelete {
+			err = dbs[i%2].CreateEntry("testTable", "network1", "key-"+strconv.Itoa(i), []byte("value"))
+			assert.NilError(t, err)
 		}
-		return poll.Success()
-	}, poll.WithDelay(time.Second), poll.WithTimeout(2*config.reapEntryInterval))
+		time.Sleep(time.Second)
+		synctest.Wait()
+		for i := range keysWriteDelete {
+			err = dbs[i%2].DeleteEntry("testTable", "network1", "key-"+strconv.Itoa(i))
+			assert.NilError(t, err)
+		}
+		for i := range 2 {
+			dbs[i].Lock()
+			assert.Check(t, is.Equal(int64(keysWriteDelete), dbs[i].thisNodeNetworks["network1"].entriesNumber.Load()), "entries number should match")
+			dbs[i].Unlock()
+		}
 
-	// make sure that entries are not coming back
-	time.Sleep(15 * time.Second)
-	for i := range 3 {
-		dbs[i].Lock()
-		assert.Check(t, is.Equal(int64(0), dbs[i].thisNodeNetworks["network1"].entriesNumber.Load()), "entries should had been garbage collected")
-		dbs[i].Unlock()
-	}
+		// from this point the timer for the garbage collection started, wait 5 seconds and then join a new node
+		time.Sleep(5 * time.Second)
+		synctest.Wait()
 
+		err = dbs[2].JoinNetwork("network1")
+		assert.NilError(t, err)
+		for i := range 3 {
+			dbs[i].Lock()
+			assert.Check(t, is.Equal(int64(keysWriteDelete), dbs[i].thisNodeNetworks["network1"].entriesNumber.Load()), "entries number should match")
+			dbs[i].Unlock()
+		}
+		// Wait for the reaper instead of assuming it runs on schedule.
+		var lagging string
+		if !waitFor(2*config.reapEntryInterval, func() bool {
+			lagging = ""
+			for _, db := range dbs {
+				db.Lock()
+				entries := db.thisNodeNetworks["network1"].entriesNumber.Load()
+				db.Unlock()
+				if entries != 0 {
+					lagging = fmt.Sprintf("%s still has %d entries", db.config.Hostname, entries)
+					return false
+				}
+			}
+			return true
+		}) {
+			t.Fatalf("entries were not garbage collected within %v of virtual time: %s",
+				2*config.reapEntryInterval, lagging)
+		}
+
+		// make sure that entries are not coming back
+		time.Sleep(15 * time.Second)
+		synctest.Wait()
+		for i := range 3 {
+			dbs[i].Lock()
+			assert.Check(t, is.Equal(int64(0), dbs[i].thisNodeNetworks["network1"].entriesNumber.Load()), "entries should had been garbage collected")
+			dbs[i].Unlock()
+		}
+	})
 }
 
 func checkNodeIsForgotten(t *testing.T, db *NetworkDB, nodeName string, msgAndArgs ...any) {
@@ -1026,143 +929,96 @@ func TestParallelDelete(t *testing.T) {
 }
 
 func TestNetworkDBIslands(t *testing.T) {
-	pollTimeout := func() time.Duration {
-		const defaultTimeout = 120 * time.Second
-		dl, ok := t.Deadline()
-		if !ok {
-			return defaultTimeout
-		}
-		if d := time.Until(dl); d <= defaultTimeout {
-			return d
-		}
-		return defaultTimeout
-	}
-
 	var peers peerList
 
-	_ = log.SetLevel(log.DebugLevel)
 	conf := DefaultConfig()
-	// Shorten durations to speed up test execution.
+	// Still shortened, for the reason given in TestNetworkDBGarbageCollection:
+	// the wait is virtual but the gossip it sleeps through is not.
 	conf.rejoinClusterDuration = conf.rejoinClusterDuration / 10
 	conf.rejoinClusterInterval = conf.rejoinClusterInterval / 10
 	// Answered empty until the bootstrap nodes are gone, so that nothing tries
 	// to rejoin anything while the cluster is still whole.
 	conf.BootstrapPeers = peers.get
-	dbs := createNetworkDBInstances(t, 5, "node", conf)
-	// The first three leave part-way through and are relaunched, so the
-	// teardown tracks what is still running rather than closing the whole
-	// slice: NetworkDB.Close is not idempotent, and a second call panics
-	// inside memberlist.Leave.
-	live := append([]*NetworkDB(nil), dbs...)
-	defer func() { closeNetworkDBInstances(t, live) }()
 
-	// Get the node IP used currently. The memberlist event delegate writes
-	// this map from its own goroutines while the cluster gossips, so it is
-	// not ours to read unlocked.
-	dbs[0].RLock()
-	baseIPStr := dbs[0].nodes[dbs[0].config.NodeID].Addr.String()
-	dbs[0].RUnlock()
-	// Node 0,1,2 are going to be the 3 bootstrap nodes
-	members := []string{
-		fmt.Sprintf("%s:%d", baseIPStr, dbs[0].config.BindPort),
-		fmt.Sprintf("%s:%d", baseIPStr, dbs[1].config.BindPort),
-		fmt.Sprintf("%s:%d", baseIPStr, dbs[2].config.BindPort),
-	}
-	for i := 3; i < 5; i++ {
-		t.Logf("Re-joining: %d", i)
-		assert.Check(t, dbs[i].Join(members))
-	}
+	runInCluster(t, 5, conf, func(t *testing.T, c *memCluster) {
+		// Nodes 0, 1 and 2 are the bootstrap nodes.
+		members := []string{addrOf(c.dbs[0]), addrOf(c.dbs[1]), addrOf(c.dbs[2])}
+		for i := 3; i < 5; i++ {
+			assert.Check(t, c.dbs[i].Join(members))
+		}
 
-	// Now the 3 bootstrap nodes will cleanly leave, and will be properly removed from the other 2 nodes
-	departed := make([]string, 3)
-	for i := range departed {
-		log.G(t.Context()).Infof("node %d leaving", i)
-		// Record the node ID so we can check if their absence has
-		// propagated to the survivor nodes.
-		departed[i] = dbs[i].config.NodeID
-		dbs[i].Close()
-	}
-	live = []*NetworkDB{dbs[3], dbs[4]}
+		// The 3 bootstrap nodes cleanly leave, and should be properly
+		// removed from the other 2.
+		departed := make([]string, 3)
+		for i := range departed {
+			departed[i] = c.dbs[i].config.NodeID
+			c.closeNode(i)
+		}
 
-	checkDBs := make(map[string]*NetworkDB)
-	for i := 3; i < 5; i++ {
-		db := dbs[i]
-		checkDBs[db.config.Hostname] = db
-	}
-
-	// Give some time to let the system propagate the messages and free up the ports
-	check := func(t poll.LogT) poll.Result {
-		// Verify that the nodes are actually all gone. One which memberlist
-		// declared failed rather than seeing leave is still on its way out,
-		// which is the latitude the left-or-failed count used to allow.
-		for name, db := range checkDBs {
-			db.RLock()
-			var stillPeers []string
-			for _, id := range departed {
-				if _, ok := db.nodes[id]; ok {
-					stillPeers = append(stillPeers, id)
+		// One which memberlist declared failed rather than seeing leave is
+		// still on its way out, so only the active list has to let go.
+		if !waitFor(propagationTimeout, func() bool {
+			for _, db := range c.dbs[3:] {
+				db.RLock()
+				stillPeer := slices.ContainsFunc(departed, func(id string) bool {
+					_, ok := db.nodes[id]
+					return ok
+				})
+				db.RUnlock()
+				if stillPeer {
+					return false
 				}
 			}
-			db.RUnlock()
-			if len(stillPeers) > 0 {
-				return poll.Continue("%s:Waiting for nodes %v to leave", name, stillPeers)
-			}
-			t.Logf("%s: OK", name)
-			delete(checkDBs, name)
+			return true
+		}) {
+			t.Fatalf("the 3 departed nodes were not all gone within %v of virtual time:\n%s",
+				propagationTimeout, dumpNodeState(c.dbs[3:]))
 		}
-		return poll.Success()
-	}
-	poll.WaitOn(t, check, poll.WithDelay(time.Second), poll.WithTimeout(pollTimeout()))
 
-	// Only nodes 3 and 4 are left, and only they know where the bootstrap
-	// nodes live, so naming them now makes those two the only thing which can
-	// bring the cluster back together.
-	peers.set(members...)
+		// Only nodes 3 and 4 are left, and only they know where the bootstrap
+		// nodes live, so naming them now makes those two the only thing which
+		// can bring the cluster back together.
+		peers.set(members...)
 
-	// Spawn again the first 3 nodes with different names but same IP:port
-	for i := range 3 {
-		log.G(t.Context()).Infof("node %d coming back", i)
-		conf := *dbs[i].config
-		conf.NodeID = stringid.TruncateID(stringid.GenerateRandomID())
-		// A returning node is given no bootstrap peers of its own: it does no
-		// join, exactly as the comment below says, so the reconvergence has to
-		// come from the two which stayed.
-		conf.BootstrapPeers = nil
-		dbs[i] = launchNode(t, conf)
-		live = append(live, dbs[i])
-	}
+		// Bring the first 3 back with different node IDs but the same
+		// IP:port, so that their peers meet a new identity at an
+		// endpoint they still remember.
+		for i := range 3 {
+			c.relaunch(t, i)
+		}
 
-	// Every node has to end up seeing all five of the current nodes as
-	// active, which is what reconverging means and what the relaunched three
-	// have no way to bring about for themselves: they did no join.
-	//
-	// Asserted by identity rather than by counting the node lists. A node
-	// which starts after another has departed can still be told of that
-	// departed incarnation by gossip already in flight, and it sits in
-	// failedNodes until something supersedes it at its address. Which nodes
-	// carry such a straggler is a matter of timing, so counting them tests
-	// the schedule rather than the convergence.
-	current := make([]string, 0, len(dbs))
-	for _, db := range dbs {
-		current = append(current, db.config.NodeID)
-	}
-	check = func(t poll.LogT) poll.Result {
-		for _, db := range dbs {
-			db.RLock()
-			var missing []string
-			for _, id := range current {
-				if _, ok := db.nodes[id]; !ok {
-					missing = append(missing, id)
+		// Every node has to end up seeing all five of the current nodes as
+		// active, which is what reconverging means and what the relaunched
+		// three have no way to bring about for themselves: they did no join.
+		//
+		// Asserted by identity rather than by counting the node lists. A node
+		// which starts after another has departed can still be told of that
+		// departed incarnation by gossip already in flight, and it sits in
+		// failedNodes until something supersedes it at its address. Which
+		// nodes carry such a straggler is a matter of timing, so counting
+		// them tests the schedule rather than the convergence.
+		current := make([]string, 0, len(c.dbs))
+		for _, db := range c.dbs {
+			current = append(current, db.config.NodeID)
+		}
+		if !waitFor(propagationTimeout, func() bool {
+			for _, db := range c.dbs {
+				db.RLock()
+				missing := slices.ContainsFunc(current, func(id string) bool {
+					_, ok := db.nodes[id]
+					return !ok
+				})
+				db.RUnlock()
+				if missing {
+					return false
 				}
 			}
-			db.RUnlock()
-			if len(missing) > 0 {
-				return poll.Continue("%s: waiting to see %v active", db.config.Hostname, missing)
-			}
+			return true
+		}) {
+			t.Fatalf("the cluster did not reconverge within %v of virtual time:\n%s",
+				propagationTimeout, dumpNodeState(c.dbs))
 		}
-		return poll.Success()
-	}
-	poll.WaitOn(t, check, poll.WithDelay(time.Second), poll.WithTimeout(pollTimeout()))
+	})
 }
 
 // TestRejoinClusterBootStrapUsesCurrentPeers checks that a rejoin targets the
@@ -1181,52 +1037,47 @@ func TestRejoinClusterBootStrapUsesCurrentPeers(t *testing.T) {
 	var peers peerList
 
 	conf := DefaultConfig()
-	// Shortened so the test is not sitting through the default minute-long
-	// rejoin interval.
+	// Shortened, for the reason given in TestNetworkDBGarbageCollection.
 	conf.rejoinClusterInterval = 2 * time.Second
 	conf.rejoinClusterDuration = 3 * time.Second
 	conf.BootstrapPeers = peers.get
 
-	dbs := createNetworkDBInstances(t, 3, "node", conf)
-	survivor := dbs[2]
+	runInCluster(t, 3, conf, func(t *testing.T, c *memCluster) {
+		survivor := c.dbs[2]
 
-	// Closed nodes are not put back here, so the teardown tracks what is still
-	// running rather than closing the whole slice: NetworkDB.Close is not
-	// idempotent, and a second call panics inside memberlist.Leave.
-	live := append([]*NetworkDB(nil), dbs...)
-	defer func() { closeNetworkDBInstances(t, live) }()
+		peers.set(addrOf(c.dbs[0]), addrOf(c.dbs[1]))
 
-	peers.set(addrOf(dbs[0]), addrOf(dbs[1]))
+		c.closeNode(0)
+		c.closeNode(1)
+		if !waitFor(propagationTimeout, func() bool {
+			survivor.RLock()
+			defer survivor.RUnlock()
+			return len(survivor.nodes) == 1
+		}) {
+			t.Fatalf("the survivor was not left on its own within %v of virtual time:\n%s",
+				propagationTimeout, dumpNodeState([]*NetworkDB{survivor}))
+		}
 
-	dbs[0].Close()
-	dbs[1].Close()
-	live = []*NetworkDB{survivor}
-	waitFor(t, "the survivor to be left on its own", func() bool {
-		survivor.RLock()
-		defer survivor.RUnlock()
-		return len(survivor.nodes) == 1
-	})
+		// The replacement has no bootstrap list of its own -- no callback, and
+		// it joins nothing -- so it cannot reach out. Only the survivor can
+		// close the gap, and only if it is told where to look.
+		plain := DefaultConfig()
+		plain.rejoinClusterInterval = conf.rejoinClusterInterval
+		plain.rejoinClusterDuration = conf.rejoinClusterDuration
+		plain.Hostname = "replacement"
+		plain.NodeID = "replacement1"
+		replacement := c.launch(t, *plain)
 
-	// The replacement has no bootstrap list of its own -- no callback, and it
-	// joins nothing -- so it cannot reach out. Only the survivor can close the
-	// gap, and only if it is told where to look.
-	plain := DefaultConfig()
-	plain.rejoinClusterInterval = conf.rejoinClusterInterval
-	plain.rejoinClusterDuration = conf.rejoinClusterDuration
-	plain.Hostname = "replacement"
-	plain.NodeID = stringid.TruncateID(stringid.GenerateRandomID())
-	plain.BindPort = int(dbPort.Add(1))
-	plain.BindAddr = "127.0.0.1"
-	plain.AdvertiseAddr = plain.BindAddr
-	replacement := launchNode(t, *plain)
-	live = append(live, replacement)
-
-	peers.set(addrOf(replacement))
-	waitFor(t, "the survivor to rejoin through the replacement", func() bool {
-		survivor.RLock()
-		defer survivor.RUnlock()
-		_, ok := survivor.nodes[replacement.config.NodeID]
-		return ok
+		peers.set(addrOf(replacement))
+		if !waitFor(propagationTimeout, func() bool {
+			survivor.RLock()
+			defer survivor.RUnlock()
+			_, ok := survivor.nodes[replacement.config.NodeID]
+			return ok
+		}) {
+			t.Fatalf("the survivor did not rejoin through the replacement within %v of virtual time:\n%s",
+				propagationTimeout, dumpNodeState(c.live()))
+		}
 	})
 }
 
@@ -1256,82 +1107,72 @@ func TestRejoinClusterBootStrapStragglers(t *testing.T) {
 	var peers peerList
 
 	conf := DefaultConfig()
-	// Shortened so the test is not sitting through the default minute-long
-	// rejoin interval twice.
+	// Shortened, for the reason given in TestNetworkDBGarbageCollection.
 	conf.rejoinClusterInterval = 2 * time.Second
 	conf.rejoinClusterDuration = 3 * time.Second
 	// Left empty while the cluster forms, so no node rejoins anything before
 	// the departures below give it something to do.
 	conf.BootstrapPeers = peers.get
 
-	dbs := createNetworkDBInstances(t, 3, "node", conf)
-	survivor := dbs[2]
+	runInCluster(t, 3, conf, func(t *testing.T, c *memCluster) {
+		survivor := c.dbs[2]
 
-	// The two below are closed and only later replaced, so the teardown tracks
-	// what is still running rather than closing the whole slice: NetworkDB.Close
-	// is not idempotent, and a second call panics inside memberlist.Leave --
-	// which would bury the failure that got us here.
-	live := append([]*NetworkDB(nil), dbs...)
-	defer func() { closeNetworkDBInstances(t, live) }()
+		// Both of the others are bootstrap nodes, so that a rejoin has
+		// something to be selective about.
+		peers.set(addrOf(c.dbs[0]), addrOf(c.dbs[1]))
 
-	// Both of the others are bootstrap nodes, so that a rejoin has something
-	// to be selective about.
-	peers.set(addrOf(dbs[0]), addrOf(dbs[1]))
+		sees := func(target *NetworkDB) bool {
+			survivor.RLock()
+			defer survivor.RUnlock()
+			_, ok := survivor.nodes[target.config.NodeID]
+			return ok
+		}
 
-	sees := func(target *NetworkDB) bool {
+		departed := []string{c.dbs[0].config.NodeID, c.dbs[1].config.NodeID}
+		c.closeNode(0)
+		c.closeNode(1)
+		if !waitFor(propagationTimeout, func() bool {
+			survivor.RLock()
+			defer survivor.RUnlock()
+			return len(survivor.nodes) == 1
+		}) {
+			t.Fatalf("the survivor was not left on its own within %v of virtual time:\n%s",
+				propagationTimeout, dumpNodeState([]*NetworkDB{survivor}))
+		}
+
+		// Both left cleanly, so nothing will try to reconnect them on the
+		// survivor's behalf. If memberlist had instead declared them failed,
+		// reconnectNode would pull them back and this test would pass whether
+		// or not the bug is present, so assert the precondition rather than
+		// assume it.
 		survivor.RLock()
-		defer survivor.RUnlock()
-		_, ok := survivor.nodes[target.config.NodeID]
-		return ok
-	}
+		for _, id := range departed {
+			_, failed := survivor.failedNodes[id]
+			assert.Check(t, !failed, "node %s should have left cleanly, not failed", id)
+		}
+		survivor.RUnlock()
 
-	departed := []string{dbs[0].config.NodeID, dbs[1].config.NodeID}
-	dbs[0].Close()
-	dbs[1].Close()
-	live = []*NetworkDB{survivor}
-	waitFor(t, "the survivor to be left on its own", func() bool {
-		survivor.RLock()
-		defer survivor.RUnlock()
-		return len(survivor.nodes) == 1
+		// First one back, at the address it had before. Only the survivor
+		// can reattach it: relaunch gives the returning node no bootstrap
+		// peers of its own.
+		//
+		// That one-sided arrangement is the point. It leaves the survivor in
+		// the position every node is in once a partition has outlived
+		// reapDeadNode -- the peers it lost are forgotten, reconnectNode has
+		// nothing left to retry, and the bootstrap list is the only way back
+		// -- without needing a day of waiting to get there.
+		first := c.relaunch(t, 0)
+		if !waitFor(propagationTimeout, func() bool { return sees(first) }) {
+			t.Fatalf("the survivor did not rejoin the first bootstrap node within %v of virtual time:\n%s",
+				propagationTimeout, dumpNodeState(c.live()))
+		}
+
+		// Second one back, now that a rejoin has definitely run with the
+		// first already in the cluster.
+		second := c.relaunch(t, 1)
+		if !waitFor(propagationTimeout, func() bool { return sees(second) }) {
+			t.Fatalf("the survivor did not rejoin the second bootstrap node within %v of virtual time:\n%s",
+				propagationTimeout, dumpNodeState(c.live()))
+		}
 	})
-
-	// Both left cleanly, so nothing will try to reconnect them on the
-	// survivor's behalf. If memberlist had instead declared them failed,
-	// reconnectNode would pull them back and this test would pass whether or
-	// not the bug is present, so assert the precondition rather than assume
-	// it.
-	survivor.RLock()
-	for _, id := range departed {
-		_, failed := survivor.failedNodes[id]
-		assert.Check(t, !failed, "node %s should have left cleanly, not failed", id)
-	}
-	survivor.RUnlock()
-
-	relaunch := func(i int) *NetworkDB {
-		t.Helper()
-		conf := *dbs[i].config
-		conf.NodeID = stringid.TruncateID(stringid.GenerateRandomID())
-		// The returning node is given no way to reach out, so the survivor
-		// is the only thing that can close the gap.
-		conf.BootstrapPeers = nil
-		dbs[i] = launchNode(t, conf)
-		live = append(live, dbs[i])
-		return dbs[i]
-	}
-
-	// First one back, at the address it had before. Only the survivor can
-	// reattach it: the returning node has no bootstrap peers of its own.
-	//
-	// That one-sided arrangement is the point. It leaves the survivor in the
-	// position every node is in once a partition has outlived reapDeadNode --
-	// the peers it lost are forgotten, reconnectNode has nothing left to
-	// retry, and the bootstrap list is the only way back -- without needing a
-	// day of waiting to get there.
-	first := relaunch(0)
-	waitFor(t, "the survivor to rejoin the first bootstrap node", func() bool { return sees(first) })
-
-	// Second one back, now that a rejoin has definitely run with the first
-	// already in the cluster.
-	second := relaunch(1)
-	waitFor(t, "the survivor to rejoin the second bootstrap node", func() bool { return sees(second) })
 }
