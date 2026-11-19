@@ -2754,22 +2754,19 @@ func (s *DockerCLIRunSuite) TestRunReadFilteredProc(c *testing.T) {
 	// Not applicable on Windows as uses Unix specific functionality
 	testRequires(c, Apparmor, DaemonIsLinux, NotUserNamespace)
 
+	// These are the /proc files the docker-default profile denies reading.
+	// The container is privileged so that masked paths don't hide them.
 	testReadPaths := []string{
-		"/proc/latency_stats",
-		"/proc/timer_stats",
+		"/proc/sysrq-trigger",
 		"/proc/kcore",
 	}
 	for i, filePath := range testReadPaths {
 		name := fmt.Sprintf("procsieve-%d", i)
 		shellCmd := "exec 3<" + filePath
 
-		out, exitCode, err := dockerCmdWithError("run", "--privileged", "--security-opt", "apparmor=docker-default", "--name", name, "busybox", "sh", "-c", shellCmd)
-		if exitCode != 0 {
-			return
-		}
-		if err != nil {
-			c.Fatalf("Open FD for read should have failed with permission denied, got: %s, %v", out, err)
-		}
+		out, exitCode, _ := dockerCmdWithError("run", "--privileged", "--security-opt", "apparmor=docker-default", "--name", name, "busybox", "sh", "-c", shellCmd)
+		assert.Check(c, exitCode != 0, "opening %s for read should have been denied", filePath)
+		assert.Check(c, is.Contains(out, "Permission denied"))
 	}
 }
 
@@ -2917,13 +2914,8 @@ func (s *DockerCLIRunSuite) TestRunWriteFilteredProc(c *testing.T) {
 		name := fmt.Sprintf("writeprocsieve-%d", i)
 
 		shellCmd := "exec 3>" + filePath
-		out, code, err := dockerCmdWithError("run", "--privileged", "--security-opt", "apparmor=docker-default", "--name", name, "busybox", "sh", "-c", shellCmd)
-		if code != 0 {
-			return
-		}
-		if err != nil {
-			c.Fatalf("Open FD for write should have failed with permission denied, got: %s, %v", out, err)
-		}
+		_, code, _ := dockerCmdWithError("run", "--privileged", "--security-opt", "apparmor=docker-default", "--name", name, "busybox", "sh", "-c", shellCmd)
+		assert.Check(c, code != 0, "opening %s for write should have been denied", filePath)
 	}
 }
 
