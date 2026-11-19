@@ -259,9 +259,19 @@ sequenceDiagram
     Daemon->>Daemon: Authentication
     Daemon->>AuthZPlugin: HTTP request, user
     Note right of AuthZPlugin: Process request
-    AuthZPlugin->>Daemon: Additional HTTP request
-    Daemon->>Daemon: Authentication and authorization
-    Daemon-->>AuthZPlugin: HTTP response
+
+    opt Additional daemon query
+        AuthZPlugin->>Daemon: Additional HTTP request
+        Daemon->>Daemon: Authenticate additional request
+        Daemon->>AuthZPlugin: Authorize additional request
+        Note right of AuthZPlugin: Process without repeating the query
+        AuthZPlugin-->>Daemon: Allow
+        Daemon->>Daemon: Additional command flow
+        Daemon->>AuthZPlugin: Authorize additional response
+        AuthZPlugin-->>Daemon: Allow
+        Daemon-->>AuthZPlugin: HTTP response
+    end
+
     Note right of AuthZPlugin: Additional processing
     AuthZPlugin-->>Daemon: Allow
     Daemon->>Daemon: Daemon command flow
