@@ -1132,7 +1132,7 @@ set like this:
 ```console
 $ export DOCKER_TMPDIR=/mnt/disk2/tmp
 $ sudo -E dockerd --data-root /var/lib/docker -H unix://
-````
+```
 
 #### Live restore
 
