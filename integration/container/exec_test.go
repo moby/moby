@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -283,6 +284,62 @@ func TestExecResize(t *testing.T) {
 		assert.Check(t, is.ErrorType(err, cerrdefs.IsConflict))
 		assert.Check(t, is.ErrorContains(err, "is not running"))
 	})
+}
+
+// TestExecResizeImmediatelyAfterExecStart is a regression test for a daemon
+// panic when resizing an exec that was started, but whose process was not yet
+// running (moby#14845).
+func TestExecResizeImmediatelyAfterExecStart(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	cID := container.Run(ctx, t, apiClient, container.WithTty(true))
+	defer container.Remove(ctx, t, apiClient, cID, client.ContainerRemoveOptions{Force: true})
+
+	execResize := func() error {
+		res, err := apiClient.ExecCreate(ctx, cID, client.ExecCreateOptions{
+			TTY:         true,
+			AttachStdin: true,
+			Cmd:         []string{"/bin/sh"},
+		})
+		if err != nil {
+			return err
+		}
+		attach, err := apiClient.ExecAttach(ctx, res.ID, client.ExecAttachOptions{TTY: true})
+		if err != nil {
+			return err
+		}
+		defer attach.Close()
+
+		_, err = apiClient.ExecResize(ctx, res.ID, client.ExecResizeOptions{Height: 24, Width: 80})
+		return err
+	}
+
+	// The panic is not 100% reproducible, so send the requests concurrently
+	// to increase the probability that the problem is triggered.
+	const n = 10
+	errs := make(chan error, n)
+	var wg sync.WaitGroup
+	for range n {
+		wg.Go(func() {
+			errs <- execResize()
+		})
+	}
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		if runtime.GOOS == "windows" && err != nil {
+			// FIXME(thaJeztah): temporarily allowing test to fail on Windows: see https://github.com/moby/moby/issues/50402
+			t.Log("XFAIL:", err)
+			continue
+		}
+		assert.Check(t, err)
+	}
+
+	// A panic would have taken down the daemon; make sure it's still alive.
+	_, err := apiClient.Ping(ctx, client.PingOptions{})
+	assert.NilError(t, err)
 }
 
 func TestExecUser(t *testing.T) {
