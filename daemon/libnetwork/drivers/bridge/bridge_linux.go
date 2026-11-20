@@ -475,6 +475,11 @@ func (n *bridgeNetwork) newFirewallerNetwork(ctx context.Context) (_ firewaller.
 		return nil, err
 	}
 
+	// When traffic between containers is routed via the host, the host mustn't
+	// send ICMP redirects telling them to send directly instead.
+	config4.DropRedirects = n.noBrNf.gw4.IsValid()
+	config6.DropRedirects = n.noBrNf.gw6.IsValid()
+
 	// A firewalld zone applies to an interface, not to an address family. So
 	// the bridge goes in the docker zone if the daemon manages either family's
 	// firewall rules, and is left for the user to place if it manages neither.
