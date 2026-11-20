@@ -64,6 +64,8 @@ Use present tense and imperative tone; see [Docker Engine release notes](https:/
 ### Commit Messages
 
 Use a short imperative summary, prefixed with the affected component for scoped changes, such as `daemon:` or `client:`.
+This follows the [scoped commits](https://scopedcommits.com/) convention.
+Use the affected component as the prefix, not a change type such as `fix:`, `feat:`, or `chore:`.
 Separate an optional body with a blank line and explain the problem, fix, and important constraints.
 See [How to Write a Git Commit Message](https://cbea.ms/git-commit/) for more guidance.
 
