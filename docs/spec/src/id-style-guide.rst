@@ -1,0 +1,365 @@
+############################
+ Item IDs and titles: style
+############################
+
+Tests, links and requirements cite the IDs of the items in these specs for as long as the specs
+exist, so an ID never changes once it is merged. A title is a label for readers, and can change at
+any time.
+
+*****
+ IDs
+*****
+
+Form
+====
+
+The type of an item gives the form of its ID.
+
+.. list-table::
+    :header-rows: 1
+
+    - - Item
+      - Form
+      - Example
+    - - Expectation, of every category
+      - ``<SPEC>-<AREA>-<SLUG>``
+      - ``BR-PUB-UNPUBLISHED-PORT``
+    - - Host requirement
+      - ``<SPEC>-HOST-<SLUG>``
+      - ``BR-HOST-NFT-COMMAND``
+    - - Convergence ceiling
+      - ``<SPEC>-CEIL-<SLUG>``
+      - ``SWARM-CEIL-ALLOCATION``
+    - - Requirement
+      - ``REQ-<SPEC>-<SLUG>``
+      - ``REQ-NET-NAME-UNIQUE``
+    - - Rationale
+      - ``RAT-<SPEC>-<SLUG>``
+      - ``RAT-DNS-NO-UPSTREAM-LEFT``
+    - - Principle
+      - ``PRIN-<SLUG>``
+      - ``PRIN-FAIL-FAST``
+
+- **SPEC** names the spec: ``NET`` (network-common), ``BR`` (bridge-networking), ``IPVL``
+  (ipvlan-networking), ``DNS`` (container-dns), ``SWARM`` (swarm-networking, swarm-traffic and
+  swarm-lifecycle, which are one spec in three documents). A principle holds across the specs, so
+  its ID has no spec code.
+- **AREA** names the section that the expectation is written for, from the table below.
+- **SLUG** names the item within its area, or within its spec for a requirement or a rationale: one
+  to five words, separated by hyphens, and then any suffixes from the list below.
+
+An ID does not show the category of an expectation. A contract, a provisional expectation, a
+detector and a defect all have IDs of the same form. The category follows the expectation's links,
+which can change, and the ID cannot.
+
+An ID uses only ``A``\ –\ ``Z``, ``0``\ –\ ``9`` and ``-``, and is unique across all specs.
+``conf.py`` gives the pattern that every ID matches. The prefix ``TEST-`` is reserved for test
+items.
+
+Area codes
+==========
+
+An area code is a name of its own. It is not made from the section's title or label, so a new title
+for a section changes no ID. A new section gets a new code. A code is never renamed or reused. Areas
+are unique within a spec, not across specs; the SPEC part keeps the IDs apart.
+
+.. list-table::
+    :header-rows: 1
+
+    - - Document
+      - Section
+      - Area
+    - - network-common
+      - Network API
+      - ``API``
+    - - network-common
+      - Endpoint interfaces
+      - ``IFACE``
+    - - network-common
+      - Default gateway
+      - ``GW``
+    - - network-common
+      - ``/etc/hosts``
+      - ``HOSTS``
+    - - network-common
+      - Driver properties
+      - ``DRVPROP``
+    - - network-common
+      - Daemon restart
+      - ``RESTART``
+    - - bridge-networking
+      - Base-chain priorities
+      - ``PRIO``
+    - - bridge-networking
+      - ``DOCKER-USER``
+      - ``USER``
+    - - bridge-networking
+      - Cross-generation cleanup
+      - ``CLEAN``
+    - - bridge-networking
+      - Firewall backend and firewalld
+      - ``FW``
+    - - bridge-networking
+      - Rule content
+      - ``RULES``
+    - - bridge-networking
+      - Network and endpoint options
+      - ``OPT``
+    - - bridge-networking
+      - Isolation
+      - ``ISO``
+    - - bridge-networking
+      - Port publishing
+      - ``PUB``
+    - - bridge-networking
+      - Egress
+      - ``EGRESS``
+    - - bridge-networking
+      - Gateway modes
+      - ``GWMODE``
+    - - bridge-networking
+      - Default gateway
+      - ``GW``
+    - - bridge-networking
+      - Hosts without IPv6
+      - ``NOV6``
+    - - ipvlan-networking
+      - Endpoint options
+      - ``OPT``
+    - - ipvlan-networking
+      - Networks and interfaces
+      - ``NETIF``
+    - - container-dns
+      - ``resolv.conf``
+      - ``RESOLV``
+    - - container-dns
+      - Names and answers
+      - ``NAMES``
+    - - container-dns
+      - Forwarding
+      - ``FWD``
+    - - container-dns
+      - Port 53 in the container
+      - ``PORT53``
+    - - swarm-networking
+      - Cluster & node configuration
+      - ``CLUSTER``
+    - - swarm-networking
+      - Overlay driver options
+      - ``OVLOPT``
+    - - swarm-networking
+      - Swarm-scoped networks
+      - ``SCOPED``
+    - - swarm-networking
+      - Overlay networks
+      - ``OVL``
+    - - swarm-networking
+      - The ingress network
+      - ``INGRESS``
+    - - swarm-traffic
+      - Observable state inside a container
+      - ``CTR``
+    - - swarm-traffic
+      - East-west reachability
+      - ``EW``
+    - - swarm-traffic
+      - Service discovery
+      - ``SD``
+    - - swarm-traffic
+      - Load balancing (east-west VIP)
+      - ``LB``
+    - - swarm-traffic
+      - Distribution
+      - ``LBDIST``
+    - - swarm-traffic
+      - Health and drain
+      - ``LBHEALTH``
+    - - swarm-traffic
+      - Published ports
+      - ``PUB``
+    - - swarm-traffic
+      - Hairpin
+      - ``HAIRPIN``
+    - - swarm-traffic
+      - ``mode=ingress``
+      - ``INGPUB``
+    - - swarm-traffic
+      - Port allocation
+      - ``PORTALLOC``
+    - - swarm-traffic
+      - ``mode=host``
+      - ``HOSTPUB``
+    - - swarm-traffic
+      - Egress & the gateway network
+      - ``EGRESS``
+    - - swarm-traffic
+      - Gateway network
+      - ``GWNET``
+    - - swarm-lifecycle
+      - Encryption
+      - ``ENC``
+    - - swarm-lifecycle
+      - All overlay networks
+      - ``WIRE``
+    - - swarm-lifecycle
+      - Cleartext overlay networks
+      - ``WIRECLEAR``
+    - - swarm-lifecycle
+      - Encrypted overlay networks
+      - ``WIREENC``
+    - - swarm-lifecycle
+      - Restart and reclamation
+      - ``RESTART``
+    - - swarm-lifecycle
+      - Convergence
+      - ``CONVERGE``
+    - - swarm-lifecycle
+      - Churn
+      - ``CHURN``
+    - - swarm-lifecycle
+      - Scale and exhaustion
+      - ``SCALE``
+    - - swarm-lifecycle
+      - Firewall-backend transition
+      - ``BACKEND``
+    - - swarm-lifecycle
+      - Failure reporting
+      - ``FAILREP``
+    - - swarm-lifecycle
+      - nftables
+      - ``NFT``
+    - - swarm-lifecycle
+      - iptables
+      - ``IPT``
+    - - swarm-lifecycle
+      - Cross-generation cleanup
+      - ``CLEAN``
+
+Slugs
+=====
+
+A slug names what sets the item apart from the other items in its area: usually the distinguishing
+case, and the observable where the case alone does not separate it. It does not restate the item's
+whole statement.
+
+- **Noun first, then qualifiers**: ``TASK-NAME-GLOBAL``, not ``GLOBAL-TASK-NAME``. Related items
+  then sort together.
+- **A twin, partner or variant of another expectation extends that expectation's ID** with one
+  suffix from this list. Use no other suffix for these relationships. Suffixes can stack, as in
+  ``-MSG-LINUX``.
+
+  .. list-table::
+      :header-rows: 1
+
+      - - Suffix
+        - Meaning
+      - - ``-CLI``
+        - The ``docker`` command form of an expectation about an API request. It extends the API
+          expectation's ID without its ``-HTTP<status>``, which the command does not show. An
+          expectation about a ``docker`` command that no API expectation mirrors takes no suffix.
+      - - ``-HTTP<status>``
+        - An expectation that states the exact status of a refusal, where the expectation that it
+          extends states only that the request is refused. A success status takes no suffix.
+      - - ``-MSG``
+        - An expectation that adds only the exact message to the expectation that it extends
+      - - ``-WINDOWS``, ``-LINUX``
+        - The platform variant of an expectation
+      - - ``-V4``, ``-V6``
+        - The IP-version variant of an expectation
+      - - ``-NFT``, ``-IPT``
+        - The firewall-backend variant of an expectation
+
+  A symmetric pair without a base expectation gives both members a suffix, as in ``-V4`` and
+  ``-V6``. Other exact forms and edge cases take a descriptive word instead, such as
+  ``DNS-NAMES-PTR-FORM``, the exact form of ``DNS-NAMES-PTR``.
+
+  A twin, partner or variant in another spec than the expectation that it extends has its own spec's
+  code and area, followed by the other expectation's slug and the suffix, as in
+  ``IPVL-OPT-MAC-ADDRESS-REFUSED-CONNECT-HTTP500``, the exact status of
+  ``NET-IFACE-MAC-ADDRESS-REFUSED-CONNECT``.
+
+- **An expectation that is not such a variant does not end in one of these suffixes.** An HTTP
+  status that is the subject of the expectation comes first in the slug, as in
+  ``NET-IFACE-HTTP500-REFUSED``, so that it is not read as a suffix. An expectation about behavior
+  that is found only on Windows, and that is not the variant of another expectation, starts its slug
+  with ``WINDOWS``, as in ``SWARM-LB-WINDOWS-DSR``.
+- **Defects** follow the same rules as every other expectation. The slug names the case and what the
+  daemon does in it, as in ``SWARM-OVL-ALLOCATION-FAILURE-UNREPORTED``. It has no marker for the
+  category, and no word such as ``BUG`` or ``BROKEN``: when the expectation's links change, the
+  expectation is no longer a defect, and its ID stays.
+- **Host requirements**: a program's host requirement ends in ``-COMMAND``, as in
+  ``BR-HOST-NFT-COMMAND``, and the kernel options that an implementation of a program needs end in
+  ``-KERNEL``, as in ``BR-HOST-IPTABLES-LEGACY-KERNEL``.
+- **Requirements**: the slug names the promise, as in ``REQ-NET-NAME-UNIQUE``. It does not name the
+  source, which can be replaced by another source for the same promise. It can start with an area
+  code of its spec, as in ``REQ-SWARM-SD-ALIASES``, so that it sorts with the expectations that it
+  is mostly about; the area code is a name, not an abbreviation to spell out.
+- **Rationales**: the slug names the reason, as in ``RAT-DNS-NO-UPSTREAM-LEFT``, and not an
+  expectation that links the rationale. Several expectations can share one rationale. Its slug can
+  start with an area code of its spec, as for a requirement.
+- **Principles**: the slug names the property in one to four words, as in
+  ``PRIN-OWNS-ONLY-ITS-OWN``.
+- **Abbreviations**: these are allowed: API, CLI, CTR (container), DNS, GW (gateway), ICC, IFACE
+  (interface), IPT, LB, MSG, MTU, NFT, NS (namespace), V4, V6, VIP, VNI. An abbreviation that the
+  domain itself uses as a name, such as a protocol, a header field, a record type or a kernel
+  subsystem, is written as the domain writes it: for example TTL, PTR, NAT, DSR, VXLAN, XFRM, ESP,
+  HNS, FDB, IPSEC, AAAA. Spell out every other word.
+- **Leave out**: the item's type and category, the title or position of its section, line or
+  sequence numbers, and vague words such as ``BASIC``, ``MISC``, ``WORKS``, ``CHECK`` or ``TEST``.
+  An expectation's category and its section can change; its ID cannot.
+- **Numbers** appear only as domain values: ``MTU-ZERO``, ``PORT53``. An HTTP status is always
+  written ``HTTP<status>``, as one word: ``HTTP500``, ``HTTP409``.
+
+Stability
+=========
+
+- An ID never changes once it is merged, even when its item moves to another section or document,
+  its title changes, or its category changes. Its area code then names the section that it started
+  in.
+- When a merged item is removed, its ID is retired and listed in ``retired-ids.txt``. A retired ID
+  is never reused.
+
+********
+ Titles
+********
+
+A title is a short statement of the item's behavior, in the present tense.
+
+- **Name the outcome**, and the distinguishing case if the outcome alone is ambiguous: "A vip
+  service with no running task is forwarded upstream".
+- **One clause, sentence case, no final period.** A title of at most 72 characters fits everywhere
+  that titles appear; a longer one is allowed where a shorter one would lose the distinguishing
+  case.
+- **No markup.** Titles appear in tables, diagrams, link text and GitHub's view of the source. Write
+  identifiers plainly: tasks.<service>, EHOSTUNREACH, allow-direct-routing.
+- **An exact form states the exact fact**, so its title reads differently from its partner's: "A
+  network MTU that the kernel or IPv6 cannot use responds 500".
+- **A message expectation** (``-MSG``) says what the message says, in a clause of its own after
+  "says" or "logs that": "A legacy plugin's refusal says it is not supported in swarm mode". Message
+  text does not follow a verb bare; the exact text is in the body. An expectation about a set of
+  messages says how many there are instead: "With nftables, a load-balancer failure entry has one of
+  six messages".
+- **A defect states what the daemon does**, like every other expectation: "A static address in use
+  responds 500 after 20 seconds". Its title does not say that the behavior is wrong. The
+  expectation's links say that.
+- **Use the specs' vocabulary**: node, container, task, client, published port, the embedded
+  resolver.
+- **Leave out**: "Test that", "Should", "Verify", the item's type and category, and the
+  expectation's preconditions in full.
+- **Host requirement**: the title names the facility, program or configuration in a few words, such
+  as "Netfilter hooks for bridged traffic".
+- **Requirement**: the title states the promise: "Creating a network with an existing network's name
+  is refused".
+- **Principle**: the title states the property that the daemon is held to: "The daemon manages only
+  what it creates".
+- **Rationale**: the title states the reason why a change should be deliberate: "A worker is given
+  only the cluster state that its own workloads use".
+- **Convergence ceiling**: the title names the convergence class: "Allocation".
+
+*****************
+ What is checked
+*****************
+
+The build checks that every ID matches the pattern in ``conf.py``, is unique, and is not in
+``retired-ids.txt``. Whether a slug distinguishes its item well, and whether a title states its
+behavior accurately, is for review.

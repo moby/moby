@@ -1,0 +1,8 @@
+.. list-table::
+    :header-rows: 1
+
+    - - Kind
+      - Source
+{% for k, v in source_kinds|items %}    - - ``{{ k }}``
+      - {{ v }}
+{% endfor %}

@@ -1,0 +1,8 @@
+.. list-table::
+    :header-rows: 1
+
+    - - Category
+      - What it means
+{% for k, v in categories|items %}    - - ``{{ k }}``
+      - {{ v }}
+{% endfor %}

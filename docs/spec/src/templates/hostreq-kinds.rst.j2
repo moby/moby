@@ -1,0 +1,8 @@
+.. list-table::
+    :header-rows: 1
+
+    - - Kind
+      - Meaning
+{% for k, v in hostreq_kinds|items %}    - - ``{{ k }}``
+      - {{ v }}
+{% endfor %}

@@ -227,6 +227,34 @@ jobs:
           make validate-swagger
           make validate-swagger-gen
 
+  validate-specs:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15 # guardrails timeout for the whole job
+    defaults:
+      run:
+        working-directory: docs/spec
+    needs:
+      - validate-dco
+    name: validate (specs)
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      -
+        name: Validate behavior specs
+        run: |
+          make validate
+      -
+        name: Report changed spec items
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          make diff BASE_BRANCH="origin/${BASE_REF}" >> "${GITHUB_STEP_SUMMARY}"
+
   smoke-prepare:
     runs-on: ubuntu-26.04
     timeout-minutes: 10 # guardrails timeout for the whole job
