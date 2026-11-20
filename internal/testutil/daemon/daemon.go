@@ -920,9 +920,11 @@ func (d *Daemon) ReloadConfig() error {
 // effect on the next start/restart.
 func (d *Daemon) SetEnvVar(name, val string) {
 	prefix := name + "="
-	if idx := slices.IndexFunc(d.extraEnv, func(ev string) bool { return strings.HasPrefix(ev, prefix) }); idx > 0 {
-		d.extraEnv[idx] = prefix + val
-		return
+	for idx, ev := range d.extraEnv {
+		if strings.HasPrefix(ev, prefix) {
+			d.extraEnv[idx] = prefix + val
+			return
+		}
 	}
 	d.extraEnv = append(d.extraEnv, prefix+val)
 }
