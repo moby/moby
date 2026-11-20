@@ -3014,14 +3014,18 @@ func (s *DockerCLIRunSuite) TestPtraceContainerProcsFromHost(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestAppArmorDeniesPtrace(c *testing.T) {
 	// Not applicable on Windows as uses Unix specific functionality
-	testRequires(c, testEnv.IsLocalDaemon, Apparmor, DaemonIsLinux)
+	testRequires(c, testEnv.IsLocalDaemon, Apparmor, DaemonIsLinux, NotUserNamespace)
 
-	// Run through 'sh' so we are NOT pid 1. Pid 1 may be able to trace
-	// itself, but pid>1 should not be able to trace pid1.
-	_, exitCode, _ := dockerCmdWithError("run", "busybox", "sh", "-c", "sh -c readlink /proc/1/ns/net")
-	if exitCode == 0 {
-		c.Fatal("ptrace was not successfully restricted by AppArmor")
-	}
+	// The default profile allows processes in the container to trace each
+	// other, so trace pid 1 of the host's PID namespace, which is outside of
+	// the profile. CAP_SYS_PTRACE is added so that only AppArmor can deny it,
+	// which the unconfined run confirms. busybox readlink exits with 0 even
+	// when it fails, so check whether it printed the namespace.
+	out, _, _ := dockerCmdWithError("run", "--pid=host", "--cap-add=SYS_PTRACE", "--security-opt=apparmor=unconfined", "busybox", "readlink", "/proc/1/ns/net")
+	assert.Assert(c, is.Contains(out, "net:["), "ptrace of the host's pid 1 failed without AppArmor")
+
+	out, _, _ = dockerCmdWithError("run", "--pid=host", "--cap-add=SYS_PTRACE", "busybox", "readlink", "/proc/1/ns/net")
+	assert.Check(c, !strings.Contains(out, "net:["), "ptrace was not successfully restricted by AppArmor: %s", out)
 }
 
 func (s *DockerCLIRunSuite) TestAppArmorTraceSelf(c *testing.T) {
