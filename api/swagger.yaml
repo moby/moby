@@ -5680,8 +5680,12 @@ definitions:
         x-nullable: true
         example: "1653948416"
       Labels:
-        description: "User-defined key/value metadata."
+        description: |-
+          User-defined key/value metadata.
+
+          This field can be `null` if the container has no labels.
         type: "object"
+        x-nullable: true
         additionalProperties:
           type: "string"
         example:
