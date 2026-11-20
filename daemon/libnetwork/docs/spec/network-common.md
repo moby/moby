@@ -1,30 +1,28 @@
 Common networking surface area
 ==============================
 
-Scope: the behavior that every network driver must have, and the Engine API requests for networks
-and endpoints that do not depend on the network's driver. This spec describes them as observable
-from outside the daemon.
+Scope: the behavior that every network driver must have, and the Engine API requests for networks and endpoints that do not depend on the network's driver.
+This spec describes them as observable from outside the daemon.
 
-This spec is a stub. It holds expectations that every network driver shares. They come from the work
-on the other specs and from reviews of the specs' coverage. It is not yet a complete account.
+This spec is a stub.
+It holds expectations that every network driver shares.
+They come from the work on the other specs and from reviews of the specs' coverage.
+It is not yet a complete account.
 [README.md](README.md) gives its conventions for tiers, vantage points and dependencies.
-[swarm-networking.md](swarm-networking.md) and [bridge-networking.md](bridge-networking.md) cover
-what is specific to their drivers. [container-dns.md](container-dns.md) covers name resolution.
+[swarm-networking.md](swarm-networking.md) and [bridge-networking.md](bridge-networking.md) cover what is specific to their drivers.
+[container-dns.md](container-dns.md) covers name resolution.
 
-In this spec, a predefined network is a network that `GET /networks` with the filter `type=builtin`
-lists. The rows here also hold for Swarm-scoped networks and on nodes in a Swarm, unless a row
-narrows them. [swarm-networking.md §2](swarm-networking.md#2-network-lifecycle--api-surface) covers
-the requests that are specific to Swarm-scoped networks. Where a row of swarm-networking.md says
-something different about the same request or state, that row holds.
+In this spec, a predefined network is a network that `GET /networks` with the filter `type=builtin` lists.
+The rows here also hold for Swarm-scoped networks and on nodes in a Swarm, unless a row narrows them.
+[swarm-networking.md §2](swarm-networking.md#2-network-lifecycle--api-surface) covers the requests that are specific to Swarm-scoped networks.
+Where a row of swarm-networking.md says something different about the same request or state, that row holds.
 
 ## Host requirements
 
-The kernel facilities are requirements of each Linux node. The host configuration is a requirement
-of each node. The conventions for this section are in [README.md](README.md#host-requirements). The
-specs of the drivers list what each driver needs:
-[bridge-networking.md](bridge-networking.md#host-requirements),
-[swarm-networking.md](swarm-networking.md#host-requirements) and
-[ipvlan-networking.md](ipvlan-networking.md#host-requirements).
+The kernel facilities are requirements of each Linux node.
+The host configuration is a requirement of each node.
+The conventions for this section are in [README.md](README.md#host-requirements).
+The specs of the drivers list what each driver needs: [bridge-networking.md](bridge-networking.md#host-requirements), [swarm-networking.md](swarm-networking.md#host-requirements) and [ipvlan-networking.md](ipvlan-networking.md#host-requirements).
 
 ### Kernel facilities
 
@@ -111,9 +109,8 @@ specs of the drivers list what each driver needs:
 
 ## 2. Endpoint interfaces
 
-The rows in this section hold for an endpoint of any network driver that adds an interface to the
-container ([§5](#5-driver-properties)). An endpoint requests an interface name when its
-`com.docker.network.endpoint.ifname` is set to that name.
+The rows in this section hold for an endpoint of any network driver that adds an interface to the container ([§5](#5-driver-properties)).
+An endpoint requests an interface name when its `com.docker.network.endpoint.ifname` is set to that name.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -170,11 +167,12 @@ This section holds on Linux nodes.
 
 ## 5. Driver properties
 
-Rows in this spec name a property of a network driver, not the driver itself, where the set of
-drivers with the property can change. This table gives the properties of the built-in drivers. It is
-tier C: it pins which drivers have each property today. A plugin driver has the properties that it
-implements. A cell is observed from `ctr`, in a container on a network of that driver, and depends
-on `os`. The `l2tunnel` and `ics` cells hold on platforms that can create those networks.
+Rows in this spec name a property of a network driver, not the driver itself, where the set of drivers with the property can change.
+This table gives the properties of the built-in drivers.
+It is tier C: it pins which drivers have each property today.
+A plugin driver has the properties that it implements.
+A cell is observed from `ctr`, in a container on a network of that driver, and depends on `os`.
+The `l2tunnel` and `ics` cells hold on platforms that can create those networks.
 
 | Driver | Adds an interface to the container | Accepts an endpoint MAC address |
 | --- | --- | --- |
