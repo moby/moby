@@ -6,7 +6,8 @@
     // https://docs.renovatebot.com/presets-helpers/
     "helpers:pinGitHubActionDigestsToSemver",
     "helpers:githubDigestChangelogs",
-    ":gitSignOff"
+    ":gitSignOff",
+    ":semanticCommitsDisabled"
   ],
   "postUpdateOptions": ["gomodTidy"],
   "minimumReleaseAge": "3 days",
