@@ -82,6 +82,16 @@ func (n *network) registerCleanFunc(clean iptableCleanFunc) {
 }
 
 func (n *network) setupIPTables(ctx context.Context, ipVersion iptables.IPVersion, config firewaller.NetworkConfigFam) error {
+	if config.DropRedirects {
+		rule := dropRedirectsRule(ipVersion, n.config.IfName)
+		if err := appendOrDelChainRule(rule, "drop ICMP redirects", true); err != nil {
+			return err
+		}
+		n.registerCleanFunc(func() error {
+			return appendOrDelChainRule(rule, "drop ICMP redirects", false)
+		})
+	}
+
 	if n.config.Internal {
 		if err := setupInternalNetworkRules(ctx, n.config.IfName, config.Prefix, n.config.ICC, true); err != nil {
 			return fmt.Errorf("Failed to Setup IP tables: %w", err)
@@ -136,6 +146,16 @@ func (n *network) setupIPTables(ctx context.Context, ipVersion iptables.IPVersio
 		})
 	}
 	return nil
+}
+
+// dropRedirectsRule returns a rule in the filter-OUTPUT chain to drop ICMP
+// redirects sent by the host to bridgeName.
+func dropRedirectsRule(ipv iptables.IPVersion, bridgeName string) iptables.Rule {
+	args := []string{"-o", bridgeName, "-p", "icmp", "--icmp-type", "redirect", "-j", "DROP"}
+	if ipv == iptables.IPv6 {
+		args = []string{"-o", bridgeName, "-p", "icmpv6", "--icmpv6-type", "redirect", "-j", "DROP"}
+	}
+	return iptables.Rule{IPVer: ipv, Table: iptables.Filter, Chain: "OUTPUT", Args: args}
 }
 
 func setICMP(ipv iptables.IPVersion, bridgeName string, enable bool) error {
