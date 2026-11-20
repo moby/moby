@@ -206,7 +206,7 @@ sequenceDiagram
             AuthZPlugin-->>Daemon: Allow
         end
     else Connection not hijacked
-        Daemon->>AuthZPlugin: HTTP response, user
+        Daemon->>AuthZPlugin: Response callback, user
         Note right of AuthZPlugin: Process response
         AuthZPlugin-->>Daemon: Allow
         Daemon-->>Client: HTTP response
@@ -219,6 +219,11 @@ sequenceDiagram
 > inspect or restrict data already exchanged over the hijacked connection. The
 > response callback also cannot inspect the handshake status and headers written
 > directly to the hijacked connection.
+>
+> If the handler returns an error before hijacking the connection, response
+> authorization runs before the daemon generates the HTTP error response.
+> The plugin cannot inspect that error response, and any denial returned
+> by the response callback is ignored in favor of the handler error.
 
 ### Response body size and partial buffering
 
