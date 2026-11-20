@@ -59,6 +59,16 @@ The rules in docker0's chain are:
 - conntrack accept for established flows.
 - an accept rule, containers in this network have access to external networks.
 
+#### filter-OUTPUT
+
+Chain `filter-OUTPUT` is a base chain, with type `filter` and hook `output`.
+It's empty unless a bridge network routes traffic between its containers via
+the host (instead of using br_netfilter). Then, it has a rule for that network
+to drop ICMP redirects sent by the host to the network's bridge, so that
+containers aren't told to send traffic directly to each other.
+
+{{index . "chain filter-OUTPUT"}}
+
 #### nat-POSTROUTING
 
 Like the filter-FORWARD chain, nat-POSTROUTING has a jump to per-network chains

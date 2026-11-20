@@ -381,3 +381,45 @@ func TestDNATFromOwnBridge(t *testing.T) {
 		})
 	}
 }
+
+func TestIptablerDropRedirects(t *testing.T) {
+	skip.If(t, iptables.UsingFirewalld(), "firewalld is running in the host netns, it can't modify rules in the test's netns")
+	defer netnsutils.SetupTestOSContext(t, netnsutils.WithSetNsHandles(false))()
+
+	outputRules := func(cmd string) []string {
+		t.Helper()
+		res := icmd.RunCommand(cmd, "-S", "OUTPUT")
+		assert.Assert(t, res.Error)
+		return strings.Split(strings.TrimSpace(res.Stdout()), "\n")
+	}
+	const (
+		rule4 = "-A OUTPUT -o br-dummy -p icmp -m icmp --icmp-type 5 -j DROP"
+		rule6 = "-A OUTPUT -o br-dummy -p ipv6-icmp -m icmp6 --icmpv6-type 137 -j DROP"
+	)
+
+	fw, err := NewIptabler(t.Context(), firewaller.Config{IPv4: true, IPv6: true})
+	assert.NilError(t, err)
+	nw, err := fw.NewNetwork(t.Context(), firewaller.NetworkConfig{
+		IfName: "br-dummy",
+		Config4: firewaller.NetworkConfigFam{
+			Prefix:        netip.MustParsePrefix("192.168.0.0/24"),
+			DropRedirects: true,
+		},
+		Config6: firewaller.NetworkConfigFam{
+			Prefix:        netip.MustParsePrefix("fd49:efd7:54aa::/64"),
+			DropRedirects: true,
+		},
+	})
+	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(outputRules("iptables"), []string{"-P OUTPUT ACCEPT", rule4}))
+	assert.Check(t, is.DeepEqual(outputRules("ip6tables"), []string{"-P OUTPUT ACCEPT", rule6}))
+
+	// Re-applying rules (after a firewalld reload) must not add duplicates.
+	assert.NilError(t, nw.ReapplyNetworkLevelRules(t.Context()))
+	assert.Check(t, is.DeepEqual(outputRules("iptables"), []string{"-P OUTPUT ACCEPT", rule4}))
+	assert.Check(t, is.DeepEqual(outputRules("ip6tables"), []string{"-P OUTPUT ACCEPT", rule6}))
+
+	assert.NilError(t, nw.DelNetworkLevelRules(t.Context()))
+	assert.Check(t, is.DeepEqual(outputRules("iptables"), []string{"-P OUTPUT ACCEPT"}))
+	assert.Check(t, is.DeepEqual(outputRules("ip6tables"), []string{"-P OUTPUT ACCEPT"}))
+}

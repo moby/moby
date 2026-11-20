@@ -34,6 +34,10 @@ are then added.
     		iifname vmap @filter-forward-out-jumps
     	}
     
+    	chain filter-OUTPUT {
+    		type filter hook output priority filter; policy accept;
+    	}
+    
     	chain nat-OUTPUT {
     		type nat hook output priority dstnat; policy accept;
     		ip daddr != 127.0.0.0/8 fib daddr type local counter jump nat-prerouting-and-output
@@ -142,6 +146,19 @@ Packets processed by `filter-forward-out__*` originate from the bridge network:
 The rules in docker0's chain are:
 - conntrack accept for established flows.
 - an accept rule, containers in this network have access to external networks.
+
+#### filter-OUTPUT
+
+Chain `filter-OUTPUT` is a base chain, with type `filter` and hook `output`.
+It's empty unless a bridge network routes traffic between its containers via
+the host (instead of using br_netfilter). Then, it has a rule for that network
+to drop ICMP redirects sent by the host to the network's bridge, so that
+containers aren't told to send traffic directly to each other.
+
+    	chain filter-OUTPUT {
+    		type filter hook output priority filter; policy accept;
+    	}
+
 
 #### nat-POSTROUTING
 

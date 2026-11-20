@@ -308,3 +308,40 @@ func TestDNATFromOwnBridge(t *testing.T) {
 		})
 	}
 }
+
+func TestNftablerDropRedirects(t *testing.T) {
+	nftables.Enable()
+	defer nftables.Disable()
+	defer netnsutils.SetupTestOSContext(t, netnsutils.WithSetNsHandles(false))()
+
+	checkResults := func(family, name string) {
+		t.Helper()
+		res := icmd.RunCommand("nft", "list", "table", family, dockerTable)
+		out := strings.ReplaceAll(res.Combined(), "type nat hook output priority -100", "type nat hook output priority dstnat")
+		assert.Assert(t, res.Error, out)
+		golden.Assert(t, out, name+"__"+family+".golden")
+	}
+
+	fw, err := NewNftabler(t.Context(), firewaller.Config{IPv4: true, IPv6: true})
+	assert.NilError(t, err)
+	defer fw.Close()
+
+	nw, err := fw.NewNetwork(t.Context(), firewaller.NetworkConfig{
+		IfName: "br-dummy",
+		Config4: firewaller.NetworkConfigFam{
+			Prefix:        netip.MustParsePrefix("192.168.0.0/24"),
+			DropRedirects: true,
+		},
+		Config6: firewaller.NetworkConfigFam{
+			Prefix:        netip.MustParsePrefix("fd49:efd7:54aa::/64"),
+			DropRedirects: true,
+		},
+	})
+	assert.NilError(t, err)
+	checkResults("ip", t.Name())
+	checkResults("ip6", t.Name())
+
+	assert.NilError(t, nw.DelNetworkLevelRules(t.Context()))
+	checkResults("ip", "TestNftabler/cleaned,hairpin=false")
+	checkResults("ip6", "TestNftabler/cleaned,hairpin=false")
+}

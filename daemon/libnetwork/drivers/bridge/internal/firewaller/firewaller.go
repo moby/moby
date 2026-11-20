@@ -69,6 +69,10 @@ type NetworkConfigFam struct {
 	// Unprotected is true if no rules to filter unpublished ports or direct access from
 	// any remote host are required.
 	Unprotected bool
+	// DropRedirects is true if ICMP redirects sent by the host to the bridge must be
+	// dropped. That's needed when containers send traffic for each other to the host,
+	// to be routed, so the host doesn't tell them to send it directly instead.
+	DropRedirects bool
 }
 
 // DNATFromOwnBridge returns true if packets that arrive from the network's own
