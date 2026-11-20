@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/moby/moby/v2/daemon/internal/netiputil"
+	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/moby/moby/v2/daemon/libnetwork/drvregistry"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	"github.com/moby/moby/v2/daemon/libnetwork/ns"
@@ -116,6 +117,13 @@ func TestNoBrNetfilter(t *testing.T) {
 				assert.Check(t, is.Equal(pi.Isolated, tc.expIsolated), "port %s", l.Attrs().Name)
 			}
 			assert.Check(t, is.Equal(nPorts, 1))
+
+			// ICMP redirects must be dropped if traffic is routed via the host.
+			fw := d.firewaller.(*firewaller.StubFirewaller)
+			fwn := fw.Networks[brName]
+			assert.Assert(t, fwn != nil)
+			assert.Check(t, is.Equal(fwn.Config4.DropRedirects, tc.expPrefixGws))
+			assert.Check(t, is.Equal(fwn.Config6.DropRedirects, tc.expPrefixGws))
 		})
 	}
 }
