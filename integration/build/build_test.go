@@ -584,6 +584,51 @@ func TestBuildWithEmptyDockerfile(t *testing.T) {
 	}
 }
 
+// TestBuildExpectContinue verifies that a build context sent with an
+// "Expect: 100-continue" request header is read by the daemon. BuildKit starts
+// writing progress before it reads the build context from the request body,
+// which must not cause the request body to be discarded.
+func TestBuildExpectContinue(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FROM scratch is not supported on Windows")
+	ctx := setupTest(t)
+
+	// net/http matches "100-continue" as a token, so a list must work as well.
+	for _, expect := range []string{"100-continue", "100-continue, 100-continue"} {
+		apiClient := request.NewAPIClient(t, client.WithHTTPHeaders(map[string]string{
+			"Expect": expect,
+		}))
+
+		for _, builderVersion := range []buildtypes.BuilderVersion{buildtypes.BuilderV1, buildtypes.BuilderBuildKit} {
+			t.Run(expect+"/v"+string(builderVersion), func(t *testing.T) {
+				buf := bytes.NewBuffer(nil)
+				tw := tar.NewWriter(buf)
+				writeTarRecord(t, tw, "Dockerfile", "FROM scratch\nCOPY hello.txt /hello.txt\n")
+				writeTarRecord(t, tw, "hello.txt", "hello\n")
+				assert.NilError(t, tw.Close())
+
+				resp, err := apiClient.ImageBuild(ctx, buf, client.ImageBuildOptions{
+					Version:     builderVersion,
+					NoCache:     true,
+					Remove:      true,
+					ForceRemove: true,
+				})
+				assert.NilError(t, err)
+				defer resp.Body.Close()
+
+				out := bytes.NewBuffer(nil)
+				err = readBuildResponse(resp.Body, out)
+				assert.NilError(t, err, out.String())
+
+				imageID := readBuildImageIDs(t, bytes.NewReader(out.Bytes()))
+				assert.Assert(t, imageID != "", "could not determine built image ID from build output:\n%s", out.String())
+				t.Cleanup(func() {
+					_, _ = apiClient.ImageRemove(context.WithoutCancel(ctx), imageID, client.ImageRemoveOptions{Force: true})
+				})
+			})
+		}
+	}
+}
+
 func TestBuildPreserveOwnership(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 
