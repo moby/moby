@@ -94,6 +94,20 @@ func (n *network) configure(ctx context.Context, table *nftables.Table, conf fir
 		Value:   "jump " + chainNatPostRtOut(n.config.IfName),
 	})
 
+	// ICMP redirects
+
+	if conf.DropRedirects {
+		redirect := "icmp type redirect"
+		if table.Family() == nftables.IPv6 {
+			redirect = "icmpv6 type nd-redirect"
+		}
+		tm.Create(nftables.Rule{
+			Chain: filterOutputChain,
+			Group: initialRuleGroup,
+			Rule:  []string{"oifname ==", n.config.IfName, redirect, `counter drop comment "NO REDIRECTS"`},
+		})
+	}
+
 	// Conntrack
 
 	tm.Create(nftables.Rule{

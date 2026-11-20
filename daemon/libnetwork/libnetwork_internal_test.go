@@ -214,6 +214,8 @@ func TestEndpointMarshalling(t *testing.T) {
 			v4PoolID:  "poolpool",
 			v6PoolID:  "poolv6",
 			llAddrs:   lla,
+			prefixGw4: netip.MustParseAddr("10.0.1.1"),
+			prefixGw6: netip.MustParseAddr("2001:db8:4003::1"),
 		},
 		dnsNames: []string{"test", "foobar", "baz"},
 	}
@@ -242,7 +244,8 @@ func compareEndpointInterface(a, b *EndpointInterface) bool {
 		return false
 	}
 	return a.srcName == b.srcName && a.dstPrefix == b.dstPrefix && a.dstName == b.dstName && a.v4PoolID == b.v4PoolID && a.v6PoolID == b.v6PoolID &&
-		types.CompareIPNet(a.addr, b.addr) && types.CompareIPNet(a.addrv6, b.addrv6) && compareNwLists(a.llAddrs, b.llAddrs)
+		types.CompareIPNet(a.addr, b.addr) && types.CompareIPNet(a.addrv6, b.addrv6) && compareNwLists(a.llAddrs, b.llAddrs) &&
+		a.prefixGw4 == b.prefixGw4 && a.prefixGw6 == b.prefixGw6
 }
 
 func compareIpamConfList(listA, listB []*IpamConf) bool {

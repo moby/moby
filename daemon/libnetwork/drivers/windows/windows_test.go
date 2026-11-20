@@ -5,6 +5,7 @@ package windows
 import (
 	"context"
 	"net"
+	"net/netip"
 	"testing"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
@@ -154,4 +155,7 @@ func (test *testEndpoint) NetnsPath() string {
 }
 
 func (test *testEndpoint) SetCreatedInContainer(bool) {
+}
+
+func (test *testEndpoint) SetPrefixGateways(netip.Addr, netip.Addr) {
 }

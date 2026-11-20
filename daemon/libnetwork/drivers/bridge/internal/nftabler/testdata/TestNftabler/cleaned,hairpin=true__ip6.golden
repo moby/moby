@@ -21,6 +21,10 @@ table ip6 docker-bridges {
 		iifname vmap @filter-forward-out-jumps
 	}
 
+	chain filter-OUTPUT {
+		type filter hook output priority filter; policy accept;
+	}
+
 	chain nat-OUTPUT {
 		type nat hook output priority dstnat; policy accept;
 		fib daddr type local counter packets 0 bytes 0 jump nat-prerouting-and-output
