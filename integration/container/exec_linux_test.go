@@ -1,14 +1,18 @@
 package container
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 
+	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/versions"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
 
@@ -39,12 +43,22 @@ func TestFailedExecExitCode(t *testing.T) {
 	testCases := []struct {
 		doc              string
 		command          []string
+		tty              bool
 		expectedExitCode int
+		expectedError    string
 	}{
 		{
 			doc:              "executable not found",
 			command:          []string{"nonexistent"},
 			expectedExitCode: 127,
+			expectedError:    "executable file not found",
+		},
+		{
+			doc:              "executable not found with TTY",
+			command:          []string{"nonexistent"},
+			tty:              true,
+			expectedExitCode: 127,
+			expectedError:    "executable file not found",
 		},
 		{
 			doc:              "executable cannot be invoked",
@@ -60,10 +74,34 @@ func TestFailedExecExitCode(t *testing.T) {
 
 			cID := container.Run(ctx, t, apiClient)
 
-			result, err := container.Exec(ctx, apiClient, cID, tc.command)
+			res, err := apiClient.ExecCreate(ctx, cID, client.ExecCreateOptions{
+				AttachStdout: true,
+				AttachStderr: true,
+				TTY:          tc.tty,
+				Cmd:          tc.command,
+			})
 			assert.NilError(t, err)
 
-			assert.Equal(t, result.ExitCode, tc.expectedExitCode)
+			resp, err := apiClient.ExecAttach(ctx, res.ID, client.ExecAttachOptions{TTY: tc.tty})
+			assert.NilError(t, err)
+			defer resp.Close()
+
+			// The start error is reported on stderr; a TTY only has a single stream.
+			var stdout, stderr bytes.Buffer
+			if tc.tty {
+				_, err = io.Copy(&stdout, resp.Reader)
+				assert.NilError(t, err)
+				assert.Check(t, is.Contains(stdout.String(), tc.expectedError))
+			} else {
+				_, err = stdcopy.StdCopy(&stdout, &stderr, resp.Reader)
+				assert.NilError(t, err)
+				assert.Check(t, is.Equal(stdout.String(), ""))
+				assert.Check(t, is.Contains(stderr.String(), tc.expectedError))
+			}
+
+			inspect, err := apiClient.ExecInspect(ctx, res.ID, client.ExecInspectOptions{})
+			assert.NilError(t, err)
+			assert.Equal(t, inspect.ExitCode, tc.expectedExitCode)
 		})
 	}
 }
