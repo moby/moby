@@ -20,6 +20,26 @@ ERROR() {
 	/bin/echo >&2 -e "\e[101m\e[97m[ERROR]\e[49m\e[39m $@"
 }
 
+# kernel configuration of the running kernel; /boot/config-<release> may be
+# stale after a rebuild, so it is only used when /proc/config.gz is unreadable.
+kernel_config() {
+	if [ -r /proc/config.gz ]; then
+		zcat /proc/config.gz 2> /dev/null
+	elif [ -r "/boot/config-$(uname -r)" ]; then
+		cat "/boot/config-$(uname -r)"
+	fi
+}
+
+# whether the running kernel has an option built in (CONFIG_FOO=y)
+kernel_config_builtin() {
+	kernel_config | grep -q "^$1=y"
+}
+
+# whether the running kernel's configuration defines an option at all
+kernel_config_defined() {
+	kernel_config | grep -qE "^$1=|^# $1 is not set$"
+}
+
 # constants
 DOCKERD_ROOTLESS_SH="dockerd-rootless.sh"
 SYSTEMD_UNIT="docker.service"
@@ -195,7 +215,20 @@ init() {
 	fi
 
 	# instruction: ip_tables module dependency check
-	if ! grep -q $iptables_module /proc/modules 2> /dev/null && ! grep -q $iptables_module /lib/modules/$(uname -r)/modules.builtin 2> /dev/null; then
+	iptables_config="CONFIG_NF_TABLES"
+	if [ "$iptables_module" = "ip_tables" ]; then
+		iptables_config="CONFIG_IP_NF_IPTABLES"
+		# Newer kernels control ip_tables with CONFIG_IP_NF_IPTABLES_LEGACY.
+		if kernel_config_defined CONFIG_IP_NF_IPTABLES_LEGACY; then
+			iptables_config="CONFIG_IP_NF_IPTABLES_LEGACY"
+		fi
+	fi
+	# Modules built into the kernel are not listed in /proc/modules, and
+	# modules.builtin may be absent if the kernel modules directory is not
+	# installed. Check the kernel configuration as a fallback.
+	if ! grep -q $iptables_module /proc/modules 2> /dev/null \
+		&& ! grep -q $iptables_module "/lib/modules/$(uname -r)/modules.builtin" 2> /dev/null \
+		&& ! kernel_config_builtin "$iptables_config"; then
 		faced_iptables_error=1
 		if [ -z "$OPT_SKIP_IPTABLES" ]; then
 			instructions=$(
