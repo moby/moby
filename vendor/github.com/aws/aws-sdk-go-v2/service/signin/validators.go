@@ -10,6 +10,26 @@ import (
 	"github.com/aws/smithy-go/middleware"
 )
 
+type validateOpCreateBearerToken struct {
+}
+
+func (*validateOpCreateBearerToken) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpCreateBearerToken) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*CreateBearerTokenInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpCreateBearerTokenInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
 type validateOpCreateOAuth2Token struct {
 }
 
@@ -130,6 +150,10 @@ func (m *validateOpRevokeOAuth2TokenWithIAM) HandleInitialize(ctx context.Contex
 	return next.HandleInitialize(ctx, in)
 }
 
+func addOpCreateBearerTokenValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpCreateBearerToken{}, middleware.After)
+}
+
 func addOpCreateOAuth2TokenValidationMiddleware(stack *middleware.Stack) error {
 	return stack.Initialize.Add(&validateOpCreateOAuth2Token{}, middleware.After)
 }
@@ -164,6 +188,24 @@ func validateCreateOAuth2TokenRequestBody(v *types.CreateOAuth2TokenRequestBody)
 	}
 	if v.GrantType == nil {
 		invalidParams.Add(smithy.NewErrParamRequired("GrantType"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateOpCreateBearerTokenInput(v *CreateBearerTokenInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "CreateBearerTokenInput"}
+	if v.GrantType == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("GrantType"))
+	}
+	if v.Resource == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("Resource"))
 	}
 	if invalidParams.Len() > 0 {
 		return invalidParams

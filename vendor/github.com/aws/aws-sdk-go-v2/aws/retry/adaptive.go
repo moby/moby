@@ -21,6 +21,7 @@ var DefaultThrottles = []IsErrorThrottle{
 	ThrottleErrorCode{
 		Codes: DefaultThrottleErrorCodes,
 	},
+	throttleUnmodeledTooManyRequests{},
 }
 
 // AdaptiveModeOptions provides the functional options for configuring the
@@ -145,7 +146,15 @@ func (a *AdaptiveMode) GetAttemptToken(ctx context.Context) (func(error) error, 
 		}
 	}
 
-	return a.handleResponse, nil
+	stdRelease, err := a.retryer.GetAttemptToken(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return func(opErr error) error {
+		a.handleResponse(opErr)
+		return stdRelease(opErr)
+	}, nil
 }
 
 func (a *AdaptiveMode) handleResponse(opErr error) error {
