@@ -75,6 +75,11 @@ type Configuration struct {
 	ProxyPath          string
 	AllowDirectRouting bool
 	AcceptFwMark       string
+	// NoBrNetfilter means networks that would otherwise need br_netfilter (to
+	// implement icc=false, or DNAT between containers on the same network when the
+	// userland proxy is disabled) must instead route traffic between containers
+	// through the host. See [bridgeNetwork.setupNoBrNetfilter].
+	NoBrNetfilter bool
 }
 
 // networkConfiguration for network specific configuration
@@ -164,6 +169,9 @@ type bridgeNetwork struct {
 	endpoints         map[string]*bridgeEndpoint // key: endpoint id
 	driver            *driver                    // The network's driver
 	firewallerNetwork firewaller.Network
+	// noBrNf is the configuration for routing traffic between containers through
+	// the host, rather than using br_netfilter. It's set during network creation.
+	noBrNf noBrNfConfig
 	sync.Mutex
 }
 
@@ -203,6 +211,10 @@ func newDriver(store *datastore.Store, config Configuration, pms *drvregistry.Po
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	if os.Getenv("DOCKER_BRIDGE_NO_BR_NETFILTER") == "1" {
+		config.NoBrNetfilter = true
 	}
 
 	d := &driver{
@@ -856,7 +868,10 @@ func (d *driver) createNetwork(ctx context.Context, config *networkConfiguration
 
 	// Module br_netfilter needs to be loaded with net.bridge.bridge-nf-call-ip[6]tables
 	// enabled to implement icc=false, or DNAT when the userland-proxy is disabled.
-	enableBrNfCallIptables := !config.EnableICC || !d.config.EnableProxy
+	// Unless traffic between containers is routed through the host instead.
+	needBrNf := !config.EnableICC || !d.config.EnableProxy
+	useNoBrNf := needBrNf && d.config.NoBrNetfilter
+	enableBrNfCallIptables := needBrNf && !useNoBrNf
 
 	// Conditionally queue setup steps depending on configuration values.
 	for _, step := range []struct {
@@ -919,6 +934,7 @@ func (d *driver) createNetwork(ctx context.Context, config *networkConfiguration
 		// Configure bridge networking filtering if needed and IP tables are enabled
 		{enableBrNfCallIptables && d.config.EnableIPTables, "setupIPv4BridgeNetFiltering", setupIPv4BridgeNetFiltering},
 		{enableBrNfCallIptables && d.config.EnableIP6Tables, "setupIPv6BridgeNetFiltering", setupIPv6BridgeNetFiltering},
+		{useNoBrNf && (d.config.EnableIPTables || d.config.EnableIP6Tables), "setupNoBrNetfilter", network.setupNoBrNetfilter},
 	} {
 		if step.Condition {
 			bridgeSetup.queueStep(step.StepName, step.StepFn)
@@ -1197,6 +1213,10 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 		if err != nil {
 			return err
 		}
+	}
+
+	if err = n.setupEndpointNoBrNetfilter(d.nlh, host, ifInfo); err != nil {
+		return err
 	}
 
 	// Store the sandbox side pipe interface parameters
