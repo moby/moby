@@ -59,6 +59,12 @@ func (sb *Sandbox) populateLoadBalancers(ep *Endpoint) error {
 	eIP := ep.Iface().Address()
 
 	if n.ingress {
+		if n.loadBalancerMode == loadBalancerModeSourceIP {
+			// Tunnel traffic retains the entry gateway's destination address.
+			// configureIngressSourceIPRouting installs port-only DNAT and
+			// the matching filters without collapsing it to the task address.
+			return validateIngressSourceIPPlatform()
+		}
 		if err := sb.addRedirectRules(eIP, ep.ingressPorts); err != nil {
 			return fmt.Errorf("failed to add ingress redirect rules for endpoint %s (%.7s): %w", ep.Name(), ep.ID(), err)
 		}
@@ -121,6 +127,12 @@ func hasEnabledBackends(lb *loadBalancer) bool {
 func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
 	if len(lb.vip) == 0 {
 		return
+	}
+	if n.loadBalancerMode == loadBalancerModeSourceIP {
+		if err := validateIngressSourceIPPlatform(); err != nil {
+			log.G(context.TODO()).WithError(err).Error("Failed to configure ingress source IP load balancing")
+			return
+		}
 	}
 	ep, sb, err := n.findLBEndpointSandbox()
 	if err != nil {

@@ -242,9 +242,10 @@ type Network struct {
 }
 
 const (
-	loadBalancerModeNAT     = "NAT"
-	loadBalancerModeDSR     = "DSR"
-	loadBalancerModeDefault = loadBalancerModeNAT
+	loadBalancerModeNAT      = "NAT"
+	loadBalancerModeDSR      = "DSR"
+	loadBalancerModeSourceIP = "TUNNEL-SOURCE-IP"
+	loadBalancerModeDefault  = loadBalancerModeNAT
 )
 
 // Name returns a user chosen name for this network.
@@ -392,6 +393,9 @@ func (i *IpamInfo) Copy() *IpamInfo {
 }
 
 func (n *Network) validateConfiguration() error {
+	if err := n.validateIngressSourceIP(); err != nil {
+		return err
+	}
 	if n.configOnly {
 		// Only supports network specific configurations.
 		// Network operator configurations are not supported.
