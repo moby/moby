@@ -44,14 +44,13 @@ func TestBuilderGC(t *testing.T) {
 	assert.Assert(t, filters.Args(cfg.Builder.GC.Policy[1].Filter).UniqueExactMatch("unused-for", "3300h"))
 }
 
-func TestBuilderGC_DeprecatedKeepStorage(t *testing.T) {
+func TestBuilderGC_DeprecatedKeepStorageIgnored(t *testing.T) {
 	tempFile := fs.NewFile(t, "config", fs.WithContent(`{
   "builder": {
     "gc": {
       "enabled": true,
       "policy": [
         {"keepStorage": "10GB", "filter": ["unused-for=2200h"]},
-        {"keepStorage": "50GB", "filter": {"unused-for": {"3300h": true}}},
         {"keepStorage": "100GB", "all": true}
       ]
     }
@@ -64,17 +63,12 @@ func TestBuilderGC_DeprecatedKeepStorage(t *testing.T) {
 	assert.Assert(t, cfg.Builder.GC.IsEnabled())
 	f1 := filters.NewArgs()
 	f1.Add("unused-for", "2200h")
-	f2 := filters.NewArgs()
-	f2.Add("unused-for", "3300h")
 	expectedPolicy := []BuilderGCRule{
-		{ReservedSpace: "10GB", Filter: BuilderGCFilter(f1)},
-		{ReservedSpace: "50GB", Filter: BuilderGCFilter(f2)}, /* parsed from deprecated form */
-		{ReservedSpace: "100GB", All: true},
+		{Filter: BuilderGCFilter(f1)},
+		{All: true},
 	}
+	// keepStorage is no longer mapped to ReservedSpace
 	assert.DeepEqual(t, cfg.Builder.GC.Policy, expectedPolicy, cmp.AllowUnexported(BuilderGCFilter{}))
-	// double check to please the skeptics
-	assert.Assert(t, filters.Args(cfg.Builder.GC.Policy[0].Filter).UniqueExactMatch("unused-for", "2200h"))
-	assert.Assert(t, filters.Args(cfg.Builder.GC.Policy[1].Filter).UniqueExactMatch("unused-for", "3300h"))
 }
 
 // TestBuilderGCFilterUnmarshal is a regression test for https://github.com/moby/moby/issues/44361,
