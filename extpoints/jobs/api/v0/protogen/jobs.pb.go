@@ -670,16 +670,16 @@ func (x *Job) GetLatestRun() *Run {
 }
 
 type JobSpec struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	ContainerSpec   []byte                 `protobuf:"bytes,1,opt,name=container_spec,json=containerSpec,proto3" json:"container_spec,omitempty"`
-	Trigger         *Trigger               `protobuf:"bytes,2,opt,name=trigger,proto3" json:"trigger,omitempty"`
-	Labels          map[string]string      `protobuf:"bytes,3,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	TimeoutSeconds  int64                  `protobuf:"varint,4,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
-	RemoveOnSuccess bool                   `protobuf:"varint,5,opt,name=remove_on_success,json=removeOnSuccess,proto3" json:"remove_on_success,omitempty"`
-	RemoveOnFailure bool                   `protobuf:"varint,6,opt,name=remove_on_failure,json=removeOnFailure,proto3" json:"remove_on_failure,omitempty"`
-	RunHistoryLimit uint32                 `protobuf:"varint,7,opt,name=run_history_limit,json=runHistoryLimit,proto3" json:"run_history_limit,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	ContainerSpec       []byte                 `protobuf:"bytes,1,opt,name=container_spec,json=containerSpec,proto3" json:"container_spec,omitempty"`
+	Trigger             *Trigger               `protobuf:"bytes,2,opt,name=trigger,proto3" json:"trigger,omitempty"`
+	Labels              map[string]string      `protobuf:"bytes,3,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	TimeoutMilliseconds int64                  `protobuf:"varint,4,opt,name=timeout_milliseconds,json=timeoutMilliseconds,proto3" json:"timeout_milliseconds,omitempty"`
+	RemoveOnSuccess     bool                   `protobuf:"varint,5,opt,name=remove_on_success,json=removeOnSuccess,proto3" json:"remove_on_success,omitempty"`
+	RemoveOnFailure     bool                   `protobuf:"varint,6,opt,name=remove_on_failure,json=removeOnFailure,proto3" json:"remove_on_failure,omitempty"`
+	RunHistoryLimit     uint32                 `protobuf:"varint,7,opt,name=run_history_limit,json=runHistoryLimit,proto3" json:"run_history_limit,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *JobSpec) Reset() {
@@ -733,9 +733,9 @@ func (x *JobSpec) GetLabels() map[string]string {
 	return nil
 }
 
-func (x *JobSpec) GetTimeoutSeconds() int64 {
+func (x *JobSpec) GetTimeoutMilliseconds() int64 {
 	if x != nil {
-		return x.TimeoutSeconds
+		return x.TimeoutMilliseconds
 	}
 	return 0
 }
@@ -1902,12 +1902,12 @@ const file_extpoints_jobs_api_v0_jobs_proto_rawDesc = "" +
 	"\x0fupdated_at_nano\x18\t \x01(\x03R\rupdatedAtNano\x12I\n" +
 	"\n" +
 	"latest_run\x18\n" +
-	" \x01(\v2*.org.mobyproject.extension.jobs.api.v0.RunR\tlatestRun\"\xb6\x03\n" +
+	" \x01(\v2*.org.mobyproject.extension.jobs.api.v0.RunR\tlatestRun\"\xc0\x03\n" +
 	"\aJobSpec\x12%\n" +
 	"\x0econtainer_spec\x18\x01 \x01(\fR\rcontainerSpec\x12H\n" +
 	"\atrigger\x18\x02 \x01(\v2..org.mobyproject.extension.jobs.api.v0.TriggerR\atrigger\x12R\n" +
-	"\x06labels\x18\x03 \x03(\v2:.org.mobyproject.extension.jobs.api.v0.JobSpec.LabelsEntryR\x06labels\x12'\n" +
-	"\x0ftimeout_seconds\x18\x04 \x01(\x03R\x0etimeoutSeconds\x12*\n" +
+	"\x06labels\x18\x03 \x03(\v2:.org.mobyproject.extension.jobs.api.v0.JobSpec.LabelsEntryR\x06labels\x121\n" +
+	"\x14timeout_milliseconds\x18\x04 \x01(\x03R\x13timeoutMilliseconds\x12*\n" +
 	"\x11remove_on_success\x18\x05 \x01(\bR\x0fremoveOnSuccess\x12*\n" +
 	"\x11remove_on_failure\x18\x06 \x01(\bR\x0fremoveOnFailure\x12*\n" +
 	"\x11run_history_limit\x18\a \x01(\rR\x0frunHistoryLimit\x1a9\n" +

@@ -250,7 +250,7 @@ func TestRestoreTimeouts(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
 			m1, fake, kv := newRestartableManager(t)
 			spec := manualSpec()
-			spec.TimeoutSeconds = 60
+			spec.TimeoutMilliseconds = 60_000
 			job, _, err := m1.Create(t.Context(), "quick", spec)
 			assert.NilError(t, err)
 			run, err := m1.Run(t.Context(), job.ID, false)
@@ -282,7 +282,7 @@ func TestRestoreTimeouts(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
 			m1, fake, kv := newRestartableManager(t)
 			spec := manualSpec()
-			spec.TimeoutSeconds = 60
+			spec.TimeoutMilliseconds = 60_000
 			_, _, err := m1.Create(t.Context(), "slow", spec)
 			assert.NilError(t, err)
 			run, err := m1.Run(t.Context(), "slow", false)
@@ -309,7 +309,7 @@ func TestRestoreTimeouts(t *testing.T) {
 	t.Run("remaining deadline is re-armed", func(t *testing.T) {
 		m1, fake, kv := newRestartableManager(t)
 		spec := manualSpec()
-		spec.TimeoutSeconds = 3600
+		spec.TimeoutMilliseconds = 3_600_000
 		_, _, err := m1.Create(t.Context(), "slow", spec)
 		assert.NilError(t, err)
 		run, err := m1.Run(t.Context(), "slow", false)
