@@ -432,7 +432,7 @@ func (d *Driver) Put(id string) error {
 		return nil
 	}
 	d.cacheMu.Lock()
-	_, exists := d.cache[rID]
+	mountPath, exists := d.cache[rID]
 	delete(d.cache, rID)
 	d.cacheMu.Unlock()
 
@@ -444,6 +444,8 @@ func (d *Driver) Put(id string) error {
 	if err := hcsshim.UnprepareLayer(d.info, rID); err != nil {
 		return err
 	}
+	unlock := flushScratch(rID, mountPath)
+	defer unlock()
 	return hcsshim.DeactivateLayer(d.info, rID)
 }
 
