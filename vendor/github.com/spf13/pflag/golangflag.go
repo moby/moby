@@ -71,14 +71,14 @@ func (v *flagValueWrapper) Type() string {
 // If the *flag.Flag.Name was a single character (ex: `v`) it will be accessiblei
 // with both `-v` and `--v` in flags. If the golang flag was more than a single
 // character (ex: `verbose`) it will only be accessible via `--verbose`
-func PFlagFromGoFlag(goflag *goflag.Flag) *Flag {
+func PFlagFromGoFlag(goflag *goflag.Flag) *Flag { //nolint:revive // ignore "func name will be used as pflag.PFlagFromGoFlag by other packages, and that stutters"
 	// Remember the default value as a string; it won't change.
 	flag := &Flag{
 		Name:  goflag.Name,
 		Usage: goflag.Usage,
 		Value: wrapFlagValue(goflag.Value),
 		// Looks like golang flags don't set DefValue correctly  :-(
-		//DefValue: goflag.DefValue,
+		// DefValue: goflag.DefValue,
 		DefValue: goflag.Value.String(),
 	}
 	// Ex: if the golang flag was -v, allow both -v and --v to work
@@ -127,7 +127,7 @@ func (f *FlagSet) CopyToGoFlagSet(newSet *goflag.FlagSet) {
 
 		switch value := flag.Value.(type) {
 		case *stringValue:
-			newSet.StringVar((*string)(value), flag.Name, flag.DefValue, usage)
+			newSet.StringVar((*string)(value), flag.Name, *(*string)(value), usage)
 		case *intValue:
 			newSet.IntVar((*int)(value), flag.Name, *(*int)(value), usage)
 		case *int64Value:
@@ -158,4 +158,3 @@ func ParseSkippedFlags(osArgs []string, goFlagSet *goflag.FlagSet) error {
 	}
 	return goFlagSet.Parse(skippedFlags)
 }
-

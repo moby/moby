@@ -98,7 +98,7 @@ require (
 	github.com/rootless-containers/rootlesskit/v3 v3.3.0
 	github.com/sirupsen/logrus v1.10.2
 	github.com/spf13/cobra v1.10.2
-	github.com/spf13/pflag v1.0.10
+	github.com/spf13/pflag v1.1.0
 	github.com/tonistiigi/fsutil v0.0.0-20261103125000-e075fd9305eb
 	github.com/tonistiigi/go-archvariant v1.0.0
 	github.com/vbatts/tar-split v0.12.3
