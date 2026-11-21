@@ -38,6 +38,8 @@ jobs:
           # openSUSE Tumbleweed is a rolling release, and provides coverage for
           # a recent kernel and SELinux in enforcing mode
           - template: template:experimental/opensuse-tumbleweed
+          # Fedora Rawhide provides coverage for the current pre-release kernel
+          - template: template:experimental/fedora-rawhide
     with:
       template: ${{ matrix.template }}
       # To minimize CI time the whole test suite takes, focus on a subset of
