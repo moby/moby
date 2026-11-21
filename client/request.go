@@ -119,7 +119,13 @@ func (cli *Client) sendRequest(ctx context.Context, method, path string, query u
 
 	// Successfully made a request; return the response and handle any
 	// API HTTP response errors.
-	return resp, checkResponseErr(resp)
+	if err := checkResponseErr(resp); err != nil {
+		// Callers return as soon as the request fails, and don't
+		// close the body in that case.
+		ensureReaderClosed(resp)
+		return resp, err
+	}
+	return resp, nil
 }
 
 // doRequest sends an HTTP request and returns an HTTP response. It is a
