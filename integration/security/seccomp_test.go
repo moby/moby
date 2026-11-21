@@ -344,6 +344,23 @@ func TestRunSeccompDefaultProfileAcct(t *testing.T) {
 	ctx := setupTest(t)
 	ensureSyscallTest(ctx, t)
 
+	// Run the cap-add ALL seccomp unconfined case first to detect kernels
+	// without BSD process accounting (CONFIG_BSD_PROCESS_ACCT), which return
+	// ENOSYS ("Function not implemented") even with seccomp=unconfined.
+	// Skip the test if the kernel doesn't support process accounting.
+	enOSYSCase := []func(*container.TestContainerConfig){
+		container.WithCapability("ALL"),
+		container.WithSecurityOpt("seccomp=unconfined"),
+	}
+	res := runContainer(ctx, t,
+		append([]func(*container.TestContainerConfig){
+			container.WithImage(syscallTestImage),
+			container.WithCmd("acct-test"),
+		}, enOSYSCase...)...)
+	if res.ExitCode != 0 && strings.Contains(combined(res), "Function not implemented") {
+		t.Skip("kernel lacks BSD process accounting (ENOSYS), skipping acct tests")
+	}
+
 	tests := []struct {
 		doc      string
 		ops      []func(*container.TestContainerConfig)
