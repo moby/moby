@@ -272,7 +272,7 @@ docker run --net=macvlan216 --ip6=2001:db8:abc8::20 -itd alpine /bin/sh
 docker run --net=macvlan216 -it --rm alpine /bin/sh
 $ ping6 -c4 2001:db8:abc8::20
 $ exit
-# Or, run the ping as a explicit process
+# Or, run the ping as an explicit process
 docker run --net=macvlan216 -it --rm alpine ping6 -c4 2001:db8:abc8::20
 ```
 
