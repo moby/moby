@@ -45,6 +45,7 @@ func TestAppArmorTraceSelf(t *testing.T) {
 		container.WithCmd("readlink", "/proc/1/ns/net"),
 	)
 	assert.Check(t, is.Equal(res.ExitCode, 0), "ptrace of self failed: %s", combined(res))
+	assert.Check(t, is.Contains(combined(res), "net:["), "ptrace of self failed to show namespace: %s", combined(res))
 }
 
 func TestAppArmorDeniesChmodProc(t *testing.T) {
