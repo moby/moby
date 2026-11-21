@@ -27,7 +27,10 @@ func DaemonIsLinux() bool {
 }
 
 func IsAmd64() bool {
-	return testEnv.DaemonInfo.Architecture == "amd64"
+	arch := testEnv.DaemonInfo.Architecture
+	// DaemonInfo.Architecture is populated from uname(2) on Linux, which returns
+	// "x86_64" rather than the Go GOARCH name "amd64". Accept both conventions.
+	return arch == "amd64" || arch == "x86_64"
 }
 
 func NotPpc64le() bool {
