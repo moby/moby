@@ -905,9 +905,9 @@ func TestConfigInvalidDNS(t *testing.T) {
 func field(field string) cmp.Option {
 	tmp := reflect.TypeFor[Config]()
 	ignoreFields := make([]string, 0, tmp.NumField())
-	for i := 0; i < tmp.NumField(); i++ {
-		if tmp.Field(i).Name != field {
-			ignoreFields = append(ignoreFields, tmp.Field(i).Name)
+	for structField := range tmp.Fields() {
+		if structField.Name != field {
+			ignoreFields = append(ignoreFields, structField.Name)
 		}
 	}
 	return cmpopts.IgnoreFields(Config{}, ignoreFields...)

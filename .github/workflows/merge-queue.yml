@@ -15,6 +15,7 @@ jobs:
       matrix:
         script:
           - golangci-lint
+          - gopls-analyzers
           - vendor
     steps:
       -

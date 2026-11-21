@@ -35,7 +35,7 @@ func chainRules(t *testing.T, iptable *iptables.IPTable, table iptables.Table, c
 	out, err := iptable.Raw("-t", string(table), "-S", chain)
 	assert.NilError(t, err)
 	var rules []string
-	for _, l := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+	for l := range strings.SplitSeq(strings.TrimSpace(string(out)), "\n") {
 		if strings.HasPrefix(l, "-A ") {
 			rules = append(rules, l)
 		}

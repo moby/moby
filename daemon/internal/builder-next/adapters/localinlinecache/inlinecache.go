@@ -74,7 +74,7 @@ func (li *localImporter) Resolve(ctx context.Context, _ ocispec.Descriptor, id s
 	return solver.NewCacheManager(ctx, id, keysStorage, resultStorage), nil
 }
 
-func (li *localImporter) importInlineCache(ctx context.Context, dt []byte, cc solver.CacheExporterTarget) error {
+func (li *localImporter) importInlineCache(_ context.Context, dt []byte, cc solver.CacheExporterTarget) error {
 	var img image
 
 	if err := json.Unmarshal(dt, &img); err != nil {

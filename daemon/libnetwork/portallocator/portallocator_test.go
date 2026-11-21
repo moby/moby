@@ -84,8 +84,7 @@ func TestReleaseUnreadledPort(t *testing.T) {
 
 	_, err = p.RequestPort(net.IPv4zero, "tcp", 5000)
 
-	var expectedErrType alreadyAllocatedErr
-	if !errors.As(err, &expectedErrType) {
+	if _, ok := errors.AsType[alreadyAllocatedErr](err); !ok {
 		t.Fatalf("Expected port allocation error got %s", err)
 	}
 }

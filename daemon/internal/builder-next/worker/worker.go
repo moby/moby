@@ -690,7 +690,7 @@ func (ld *layerDescriptor) Registered(diffID layer.DiffID) {
 	ld.w.V2MetadataService.Add(diffID, distmetadata.V2Metadata{Digest: ld.desc.Digest})
 }
 
-func getLayers(ctx context.Context, descs []ocispec.Descriptor) ([]rootfs.Layer, error) {
+func getLayers(_ context.Context, descs []ocispec.Descriptor) ([]rootfs.Layer, error) {
 	layers := make([]rootfs.Layer, len(descs))
 	for i, desc := range descs {
 		diffIDStr := desc.Annotations["containerd.io/uncompressed"]

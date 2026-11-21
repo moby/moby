@@ -164,7 +164,7 @@ func bridgeRules(t *testing.T, bridgeName string) []string {
 	for _, cmd := range []string{"iptables-save", "ip6tables-save"} {
 		res := icmd.RunCommand(cmd)
 		res.Assert(t, icmd.Success)
-		for _, l := range strings.Split(res.Stdout(), "\n") {
+		for l := range strings.SplitSeq(res.Stdout(), "\n") {
 			if strings.Contains(l, bridgeName) {
 				rules = append(rules, cmd+": "+l)
 			}

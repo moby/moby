@@ -254,8 +254,7 @@ func (s *containerdServer) Wait() {
 }
 
 func (s *containerdServer) closePlugins() {
-	for i := len(s.plugins) - 1; i >= 0; i-- {
-		initialized := s.plugins[i]
+	for _, initialized := range slices.Backward(s.plugins) {
 		instance, err := initialized.Instance()
 		if err != nil {
 			log.L.WithFields(log.Fields{

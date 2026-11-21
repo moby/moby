@@ -22,7 +22,7 @@ import (
 )
 
 // createContainerOSSpecificSettings performs host-OS specific container create functionality
-func (daemon *Daemon) createContainerOSSpecificSettings(ctx context.Context, ctr *container.Container) error {
+func (daemon *Daemon) createContainerOSSpecificSettings(_ context.Context, ctr *container.Container) error {
 	// Set the default masked and readonly paths with regard to the host config options if they are not set.
 	if ctr.HostConfig.MaskedPaths == nil && !ctr.HostConfig.Privileged {
 		ctr.HostConfig.MaskedPaths = oci.DefaultSpec().Linux.MaskedPaths // Set it to the default if nil

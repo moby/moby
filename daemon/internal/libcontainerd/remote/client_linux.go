@@ -16,7 +16,7 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
-func summaryFromInterface(i any) (*libcontainerdtypes.Summary, error) {
+func summaryFromInterface(_ any) (*libcontainerdtypes.Summary, error) {
 	return &libcontainerdtypes.Summary{}, nil
 }
 

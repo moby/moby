@@ -127,8 +127,7 @@ func parseTimestamp(value string) (time.Time, error) {
 	s, n, ok := strings.Cut(value, ".")
 	sec, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
-		var numErr *strconv.NumError
-		if errors.As(err, &numErr) {
+		if numErr, ok := errors.AsType[*strconv.NumError](err); ok {
 			err = numErr.Err
 		}
 		return time.Time{}, fmt.Errorf("invalid seconds %q: %w", s, err)
