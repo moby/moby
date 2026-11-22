@@ -375,25 +375,37 @@ func TestErrorResponseBodyClosed(t *testing.T) {
 			return err
 		},
 	}
+	// checkResponseErr reads at most 1 MiB, so a larger body is never read to
+	// EOF, and the connection stays open unless the body is closed.
+	bodies := []struct {
+		name   string
+		body   string
+		errMsg string
+	}{
+		{name: "small", body: `{"message":"error"}`, errMsg: "error"},
+		{name: "large", body: strings.Repeat("x", 2*1024*1024), errMsg: "with a message (> 1048576 bytes)"},
+	}
 	for _, statusCode := range []int{http.StatusNotFound, http.StatusInternalServerError} {
-		for name, call := range calls {
-			t.Run(fmt.Sprintf("%s/%d", name, statusCode), func(t *testing.T) {
-				var body *closeTracker
-				client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
-					body = &closeTracker{Reader: strings.NewReader(`{"message":"error"}`)}
-					return &http.Response{
-						StatusCode: statusCode,
-						Header:     http.Header{"Content-Type": []string{"application/json"}},
-						Body:       body,
-					}, nil
-				}))
-				assert.NilError(t, err)
+		for _, tc := range bodies {
+			for name, call := range calls {
+				t.Run(fmt.Sprintf("%s/%d/%s", name, statusCode, tc.name), func(t *testing.T) {
+					var body *closeTracker
+					client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
+						body = &closeTracker{Reader: strings.NewReader(tc.body)}
+						return &http.Response{
+							StatusCode: statusCode,
+							Header:     http.Header{"Content-Type": []string{"application/json"}},
+							Body:       body,
+						}, nil
+					}))
+					assert.NilError(t, err)
 
-				err = call(client)
-				assert.Check(t, is.ErrorContains(err, "error"))
-				assert.Assert(t, body != nil)
-				assert.Check(t, body.closed, "response body was not closed")
-			})
+					err = call(client)
+					assert.Check(t, is.ErrorContains(err, tc.errMsg))
+					assert.Assert(t, body != nil)
+					assert.Check(t, body.closed, "response body was not closed")
+				})
+			}
 		}
 	}
 }
