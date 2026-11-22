@@ -13,6 +13,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/libcontainerd"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
+	"github.com/moby/moby/v2/daemon/internal/restartmanager"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
@@ -72,14 +73,14 @@ func (daemon *Daemon) ContainerStart(ctx context.Context, name string, checkpoin
 		return errdefs.InvalidParameter(err)
 	}
 
-	return daemon.containerStart(ctx, daemonCfg, ctr, checkpoint, checkpointDir, true)
+	return daemon.containerStart(ctx, daemonCfg, ctr, checkpoint, checkpointDir, nil)
 }
 
 // containerStart prepares the container to run by setting up everything the
 // container needs, such as storage and networking, as well as links
 // between containers. The container is left waiting for a signal to
-// begin running.
-func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore, container *container.Container, checkpoint string, checkpointDir string, resetRestartManager bool) (retErr error) {
+// begin running. For a policy restart, manager identifies the restart request.
+func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore, container *container.Container, checkpoint string, checkpointDir string, manager *restartmanager.RestartManager) (retErr error) {
 	ctx, span := otel.Tracer("").Start(ctx, "daemon.containerStart", trace.WithAttributes(append(
 		labelsAsOTelAttributes(container.Config.Labels),
 		attribute.String("container.ID", container.ID),
@@ -99,7 +100,16 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 	container.Lock()
 	defer container.Unlock()
 
-	if resetRestartManager && container.State.Running { // skip this check if already in restarting step and resetRestartManager==false
+	if err := daemon.awaitTaskCleanup(ctx, container); err != nil {
+		return err
+	}
+	// A manual start or stop can supersede this restart while the lock
+	// is released during task cleanup.
+	if manager != nil && (!container.State.Restarting || manager != container.RestartManager() || manager.Canceled()) {
+		return restartmanager.ErrRestartCanceled
+	}
+
+	if manager == nil && container.State.Running {
 		return nil
 	}
 
@@ -179,7 +189,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		return errdefs.System(err)
 	}
 
-	if resetRestartManager {
+	if manager == nil {
 		container.ResetRestartManager(true)
 		container.HasBeenManuallyStopped = false
 	}
@@ -276,7 +286,8 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 func (daemon *Daemon) Cleanup(ctx context.Context, container *container.Container) {
 	// Microsoft HCS containers get in a bad state if host resources are
 	// released while the container still exists.
-	if ctr, ok := container.State.C8dContainer(); ok {
+	// The recovery worker calls Cleanup only after deleting the metadata.
+	if ctr, ok := container.State.C8dContainer(); ok && container.TaskCleanupPID == 0 {
 		if err := ctr.Delete(context.Background()); err != nil {
 			log.G(ctx).Errorf("%s cleanup: failed to delete container from containerd: %v", container.ID, err)
 		}

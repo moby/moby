@@ -91,7 +91,7 @@ func (daemon *Daemon) containerRestart(ctx context.Context, daemonCfg *configSto
 		}
 	}
 
-	if err := daemon.containerStart(ctx, daemonCfg, container, "", "", true); err != nil {
+	if err := daemon.containerStart(ctx, daemonCfg, container, "", "", nil); err != nil {
 		return err
 	}
 

@@ -121,6 +121,13 @@ func (rm *RestartManager) ShouldRestart(exitCode uint32, hasBeenManuallyStopped 
 	return true, ch, nil
 }
 
+// Canceled reports whether the restart manager was canceled.
+func (rm *RestartManager) Canceled() bool {
+	rm.Lock()
+	defer rm.Unlock()
+	return rm.canceled
+}
+
 // Cancel tells the RestartManager to no longer restart the container.
 func (rm *RestartManager) Cancel() {
 	rm.Do(func() {

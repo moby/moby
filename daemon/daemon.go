@@ -163,6 +163,9 @@ type Daemon struct {
 	hosts        map[string]bool // hosts stores the addresses the daemon is listening on
 	startupDone  chan struct{}
 
+	taskCleanupContext context.Context
+	cancelTaskCleanup  context.CancelFunc
+
 	attachmentStore       network.AttachmentStore
 	attachableNetworkLock *locker.Locker
 
@@ -454,9 +457,19 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 
 			var es *containerd.ExitStatus
 
-			if err := c.RestoreTask(context.Background(), daemon.containerd); err != nil && !cerrdefs.IsNotFound(err) {
-				logger(c).WithError(err).Error("failed to restore container with containerd")
-				return
+			c.Lock()
+			cleanupPending := c.TaskCleanupPID != 0
+			if cleanupPending && c.State.Restarting {
+				c.State.SetStopped(&container.ExitStatus{ExitCode: c.State.ExitCode, ExitedAt: c.State.FinishedAt})
+			}
+			c.Unlock()
+			// AttachTask can miss a stale shim. If a previous daemon
+			// recorded this process's exit, let recovery reconcile it.
+			if !cleanupPending {
+				if err := c.RestoreTask(context.Background(), daemon.containerd); err != nil && !cerrdefs.IsNotFound(err) {
+					logger(c).WithError(err).Error("failed to restore container with containerd")
+					return
+				}
 			}
 
 			alive := false
@@ -655,6 +668,12 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 	}
 	group.Wait()
 
+	for _, c := range containers {
+		c.Lock()
+		daemon.startTaskCleanup(c)
+		c.Unlock()
+	}
+
 	for c, notifyChan := range restartContainers {
 		group.Go(func() {
 			_ = sem.Acquire(context.WithoutCancel(ctx), 1)
@@ -683,7 +702,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 			if err := daemon.prepareMountPoints(c); err != nil {
 				logger.WithError(err).Error("failed to prepare mount points for container")
 			}
-			if err := daemon.containerStart(context.Background(), cfg, c, "", "", true); err != nil {
+			if err := daemon.containerStart(context.Background(), cfg, c, "", "", nil); err != nil {
 				logger.WithError(err).Error("failed to start container")
 			}
 			close(notifyChan)
@@ -780,7 +799,7 @@ func (daemon *Daemon) restartSwarmContainers(ctx context.Context, cfg *configSto
 				}
 				defer sem.Release(1)
 
-				if err := daemon.containerStart(ctx, cfg, c, "", "", true); err != nil {
+				if err := daemon.containerStart(ctx, cfg, c, "", "", nil); err != nil {
 					log.G(ctx).WithField("container", c.ID).WithError(err).Error("failed to start swarm container")
 				}
 			})
@@ -1425,6 +1444,12 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			}
 		}
 	}
+	d.taskCleanupContext, d.cancelTaskCleanup = context.WithCancel(ctx)
+	defer func() {
+		if retErr != nil {
+			d.cancelTaskCleanup()
+		}
+	}()
 	if err := d.restore(ctx, cfgStore, driverContainers); err != nil {
 		return nil, err
 	}
@@ -1553,6 +1578,9 @@ func (daemon *Daemon) shutdownTimeout(cfg *config.Config) int {
 // Shutdown stops the daemon.
 func (daemon *Daemon) Shutdown(ctx context.Context) error {
 	daemon.shutdown = true
+	if daemon.cancelTaskCleanup != nil {
+		daemon.cancelTaskCleanup()
+	}
 	// Extensions are daemon-scoped regardless of whether they are built-in or
 	// executable, so shut them down before the live-restore early return.
 	if daemon.extensionHost != nil {
