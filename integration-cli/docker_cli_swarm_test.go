@@ -1864,7 +1864,7 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsScope(c *testing.T) {
 	// create a service
 	out, err := d.Cmd("service", "create", "--no-resolve-image", "--name", "test", "--detach=false", "busybox", "top")
 	assert.NilError(c, err, out)
-	serviceID := strings.Split(out, "\n")[0]
+	serviceID, _, _ := strings.Cut(out, "\n")
 
 	// scope swarm filters cluster events
 	out = waitForEvent(c, d, "0", "-f scope=swarm", "service create "+serviceID, defaultRetryCount)
@@ -1885,7 +1885,7 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsType(c *testing.T) {
 	// create a service
 	out, err := d.Cmd("service", "create", "--no-resolve-image", "--name", "test", "--detach=false", "busybox", "top")
 	assert.NilError(c, err, out)
-	serviceID := strings.Split(out, "\n")[0]
+	serviceID, _, _ := strings.Cut(out, "\n")
 
 	// create a network
 	out, err = d.Cmd("network", "create", "--attachable", "-d", "overlay", "foo")
@@ -1908,7 +1908,7 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsService(c *testing.T) {
 	// create a service
 	out, err := d.Cmd("service", "create", "--no-resolve-image", "--name", "test", "--detach=false", "busybox", "top")
 	assert.NilError(c, err, out)
-	serviceID := strings.Split(out, "\n")[0]
+	serviceID, _, _ := strings.Cut(out, "\n")
 
 	// validate service create event
 	waitForEvent(c, d, "0", "-f scope=swarm", "service create "+serviceID, defaultRetryCount)

@@ -2,6 +2,7 @@ package container
 
 import (
 	"io"
+	"slices"
 	"strings"
 	"testing"
 
@@ -97,9 +98,7 @@ func diffDmesg(prev, next []string) []string {
 	// log and find it in the new log.
 	lastPrev := prev[len(prev)-1]
 
-	for idx := len(next) - 1; idx >= 0; idx-- {
-		line := next[idx]
-
+	for idx, line := range slices.Backward(next) {
 		if line == lastPrev {
 			nextIdx := idx + 1
 			if nextIdx < len(next) {

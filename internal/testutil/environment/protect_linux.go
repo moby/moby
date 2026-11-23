@@ -34,8 +34,7 @@ func ProtectDefaultBridge(_ context.Context, t testing.TB, testEnv *Execution) {
 	// Find the bridge - there should always be one, belonging to the daemon started by CI.
 	br, err := nlwrap.LinkByName(bridge.DefaultBridgeName)
 	if err != nil {
-		var lnf netlink.LinkNotFoundError
-		if !errors.As(err, &lnf) {
+		if _, ok := errors.AsType[netlink.LinkNotFoundError](err); !ok {
 			t.Fatal("Getting default bridge before test:", err)
 		}
 		return
@@ -71,8 +70,7 @@ func restoreDefaultBridge(t testing.TB, info *defaultBridgeInfo) {
 	// Yes, I'm looking at you TestDockerDaemonSuite/TestBuildOnDisabledBridgeNetworkDaemon.
 	br, err := nlwrap.LinkByName(bridge.DefaultBridgeName)
 	if err != nil {
-		var lnf netlink.LinkNotFoundError
-		if !errors.As(err, &lnf) {
+		if _, ok := errors.AsType[netlink.LinkNotFoundError](err); !ok {
 			t.Fatal("Failed to find default bridge after test:", err)
 		}
 		err := netlink.LinkAdd(info.bridge)

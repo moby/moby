@@ -216,7 +216,7 @@ func TestNewTarSumForLabel(t *testing.T) {
 	}
 	defer reader.Close()
 
-	label := strings.Split(layer.tarsum, ":")[0]
+	label, _, _ := strings.Cut(layer.tarsum, ":")
 	ts, err := NewTarSumForLabel(reader, false, label)
 	if err != nil {
 		t.Fatal(err)

@@ -20,11 +20,11 @@ type platformNetwork struct{} //nolint:nolintlint,unused // only populated on wi
 func (n *Network) startResolver() {
 }
 
-func deleteEpFromResolver(epName string, epIface *EndpointInterface, resolvers []*Resolver) error {
+func deleteEpFromResolver(_ string, _ *EndpointInterface, _ []*Resolver) error {
 	return nil
 }
 
-func defaultIpamForNetworkType(networkType string) string {
+func defaultIpamForNetworkType(_ string) string {
 	return defaultipam.DriverName
 }
 

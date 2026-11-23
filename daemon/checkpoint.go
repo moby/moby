@@ -30,7 +30,7 @@ func checkpointRoot(checkDir, ctrCheckpointDir string) string {
 }
 
 // getCheckpointDir resolves and verifies a named checkpoint directory.
-func getCheckpointDir(checkDir, checkpointID, ctrName, ctrID, ctrCheckpointDir string, create bool) (string, error) {
+func getCheckpointDir(checkDir, checkpointID, ctrName, _, ctrCheckpointDir string, create bool) (string, error) {
 	checkpointDir := checkpointRoot(checkDir, ctrCheckpointDir)
 	var err2 error
 	checkpointAbsDir := filepath.Join(checkpointDir, checkpointID)

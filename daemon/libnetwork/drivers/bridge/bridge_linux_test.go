@@ -264,7 +264,7 @@ func getIPv4Data(t *testing.T) []driverapi.IPAMData {
 	return []driverapi.IPAMData{{AddressSpace: "LocalDefault", Pool: netiputil.ToIPNet(alloc.Pool), Gateway: gw}}
 }
 
-func getIPv6Data(t *testing.T) []driverapi.IPAMData {
+func getIPv6Data(_ *testing.T) []driverapi.IPAMData {
 	ipd := driverapi.IPAMData{AddressSpace: "full"}
 	// There's no default IPv6 address pool, so use an arbitrary unique-local prefix.
 	addr, nw, _ := net.ParseCIDR("fdcd:d1b1:99d2:abcd::1/64")
@@ -759,7 +759,7 @@ func TestQueryEndpointInfoHairpin(t *testing.T) {
 	testQueryEndpointInfo(t, false)
 }
 
-func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
+func testQueryEndpointInfo(t *testing.T, _ bool) {
 	defer netnsutils.SetupTestOSContext(t)()
 	useStubFirewaller(t)
 

@@ -350,7 +350,7 @@ func (s *snapshotter) Remove(ctx context.Context, key string) error {
 	return errors.Errorf("calling snapshot.remove is forbidden")
 }
 
-func (s *snapshotter) remove(ctx context.Context, key string) error {
+func (s *snapshotter) remove(_ context.Context, key string) error {
 	l, err := s.getLayer(key, true)
 	if err != nil {
 		return err

@@ -290,7 +290,7 @@ func TestDNATFromOwnBridge(t *testing.T) {
 				res := icmd.RunCommand("nft", "list", "table", "ip", dockerTable)
 				assert.Assert(t, res.Error, res.Combined())
 				var rules []string
-				for _, r := range strings.Split(res.Stdout(), "\n") {
+				for r := range strings.SplitSeq(res.Stdout(), "\n") {
 					if strings.Contains(r, "dnat to") {
 						rules = append(rules, r)
 					}

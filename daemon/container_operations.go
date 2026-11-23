@@ -212,7 +212,7 @@ func (daemon *Daemon) updateNetworkSettings(ctr *container.Container, n *libnetw
 	return nil
 }
 
-func (daemon *Daemon) updateEndpointNetworkSettings(cfg *config.Config, ctr *container.Container, n *libnetwork.Network, ep *libnetwork.Endpoint) error {
+func (daemon *Daemon) updateEndpointNetworkSettings(_ *config.Config, ctr *container.Container, n *libnetwork.Network, ep *libnetwork.Endpoint) error {
 	if err := buildEndpointInfo(ctr.NetworkSettings, n, ep); err != nil {
 		return err
 	}

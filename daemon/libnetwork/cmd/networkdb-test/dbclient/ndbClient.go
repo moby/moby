@@ -236,7 +236,7 @@ func ready(ip, port string, doneCh chan resultTuple) {
 	doneCh <- resultTuple{id: ip, result: 0}
 }
 
-func checkTable(ctx context.Context, ips []string, port, networkName, tableName string, expectedEntries int, fn func(string, string, string, string, chan resultTuple)) (opTime time.Duration) {
+func checkTable(ctx context.Context, ips []string, _, networkName, tableName string, expectedEntries int, fn func(string, string, string, string, chan resultTuple)) (opTime time.Duration) {
 	startTime := time.Now().UnixNano()
 	var successTime int64
 

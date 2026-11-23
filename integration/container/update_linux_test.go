@@ -253,7 +253,7 @@ func blkioTestDevice(t *testing.T) (devPath, majMin string) {
 	uevent, err := os.ReadFile(filepath.Join(sysfsPath, "uevent"))
 	assert.NilError(t, err)
 	var name string
-	for _, line := range strings.Split(string(uevent), "\n") {
+	for line := range strings.SplitSeq(string(uevent), "\n") {
 		if after, ok := strings.CutPrefix(line, "DEVNAME="); ok {
 			name = strings.TrimSpace(after)
 			break
@@ -268,11 +268,11 @@ func blkioTestDevice(t *testing.T) (devPath, majMin string) {
 // parseIOMax returns the value of field (rbps/wbps/riops/wiops) for the given
 // major:minor device from a cgroup v2 io.max file content.
 func parseIOMax(content, majMin, field string) string {
-	for _, line := range strings.Split(content, "\n") {
+	for line := range strings.SplitSeq(content, "\n") {
 		if !strings.HasPrefix(line, majMin+" ") {
 			continue
 		}
-		for _, part := range strings.Fields(line[len(majMin)+1:]) {
+		for part := range strings.FieldsSeq(line[len(majMin)+1:]) {
 			if k, v, ok := strings.Cut(part, "="); ok && k == field {
 				return v
 			}

@@ -2,6 +2,6 @@
 
 package dockerfile
 
-func defaultShellForOS(os string) []string {
+func defaultShellForOS(_ string) []string {
 	return []string{"/bin/sh", "-c"}
 }

@@ -170,8 +170,7 @@ func configPortDriver(ctx context.Context, pbs []portmapperapi.PortBinding, pdc 
 			}
 			pbs[i].PortDriverRemove, err = pdc.AddPort(ctx, b.Proto.String(), hip.Unmap(), chip.Unmap(), int(b.HostPort))
 			if err != nil {
-				var pErr *rlkclient.ProtocolUnsupportedError
-				if errors.As(err, &pErr) {
+				if pErr, ok := errors.AsType[*rlkclient.ProtocolUnsupportedError](err); ok {
 					log.G(ctx).WithFields(log.Fields{
 						"error": pErr,
 					}).Warnf("discarding request for %q", net.JoinHostPort(hip.String(), strconv.Itoa(int(b.HostPort))))
