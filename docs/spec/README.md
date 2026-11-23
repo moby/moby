@@ -18,6 +18,7 @@ read, and how the items link to each other. It covers these documents:
 | [network/README.md](network/README.md) | The networking specs, and the conventions that only they use: vantage points, daemon settings and firewall backends, platforms, host requirements and convergence ceilings |
 | [principles.md](principles.md)         | The principles that the maintainers hold the daemon to, in every spec                                                                                                      |
 | [id-style-guide.md](id-style-guide.md) | How the IDs and titles of items are formed                                                                                                                                 |
+| [contributing.md](contributing.md)     | How to change a spec, or the behavior that it states: the workflow, the wording of an expectation, how to establish what the daemon does, and how to review a change       |
 
 A spec describes behavior only. It should change when the behavior of the daemon changes. It should
 also change when a regression reveals an expectation that, until then, was only an assumption.
@@ -717,6 +718,15 @@ every spec.
   * [IDs](id-style-guide.md#ids)
   * [Titles](id-style-guide.md#titles)
   * [What is checked](id-style-guide.md#what-is-checked)
+* [Contributing to the specs](contributing.md)
+  * [When a code change alters specified behavior](contributing.md#contributing-when-a-code-change-alters-specified-behavior)
+  * [Adding or changing an expectation](contributing.md#contributing-adding-or-changing-an-expectation)
+  * [Wording an expectation](contributing.md#contributing-wording-an-expectation)
+  * [Establishing what the daemon does](contributing.md#contributing-establishing-what-the-daemon-does)
+  * [Reviewing a spec change](contributing.md#reviewing-a-spec-change)
+  * [Outside the specs](contributing.md#outside-the-specs)
+  * [Starting a spec for another subsystem](contributing.md#contributing-starting-a-spec-for-another-subsystem)
+  * [Commit messages](contributing.md#contributing-commit-messages)
 * [Networking behavior specifications](network/README.md)
   * [Nodes](network/README.md#readme-nodes)
   * [Settings and scope](network/README.md#readme-settings-and-scope)

@@ -25,6 +25,9 @@ read, and how the items link to each other. It covers these documents:
       - The principles that the maintainers hold the daemon to, in every spec
     - - :doc:`id-style-guide.md <id-style-guide>`
       - How the IDs and titles of items are formed
+    - - :doc:`contributing.md <contributing>`
+      - How to change a spec, or the behavior that it states: the workflow, the wording of an
+        expectation, how to establish what the daemon does, and how to review a change
 
 A spec describes behavior only. It should change when the behavior of the daemon changes. It should
 also change when a regression reveals an expectation that, until then, was only an assumption.
@@ -743,4 +746,5 @@ every spec.
 
     principles
     id-style-guide
+    contributing
     network/README

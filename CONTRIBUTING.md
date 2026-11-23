@@ -52,6 +52,7 @@ Keep each commit passing the tests and validation relevant to its changes.
 Use `make test-unit`, `make test-integration`, and `make validate` as appropriate.
 
 Include relevant API and reference documentation updates with the code change.
+When a change alters behavior that the [behavior specifications](docs/spec/README.md) state, update them in the same pull request; see [Contributing to the specs](docs/spec/contributing.md).
 User guides live in [docker/docs](https://github.com/docker/docs); follow its [style guide](https://github.com/docker/docs/blob/main/STYLE.md) and [contribution instructions](https://github.com/docker/docs/blob/main/CONTRIBUTING.md).
 Check documentation for clarity, correctness, and broken links, and run the relevant validation.
 The `AUTHORS` file is generated from Git history; leave it unchanged.
