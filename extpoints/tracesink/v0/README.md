@@ -6,19 +6,9 @@ Out-of-process extensions pass `sdk.WithServerPoints(tracesinkv0.ServerPoint)` t
 In-process extensions only need to provide the point; dockerd invokes `ExportTraces` directly.
 Do not offer the point on the daemon API socket.
 
-To authorize a loaded extension to receive traces, add its ID to `daemon.json` and restart dockerd:
-
-```json
-{
-  "extensions": {
-    "trace-sinks": ["org.example.traces.v1"]
-  }
-}
-```
-
-This setting does not install or enable extensions.
+Every loaded extension that provides the point receives traces, so only install extensions you trust with daemon trace data.
 Trace sinks work without an environment-configured OTLP exporter and do not replace that exporter when it is configured.
-Only list extensions you trust with daemon trace data.
+Without an exporter or a trace sink, dockerd keeps tracing disabled.
 
 Delivery is best effort.
 Each sink has a bounded queue and a deadline for each export.

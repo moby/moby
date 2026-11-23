@@ -14,12 +14,11 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func TestMetricSinksFlushToAllowedProviders(t *testing.T) {
+func TestMetricSinksFlushToEveryProvider(t *testing.T) {
 	t.Parallel()
 
 	local := make(metricRequests, 1)
 	remote := make(metricRequests, 1)
-	unlisted := make(metricRequests, 1)
 
 	socket := sockets.NewInmemSocket(t.Name(), 0)
 	server := grpc.NewServer()
@@ -47,11 +46,10 @@ func TestMetricSinksFlushToAllowedProviders(t *testing.T) {
 		providers: []extensions.ResolvedProvider{
 			{Identity: extensions.ExtensionIdentity{ID: "org.example.local.v1"}, Impl: local},
 			{Identity: extensions.ExtensionIdentity{ID: "org.example.remote.v1"}, Impl: metricsinkv0.ClientPoint.Provider(conn).Impl},
-			{Identity: extensions.ExtensionIdentity{ID: "org.example.unlisted.v1"}, Impl: unlisted},
 		},
 	}
 
-	mp, stop, err := startMetricSinks(t.Context(), resolver, []string{"org.example.local.v1", "org.example.remote.v1"})
+	mp, stop, err := startMetricSinks(t.Context(), resolver)
 	assert.NilError(t, err)
 	assert.Assert(t, mp != nil)
 
@@ -67,8 +65,6 @@ func TestMetricSinksFlushToAllowedProviders(t *testing.T) {
 		assert.Equal(t, m.Name, "exported")
 		assert.Equal(t, m.GetSum().DataPoints[0].GetAsInt(), int64(3))
 	}
-
-	assert.Equal(t, len(unlisted), 0)
 
 	// Shutting down the readers does not close the shared connection.
 	_, err = collectormetricspb.NewMetricsServiceClient(conn).Export(t.Context(), &collectormetricspb.ExportMetricsServiceRequest{})

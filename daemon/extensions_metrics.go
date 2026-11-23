@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 	"sync"
 	"time"
 
@@ -19,11 +18,11 @@ import (
 	metricspb "go.opentelemetry.io/proto/otlp/metrics/v1"
 )
 
-// startMetricSinks returns a meter provider exporting to each allowed metric
-// sink, or nil if no sink is allowed.
+// startMetricSinks returns a meter provider exporting to each metric sink, or
+// nil if no extension provides one.
 // A meter provider cannot gain readers after it is built, so this runs after
 // the extension host resolves its providers.
-func startMetricSinks(ctx context.Context, resolver extensions.Resolver, allowed []string) (*sdkmetric.MeterProvider, func(context.Context), error) {
+func startMetricSinks(ctx context.Context, resolver extensions.Resolver) (*sdkmetric.MeterProvider, func(context.Context), error) {
 	providers, err := metricsinkv0.Point.All(resolver)
 	if err != nil {
 		return nil, nil, err
@@ -37,10 +36,6 @@ func startMetricSinks(ctx context.Context, resolver extensions.Resolver, allowed
 	var readers []sdkmetric.Reader
 
 	for _, p := range providers {
-		if !slices.Contains(allowed, string(p.Identity.ID)) {
-			continue
-		}
-
 		exporter := metricSinkExporter{sink: p.Impl, id: p.Identity.ID, lifetime: lifetime}
 		reader := sdkmetric.NewPeriodicReader(exporter, sdkmetric.WithTimeout(2*time.Second))
 		readers = append(readers, reader)

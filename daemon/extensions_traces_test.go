@@ -15,12 +15,11 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func TestTraceSinksDrainToAllowedProviders(t *testing.T) {
+func TestTraceSinksDrainToEveryProvider(t *testing.T) {
 	t.Parallel()
 
 	local := make(traceRequests, 1)
 	remote := make(traceRequests, 2)
-	unlisted := make(traceRequests, 1)
 
 	socket := sockets.NewInmemSocket(t.Name(), 0)
 	server := grpc.NewServer()
@@ -48,14 +47,13 @@ func TestTraceSinksDrainToAllowedProviders(t *testing.T) {
 		providers: []extensions.ResolvedProvider{
 			{Identity: extensions.ExtensionIdentity{ID: "org.example.local.v1"}, Impl: local},
 			{Identity: extensions.ExtensionIdentity{ID: "org.example.remote.v1"}, Impl: tracesinkv0.ClientPoint.Provider(conn).Impl},
-			{Identity: extensions.ExtensionIdentity{ID: "org.example.unlisted.v1"}, Impl: unlisted},
 		},
 	}
 	tp := sdktrace.NewTracerProvider()
 
 	t.Cleanup(func() { assert.NilError(t, tp.Shutdown(context.WithoutCancel(t.Context()))) })
 
-	stop, err := startTraceSinks(t.Context(), tp, resolver, []string{"org.example.local.v1", "org.example.remote.v1"})
+	stop, err := startTraceSinks(t.Context(), tp, resolver)
 	assert.NilError(t, err)
 
 	_, span := tp.Tracer(t.Name()).Start(t.Context(), "export me")
@@ -67,8 +65,6 @@ func TestTraceSinksDrainToAllowedProviders(t *testing.T) {
 		req := <-sink
 		assert.Equal(t, req.ResourceSpans[0].ScopeSpans[0].Spans[0].Name, "export me")
 	}
-
-	assert.Equal(t, len(unlisted), 0)
 
 	// Shutting down the exporters does not close the shared connection.
 	_, err = collectortracepb.NewTraceServiceClient(conn).Export(t.Context(), &collectortracepb.ExportTraceServiceRequest{})

@@ -8,18 +8,8 @@ Do not offer the point on the daemon API socket.
 
 An extension that also provides `tracesinkv0.Point` can implement both `ExportTraces` and `ExportMetrics` on one type and pass both server points to `sdk.Main`.
 
-To authorize a loaded extension to receive metrics, add its ID to `daemon.json` and restart dockerd:
-
-```json
-{
-  "extensions": {
-    "metric-sinks": ["org.example.metrics.v1"]
-  }
-}
-```
-
-This setting does not install or enable extensions, and it is separate from `trace-sinks`.
-Only list extensions you trust with daemon metric data.
+Every loaded extension that provides the point receives metrics, so only install extensions you trust with daemon metric data.
+Without a metric sink, dockerd does not collect OpenTelemetry metrics.
 
 Sinks receive metrics recorded through OpenTelemetry instruments in dockerd.
 Metrics that are only exposed on the Prometheus `/metrics` endpoint are not included.

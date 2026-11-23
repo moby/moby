@@ -3,7 +3,6 @@ package daemon
 import (
 	"context"
 	"fmt"
-	"slices"
 	"sync"
 	"time"
 
@@ -16,7 +15,7 @@ import (
 	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
 )
 
-func startTraceSinks(ctx context.Context, tp *sdktrace.TracerProvider, resolver extensions.Resolver, allowed []string) (func(context.Context), error) {
+func startTraceSinks(ctx context.Context, tp *sdktrace.TracerProvider, resolver extensions.Resolver) (func(context.Context), error) {
 	providers, err := tracesinkv0.Point.All(resolver)
 	if err != nil {
 		return nil, err
@@ -44,10 +43,6 @@ func startTraceSinks(ctx context.Context, tp *sdktrace.TracerProvider, resolver 
 	}
 
 	for _, p := range providers {
-		if !slices.Contains(allowed, string(p.Identity.ID)) {
-			continue
-		}
-
 		exporter, err := otlptrace.New(ctx, traceSinkClient{sink: p.Impl, id: p.Identity.ID, lifetime: lifetime})
 		if err != nil {
 			stop(ctx)
