@@ -63,6 +63,7 @@ import (
 	"github.com/spf13/pflag"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace/noop"
 	"tags.cncf.io/container-device-interface/pkg/cdi"
 )
 
@@ -272,8 +273,13 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 	// Initialize the trace recorder for buildkit.
 	detect.Recorder = detect.NewTraceRecorder()
 
-	tp, otelShutdown := otelutil.NewTracerProvider(ctx, true)
-	otel.SetTracerProvider(tp)
+	// Without an exporter, leave the global tracer provider unset until
+	// extensions are loaded; tracers handed out until then switch to the
+	// provider set once trace sinks are known.
+	tp := otelutil.NewTracerProvider(ctx, true)
+	if tp != nil {
+		otel.SetTracerProvider(tp)
+	}
 	log.G(ctx).Logger.AddHook(logotel.NewLogrusHook())
 
 	pluginStore := plugin.NewStore()
@@ -305,6 +311,24 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 	}
 
 	d.StoreHosts(hosts)
+
+	telemetrySinks, err := d.StartTelemetrySinks(ctx, tp)
+	if err != nil {
+		return errors.Wrap(err, "failed to start extension telemetry sinks")
+	}
+
+	if tp == nil {
+		if telemetrySinks.TracerProvider != nil {
+			otel.SetTracerProvider(telemetrySinks.TracerProvider)
+		} else {
+			log.G(ctx).Info("OTEL tracing is not configured, using no-op tracer provider")
+			otel.SetTracerProvider(noop.NewTracerProvider())
+		}
+	}
+
+	if telemetrySinks.MeterProvider != nil {
+		otel.SetMeterProvider(telemetrySinks.MeterProvider)
+	}
 
 	// validate after NewDaemon has restored enabled plugins. Don't change order.
 	if err := validateAuthzPlugins(cli.Config.AuthorizationPlugins, pluginStore); err != nil {
@@ -416,6 +440,9 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 
 	// notify systemd that we're shutting down
 	notifyStopping()
+
+	// Flush the sinks while extensions can still receive.
+	telemetrySinks.Stop(context.WithoutCancel(ctx))
 	shutdownDaemon(ctx, d)
 
 	// shutdown / close BuildKit backend
@@ -428,8 +455,10 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 	defer shutdownCancel()
 
-	if err := otelShutdown(shutdownCtx); err != nil {
-		log.G(ctx).WithError(err).Error("failed to shutdown OTEL tracing")
+	if tp := telemetrySinks.TracerProvider; tp != nil {
+		if err := tp.Shutdown(shutdownCtx); err != nil {
+			log.G(ctx).WithError(err).Error("failed to shutdown OTEL tracing")
+		}
 	}
 
 	if err, ok := <-errAPI; ok {

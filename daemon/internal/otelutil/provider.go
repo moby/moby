@@ -9,31 +9,33 @@ import (
 	"go.opentelemetry.io/otel/baggage"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"go.opentelemetry.io/otel/trace"
-	"go.opentelemetry.io/otel/trace/noop"
 )
 
-func NewTracerProvider(ctx context.Context, allowNoop bool) (trace.TracerProvider, func(context.Context) error) {
-	noopShutdown := func(ctx context.Context) error { return nil }
-
+// NewTracerProvider returns a tracer provider exporting to the OTLP exporter
+// configured in the environment.
+// If allowNoop is set, it returns nil when no exporter is configured.
+func NewTracerProvider(ctx context.Context, allowNoop bool) *sdktrace.TracerProvider {
 	exp, err := detect.NewSpanExporter(ctx)
 	if err != nil {
 		log.G(ctx).WithError(err).Warn("Failed to initialize tracing, skipping")
 		if allowNoop {
-			return noop.NewTracerProvider(), noopShutdown
+			return nil
 		}
 	}
 
 	if allowNoop && detect.IsNoneSpanExporter(exp) {
-		log.G(ctx).Info("OTEL tracing is not configured, using no-op tracer provider")
-		return noop.NewTracerProvider(), noopShutdown
+		return nil
 	}
 
-	tp := sdktrace.NewTracerProvider(
+	return NewRecordingTracerProvider(sdktrace.WithBatcher(exp))
+}
+
+// NewRecordingTracerProvider returns a tracer provider that records spans for
+// BuildKit, plus any span processors in opts.
+func NewRecordingTracerProvider(opts ...sdktrace.TracerProviderOption) *sdktrace.TracerProvider {
+	return sdktrace.NewTracerProvider(append([]sdktrace.TracerProviderOption{
 		sdktrace.WithResource(resource.Default()),
 		sdktrace.WithSyncer(detect.Recorder),
-		sdktrace.WithBatcher(exp),
 		sdktrace.WithSpanProcessor(baggagecopy.NewSpanProcessor(func(member baggage.Member) bool { return true })),
-	)
-	return tp, tp.Shutdown
+	}, opts...)...)
 }

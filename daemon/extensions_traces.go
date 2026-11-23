@@ -8,6 +8,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/moby/extensions"
+	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	tracesinkv0 "github.com/moby/moby/v2/extpoints/tracesink/v0"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -15,10 +16,21 @@ import (
 	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
 )
 
-func startTraceSinks(ctx context.Context, tp *sdktrace.TracerProvider, resolver extensions.Resolver) (func(context.Context), error) {
+// startTraceSinks exports spans recorded by tp to each trace sink.
+// If tp is nil, it creates a tracer provider when an extension provides a
+// trace sink, and otherwise returns nil.
+func startTraceSinks(ctx context.Context, tp *sdktrace.TracerProvider, resolver extensions.Resolver) (*sdktrace.TracerProvider, func(context.Context), error) {
 	providers, err := tracesinkv0.Point.All(resolver)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+
+	if len(providers) == 0 {
+		return tp, func(context.Context) {}, nil
+	}
+
+	if tp == nil {
+		tp = otelutil.NewRecordingTracerProvider()
 	}
 
 	// The batch processor uses its own contexts, including when draining.
@@ -46,7 +58,7 @@ func startTraceSinks(ctx context.Context, tp *sdktrace.TracerProvider, resolver 
 		exporter, err := otlptrace.New(ctx, traceSinkClient{sink: p.Impl, id: p.Identity.ID, lifetime: lifetime})
 		if err != nil {
 			stop(ctx)
-			return nil, fmt.Errorf("initialize trace sink %q: %w", p.Identity.ID, err)
+			return nil, nil, fmt.Errorf("initialize trace sink %q: %w", p.Identity.ID, err)
 		}
 
 		processor := sdktrace.NewBatchSpanProcessor(exporter, sdktrace.WithExportTimeout(2*time.Second))
@@ -54,7 +66,7 @@ func startTraceSinks(ctx context.Context, tp *sdktrace.TracerProvider, resolver 
 		processors = append(processors, processor)
 	}
 
-	return stop, nil
+	return tp, stop, nil
 }
 
 type traceSinkClient struct {

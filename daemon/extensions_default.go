@@ -20,8 +20,10 @@ import (
 	daemonapipb "github.com/moby/moby/v2/extpoints/daemonapi/v0/protogen"
 	daemonconfigpb "github.com/moby/moby/v2/extpoints/daemonconfig/v0/protogen"
 	jobspb "github.com/moby/moby/v2/extpoints/jobs/api/v0/protogen"
+	metricsinkv0 "github.com/moby/moby/v2/extpoints/metricsink/v0"
 	servicenamegeneratorpb "github.com/moby/moby/v2/extpoints/servicenamegenerator/v0/protogen"
 	storagepb "github.com/moby/moby/v2/extpoints/storage/kv/v0/protogen"
+	tracesinkv0 "github.com/moby/moby/v2/extpoints/tracesink/v0"
 	namesgeneratorlegacy "github.com/moby/moby/v2/internal/namesgenerator/legacy"
 )
 
@@ -92,6 +94,8 @@ func clientProviders() []clientpoint.Registration {
 	return []clientpoint.Registration{
 		containernamegeneratorpb.ClientPoint,
 		servicenamegeneratorpb.ClientPoint,
+		tracesinkv0.ClientPoint,
+		metricsinkv0.ClientPoint,
 	}
 }
 

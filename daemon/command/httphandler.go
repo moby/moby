@@ -56,7 +56,7 @@ func grpcService(path string) string {
 }
 
 func newGRPCServer(ctx context.Context) *grpc.Server {
-	tp, _ := otelutil.NewTracerProvider(ctx, false)
+	tp := otelutil.NewTracerProvider(ctx, false)
 	return grpc.NewServer(
 		grpc.StatsHandler(tracing.ServerStatsHandler(otelgrpc.WithTracerProvider(tp))),
 		grpc.ChainUnaryInterceptor(unaryInterceptor, grpcerrors.UnaryServerInterceptor),

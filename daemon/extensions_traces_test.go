@@ -53,8 +53,9 @@ func TestTraceSinksDrainToEveryProvider(t *testing.T) {
 
 	t.Cleanup(func() { assert.NilError(t, tp.Shutdown(context.WithoutCancel(t.Context()))) })
 
-	stop, err := startTraceSinks(t.Context(), tp, resolver)
+	got, stop, err := startTraceSinks(t.Context(), tp, resolver)
 	assert.NilError(t, err)
+	assert.Equal(t, got, tp)
 
 	_, span := tp.Tracer(t.Name()).Start(t.Context(), "export me")
 	span.End()
