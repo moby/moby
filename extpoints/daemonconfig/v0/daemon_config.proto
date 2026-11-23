@@ -6,7 +6,10 @@ package org.mobyproject.extension.daemon.config.v0;
 
 option go_package = "github.com/moby/moby/v2/extpoints/daemonconfig/v0/protogen";
 
+// DaemonConfig provides an immutable snapshot of extension bootstrap settings.
+// It does not expose the daemon's full configuration or a generic lookup API.
 service DaemonConfig {
+  // Get returns a fresh copy of the snapshot.
   rpc Get(GetRequest) returns (GetResponse);
 }
 

@@ -6,7 +6,7 @@ import (
 	extensions "github.com/moby/extensions"
 	clientpoint "github.com/moby/extensions/clientpoint"
 	serverpoint "github.com/moby/extensions/serverpoint"
-	storagekvv0 "github.com/moby/moby/v2/extpoints/storage/kv/v0"
+	mobyextcontract "github.com/moby/moby/v2/extpoints/storage/kv/v0"
 	grpc "google.golang.org/grpc"
 )
 
@@ -26,11 +26,19 @@ const (
 // proto-level shape of the point, not the point's Go interface: a contract
 // method returning a bare error returns an empty response message here.
 type StorageServer interface {
+	// Get reads a record, or returns not-found if it is missing.
 	Get(context.Context, *RecordRequest) (*GetResponse, error)
+	// Create adds a record, or returns a conflict if the key exists.
 	Create(context.Context, *WriteRequest) (*CreateResponse, error)
+	// Update replaces a record, or returns not-found if it is missing.
 	Update(context.Context, *WriteRequest) (*UpdateResponse, error)
+	// Delete removes a record, doing nothing if it is missing.
 	Delete(context.Context, *RecordRequest) (*DeleteResponse, error)
+	// DeletePrefix atomically removes records matching the nonempty key prefix.
+	// No matching records, including a missing namespace, is not an error.
 	DeletePrefix(context.Context, *DeletePrefixRequest) (*DeletePrefixResponse, error)
+	// List returns a page of matching keys in sorted order.
+	// Results can change between pages.
 	List(context.Context, *ListRequest) (*ListResponse, error)
 }
 
@@ -139,11 +147,19 @@ func handleList(srv any, ctx context.Context, dec func(any) error, interceptor g
 // outside the framework - one calling a service an extension publishes on the
 // API socket - can reach it with a plain gRPC client.
 type StorageClient interface {
+	// Get reads a record, or returns not-found if it is missing.
 	Get(ctx context.Context, in *RecordRequest, opts ...grpc.CallOption) (*GetResponse, error)
+	// Create adds a record, or returns a conflict if the key exists.
 	Create(ctx context.Context, in *WriteRequest, opts ...grpc.CallOption) (*CreateResponse, error)
+	// Update replaces a record, or returns not-found if it is missing.
 	Update(ctx context.Context, in *WriteRequest, opts ...grpc.CallOption) (*UpdateResponse, error)
+	// Delete removes a record, doing nothing if it is missing.
 	Delete(ctx context.Context, in *RecordRequest, opts ...grpc.CallOption) (*DeleteResponse, error)
+	// DeletePrefix atomically removes records matching the nonempty key prefix.
+	// No matching records, including a missing namespace, is not an error.
 	DeletePrefix(ctx context.Context, in *DeletePrefixRequest, opts ...grpc.CallOption) (*DeletePrefixResponse, error)
+	// List returns a page of matching keys in sorted order.
+	// Results can change between pages.
 	List(ctx context.Context, in *ListRequest, opts ...grpc.CallOption) (*ListResponse, error)
 }
 
@@ -203,30 +219,30 @@ func (c *serviceClient) List(ctx context.Context, in *ListRequest, opts ...grpc.
 // ServerPoint serves the Storage point: it registers the point's gRPC service for
 // a provider with an SDK server. A binary passes it to (*sdk.Server).Register.
 var ServerPoint = serverpoint.Registration{
-	Point: storagekvv0.Point.ID(),
+	Point: mobyextcontract.Point.ID(),
 	Register: func(r grpc.ServiceRegistrar, impl any) {
-		r.RegisterService(&serviceDesc, &grpcServer{impl: impl.(storagekvv0.Storage)})
+		r.RegisterService(&serviceDesc, &grpcServer{impl: impl.(mobyextcontract.Storage)})
 	},
 }
 
 // ClientProvider builds a broker provider for the Storage point from an
 // out-of-process gRPC connection.
 func ClientProvider(conn grpc.ClientConnInterface) extensions.Provider {
-	return storagekvv0.Point.Provide(NewClient(conn))
+	return mobyextcontract.Point.Provide(NewClient(conn))
 }
 
 // ClientPoint registers ClientProvider for the Storage point with a host.
 // Single carries the contract's cardinality: the point admits one provider.
-var ClientPoint = clientpoint.Registration{Point: storagekvv0.Point.ID(), Provider: ClientProvider, Single: true}
+var ClientPoint = clientpoint.Registration{Point: mobyextcontract.Point.ID(), Provider: ClientProvider, Single: true}
 
-// NewClient returns a storagekvv0.Storage that calls the Storage point over conn.
-func NewClient(conn grpc.ClientConnInterface) storagekvv0.Storage {
+// NewClient returns a mobyextcontract.Storage that calls the Storage point over conn.
+func NewClient(conn grpc.ClientConnInterface) mobyextcontract.Storage {
 	return &grpcClient{client: NewStorageClient(conn)}
 }
 
 // grpcServer serves an implementation of the contract's Go interface.
 type grpcServer struct {
-	impl storagekvv0.Storage
+	impl mobyextcontract.Storage
 }
 
 func (s *grpcServer) Get(ctx context.Context, req *RecordRequest) (*GetResponse, error) {
@@ -277,7 +293,7 @@ type grpcClient struct {
 	client StorageClient
 }
 
-func (c *grpcClient) Get(ctx context.Context, req *storagekvv0.RecordRequest) (*storagekvv0.GetResponse, error) {
+func (c *grpcClient) Get(ctx context.Context, req *mobyextcontract.RecordRequest) (*mobyextcontract.GetResponse, error) {
 	resp, err := c.client.Get(ctx, recordRequestToProto(req))
 	if err != nil {
 		return nil, err
@@ -285,27 +301,27 @@ func (c *grpcClient) Get(ctx context.Context, req *storagekvv0.RecordRequest) (*
 	return getResponseFromProto(resp), nil
 }
 
-func (c *grpcClient) Create(ctx context.Context, req *storagekvv0.WriteRequest) error {
+func (c *grpcClient) Create(ctx context.Context, req *mobyextcontract.WriteRequest) error {
 	_, err := c.client.Create(ctx, writeRequestToProto(req))
 	return err
 }
 
-func (c *grpcClient) Update(ctx context.Context, req *storagekvv0.WriteRequest) error {
+func (c *grpcClient) Update(ctx context.Context, req *mobyextcontract.WriteRequest) error {
 	_, err := c.client.Update(ctx, writeRequestToProto(req))
 	return err
 }
 
-func (c *grpcClient) Delete(ctx context.Context, req *storagekvv0.RecordRequest) error {
+func (c *grpcClient) Delete(ctx context.Context, req *mobyextcontract.RecordRequest) error {
 	_, err := c.client.Delete(ctx, recordRequestToProto(req))
 	return err
 }
 
-func (c *grpcClient) DeletePrefix(ctx context.Context, req *storagekvv0.DeletePrefixRequest) error {
+func (c *grpcClient) DeletePrefix(ctx context.Context, req *mobyextcontract.DeletePrefixRequest) error {
 	_, err := c.client.DeletePrefix(ctx, deletePrefixRequestToProto(req))
 	return err
 }
 
-func (c *grpcClient) List(ctx context.Context, req *storagekvv0.ListRequest) (*storagekvv0.ListResponse, error) {
+func (c *grpcClient) List(ctx context.Context, req *mobyextcontract.ListRequest) (*mobyextcontract.ListResponse, error) {
 	resp, err := c.client.List(ctx, listRequestToProto(req))
 	if err != nil {
 		return nil, err
@@ -313,7 +329,7 @@ func (c *grpcClient) List(ctx context.Context, req *storagekvv0.ListRequest) (*s
 	return listResponseFromProto(resp), nil
 }
 
-func deletePrefixRequestToProto(in *storagekvv0.DeletePrefixRequest) *DeletePrefixRequest {
+func deletePrefixRequestToProto(in *mobyextcontract.DeletePrefixRequest) *DeletePrefixRequest {
 	if in == nil {
 		return nil
 	}
@@ -323,17 +339,17 @@ func deletePrefixRequestToProto(in *storagekvv0.DeletePrefixRequest) *DeletePref
 	return out
 }
 
-func deletePrefixRequestFromProto(in *DeletePrefixRequest) *storagekvv0.DeletePrefixRequest {
+func deletePrefixRequestFromProto(in *DeletePrefixRequest) *mobyextcontract.DeletePrefixRequest {
 	if in == nil {
 		return nil
 	}
-	out := &storagekvv0.DeletePrefixRequest{}
+	out := &mobyextcontract.DeletePrefixRequest{}
 	out.Namespace = in.GetNamespace()
 	out.Prefix = in.GetPrefix()
 	return out
 }
 
-func getResponseToProto(in *storagekvv0.GetResponse) *GetResponse {
+func getResponseToProto(in *mobyextcontract.GetResponse) *GetResponse {
 	if in == nil {
 		return nil
 	}
@@ -342,16 +358,16 @@ func getResponseToProto(in *storagekvv0.GetResponse) *GetResponse {
 	return out
 }
 
-func getResponseFromProto(in *GetResponse) *storagekvv0.GetResponse {
+func getResponseFromProto(in *GetResponse) *mobyextcontract.GetResponse {
 	if in == nil {
 		return nil
 	}
-	out := &storagekvv0.GetResponse{}
+	out := &mobyextcontract.GetResponse{}
 	out.Value = in.GetValue()
 	return out
 }
 
-func listRequestToProto(in *storagekvv0.ListRequest) *ListRequest {
+func listRequestToProto(in *mobyextcontract.ListRequest) *ListRequest {
 	if in == nil {
 		return nil
 	}
@@ -363,11 +379,11 @@ func listRequestToProto(in *storagekvv0.ListRequest) *ListRequest {
 	return out
 }
 
-func listRequestFromProto(in *ListRequest) *storagekvv0.ListRequest {
+func listRequestFromProto(in *ListRequest) *mobyextcontract.ListRequest {
 	if in == nil {
 		return nil
 	}
-	out := &storagekvv0.ListRequest{}
+	out := &mobyextcontract.ListRequest{}
 	out.Namespace = in.GetNamespace()
 	out.Prefix = in.GetPrefix()
 	out.Limit = in.GetLimit()
@@ -375,7 +391,7 @@ func listRequestFromProto(in *ListRequest) *storagekvv0.ListRequest {
 	return out
 }
 
-func listResponseToProto(in *storagekvv0.ListResponse) *ListResponse {
+func listResponseToProto(in *mobyextcontract.ListResponse) *ListResponse {
 	if in == nil {
 		return nil
 	}
@@ -385,17 +401,17 @@ func listResponseToProto(in *storagekvv0.ListResponse) *ListResponse {
 	return out
 }
 
-func listResponseFromProto(in *ListResponse) *storagekvv0.ListResponse {
+func listResponseFromProto(in *ListResponse) *mobyextcontract.ListResponse {
 	if in == nil {
 		return nil
 	}
-	out := &storagekvv0.ListResponse{}
+	out := &mobyextcontract.ListResponse{}
 	out.Keys = in.GetKeys()
 	out.NextCursor = in.GetNextCursor()
 	return out
 }
 
-func recordRequestToProto(in *storagekvv0.RecordRequest) *RecordRequest {
+func recordRequestToProto(in *mobyextcontract.RecordRequest) *RecordRequest {
 	if in == nil {
 		return nil
 	}
@@ -405,17 +421,17 @@ func recordRequestToProto(in *storagekvv0.RecordRequest) *RecordRequest {
 	return out
 }
 
-func recordRequestFromProto(in *RecordRequest) *storagekvv0.RecordRequest {
+func recordRequestFromProto(in *RecordRequest) *mobyextcontract.RecordRequest {
 	if in == nil {
 		return nil
 	}
-	out := &storagekvv0.RecordRequest{}
+	out := &mobyextcontract.RecordRequest{}
 	out.Namespace = in.GetNamespace()
 	out.Key = in.GetKey()
 	return out
 }
 
-func writeRequestToProto(in *storagekvv0.WriteRequest) *WriteRequest {
+func writeRequestToProto(in *mobyextcontract.WriteRequest) *WriteRequest {
 	if in == nil {
 		return nil
 	}
@@ -426,11 +442,11 @@ func writeRequestToProto(in *storagekvv0.WriteRequest) *WriteRequest {
 	return out
 }
 
-func writeRequestFromProto(in *WriteRequest) *storagekvv0.WriteRequest {
+func writeRequestFromProto(in *WriteRequest) *mobyextcontract.WriteRequest {
 	if in == nil {
 		return nil
 	}
-	out := &storagekvv0.WriteRequest{}
+	out := &mobyextcontract.WriteRequest{}
 	out.Namespace = in.GetNamespace()
 	out.Key = in.GetKey()
 	out.Value = in.GetValue()
