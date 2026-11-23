@@ -129,6 +129,7 @@ func (c *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 
 		stdin = inStream
 		if options.Tty {
+			stderr = outStream
 			stdout = outStream
 		} else {
 			stderr = stdcopymux.NewStdWriter(outStream, stdcopy.Stderr)
@@ -149,7 +150,7 @@ func (c *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 		if options.Detach {
 			return err
 		}
-		_, _ = fmt.Fprintf(stdout, "%v\r\n", err)
+		_, _ = fmt.Fprintf(stderr, "%v\r\n", err)
 		log.G(ctx).Errorf("Error running exec %s in container: %v", execName, err)
 	}
 	return nil
