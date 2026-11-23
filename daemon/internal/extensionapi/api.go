@@ -10,7 +10,7 @@ import (
 	"context"
 
 	"github.com/moby/extensions"
-	daemonapiv0 "github.com/moby/moby/v2/extpoints/daemonapi/v0"
+	daemonapiv0 "github.com/moby/moby/extpoints/daemonapi/v0"
 )
 
 // New declares a provider for the API endpoint returned by host.

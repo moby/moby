@@ -12,8 +12,8 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	containertypes "github.com/moby/moby/api/types/container"
+	containerstatev0 "github.com/moby/moby/extpoints/containerstate/v0"
 	"github.com/moby/moby/v2/daemon/container"
-	containerstatev0 "github.com/moby/moby/v2/extpoints/containerstate/v0"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"gotest.tools/v3/assert"

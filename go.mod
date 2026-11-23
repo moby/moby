@@ -6,7 +6,6 @@ tool (
 	github.com/gogo/protobuf/protoc-gen-gogo
 	github.com/gogo/protobuf/protoc-gen-gogofaster
 	github.com/gogo/protobuf/protoc-gen-gogoslick
-	github.com/moby/extensions/cmd/mobyextgen
 	google.golang.org/protobuf/cmd/protoc-gen-go
 )
 
@@ -66,12 +65,13 @@ require (
 	github.com/mitchellh/copystructure v1.2.0
 	github.com/moby/buildkit v0.35.1
 	github.com/moby/docker-image-spec v1.3.1
-	github.com/moby/extensions v0.0.0-20261026144205-2b6b3bd5fa82
+	github.com/moby/extensions v0.0.0-20261120190433-fb779cf107cd
 	github.com/moby/go-archive v0.3.3
 	github.com/moby/ipvs v1.1.0
 	github.com/moby/locker v1.0.1
 	github.com/moby/moby/api v1.57.0
 	github.com/moby/moby/client v0.6.3
+	github.com/moby/moby/extpoints v0.0.0-00010101000000-000000000000
 	github.com/moby/patternmatcher v0.6.1
 	github.com/moby/policy-helpers v0.0.0-20261111163703-6acab594b423
 	github.com/moby/profiles/apparmor v0.3.1
@@ -313,3 +313,5 @@ require (
 replace github.com/moby/moby/api => ./api
 
 replace github.com/moby/moby/client => ./client
+
+replace github.com/moby/moby/extpoints => ./extpoints

@@ -46,6 +46,7 @@ FROM tools AS generated
 RUN --mount=from=src,source=/out,target=.,rw <<EOT
   set -ex
   go generate -v ./...
+  go -C extpoints generate -v ./...
   mkdir /out
   git ls-files -m --others -- ':!vendor' 'profiles/seccomp/default.json' '**/*.pb.go' 'extpoints/**/*.proto' 'extpoints/**/wire.gen.go' | tar -cf - --files-from - | tar -C /out -xf -
 EOT

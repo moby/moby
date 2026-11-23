@@ -4,7 +4,7 @@ syntax = "proto3";
 
 package org.mobyproject.extension.servicenamegenerator.v0;
 
-option go_package = "github.com/moby/moby/v2/extpoints/servicenamegenerator/v0/protogen";
+option go_package = "github.com/moby/moby/extpoints/servicenamegenerator/v0/protogen";
 
 // ServiceNameGenerator generates a default Swarm service name.
 service ServiceNameGenerator {

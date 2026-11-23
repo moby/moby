@@ -5,7 +5,7 @@
 // versions:
 // 	protoc-gen-go v1.36.12
 // 	protoc        (unknown)
-// source: extpoints/containerstate/v0/container_state_watcher.proto
+// source: containerstate/v0/container_state_watcher.proto
 
 package protogen
 
@@ -34,7 +34,7 @@ type ContainerState struct {
 
 func (x *ContainerState) Reset() {
 	*x = ContainerState{}
-	mi := &file_extpoints_containerstate_v0_container_state_watcher_proto_msgTypes[0]
+	mi := &file_containerstate_v0_container_state_watcher_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -46,7 +46,7 @@ func (x *ContainerState) String() string {
 func (*ContainerState) ProtoMessage() {}
 
 func (x *ContainerState) ProtoReflect() protoreflect.Message {
-	mi := &file_extpoints_containerstate_v0_container_state_watcher_proto_msgTypes[0]
+	mi := &file_containerstate_v0_container_state_watcher_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -59,7 +59,7 @@ func (x *ContainerState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContainerState.ProtoReflect.Descriptor instead.
 func (*ContainerState) Descriptor() ([]byte, []int) {
-	return file_extpoints_containerstate_v0_container_state_watcher_proto_rawDescGZIP(), []int{0}
+	return file_containerstate_v0_container_state_watcher_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *ContainerState) GetStatus() string {
@@ -87,7 +87,7 @@ type Exit struct {
 
 func (x *Exit) Reset() {
 	*x = Exit{}
-	mi := &file_extpoints_containerstate_v0_container_state_watcher_proto_msgTypes[1]
+	mi := &file_containerstate_v0_container_state_watcher_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -99,7 +99,7 @@ func (x *Exit) String() string {
 func (*Exit) ProtoMessage() {}
 
 func (x *Exit) ProtoReflect() protoreflect.Message {
-	mi := &file_extpoints_containerstate_v0_container_state_watcher_proto_msgTypes[1]
+	mi := &file_containerstate_v0_container_state_watcher_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -112,7 +112,7 @@ func (x *Exit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Exit.ProtoReflect.Descriptor instead.
 func (*Exit) Descriptor() ([]byte, []int) {
-	return file_extpoints_containerstate_v0_container_state_watcher_proto_rawDescGZIP(), []int{1}
+	return file_containerstate_v0_container_state_watcher_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Exit) GetExitCode() int64 {
@@ -147,7 +147,7 @@ type WaitReply struct {
 
 func (x *WaitReply) Reset() {
 	*x = WaitReply{}
-	mi := &file_extpoints_containerstate_v0_container_state_watcher_proto_msgTypes[2]
+	mi := &file_containerstate_v0_container_state_watcher_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -159,7 +159,7 @@ func (x *WaitReply) String() string {
 func (*WaitReply) ProtoMessage() {}
 
 func (x *WaitReply) ProtoReflect() protoreflect.Message {
-	mi := &file_extpoints_containerstate_v0_container_state_watcher_proto_msgTypes[2]
+	mi := &file_containerstate_v0_container_state_watcher_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -172,7 +172,7 @@ func (x *WaitReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WaitReply.ProtoReflect.Descriptor instead.
 func (*WaitReply) Descriptor() ([]byte, []int) {
-	return file_extpoints_containerstate_v0_container_state_watcher_proto_rawDescGZIP(), []int{2}
+	return file_containerstate_v0_container_state_watcher_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *WaitReply) GetChangedAt() int64 {
@@ -207,7 +207,7 @@ type WaitRequest struct {
 
 func (x *WaitRequest) Reset() {
 	*x = WaitRequest{}
-	mi := &file_extpoints_containerstate_v0_container_state_watcher_proto_msgTypes[3]
+	mi := &file_containerstate_v0_container_state_watcher_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -219,7 +219,7 @@ func (x *WaitRequest) String() string {
 func (*WaitRequest) ProtoMessage() {}
 
 func (x *WaitRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_extpoints_containerstate_v0_container_state_watcher_proto_msgTypes[3]
+	mi := &file_containerstate_v0_container_state_watcher_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -232,7 +232,7 @@ func (x *WaitRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WaitRequest.ProtoReflect.Descriptor instead.
 func (*WaitRequest) Descriptor() ([]byte, []int) {
-	return file_extpoints_containerstate_v0_container_state_watcher_proto_rawDescGZIP(), []int{3}
+	return file_containerstate_v0_container_state_watcher_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *WaitRequest) GetContainerId() string {
@@ -267,7 +267,7 @@ type WatchEvent struct {
 
 func (x *WatchEvent) Reset() {
 	*x = WatchEvent{}
-	mi := &file_extpoints_containerstate_v0_container_state_watcher_proto_msgTypes[4]
+	mi := &file_containerstate_v0_container_state_watcher_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -279,7 +279,7 @@ func (x *WatchEvent) String() string {
 func (*WatchEvent) ProtoMessage() {}
 
 func (x *WatchEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_extpoints_containerstate_v0_container_state_watcher_proto_msgTypes[4]
+	mi := &file_containerstate_v0_container_state_watcher_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -292,7 +292,7 @@ func (x *WatchEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchEvent.ProtoReflect.Descriptor instead.
 func (*WatchEvent) Descriptor() ([]byte, []int) {
-	return file_extpoints_containerstate_v0_container_state_watcher_proto_rawDescGZIP(), []int{4}
+	return file_containerstate_v0_container_state_watcher_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *WatchEvent) GetChangedAt() int64 {
@@ -325,7 +325,7 @@ type WatchRequest struct {
 
 func (x *WatchRequest) Reset() {
 	*x = WatchRequest{}
-	mi := &file_extpoints_containerstate_v0_container_state_watcher_proto_msgTypes[5]
+	mi := &file_containerstate_v0_container_state_watcher_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -337,7 +337,7 @@ func (x *WatchRequest) String() string {
 func (*WatchRequest) ProtoMessage() {}
 
 func (x *WatchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_extpoints_containerstate_v0_container_state_watcher_proto_msgTypes[5]
+	mi := &file_containerstate_v0_container_state_watcher_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -350,7 +350,7 @@ func (x *WatchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchRequest.ProtoReflect.Descriptor instead.
 func (*WatchRequest) Descriptor() ([]byte, []int) {
-	return file_extpoints_containerstate_v0_container_state_watcher_proto_rawDescGZIP(), []int{5}
+	return file_containerstate_v0_container_state_watcher_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *WatchRequest) GetContainerId() string {
@@ -360,11 +360,11 @@ func (x *WatchRequest) GetContainerId() string {
 	return ""
 }
 
-var File_extpoints_containerstate_v0_container_state_watcher_proto protoreflect.FileDescriptor
+var File_containerstate_v0_container_state_watcher_proto protoreflect.FileDescriptor
 
-const file_extpoints_containerstate_v0_container_state_watcher_proto_rawDesc = "" +
+const file_containerstate_v0_container_state_watcher_proto_rawDesc = "" +
 	"\n" +
-	"9extpoints/containerstate/v0/container_state_watcher.proto\x12,org.mobyproject.extension.container.state.v0\"p\n" +
+	"/containerstate/v0/container_state_watcher.proto\x12,org.mobyproject.extension.container.state.v0\"p\n" +
 	"\x0eContainerState\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12F\n" +
 	"\x04exit\x18\x02 \x01(\v22.org.mobyproject.extension.container.state.v0.ExitR\x04exit\"X\n" +
@@ -392,22 +392,22 @@ const file_extpoints_containerstate_v0_container_state_watcher_proto_rawDesc = "
 	"\fcontainer_id\x18\x01 \x01(\tR\vcontainerId2\x94\x02\n" +
 	"\x15ContainerStateWatcher\x12z\n" +
 	"\x04Wait\x129.org.mobyproject.extension.container.state.v0.WaitRequest\x1a7.org.mobyproject.extension.container.state.v0.WaitReply\x12\x7f\n" +
-	"\x05Watch\x12:.org.mobyproject.extension.container.state.v0.WatchRequest\x1a8.org.mobyproject.extension.container.state.v0.WatchEvent0\x01B>Z<github.com/moby/moby/v2/extpoints/containerstate/v0/protogenb\x06proto3"
+	"\x05Watch\x12:.org.mobyproject.extension.container.state.v0.WatchRequest\x1a8.org.mobyproject.extension.container.state.v0.WatchEvent0\x01B;Z9github.com/moby/moby/extpoints/containerstate/v0/protogenb\x06proto3"
 
 var (
-	file_extpoints_containerstate_v0_container_state_watcher_proto_rawDescOnce sync.Once
-	file_extpoints_containerstate_v0_container_state_watcher_proto_rawDescData []byte
+	file_containerstate_v0_container_state_watcher_proto_rawDescOnce sync.Once
+	file_containerstate_v0_container_state_watcher_proto_rawDescData []byte
 )
 
-func file_extpoints_containerstate_v0_container_state_watcher_proto_rawDescGZIP() []byte {
-	file_extpoints_containerstate_v0_container_state_watcher_proto_rawDescOnce.Do(func() {
-		file_extpoints_containerstate_v0_container_state_watcher_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_extpoints_containerstate_v0_container_state_watcher_proto_rawDesc), len(file_extpoints_containerstate_v0_container_state_watcher_proto_rawDesc)))
+func file_containerstate_v0_container_state_watcher_proto_rawDescGZIP() []byte {
+	file_containerstate_v0_container_state_watcher_proto_rawDescOnce.Do(func() {
+		file_containerstate_v0_container_state_watcher_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_containerstate_v0_container_state_watcher_proto_rawDesc), len(file_containerstate_v0_container_state_watcher_proto_rawDesc)))
 	})
-	return file_extpoints_containerstate_v0_container_state_watcher_proto_rawDescData
+	return file_containerstate_v0_container_state_watcher_proto_rawDescData
 }
 
-var file_extpoints_containerstate_v0_container_state_watcher_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
-var file_extpoints_containerstate_v0_container_state_watcher_proto_goTypes = []any{
+var file_containerstate_v0_container_state_watcher_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_containerstate_v0_container_state_watcher_proto_goTypes = []any{
 	(*ContainerState)(nil), // 0: org.mobyproject.extension.container.state.v0.ContainerState
 	(*Exit)(nil),           // 1: org.mobyproject.extension.container.state.v0.Exit
 	(*WaitReply)(nil),      // 2: org.mobyproject.extension.container.state.v0.WaitReply
@@ -415,7 +415,7 @@ var file_extpoints_containerstate_v0_container_state_watcher_proto_goTypes = []a
 	(*WatchEvent)(nil),     // 4: org.mobyproject.extension.container.state.v0.WatchEvent
 	(*WatchRequest)(nil),   // 5: org.mobyproject.extension.container.state.v0.WatchRequest
 }
-var file_extpoints_containerstate_v0_container_state_watcher_proto_depIdxs = []int32{
+var file_containerstate_v0_container_state_watcher_proto_depIdxs = []int32{
 	1, // 0: org.mobyproject.extension.container.state.v0.ContainerState.exit:type_name -> org.mobyproject.extension.container.state.v0.Exit
 	0, // 1: org.mobyproject.extension.container.state.v0.WaitReply.current:type_name -> org.mobyproject.extension.container.state.v0.ContainerState
 	0, // 2: org.mobyproject.extension.container.state.v0.WaitReply.previous:type_name -> org.mobyproject.extension.container.state.v0.ContainerState
@@ -432,26 +432,26 @@ var file_extpoints_containerstate_v0_container_state_watcher_proto_depIdxs = []i
 	0, // [0:5] is the sub-list for field type_name
 }
 
-func init() { file_extpoints_containerstate_v0_container_state_watcher_proto_init() }
-func file_extpoints_containerstate_v0_container_state_watcher_proto_init() {
-	if File_extpoints_containerstate_v0_container_state_watcher_proto != nil {
+func init() { file_containerstate_v0_container_state_watcher_proto_init() }
+func file_containerstate_v0_container_state_watcher_proto_init() {
+	if File_containerstate_v0_container_state_watcher_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeFor[x]().PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_extpoints_containerstate_v0_container_state_watcher_proto_rawDesc), len(file_extpoints_containerstate_v0_container_state_watcher_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_containerstate_v0_container_state_watcher_proto_rawDesc), len(file_containerstate_v0_container_state_watcher_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_extpoints_containerstate_v0_container_state_watcher_proto_goTypes,
-		DependencyIndexes: file_extpoints_containerstate_v0_container_state_watcher_proto_depIdxs,
-		MessageInfos:      file_extpoints_containerstate_v0_container_state_watcher_proto_msgTypes,
+		GoTypes:           file_containerstate_v0_container_state_watcher_proto_goTypes,
+		DependencyIndexes: file_containerstate_v0_container_state_watcher_proto_depIdxs,
+		MessageInfos:      file_containerstate_v0_container_state_watcher_proto_msgTypes,
 	}.Build()
-	File_extpoints_containerstate_v0_container_state_watcher_proto = out.File
-	file_extpoints_containerstate_v0_container_state_watcher_proto_goTypes = nil
-	file_extpoints_containerstate_v0_container_state_watcher_proto_depIdxs = nil
+	File_containerstate_v0_container_state_watcher_proto = out.File
+	file_containerstate_v0_container_state_watcher_proto_goTypes = nil
+	file_containerstate_v0_container_state_watcher_proto_depIdxs = nil
 }

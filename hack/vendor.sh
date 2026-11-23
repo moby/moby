@@ -12,7 +12,7 @@ PROJECT_DIR="$(cd "$SCRIPTDIR/.." && pwd)"
 # All module paths are relative to PROJECT_DIR
 # Currently only a subset of modules are vendored.
 vendor_modules_paths=(. man)
-modules_paths=(api client "${vendor_modules_paths[@]}")
+modules_paths=(api client extpoints "${vendor_modules_paths[@]}")
 
 tidy() (
 	for module_path in "${modules_paths[@]}"; do
@@ -36,8 +36,9 @@ vendor() (
 
 replace() (
 	set -x
-	go mod edit -replace=github.com/moby/moby/api=./api -replace=github.com/moby/moby/client=./client
+	go mod edit -replace=github.com/moby/moby/api=./api -replace=github.com/moby/moby/client=./client -replace=github.com/moby/moby/extpoints=./extpoints
 	go mod edit -modfile client/go.mod -replace=github.com/moby/moby/api=../api
+	go mod edit -modfile extpoints/go.mod -replace=github.com/moby/moby/api=../api -replace=github.com/moby/moby/client=../client
 )
 
 dropreplace() (
@@ -61,8 +62,9 @@ dropreplace() (
 	fi
 
 	ref=$(git rev-parse "$ref")
-	go mod edit -dropreplace=github.com/moby/moby/api -dropreplace=github.com/moby/moby/client
+	go mod edit -dropreplace=github.com/moby/moby/api -dropreplace=github.com/moby/moby/client -dropreplace=github.com/moby/moby/extpoints
 	go mod edit -modfile client/go.mod -dropreplace=github.com/moby/moby/api
+	go mod edit -modfile extpoints/go.mod -dropreplace=github.com/moby/moby/api -dropreplace=github.com/moby/moby/client
 
 	go mod edit -modfile client/go.mod -require="github.com/moby/moby/api@$ref"
 	(
@@ -70,9 +72,18 @@ dropreplace() (
 		go mod tidy
 	)
 
-	go mod edit \
+	go mod edit -modfile extpoints/go.mod \
 		-require="github.com/moby/moby/api@$ref" \
 		-require="github.com/moby/moby/client@$ref"
+	(
+		cd extpoints
+		go mod tidy
+	)
+
+	go mod edit \
+		-require="github.com/moby/moby/api@$ref" \
+		-require="github.com/moby/moby/client@$ref" \
+		-require="github.com/moby/moby/extpoints@$ref"
 	go mod tidy
 	go mod vendor
 )
@@ -82,7 +93,7 @@ help() {
 	echo "  - tidy: run go mod tidy"
 	echo "  - vendor: run go mod vendor"
 	echo "  - replace: run go mod edit replace for local modules"
-	echo "  - dropreplace [<gitref>]: remove replace rules and update the api and client modules to the provided ref (defaults to upstream/master)"
+	echo "  - dropreplace [<gitref>]: remove replace rules and update the api, client, and extpoints modules to the provided ref (defaults to upstream/master)"
 	echo "  - all: run tidy && vendor"
 	echo "  - help: show this help"
 }

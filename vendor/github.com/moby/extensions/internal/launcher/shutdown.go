@@ -69,8 +69,7 @@ func stopProcess(ctx context.Context, cmd *exec.Cmd, done <-chan error, timeout 
 		if killErr := killProcess(cmd); killErr != nil && !errors.Is(killErr, os.ErrProcessDone) {
 			return fmt.Errorf("kill extension after failed signal %v: %w", err, killErr)
 		}
-		<-done
-		return nil
+		return stopErr(<-done)
 	}
 	shutdownCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -81,8 +80,7 @@ func stopProcess(ctx context.Context, cmd *exec.Cmd, done <-chan error, timeout 
 		if err := killProcess(cmd); err != nil && !errors.Is(err, os.ErrProcessDone) {
 			return err
 		}
-		<-done
-		return nil
+		return stopErr(<-done)
 	}
 }
 

@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/moby/moby/client"
-	daemonapiv0 "github.com/moby/moby/v2/extpoints/daemonapi/v0"
+	daemonapiv0 "github.com/moby/moby/extpoints/daemonapi/v0"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

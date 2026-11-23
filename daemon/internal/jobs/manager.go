@@ -17,10 +17,10 @@ import (
 	"github.com/moby/locker"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
+	jobsv0 "github.com/moby/moby/extpoints/jobs/api/v0"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/names"
 	"github.com/moby/moby/v2/errdefs"
-	jobsv0 "github.com/moby/moby/v2/extpoints/jobs/api/v0"
 )
 
 // Backend is the container surface the manager drives runs with.

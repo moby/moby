@@ -9,8 +9,8 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	jobsv0 "github.com/moby/moby/extpoints/jobs/api/v0"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
-	jobsv0 "github.com/moby/moby/v2/extpoints/jobs/api/v0"
 )
 
 // errFireQueued reports that a fire was deferred behind the current run by

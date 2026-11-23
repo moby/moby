@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.12
 // 	protoc        (unknown)
-// source: extpoints/daemonapi/v0/daemon_api.proto
+// source: daemonapi/v0/daemon_api.proto
 
 package protogen
 
@@ -29,7 +29,7 @@ type GetRequest struct {
 
 func (x *GetRequest) Reset() {
 	*x = GetRequest{}
-	mi := &file_extpoints_daemonapi_v0_daemon_api_proto_msgTypes[0]
+	mi := &file_daemonapi_v0_daemon_api_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -41,7 +41,7 @@ func (x *GetRequest) String() string {
 func (*GetRequest) ProtoMessage() {}
 
 func (x *GetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_extpoints_daemonapi_v0_daemon_api_proto_msgTypes[0]
+	mi := &file_daemonapi_v0_daemon_api_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -54,7 +54,7 @@ func (x *GetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRequest.ProtoReflect.Descriptor instead.
 func (*GetRequest) Descriptor() ([]byte, []int) {
-	return file_extpoints_daemonapi_v0_daemon_api_proto_rawDescGZIP(), []int{0}
+	return file_daemonapi_v0_daemon_api_proto_rawDescGZIP(), []int{0}
 }
 
 type GetResponse struct {
@@ -66,7 +66,7 @@ type GetResponse struct {
 
 func (x *GetResponse) Reset() {
 	*x = GetResponse{}
-	mi := &file_extpoints_daemonapi_v0_daemon_api_proto_msgTypes[1]
+	mi := &file_daemonapi_v0_daemon_api_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -78,7 +78,7 @@ func (x *GetResponse) String() string {
 func (*GetResponse) ProtoMessage() {}
 
 func (x *GetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_extpoints_daemonapi_v0_daemon_api_proto_msgTypes[1]
+	mi := &file_daemonapi_v0_daemon_api_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -91,7 +91,7 @@ func (x *GetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetResponse.ProtoReflect.Descriptor instead.
 func (*GetResponse) Descriptor() ([]byte, []int) {
-	return file_extpoints_daemonapi_v0_daemon_api_proto_rawDescGZIP(), []int{1}
+	return file_daemonapi_v0_daemon_api_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *GetResponse) GetHost() string {
@@ -101,36 +101,36 @@ func (x *GetResponse) GetHost() string {
 	return ""
 }
 
-var File_extpoints_daemonapi_v0_daemon_api_proto protoreflect.FileDescriptor
+var File_daemonapi_v0_daemon_api_proto protoreflect.FileDescriptor
 
-const file_extpoints_daemonapi_v0_daemon_api_proto_rawDesc = "" +
+const file_daemonapi_v0_daemon_api_proto_rawDesc = "" +
 	"\n" +
-	"'extpoints/daemonapi/v0/daemon_api.proto\x12'org.mobyproject.extension.daemon.api.v0\"\f\n" +
+	"\x1ddaemonapi/v0/daemon_api.proto\x12'org.mobyproject.extension.daemon.api.v0\"\f\n" +
 	"\n" +
 	"GetRequest\"!\n" +
 	"\vGetResponse\x12\x12\n" +
 	"\x04host\x18\x01 \x01(\tR\x04host2}\n" +
 	"\tDaemonAPI\x12p\n" +
-	"\x03Get\x123.org.mobyproject.extension.daemon.api.v0.GetRequest\x1a4.org.mobyproject.extension.daemon.api.v0.GetResponseB9Z7github.com/moby/moby/v2/extpoints/daemonapi/v0/protogenb\x06proto3"
+	"\x03Get\x123.org.mobyproject.extension.daemon.api.v0.GetRequest\x1a4.org.mobyproject.extension.daemon.api.v0.GetResponseB6Z4github.com/moby/moby/extpoints/daemonapi/v0/protogenb\x06proto3"
 
 var (
-	file_extpoints_daemonapi_v0_daemon_api_proto_rawDescOnce sync.Once
-	file_extpoints_daemonapi_v0_daemon_api_proto_rawDescData []byte
+	file_daemonapi_v0_daemon_api_proto_rawDescOnce sync.Once
+	file_daemonapi_v0_daemon_api_proto_rawDescData []byte
 )
 
-func file_extpoints_daemonapi_v0_daemon_api_proto_rawDescGZIP() []byte {
-	file_extpoints_daemonapi_v0_daemon_api_proto_rawDescOnce.Do(func() {
-		file_extpoints_daemonapi_v0_daemon_api_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_extpoints_daemonapi_v0_daemon_api_proto_rawDesc), len(file_extpoints_daemonapi_v0_daemon_api_proto_rawDesc)))
+func file_daemonapi_v0_daemon_api_proto_rawDescGZIP() []byte {
+	file_daemonapi_v0_daemon_api_proto_rawDescOnce.Do(func() {
+		file_daemonapi_v0_daemon_api_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_daemonapi_v0_daemon_api_proto_rawDesc), len(file_daemonapi_v0_daemon_api_proto_rawDesc)))
 	})
-	return file_extpoints_daemonapi_v0_daemon_api_proto_rawDescData
+	return file_daemonapi_v0_daemon_api_proto_rawDescData
 }
 
-var file_extpoints_daemonapi_v0_daemon_api_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
-var file_extpoints_daemonapi_v0_daemon_api_proto_goTypes = []any{
+var file_daemonapi_v0_daemon_api_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_daemonapi_v0_daemon_api_proto_goTypes = []any{
 	(*GetRequest)(nil),  // 0: org.mobyproject.extension.daemon.api.v0.GetRequest
 	(*GetResponse)(nil), // 1: org.mobyproject.extension.daemon.api.v0.GetResponse
 }
-var file_extpoints_daemonapi_v0_daemon_api_proto_depIdxs = []int32{
+var file_daemonapi_v0_daemon_api_proto_depIdxs = []int32{
 	0, // 0: org.mobyproject.extension.daemon.api.v0.DaemonAPI.Get:input_type -> org.mobyproject.extension.daemon.api.v0.GetRequest
 	1, // 1: org.mobyproject.extension.daemon.api.v0.DaemonAPI.Get:output_type -> org.mobyproject.extension.daemon.api.v0.GetResponse
 	1, // [1:2] is the sub-list for method output_type
@@ -140,26 +140,26 @@ var file_extpoints_daemonapi_v0_daemon_api_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for field type_name
 }
 
-func init() { file_extpoints_daemonapi_v0_daemon_api_proto_init() }
-func file_extpoints_daemonapi_v0_daemon_api_proto_init() {
-	if File_extpoints_daemonapi_v0_daemon_api_proto != nil {
+func init() { file_daemonapi_v0_daemon_api_proto_init() }
+func file_daemonapi_v0_daemon_api_proto_init() {
+	if File_daemonapi_v0_daemon_api_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeFor[x]().PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_extpoints_daemonapi_v0_daemon_api_proto_rawDesc), len(file_extpoints_daemonapi_v0_daemon_api_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_daemonapi_v0_daemon_api_proto_rawDesc), len(file_daemonapi_v0_daemon_api_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_extpoints_daemonapi_v0_daemon_api_proto_goTypes,
-		DependencyIndexes: file_extpoints_daemonapi_v0_daemon_api_proto_depIdxs,
-		MessageInfos:      file_extpoints_daemonapi_v0_daemon_api_proto_msgTypes,
+		GoTypes:           file_daemonapi_v0_daemon_api_proto_goTypes,
+		DependencyIndexes: file_daemonapi_v0_daemon_api_proto_depIdxs,
+		MessageInfos:      file_daemonapi_v0_daemon_api_proto_msgTypes,
 	}.Build()
-	File_extpoints_daemonapi_v0_daemon_api_proto = out.File
-	file_extpoints_daemonapi_v0_daemon_api_proto_goTypes = nil
-	file_extpoints_daemonapi_v0_daemon_api_proto_depIdxs = nil
+	File_daemonapi_v0_daemon_api_proto = out.File
+	file_daemonapi_v0_daemon_api_proto_goTypes = nil
+	file_daemonapi_v0_daemon_api_proto_depIdxs = nil
 }

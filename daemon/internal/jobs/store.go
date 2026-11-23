@@ -15,9 +15,9 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	jobsv0 "github.com/moby/moby/extpoints/jobs/api/v0"
+	storagekvv0 "github.com/moby/moby/extpoints/storage/kv/v0"
 	"github.com/moby/moby/v2/errdefs"
-	jobsv0 "github.com/moby/moby/v2/extpoints/jobs/api/v0"
-	storagekvv0 "github.com/moby/moby/v2/extpoints/storage/kv/v0"
 )
 
 // storeSchemaVersion is written into every record so that a future schema

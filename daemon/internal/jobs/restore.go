@@ -5,7 +5,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
-	jobsv0 "github.com/moby/moby/v2/extpoints/jobs/api/v0"
+	jobsv0 "github.com/moby/moby/extpoints/jobs/api/v0"
 )
 
 // Restore reconciles state left behind by an unclean daemon stop — a crash,

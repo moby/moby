@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.12
 // 	protoc        (unknown)
-// source: extpoints/servicenamegenerator/v0/service_name_generator.proto
+// source: servicenamegenerator/v0/service_name_generator.proto
 
 package protogen
 
@@ -30,7 +30,7 @@ type GenerateServiceNameReply struct {
 
 func (x *GenerateServiceNameReply) Reset() {
 	*x = GenerateServiceNameReply{}
-	mi := &file_extpoints_servicenamegenerator_v0_service_name_generator_proto_msgTypes[0]
+	mi := &file_servicenamegenerator_v0_service_name_generator_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42,7 +42,7 @@ func (x *GenerateServiceNameReply) String() string {
 func (*GenerateServiceNameReply) ProtoMessage() {}
 
 func (x *GenerateServiceNameReply) ProtoReflect() protoreflect.Message {
-	mi := &file_extpoints_servicenamegenerator_v0_service_name_generator_proto_msgTypes[0]
+	mi := &file_servicenamegenerator_v0_service_name_generator_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -55,7 +55,7 @@ func (x *GenerateServiceNameReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateServiceNameReply.ProtoReflect.Descriptor instead.
 func (*GenerateServiceNameReply) Descriptor() ([]byte, []int) {
-	return file_extpoints_servicenamegenerator_v0_service_name_generator_proto_rawDescGZIP(), []int{0}
+	return file_servicenamegenerator_v0_service_name_generator_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *GenerateServiceNameReply) GetName() string {
@@ -75,7 +75,7 @@ type GenerateServiceNameRequest struct {
 
 func (x *GenerateServiceNameRequest) Reset() {
 	*x = GenerateServiceNameRequest{}
-	mi := &file_extpoints_servicenamegenerator_v0_service_name_generator_proto_msgTypes[1]
+	mi := &file_servicenamegenerator_v0_service_name_generator_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -87,7 +87,7 @@ func (x *GenerateServiceNameRequest) String() string {
 func (*GenerateServiceNameRequest) ProtoMessage() {}
 
 func (x *GenerateServiceNameRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_extpoints_servicenamegenerator_v0_service_name_generator_proto_msgTypes[1]
+	mi := &file_servicenamegenerator_v0_service_name_generator_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -100,7 +100,7 @@ func (x *GenerateServiceNameRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateServiceNameRequest.ProtoReflect.Descriptor instead.
 func (*GenerateServiceNameRequest) Descriptor() ([]byte, []int) {
-	return file_extpoints_servicenamegenerator_v0_service_name_generator_proto_rawDescGZIP(), []int{1}
+	return file_servicenamegenerator_v0_service_name_generator_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *GenerateServiceNameRequest) GetRetry() int64 {
@@ -117,37 +117,37 @@ func (x *GenerateServiceNameRequest) GetImage() string {
 	return ""
 }
 
-var File_extpoints_servicenamegenerator_v0_service_name_generator_proto protoreflect.FileDescriptor
+var File_servicenamegenerator_v0_service_name_generator_proto protoreflect.FileDescriptor
 
-const file_extpoints_servicenamegenerator_v0_service_name_generator_proto_rawDesc = "" +
+const file_servicenamegenerator_v0_service_name_generator_proto_rawDesc = "" +
 	"\n" +
-	">extpoints/servicenamegenerator/v0/service_name_generator.proto\x121org.mobyproject.extension.servicenamegenerator.v0\".\n" +
+	"4servicenamegenerator/v0/service_name_generator.proto\x121org.mobyproject.extension.servicenamegenerator.v0\".\n" +
 	"\x18GenerateServiceNameReply\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\"H\n" +
 	"\x1aGenerateServiceNameRequest\x12\x14\n" +
 	"\x05retry\x18\x01 \x01(\x03R\x05retry\x12\x14\n" +
 	"\x05image\x18\x02 \x01(\tR\x05image2\xca\x01\n" +
 	"\x14ServiceNameGenerator\x12\xb1\x01\n" +
-	"\x13GenerateServiceName\x12M.org.mobyproject.extension.servicenamegenerator.v0.GenerateServiceNameRequest\x1aK.org.mobyproject.extension.servicenamegenerator.v0.GenerateServiceNameReplyBDZBgithub.com/moby/moby/v2/extpoints/servicenamegenerator/v0/protogenb\x06proto3"
+	"\x13GenerateServiceName\x12M.org.mobyproject.extension.servicenamegenerator.v0.GenerateServiceNameRequest\x1aK.org.mobyproject.extension.servicenamegenerator.v0.GenerateServiceNameReplyBAZ?github.com/moby/moby/extpoints/servicenamegenerator/v0/protogenb\x06proto3"
 
 var (
-	file_extpoints_servicenamegenerator_v0_service_name_generator_proto_rawDescOnce sync.Once
-	file_extpoints_servicenamegenerator_v0_service_name_generator_proto_rawDescData []byte
+	file_servicenamegenerator_v0_service_name_generator_proto_rawDescOnce sync.Once
+	file_servicenamegenerator_v0_service_name_generator_proto_rawDescData []byte
 )
 
-func file_extpoints_servicenamegenerator_v0_service_name_generator_proto_rawDescGZIP() []byte {
-	file_extpoints_servicenamegenerator_v0_service_name_generator_proto_rawDescOnce.Do(func() {
-		file_extpoints_servicenamegenerator_v0_service_name_generator_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_extpoints_servicenamegenerator_v0_service_name_generator_proto_rawDesc), len(file_extpoints_servicenamegenerator_v0_service_name_generator_proto_rawDesc)))
+func file_servicenamegenerator_v0_service_name_generator_proto_rawDescGZIP() []byte {
+	file_servicenamegenerator_v0_service_name_generator_proto_rawDescOnce.Do(func() {
+		file_servicenamegenerator_v0_service_name_generator_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_servicenamegenerator_v0_service_name_generator_proto_rawDesc), len(file_servicenamegenerator_v0_service_name_generator_proto_rawDesc)))
 	})
-	return file_extpoints_servicenamegenerator_v0_service_name_generator_proto_rawDescData
+	return file_servicenamegenerator_v0_service_name_generator_proto_rawDescData
 }
 
-var file_extpoints_servicenamegenerator_v0_service_name_generator_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
-var file_extpoints_servicenamegenerator_v0_service_name_generator_proto_goTypes = []any{
+var file_servicenamegenerator_v0_service_name_generator_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_servicenamegenerator_v0_service_name_generator_proto_goTypes = []any{
 	(*GenerateServiceNameReply)(nil),   // 0: org.mobyproject.extension.servicenamegenerator.v0.GenerateServiceNameReply
 	(*GenerateServiceNameRequest)(nil), // 1: org.mobyproject.extension.servicenamegenerator.v0.GenerateServiceNameRequest
 }
-var file_extpoints_servicenamegenerator_v0_service_name_generator_proto_depIdxs = []int32{
+var file_servicenamegenerator_v0_service_name_generator_proto_depIdxs = []int32{
 	1, // 0: org.mobyproject.extension.servicenamegenerator.v0.ServiceNameGenerator.GenerateServiceName:input_type -> org.mobyproject.extension.servicenamegenerator.v0.GenerateServiceNameRequest
 	0, // 1: org.mobyproject.extension.servicenamegenerator.v0.ServiceNameGenerator.GenerateServiceName:output_type -> org.mobyproject.extension.servicenamegenerator.v0.GenerateServiceNameReply
 	1, // [1:2] is the sub-list for method output_type
@@ -157,26 +157,26 @@ var file_extpoints_servicenamegenerator_v0_service_name_generator_proto_depIdxs 
 	0, // [0:0] is the sub-list for field type_name
 }
 
-func init() { file_extpoints_servicenamegenerator_v0_service_name_generator_proto_init() }
-func file_extpoints_servicenamegenerator_v0_service_name_generator_proto_init() {
-	if File_extpoints_servicenamegenerator_v0_service_name_generator_proto != nil {
+func init() { file_servicenamegenerator_v0_service_name_generator_proto_init() }
+func file_servicenamegenerator_v0_service_name_generator_proto_init() {
+	if File_servicenamegenerator_v0_service_name_generator_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeFor[x]().PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_extpoints_servicenamegenerator_v0_service_name_generator_proto_rawDesc), len(file_extpoints_servicenamegenerator_v0_service_name_generator_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_servicenamegenerator_v0_service_name_generator_proto_rawDesc), len(file_servicenamegenerator_v0_service_name_generator_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_extpoints_servicenamegenerator_v0_service_name_generator_proto_goTypes,
-		DependencyIndexes: file_extpoints_servicenamegenerator_v0_service_name_generator_proto_depIdxs,
-		MessageInfos:      file_extpoints_servicenamegenerator_v0_service_name_generator_proto_msgTypes,
+		GoTypes:           file_servicenamegenerator_v0_service_name_generator_proto_goTypes,
+		DependencyIndexes: file_servicenamegenerator_v0_service_name_generator_proto_depIdxs,
+		MessageInfos:      file_servicenamegenerator_v0_service_name_generator_proto_msgTypes,
 	}.Build()
-	File_extpoints_servicenamegenerator_v0_service_name_generator_proto = out.File
-	file_extpoints_servicenamegenerator_v0_service_name_generator_proto_goTypes = nil
-	file_extpoints_servicenamegenerator_v0_service_name_generator_proto_depIdxs = nil
+	File_servicenamegenerator_v0_service_name_generator_proto = out.File
+	file_servicenamegenerator_v0_service_name_generator_proto_goTypes = nil
+	file_servicenamegenerator_v0_service_name_generator_proto_depIdxs = nil
 }

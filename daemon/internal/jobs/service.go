@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/containerd/errdefs/pkg/errgrpc"
-	jobsv0 "github.com/moby/moby/v2/extpoints/jobs/api/v0"
+	jobsv0 "github.com/moby/moby/extpoints/jobs/api/v0"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

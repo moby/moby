@@ -5,8 +5,8 @@ set -e
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPTDIR}/.validate"
 
-modules_files=('api/go.mod' 'client/go.mod' 'man/go.mod' 'go.mod')
-tidy_files=("${modules_files[@]}" 'api/go.sum' 'client/go.sum' 'man/go.sum' 'go.sum')
+modules_files=('api/go.mod' 'client/go.mod' 'extpoints/go.mod' 'man/go.mod' 'go.mod')
+tidy_files=("${modules_files[@]}" 'api/go.sum' 'client/go.sum' 'extpoints/go.sum' 'man/go.sum' 'go.sum')
 vendor_files=("${tidy_files[@]}" 'vendor/')
 
 validate_tidy_modules() {

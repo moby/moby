@@ -3,8 +3,8 @@ package image
 import (
 	"testing"
 
-	containernamegeneratorv0 "github.com/moby/moby/v2/extpoints/containernamegenerator/v0"
-	servicenamegeneratorv0 "github.com/moby/moby/v2/extpoints/servicenamegenerator/v0"
+	containernamegeneratorv0 "github.com/moby/moby/extpoints/containernamegenerator/v0"
+	servicenamegeneratorv0 "github.com/moby/moby/extpoints/servicenamegenerator/v0"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

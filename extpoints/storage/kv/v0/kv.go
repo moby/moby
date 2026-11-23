@@ -6,7 +6,6 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/errdefs/pkg/errgrpc"
 	"github.com/moby/extensions"
-	"github.com/moby/moby/v2/errdefs"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -89,8 +88,14 @@ func recordError(err error) error {
 		return err
 	}
 	native := errgrpc.ToNative(err)
-	if s.Code() == codes.AlreadyExists {
-		return errdefs.Conflict(native)
+	if s.Code() == codes.AlreadyExists && !cerrdefs.IsConflict(native) {
+		return errConflict{native}
 	}
 	return native
 }
+
+type errConflict struct{ error }
+
+func (errConflict) Conflict() {}
+
+func (e errConflict) Unwrap() error { return e.error }
