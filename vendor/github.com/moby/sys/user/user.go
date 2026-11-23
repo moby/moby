@@ -57,44 +57,67 @@ type IDMap struct {
 	Count    int64
 }
 
-func parseLine(line []byte, v ...any) {
-	parseParts(bytes.Split(line, []byte(":")), v...)
+// parseLine parses a colon-separated record into the provided fields.
+// See [parseParts] for details.
+func parseLine(line []byte, v ...any) bool {
+	return parseParts(bytes.Split(line, []byte(":")), v...)
 }
 
-func parseParts(parts [][]byte, v ...any) {
-	if len(parts) == 0 {
-		return
-	}
-
-	for i, p := range parts {
-		// Ignore cases where we don't have enough fields to populate the arguments.
-		// Some configuration files like to misbehave.
-		if len(v) <= i {
-			break
+// parseParts parses the provided parts into the corresponding fields,
+// and reports whether the record is valid.
+//
+// Missing fields are treated as empty. Empty string fields are accepted,
+// but missing, empty, non-numeric, or out-of-range integer fields make
+// the record invalid. For *int fields (UIDs and GIDs), the valid range
+// is the one checked by [validateID].
+//
+// This follows the behavior of glibc's passwd and group parsers, which
+// skip malformed records when reading entries.
+//
+// See https://sources.debian.org/src/glibc/2.42-13/nss/nss_fgetent_r.c/
+// and https://sources.debian.org/src/glibc/2.42-13/nss/fgetpwent_r.c/#L150-L165
+func parseParts(parts [][]byte, fields ...any) bool {
+	for i, v := range fields {
+		var p []byte
+		if i < len(parts) {
+			p = parts[i]
 		}
 
 		// Use the type of the argument to figure out how to parse it, scanf() style.
 		// This is legit.
-		switch e := v[i].(type) {
+		switch e := v.(type) {
 		case *string:
 			*e = string(p)
 		case *int:
-			// "numbers", with conversion errors ignored because of some misbehaving configuration files.
-			*e, _ = strconv.Atoi(string(p))
+			// The only *int fields are UIDs and GIDs.
+			n, err := parseNumeric(string(p))
+			if err != nil {
+				return false
+			}
+			*e = n
 		case *int64:
-			*e, _ = strconv.ParseInt(string(p), 10, 64)
+			n, err := strconv.ParseInt(string(p), 10, 64)
+			if err != nil {
+				return false
+			}
+			*e = n
 		case *[]string:
-			// Comma-separated lists.
-			if len(p) != 0 {
-				*e = strings.Split(string(p), ",")
-			} else {
-				*e = []string{}
+			// Comma-separated lists. Like glibc, skip leading whitespace
+			// (but keep trailing one), and drop empty elements.
+			//
+			// See https://sources.debian.org/src/glibc/2.42-13/nss/nss_files/files-parse.c/#L278-L291
+			*e = []string{}
+			for s := range strings.SplitSeq(string(p), ",") {
+				if s = strings.TrimLeft(s, " \t\n\v\f\r"); s != "" {
+					*e = append(*e, s)
+				}
 			}
 		default:
 			// Someone goof'd when writing code using this function. Scream so they can hear us.
 			panic(fmt.Sprintf("parseLine only accepts {*string, *int, *int64, *[]string} as arguments! %#v is not a pointer!", e))
 		}
 	}
+	return true
 }
 
 func ParsePasswdFile(path string) ([]User, error) {
@@ -106,7 +129,7 @@ func ParsePasswd(passwd io.Reader) ([]User, error) {
 }
 
 func ParsePasswdFileFilter(path string, filter func(User) bool) ([]User, error) {
-	passwd, err := os.Open(path)
+	passwd, err := openUserFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -125,8 +148,9 @@ func ParsePasswdFilter(r io.Reader, filter func(User) bool) ([]User, error) {
 	)
 
 	for s.Scan() {
+		// Skip blank lines and comments, like glibc does (see ParseGroupFilter).
 		line := bytes.TrimSpace(s.Bytes())
-		if len(line) == 0 {
+		if len(line) == 0 || line[0] == '#' {
 			continue
 		}
 
@@ -136,7 +160,10 @@ func ParsePasswdFilter(r io.Reader, filter func(User) bool) ([]User, error) {
 		//  root:x:0:0:root:/root:/bin/bash
 		//  adm:x:3:4:adm:/var/adm:/bin/false
 		p := User{}
-		parseLine(line, &p.Name, &p.Pass, &p.Uid, &p.Gid, &p.Gecos, &p.Home, &p.Shell)
+		if !parseLine(line, &p.Name, &p.Pass, &p.Uid, &p.Gid, &p.Gecos, &p.Home, &p.Shell) {
+			// Skip malformed lines.
+			continue
+		}
 
 		if filter == nil || filter(p) {
 			out = append(out, p)
@@ -195,7 +222,10 @@ func ParseGroupFilter(r io.Reader, filter func(Group) bool) ([]Group, error) {
 		//  root:x:0:root
 		//  adm:x:4:root,adm,daemon
 		p := Group{}
-		parseLine(line, &p.Name, &p.Pass, &p.Gid, &p.List)
+		if !parseLine(line, &p.Name, &p.Pass, &p.Gid, &p.List) {
+			// Skip malformed lines.
+			continue
+		}
 
 		if filter == nil || filter(p) {
 			out = append(out, p)
@@ -235,33 +265,50 @@ func GetExecUserPath(userSpec string, defaults *ExecUser, passwdPath, groupPath 
 	return GetExecUser(userSpec, defaults, passwd, group)
 }
 
-// parseNumeric parses the given UID or GID value to an integer and within
-// the minID - maxID range.
+// validateID checks whether a UID or GID is within the supported range,
+// returning [ErrRange] if it is not.
 //
-// While the Linux kernel allows the max UID to be MaxUint32 - 2,
-// and the OCI Runtime Spec has no definition about the max UID, we require
-// the UID to be <= MaxInt32.
+// While the Linux kernel allows UIDs up to MaxUint32 - 2, and the OCI
+// Runtime Spec does not define a maximum UID, we restrict IDs to MaxInt32
+// for compatibility with 32-bit systems and OCI runtimes.
 //
 // See https://github.com/containerd/containerd/commit/de1341c201ffb0effebbf51d00376181968c8779
-func parseNumeric(val string) (int, bool, error) {
+func validateID(id int) error {
+	if id < minID || id > maxID {
+		return ErrRange
+	}
+	return nil
+}
+
+// parseNumeric parses a UID or GID as an integer within the supported range.
+func parseNumeric(val string) (int, error) {
 	id, err := strconv.Atoi(val)
 	if err != nil {
-		if errors.Is(err, strconv.ErrSyntax) {
-			// Discard the error, because non-numeric values are expected
-			// when passing a username or group-name.
-			return 0, false, nil
-		}
 		if errors.Is(err, strconv.ErrRange) {
-			return 0, true, ErrRange
+			return 0, ErrRange
 		}
-		// Other errors ("invalid base", "invalid bit size"); should never
-		// happen with strconv.Atoi.
-		return 0, false, err
+		return 0, err
 	}
-	if id < minID || id > maxID {
-		return 0, true, ErrRange
+	if err := validateID(id); err != nil {
+		return 0, err
 	}
-	return id, true, nil
+	return id, nil
+}
+
+// parseMaybeNumeric parses a UID or GID as a numeric ID, or indicates
+// that the value should be interpreted as a username or group name.
+//
+// Non-numeric values are expected when passing a username or group name,
+// so syntax errors are ignored. The boolean indicates whether the value
+// was interpreted as a numeric ID.
+func parseMaybeNumeric(val string) (int, bool, error) {
+	id, err := parseNumeric(val)
+	if errors.Is(err, strconv.ErrSyntax) {
+		// Discard the error, because non-numeric values are expected
+		// when passing a username or group-name.
+		return 0, false, nil
+	}
+	return id, true, err
 }
 
 // GetExecUser parses a user specification string (using the passwd and group
@@ -398,6 +445,9 @@ func GetAdditionalGroups(additionalGroups []string, group io.Reader) ([]int, err
 		if err != nil {
 			return nil, err
 		}
+		if groupArg == nil {
+			return nil, errors.New("empty group name")
+		}
 		addtlGroups = append(addtlGroups, *groupArg)
 	}
 
@@ -423,9 +473,6 @@ func GetAdditionalGroups(additionalGroups []string, group io.Reader) ([]int, err
 		for _, g := range groups {
 			if ag.matches(g) {
 				// take the first matched group as correct
-				if g.Gid < minID || g.Gid > maxID {
-					return nil, ErrRange
-				}
 				gidMap[g.Gid] = struct{}{}
 				found = true
 				break
@@ -453,25 +500,46 @@ func GetAdditionalGroups(additionalGroups []string, group io.Reader) ([]int, err
 // that opens the groupPath given and gives it as an argument to
 // GetAdditionalGroups.
 func GetAdditionalGroupsPath(additionalGroups []string, groupPath string) ([]int, error) {
-	var group io.Reader
-
-	if groupFile, err := os.Open(groupPath); err == nil {
-		group = groupFile
-		defer groupFile.Close()
+	groupFile, err := openUserFile(groupPath)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, err
+		}
+		return GetAdditionalGroups(additionalGroups, nil)
 	}
-	return GetAdditionalGroups(additionalGroups, group)
+	defer func() { _ = groupFile.Close() }()
+
+	return GetAdditionalGroups(additionalGroups, groupFile)
 }
 
+// maxSubID is the maximum subordinate ID (maxof(id_t) in shadow-utils).
+const maxSubID = 1<<32 - 1
+
+// valid reports whether s is a valid subordinate ID range. It follows the
+// checks done by shadow-utils: the name must not be empty, and the range
+// must fit into 32-bit IDs.
+//
+// See https://github.com/shadow-maint/shadow/blob/24bc15eac4dcdec9c73c59988fe030b44a98c3de/lib/subordinateio.c#L93-L127
+func (s SubID) valid() bool {
+	return s.Name != "" &&
+		s.SubID >= 0 && s.SubID <= maxSubID &&
+		s.Count >= 0 && s.Count <= min(maxSubID+1-s.SubID, maxSubID)
+}
+
+// ParseSubIDFile parses subordinate UID/GID ranges from the specified file.
 func ParseSubIDFile(path string) ([]SubID, error) {
 	return ParseSubIDFileFilter(path, nil)
 }
 
+// ParseSubID parses subordinate UID/GID ranges from the provided reader.
 func ParseSubID(subid io.Reader) ([]SubID, error) {
 	return ParseSubIDFilter(subid, nil)
 }
 
+// ParseSubIDFileFilter parses subordinate UID/GID ranges from the specified
+// file, returning only entries matching filter. A nil filter matches all entries.
 func ParseSubIDFileFilter(path string, filter func(SubID) bool) ([]SubID, error) {
-	subid, err := os.Open(path)
+	subid, err := openUserFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -479,6 +547,8 @@ func ParseSubIDFileFilter(path string, filter func(SubID) bool) ([]SubID, error)
 	return ParseSubIDFilter(subid, filter)
 }
 
+// ParseSubIDFilter parses subordinate UID/GID ranges from the provided reader,
+// returning only entries matching filter. A nil filter matches all entries.
 func ParseSubIDFilter(r io.Reader, filter func(SubID) bool) ([]SubID, error) {
 	if r == nil {
 		return nil, errors.New("nil source for subid-formatted data")
@@ -496,8 +566,15 @@ func ParseSubIDFilter(r io.Reader, filter func(SubID) bool) ([]SubID, error) {
 		}
 
 		// see: man 5 subuid
+		//  name:subid:count
+		// Name:SubID:Count
+		//  user:100000:65536
+		parts := bytes.Split(line, []byte(":"))
 		p := SubID{}
-		parseLine(line, &p.Name, &p.SubID, &p.Count)
+		if len(parts) != 3 || !parseParts(parts, &p.Name, &p.SubID, &p.Count) || !p.valid() {
+			// Skip malformed lines.
+			continue
+		}
 
 		if filter == nil || filter(p) {
 			out = append(out, p)
@@ -510,23 +587,36 @@ func ParseSubIDFilter(r io.Reader, filter func(SubID) bool) ([]SubID, error) {
 	return out, nil
 }
 
+// ParseIDMapFile parses ID mappings from the specified file.
 func ParseIDMapFile(path string) ([]IDMap, error) {
 	return ParseIDMapFileFilter(path, nil)
 }
 
+// ParseIDMap parses ID mappings from r.
 func ParseIDMap(r io.Reader) ([]IDMap, error) {
 	return ParseIDMapFilter(r, nil)
 }
 
+// ParseIDMapFileFilter parses ID mappings from the specified file,
+// returning only entries matching filter. A nil filter matches all entries.
+// Reads are limited to 10 MiB, but non-regular files are allowed to support
+// procfs-backed UID/GID mapping files.
 func ParseIDMapFileFilter(path string, filter func(IDMap) bool) ([]IDMap, error) {
-	r, err := os.Open(path)
+	// ID mapping files are typically procfs files, so we cannot use
+	// openUserFile's regular-file check. Enforce the read limit separately.
+	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
-	defer r.Close()
+
+	r := newLimitedFile(f)
+	defer func() { _ = r.Close() }()
+
 	return ParseIDMapFilter(r, filter)
 }
 
+// ParseIDMapFilter parses ID mappings from r, returning only entries
+// matching filter. A nil filter matches all entries.
 func ParseIDMapFilter(r io.Reader, filter func(IDMap) bool) ([]IDMap, error) {
 	if r == nil {
 		return nil, errors.New("nil source for idmap-formatted data")
@@ -545,7 +635,10 @@ func ParseIDMapFilter(r io.Reader, filter func(IDMap) bool) ([]IDMap, error) {
 
 		// see: man 7 user_namespaces
 		p := IDMap{}
-		parseParts(bytes.Fields(line), &p.ID, &p.ParentID, &p.Count)
+		if !parseParts(bytes.Fields(line), &p.ID, &p.ParentID, &p.Count) {
+			// Skip malformed lines.
+			continue
+		}
 
 		if filter == nil || filter(p) {
 			out = append(out, p)

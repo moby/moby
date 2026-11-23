@@ -20,7 +20,7 @@ const (
 // cannot be found (or there is no /etc/passwd file on the filesystem), then
 // LookupUser returns an error.
 func LookupUser(username string) (User, error) {
-	return lookupUserFunc(func(u User) bool {
+	return lookupUserFileFilter(unixPasswdPath, func(u User) bool {
 		return u.Name == username
 	})
 }
@@ -29,21 +29,13 @@ func LookupUser(username string) (User, error) {
 // be found (or there is no /etc/passwd file on the filesystem), then LookupId
 // returns an error.
 func LookupUid(uid int) (User, error) {
-	return lookupUserFunc(func(u User) bool {
+	return lookupUserFileFilter(unixPasswdPath, func(u User) bool {
 		return u.Uid == uid
 	})
 }
 
-func lookupUserFunc(filter func(u User) bool) (User, error) {
-	// Get operating system-specific passwd reader-closer.
-	passwd, err := GetPasswd()
-	if err != nil {
-		return User{}, err
-	}
-	defer passwd.Close()
-
-	// Get the users.
-	users, err := ParsePasswdFilter(passwd, filter)
+func lookupUserFileFilter(path string, filter func(u User) bool) (User, error) {
+	users, err := ParsePasswdFileFilter(path, filter)
 	if err != nil {
 		return User{}, err
 	}
@@ -61,7 +53,7 @@ func lookupUserFunc(filter func(u User) bool) (User, error) {
 // be found (or there is no /etc/group file on the filesystem), then LookupGroup
 // returns an error.
 func LookupGroup(groupname string) (Group, error) {
-	return lookupGroupFunc(func(g Group) bool {
+	return lookupGroupFileFilter(unixGroupPath, func(g Group) bool {
 		return g.Name == groupname
 	})
 }
@@ -70,21 +62,13 @@ func LookupGroup(groupname string) (Group, error) {
 // be found (or there is no /etc/group file on the filesystem), then LookupGid
 // returns an error.
 func LookupGid(gid int) (Group, error) {
-	return lookupGroupFunc(func(g Group) bool {
+	return lookupGroupFileFilter(unixGroupPath, func(g Group) bool {
 		return g.Gid == gid
 	})
 }
 
-func lookupGroupFunc(filter func(g Group) bool) (Group, error) {
-	// Get operating system-specific group reader-closer.
-	group, err := GetGroup()
-	if err != nil {
-		return Group{}, err
-	}
-	defer group.Close()
-
-	// Get the users.
-	groups, err := ParseGroupFilter(group, filter)
+func lookupGroupFileFilter(path string, filter func(g Group) bool) (Group, error) {
+	groups, err := ParseGroupFileFilter(path, filter)
 	if err != nil {
 		return Group{}, err
 	}
@@ -98,18 +82,30 @@ func lookupGroupFunc(filter func(g Group) bool) (Group, error) {
 	return groups[0], nil
 }
 
+// GetPasswdPath returns the path to the system passwd file.
 func GetPasswdPath() (string, error) {
 	return unixPasswdPath, nil
 }
 
+// GetPasswd opens the system passwd file for reading.
+//
+// Unlike the file-based parsing functions, it does not restrict the file type
+// or limit the amount of data that can be read. The caller is responsible for
+// closing the returned reader.
 func GetPasswd() (io.ReadCloser, error) {
 	return os.Open(unixPasswdPath)
 }
 
+// GetGroupPath returns the path to the system group file.
 func GetGroupPath() (string, error) {
 	return unixGroupPath, nil
 }
 
+// GetGroup opens the system group file for reading.
+//
+// Unlike the file-based parsing functions, it does not restrict the file type
+// or limit the amount of data that can be read. The caller is responsible for
+// closing the returned reader.
 func GetGroup() (io.ReadCloser, error) {
 	return os.Open(unixGroupPath)
 }
