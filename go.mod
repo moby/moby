@@ -67,7 +67,7 @@ require (
 	github.com/moby/buildkit v0.35.1
 	github.com/moby/docker-image-spec v1.3.1
 	github.com/moby/extensions v0.0.0-20261026144205-2b6b3bd5fa82
-	github.com/moby/go-archive v0.3.3
+	github.com/moby/go-archive v0.3.4-0.20261124144956-5b8ede2fda38
 	github.com/moby/ipvs v1.1.0
 	github.com/moby/locker v1.0.1
 	github.com/moby/moby/api v1.57.0

@@ -104,12 +104,13 @@ func UnpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 		// dstPath is the native (host-separator) form of the entry name,
 		// used at all filesystem boundaries (os.Root methods, fsRootPath).
 		// The tar-header name (hdr.Name) is POSIX, so convert it here.
-		dstPath, err := resolveArchivePath(root, filepath.FromSlash(hdr.Name))
+		resolvedPath, err := resolveArchivePath(root, filepath.FromSlash(hdr.Name))
 		if err != nil {
 			return 0, err
 		}
+		dstPath := resolvedPath.path
 		// Ensure that the parent directory exists.
-		if err := createImpliedDirectories(root, dstPath, options); err != nil {
+		if err := createImpliedDirectories(root, resolvedPath, options); err != nil {
 			return 0, err
 		}
 		if base := filepath.Base(dstPath); strings.HasPrefix(base, WhiteoutPrefix) {
@@ -204,7 +205,11 @@ func UnpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 			// Directory mtimes must be handled at the end to avoid further
 			// file creation in them to modify the directory mtime
 			if hdr.Typeflag == tar.TypeDir {
-				dirs = append(dirs, unpackedDir{hdr: hdr, name: dstPath})
+				dirs = append(dirs, unpackedDir{
+					name:  dstPath,
+					atime: boundTime(latestTime(hdr.AccessTime, hdr.ModTime)),
+					mtime: boundTime(hdr.ModTime),
+				})
 			}
 			// Record the resolved, native-separator, root-relative path so it
 			// matches the paths produced by the opaque-whiteout walk.
@@ -213,7 +218,7 @@ func UnpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 	}
 
 	for _, d := range dirs {
-		if err := chtimes(root, d.name, boundTime(latestTime(d.hdr.AccessTime, d.hdr.ModTime)), boundTime(d.hdr.ModTime)); err != nil {
+		if err := chtimes(root, d.name, d.atime, d.mtime); err != nil {
 			return 0, err
 		}
 	}

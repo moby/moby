@@ -5,11 +5,50 @@ package chrootarchive
 import (
 	"errors"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/moby/go-archive"
+	"github.com/moby/go-archive/compression"
+	"github.com/moby/sys/user"
 )
+
+// Handler for teasing out the automatic decompression
+func untarHandler(tarArchive io.Reader, dest string, options *archive.TarOptions, decompress bool, root string) error {
+	if tarArchive == nil {
+		return errors.New("empty archive")
+	}
+	if options == nil {
+		options = &archive.TarOptions{}
+	}
+
+	// Create dest here only if it is the root itself; paths below the root are
+	// created by the extractor after entering the chroot.
+	// This case is only currently used by cp.
+	if dest == root {
+		uid, gid := options.IDMap.RootPair()
+
+		dest = filepath.Clean(dest)
+		if _, err := os.Stat(dest); os.IsNotExist(err) {
+			if err := user.MkdirAllAndChown(dest, 0o755, uid, gid, user.WithOnlyNew); err != nil {
+				return err
+			}
+		}
+	}
+
+	r := io.NopCloser(tarArchive)
+	if decompress {
+		decompressedArchive, err := compression.DecompressStream(tarArchive)
+		if err != nil {
+			return err
+		}
+		defer decompressedArchive.Close()
+		r = decompressedArchive
+	}
+
+	return invokeUnpack(r, dest, options, root)
+}
 
 func invokeUnpack(decompressedArchive io.Reader, dest string, options *archive.TarOptions, root string) error {
 	relDest, err := resolvePathInChroot(root, dest)

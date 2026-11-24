@@ -20,6 +20,8 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
+	"syscall"
 )
 
 var errTooManyLinks = errors.New("too many links")
@@ -42,101 +44,60 @@ func fsRootPath(root, path string) (string, error) {
 
 func resolveFSRootPath(root, path string) (fsRootPathResult, error) {
 	result := fsRootPathResult{path: root}
-	if path == "" {
-		return result, nil
-	}
-	var linksWalked int // to protect against cycles
-	for {
-		i := linksWalked
-		newpath, err := walkLinks(root, path, &linksWalked, &result)
+	parts := strings.Split(filepath.FromSlash(path), string(os.PathSeparator))
+	resolved := make([]string, 0, len(parts))
+	linksWalked := 0
+	for len(parts) > 0 {
+		part := parts[0]
+		parts = parts[1:]
+		switch part {
+		case "", ".":
+			continue
+		case "..":
+			if len(resolved) > 0 {
+				resolved = resolved[:len(resolved)-1]
+			} else if !result.followedAbsoluteLink {
+				// Keep the path bounded, but do not let a later absolute link
+				// hide a relative escape from resolveArchivePath.
+				result.relativeEscapeBeforeAbsolute = true
+			}
+			continue
+		}
+
+		candidate := filepath.Join(root, filepath.Join(append(resolved, part)...))
+		fi, err := os.Lstat(candidate)
+		if os.IsNotExist(err) {
+			// A later .. can return to an existing parent. Continue resolving
+			// instead of cleaning the remaining path and skipping its symlinks.
+			resolved = append(resolved, part)
+			continue
+		}
 		if err != nil {
 			return fsRootPathResult{}, err
 		}
-		path = newpath
-		if i == linksWalked {
-			newpath = filepath.Join(string(os.PathSeparator), newpath)
-			if path == newpath {
-				result.path = filepath.Join(root, newpath)
-				return result, nil
+		if fi.Mode()&os.ModeSymlink == 0 {
+			if len(parts) > 0 && !fi.IsDir() {
+				return fsRootPathResult{}, &os.PathError{Op: "resolve", Path: candidate, Err: syscall.ENOTDIR}
 			}
-			path = newpath
+			resolved = append(resolved, part)
+			continue
 		}
-	}
-}
-
-func walkLink(root, path string, linksWalked *int, result *fsRootPathResult) (newpath string, islink bool, err error) {
-	if *linksWalked > 255 {
-		return "", false, errTooManyLinks
-	}
-
-	path = filepath.Join(string(os.PathSeparator), path)
-	if path == string(os.PathSeparator) {
-		return path, false, nil
-	}
-	realPath := filepath.Join(root, path)
-
-	fi, err := os.Lstat(realPath)
-	if err != nil {
-		// If path does not yet exist, treat as non-symlink
-		if os.IsNotExist(err) {
-			return path, false, nil
+		if linksWalked == 255 {
+			return fsRootPathResult{}, errTooManyLinks
 		}
-		return "", false, err
-	}
-	if fi.Mode()&os.ModeSymlink == 0 {
-		return path, false, nil
-	}
-	newpath, err = os.Readlink(realPath)
-	if err != nil {
-		return "", false, err
-	}
-	if filepath.IsAbs(newpath) {
-		result.followedAbsoluteLink = true
-	} else if !result.followedAbsoluteLink {
-		// Record an escape before a later absolute link can make the original
-		// os.Root error appear eligible for resolve-in-root fallback.
-		relativeDir, err := filepath.Rel(string(os.PathSeparator), filepath.Dir(path))
+		linksWalked++
+		target, err := os.Readlink(candidate)
 		if err != nil {
-			return "", false, err
+			return fsRootPathResult{}, err
 		}
-
-		resolved := filepath.Join(relativeDir, newpath)
-		if resolved != "." && !filepath.IsLocal(resolved) {
-			result.relativeEscapeBeforeAbsolute = true
+		if filepath.IsAbs(target) {
+			result.followedAbsoluteLink = true
+			resolved = resolved[:0]
 		}
+		// Expand symlinks before processing a following ..; lexical cleaning
+		// would remove the link rather than the directory it resolves to.
+		parts = append(strings.Split(filepath.FromSlash(target), string(os.PathSeparator)), parts...)
 	}
-
-	*linksWalked++
-	return newpath, true, nil
-}
-
-func walkLinks(root, path string, linksWalked *int, result *fsRootPathResult) (string, error) {
-	switch dir, file := filepath.Split(path); {
-	case dir == "":
-		newpath, _, err := walkLink(root, file, linksWalked, result)
-		return newpath, err
-	case file == "":
-		if os.IsPathSeparator(dir[len(dir)-1]) {
-			if dir == string(os.PathSeparator) {
-				return dir, nil
-			}
-			return walkLinks(root, dir[:len(dir)-1], linksWalked, result)
-		}
-		newpath, _, err := walkLink(root, dir, linksWalked, result)
-		return newpath, err
-
-	default:
-		newdir, err := walkLinks(root, dir, linksWalked, result)
-		if err != nil {
-			return "", err
-		}
-		newpath, islink, err := walkLink(root, filepath.Join(newdir, file), linksWalked, result)
-		if err != nil {
-			return "", err
-		}
-		if !islink || filepath.IsAbs(newpath) {
-			return newpath, nil
-		}
-		return filepath.Join(newdir, newpath), nil
-	}
+	result.path = filepath.Join(root, filepath.Join(resolved...))
+	return result, nil
 }

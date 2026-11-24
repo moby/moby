@@ -1,9 +1,11 @@
 package unshare
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"runtime"
+	"sync"
 
 	"golang.org/x/sys/unix"
 )
@@ -162,6 +164,11 @@ func Go(flags int, setupfn func() error, fn func()) error {
 				return
 			}
 		}
+		if flags&unix.CLONE_FS != 0 {
+			tid := unix.Gettid()
+			isolatedFS.Store(tid, struct{}{})
+			defer isolatedFS.Delete(tid)
+		}
 		close(started)
 
 		if fn != nil {
@@ -170,4 +177,35 @@ func Go(flags int, setupfn func() error, fn func()) error {
 	}()
 
 	return <-started
+}
+
+// isolatedFS tracks threads owned by Go with an unshared filesystem context.
+// These goroutines stay locked to their threads until fn returns.
+var isolatedFS sync.Map
+
+// WithCwd runs fn relative to dir on an isolated filesystem context. When the
+// caller already runs in Go with CLONE_FS, reuse that context and restore cwd
+// before returning. Otherwise use a new isolated thread.
+func WithCwd(dir *os.File, fn func() error) (retErr error) {
+	if _, ok := isolatedFS.Load(unix.Gettid()); ok {
+		fd, err := unix.Open(".", unix.O_PATH|unix.O_DIRECTORY|unix.O_CLOEXEC, 0)
+		if err != nil {
+			return os.NewSyscallError("open", err)
+		}
+		defer unix.Close(fd)
+		if err := dir.Chdir(); err != nil {
+			return err
+		}
+		defer func() {
+			if err := unix.Fchdir(fd); err != nil {
+				retErr = errors.Join(retErr, os.NewSyscallError("fchdir", err))
+			}
+		}()
+		return fn()
+	}
+	done := make(chan error, 1)
+	if err := Go(unix.CLONE_FS, dir.Chdir, func() { done <- fn() }); err != nil {
+		return err
+	}
+	return <-done
 }
