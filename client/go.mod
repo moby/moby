@@ -1,6 +1,6 @@
 module github.com/moby/moby/client
 
-go 1.24
+go 1.25
 
 require (
 	github.com/Microsoft/go-winio v0.6.2

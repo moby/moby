@@ -10,10 +10,7 @@ import (
 	"strings"
 )
 
-const (
-	shortLen = 12
-	fullLen  = 64
-)
+const shortLen = 12
 
 // TruncateID returns a shorthand version of a string identifier for presentation.
 // For convenience, it accepts both digests ("sha256:xxxx") and IDs without an
