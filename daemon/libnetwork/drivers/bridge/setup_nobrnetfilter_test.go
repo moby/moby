@@ -160,6 +160,34 @@ func TestNoBrNetfilter(t *testing.T) {
 			assert.Assert(t, fwn != nil)
 			assert.Check(t, is.Equal(fwn.Config4.DropRedirects, tc.expPrefixGws))
 			assert.Check(t, is.Equal(fwn.Config6.DropRedirects, tc.expPrefixGws))
+			// Conntrack sees packets within the network if they're routed via the host.
+			assert.Check(t, is.Equal(fwn.Config4.ConntrackIntraNetwork, tc.expPrefixGws))
+			assert.Check(t, is.Equal(fwn.Config6.ConntrackIntraNetwork, tc.expPrefixGws))
 		})
+	}
+}
+
+func TestBrNetfilterMode(t *testing.T) {
+	testcases := []struct {
+		icc, proxy, noBrNf bool
+		expBrNf, expNoBrNf bool
+	}{
+		{icc: true, proxy: true},
+		{icc: false, proxy: true, expBrNf: true},
+		{icc: true, proxy: false, expBrNf: true},
+		{icc: false, proxy: false, expBrNf: true},
+		{icc: true, proxy: true, noBrNf: true},
+		{icc: false, proxy: true, noBrNf: true, expNoBrNf: true},
+		{icc: true, proxy: false, noBrNf: true, expNoBrNf: true},
+		{icc: false, proxy: false, noBrNf: true, expNoBrNf: true},
+	}
+	for _, tc := range testcases {
+		n := &bridgeNetwork{
+			config: &networkConfiguration{EnableICC: tc.icc},
+			driver: &driver{config: Configuration{EnableProxy: tc.proxy, NoBrNetfilter: tc.noBrNf}},
+		}
+		brNf, noBrNf := n.brNetfilterMode()
+		assert.Check(t, is.Equal(brNf, tc.expBrNf), "icc=%v proxy=%v noBrNf=%v", tc.icc, tc.proxy, tc.noBrNf)
+		assert.Check(t, is.Equal(noBrNf, tc.expNoBrNf), "icc=%v proxy=%v noBrNf=%v", tc.icc, tc.proxy, tc.noBrNf)
 	}
 }

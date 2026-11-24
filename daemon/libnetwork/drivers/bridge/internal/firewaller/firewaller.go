@@ -73,6 +73,12 @@ type NetworkConfigFam struct {
 	// dropped. That's needed when containers send traffic for each other to the host,
 	// to be routed, so the host doesn't tell them to send it directly instead.
 	DropRedirects bool
+	// ConntrackIntraNetwork is true if conntrack sees packets between containers
+	// on the network, because packets bridged between them go through netfilter
+	// (br_netfilter), or because they're routed via the host. Then, replies to
+	// packets from the network that were DNATed to a container on the network
+	// are un-DNATed.
+	ConntrackIntraNetwork bool
 }
 
 // DNATFromOwnBridge returns true if packets that arrive from the network's own
@@ -80,15 +86,21 @@ type NetworkConfigFam struct {
 // they're left for the userland proxy.
 //
 // Without the proxy (config.Hairpin), they're always DNATed. With the proxy,
-// DNATing them needs two things the proxy avoids. First, br_netfilter: the
-// container's replies are bridged straight back to the client, so conntrack
-// only sees them, and restores their source address, if bridged packets go
-// through netfilter. The network has that when ICC is disabled. Second, for a
-// container that connects to its own published port, hairpin mode on its
-// bridge port and a MASQUERADE rule. A binding marked NoSelfConnect doesn't
-// need those.
+// DNATing them needs two things the proxy avoids. First, conntrack must see the
+// container's replies to restore their source address, which it does if the
+// network's [NetworkConfigFam.ConntrackIntraNetwork] is set for pb's address
+// family. Second, for a container that connects to its own published port,
+// hairpin mode on its bridge port and a MASQUERADE rule. A binding marked
+// NoSelfConnect doesn't need those.
 func (nc NetworkConfig) DNATFromOwnBridge(config Config, pb types.PortBinding) bool {
-	return config.Hairpin || (!nc.ICC && pb.NoSelfConnect)
+	if config.Hairpin {
+		return true
+	}
+	fam := nc.Config6
+	if pb.IP.To4() != nil {
+		fam = nc.Config4
+	}
+	return fam.ConntrackIntraNetwork && pb.NoSelfConnect
 }
 
 // Firewaller implements firewall rules for bridge networks.

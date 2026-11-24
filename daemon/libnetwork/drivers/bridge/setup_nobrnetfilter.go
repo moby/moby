@@ -46,6 +46,20 @@ type noBrNfConfig struct {
 	onLinkHosts []netip.Addr
 }
 
+// brNetfilterMode returns whether the network needs br_netfilter (useBrNf), or
+// routes traffic between its containers via the host instead (useNoBrNf).
+// Neither is needed unless ICC is disabled or the userland proxy is disabled.
+func (n *bridgeNetwork) brNetfilterMode() (useBrNf, useNoBrNf bool) {
+	// Module br_netfilter needs to be loaded with net.bridge.bridge-nf-call-ip[6]tables
+	// enabled to implement icc=false, or DNAT when the userland-proxy is disabled.
+	// Unless traffic between containers is routed through the host instead.
+	needBrNf := !n.config.EnableICC || !n.driver.config.EnableProxy
+	if needBrNf && n.driver.config.NoBrNetfilter {
+		return false, true
+	}
+	return needBrNf, false
+}
+
 // setupNoBrNetfilter is a bridge setup step, used in place of the br_netfilter
 // setup steps when the driver is configured with NoBrNetfilter. It works out
 // how the network will route traffic between containers through the host.

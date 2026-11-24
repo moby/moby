@@ -480,6 +480,12 @@ func (n *bridgeNetwork) newFirewallerNetwork(ctx context.Context) (_ firewaller.
 	config4.DropRedirects = n.noBrNf.gw4.IsValid()
 	config6.DropRedirects = n.noBrNf.gw6.IsValid()
 
+	// Tell the firewaller whether conntrack sees packets between containers on the
+	// network, so it knows whether DNATed packets from the network can be un-DNATed.
+	useBrNf, _ := n.brNetfilterMode()
+	config4.ConntrackIntraNetwork = (useBrNf && n.driver.config.EnableIPTables) || n.noBrNf.gw4.IsValid()
+	config6.ConntrackIntraNetwork = (useBrNf && n.driver.config.EnableIP6Tables) || n.noBrNf.gw6.IsValid()
+
 	// A firewalld zone applies to an interface, not to an address family. So
 	// the bridge goes in the docker zone if the daemon manages either family's
 	// firewall rules, and is left for the user to place if it manages neither.
@@ -871,12 +877,9 @@ func (d *driver) createNetwork(ctx context.Context, config *networkConfiguration
 		bridgeSetup.queueStep("setupMTU", setupMTU)
 	}
 
-	// Module br_netfilter needs to be loaded with net.bridge.bridge-nf-call-ip[6]tables
-	// enabled to implement icc=false, or DNAT when the userland-proxy is disabled.
-	// Unless traffic between containers is routed through the host instead.
-	needBrNf := !config.EnableICC || !d.config.EnableProxy
-	useNoBrNf := needBrNf && d.config.NoBrNetfilter
-	enableBrNfCallIptables := needBrNf && !useNoBrNf
+	// Work out whether the network needs br_netfilter, or routes traffic between its
+	// containers via the host instead.
+	enableBrNfCallIptables, useNoBrNf := network.brNetfilterMode()
 
 	// Conditionally queue setup steps depending on configuration values.
 	for _, step := range []struct {
