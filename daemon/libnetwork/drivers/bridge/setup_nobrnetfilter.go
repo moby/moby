@@ -5,6 +5,7 @@ package bridge
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/netip"
 
 	"github.com/containerd/log"
@@ -39,6 +40,10 @@ type noBrNfConfig struct {
 	// address family.
 	gw4 netip.Addr
 	gw6 netip.Addr
+	// onLinkHosts are addresses in the network that containers must still reach
+	// directly. That's the default gateway, if it's not the host's address on
+	// the bridge (it's an aux-address, or the daemon's --default-gateway).
+	onLinkHosts []netip.Addr
 }
 
 // setupNoBrNetfilter is a bridge setup step, used in place of the br_netfilter
@@ -46,15 +51,17 @@ type noBrNfConfig struct {
 // how the network will route traffic between containers through the host.
 //
 // Routing through the host is only possible for an address family if the host
-// has an address on the bridge, that address is the gateway, and forwarding is
-// enabled (the same condition as for using br_netfilter).
+// has an address on the bridge, and forwarding is enabled (the same condition as
+// for using br_netfilter). If the network's default gateway is not the host's
+// address, containers route the network's prefix via the host's address, but
+// still reach the default gateway directly.
 func (n *bridgeNetwork) setupNoBrNetfilter(config *networkConfiguration, i *bridgeInterface) error {
 	d := n.driver
 	var nc noBrNfConfig
 	nc.isolatePorts = !config.EnableICC
 
 	if d.config.EnableIPTables && config.EnableIPv4 && !config.InhibitIPv4 &&
-		!config.GwModeIPv4.isolated() && config.DefaultGatewayIPv4 == nil && i.bridgeIPv4 != nil {
+		!config.GwModeIPv4.isolated() && i.bridgeIPv4 != nil {
 		if enabled, err := getKernelBoolParam("/proc/sys/net/ipv4/ip_forward"); err != nil {
 			return fmt.Errorf("checking IPv4 forwarding: %w", err)
 		} else if enabled {
@@ -63,11 +70,14 @@ func (n *bridgeNetwork) setupNoBrNetfilter(config *networkConfiguration, i *brid
 				return fmt.Errorf("invalid bridge address %s", i.bridgeIPv4)
 			}
 			nc.gw4 = gw.Unmap()
+			if err := nc.addOnLinkHost(config.DefaultGatewayIPv4, nc.gw4); err != nil {
+				return err
+			}
 		}
 	}
 
 	if d.config.EnableIP6Tables && config.EnableIPv6 &&
-		!config.GwModeIPv6.isolated() && config.DefaultGatewayIPv6 == nil && i.bridgeIPv6 != nil {
+		!config.GwModeIPv6.isolated() && i.bridgeIPv6 != nil {
 		if enabled, err := getKernelBoolParam("/proc/sys/net/ipv6/conf/" + config.BridgeName + "/forwarding"); err != nil {
 			return fmt.Errorf("checking IPv6 forwarding: %w", err)
 		} else if enabled {
@@ -76,6 +86,9 @@ func (n *bridgeNetwork) setupNoBrNetfilter(config *networkConfiguration, i *brid
 				return fmt.Errorf("invalid bridge address %s", i.bridgeIPv6)
 			}
 			nc.gw6 = gw
+			if err := nc.addOnLinkHost(config.DefaultGatewayIPv6, nc.gw6); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -84,11 +97,28 @@ func (n *bridgeNetwork) setupNoBrNetfilter(config *networkConfiguration, i *brid
 		"isolatePorts": nc.isolatePorts,
 		"gw4":          nc.gw4,
 		"gw6":          nc.gw6,
+		"onLinkHosts":  nc.onLinkHosts,
 	}).Debug("Routing traffic between containers via the host, not using br_netfilter")
 
 	n.Lock()
 	n.noBrNf = nc
 	n.Unlock()
+	return nil
+}
+
+// addOnLinkHost adds defGw to nc.onLinkHosts, if it's set and it's not the
+// prefix gateway.
+func (nc *noBrNfConfig) addOnLinkHost(defGw net.IP, prefixGw netip.Addr) error {
+	if defGw == nil {
+		return nil
+	}
+	addr, ok := netip.AddrFromSlice(defGw)
+	if !ok {
+		return fmt.Errorf("invalid default gateway address %s", defGw)
+	}
+	if addr = addr.Unmap(); addr != prefixGw {
+		nc.onLinkHosts = append(nc.onLinkHosts, addr)
+	}
 	return nil
 }
 
@@ -107,6 +137,9 @@ func (n *bridgeNetwork) setupEndpointNoBrNetfilter(nlh nlwrap.Handle, host netli
 	}
 	if nc.gw4.IsValid() || nc.gw6.IsValid() {
 		ifInfo.SetPrefixGateways(nc.gw4, nc.gw6)
+		if len(nc.onLinkHosts) > 0 {
+			ifInfo.SetOnLinkHosts(nc.onLinkHosts...)
+		}
 	}
 	return nil
 }

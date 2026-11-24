@@ -3,10 +3,12 @@
 package bridge
 
 import (
+	"net"
 	"net/netip"
 	"os"
 	"testing"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/v2/daemon/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/moby/moby/v2/daemon/libnetwork/drvregistry"
@@ -24,6 +26,7 @@ func TestNoBrNetfilter(t *testing.T) {
 		icc          bool
 		proxy        bool
 		noForwarding bool
+		auxDefaultGw bool
 		expIsolated  bool
 		expPrefixGws bool
 	}{
@@ -42,6 +45,19 @@ func TestNoBrNetfilter(t *testing.T) {
 			name:  "icc=true, proxy",
 			icc:   true,
 			proxy: true,
+		},
+		{
+			name:         "icc=false, aux default gateway",
+			proxy:        true,
+			auxDefaultGw: true,
+			expIsolated:  true,
+			expPrefixGws: true,
+		},
+		{
+			name:         "icc=true, no proxy, aux default gateway",
+			icc:          true,
+			auxDefaultGw: true,
+			expPrefixGws: true,
 		},
 		{
 			name:         "icc=false, no forwarding",
@@ -76,6 +92,21 @@ func TestNoBrNetfilter(t *testing.T) {
 
 			const brName = "br-nobrnf"
 			ipd4, ipd6 := getIPv4Data(t), getIPv6Data(t)
+			// A default gateway that isn't the bridge's address, as set by
+			// "--aux-address DefaultGatewayIPv4=..." or the daemon's --default-gateway.
+			var auxGw4, auxGw6 netip.Addr
+			if tc.auxDefaultGw {
+				pool4, _ := netiputil.ToPrefix(ipd4[0].Pool)
+				pool6, _ := netiputil.ToPrefix(ipd6[0].Pool)
+				auxGw4 = netiputil.LastAddr(pool4).Prev()
+				auxGw6 = netiputil.LastAddr(pool6).Prev()
+				ipd4[0].AuxAddresses = map[string]*net.IPNet{
+					DefaultGatewayV4AuxKey: {IP: auxGw4.AsSlice(), Mask: ipd4[0].Pool.Mask},
+				}
+				ipd6[0].AuxAddresses = map[string]*net.IPNet{
+					DefaultGatewayV6AuxKey: {IP: auxGw6.AsSlice(), Mask: ipd6[0].Pool.Mask},
+				}
+			}
 			err = d.CreateNetwork(t.Context(), "net1", map[string]any{
 				netlabel.GenericData: &networkConfiguration{
 					BridgeName: brName,
@@ -95,6 +126,11 @@ func TestNoBrNetfilter(t *testing.T) {
 				gw6, _ := netiputil.ToPrefix(ipd6[0].Gateway)
 				assert.Check(t, is.Equal(te.iface.prefixGw4, gw4.Addr()))
 				assert.Check(t, is.Equal(te.iface.prefixGw6, gw6.Addr()))
+				if tc.auxDefaultGw {
+					assert.Check(t, is.DeepEqual(te.iface.onLinkHosts, []netip.Addr{auxGw4, auxGw6}, cmpopts.EquateComparable(netip.Addr{})))
+				} else {
+					assert.Check(t, is.Len(te.iface.onLinkHosts, 0))
+				}
 			} else {
 				assert.Check(t, is.Equal(te.iface.prefixGw4, netip.Addr{}))
 				assert.Check(t, is.Equal(te.iface.prefixGw6, netip.Addr{}))
