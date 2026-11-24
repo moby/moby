@@ -57,6 +57,9 @@ type EndpointInterface struct {
 	// [driverapi.InterfaceInfo.SetPrefixGateways].
 	prefixGw4 netip.Addr
 	prefixGw6 netip.Addr
+	// onLinkHosts are set by the driver, along with prefix gateways, see
+	// [driverapi.InterfaceInfo.SetOnLinkHosts].
+	onLinkHosts []netip.Addr
 }
 
 // endpointInterface is an intermediate struct used to marshal/unmarshal
@@ -77,6 +80,7 @@ type endpointInterface struct {
 	CreatedInContainer bool           `json:"createdInContainer"`
 	PrefixGw4          netip.Addr     `json:"prefixGw4,omitzero"`
 	PrefixGw6          netip.Addr     `json:"prefixGw6,omitzero"`
+	OnLinkHosts        []netip.Addr   `json:"onLinkHosts,omitempty"`
 }
 
 func (epi *EndpointInterface) MarshalJSON() ([]byte, error) {
@@ -99,6 +103,7 @@ func (epi *EndpointInterface) MarshalJSON() ([]byte, error) {
 		CreatedInContainer: epi.createdInContainer,
 		PrefixGw4:          epi.prefixGw4,
 		PrefixGw6:          epi.prefixGw6,
+		OnLinkHosts:        epi.onLinkHosts,
 	})
 }
 
@@ -131,6 +136,7 @@ func (epi *EndpointInterface) UnmarshalJSON(b []byte) error {
 		createdInContainer: epiTmp.CreatedInContainer,
 		prefixGw4:          epiTmp.PrefixGw4,
 		prefixGw6:          epiTmp.PrefixGw6,
+		onLinkHosts:        epiTmp.OnLinkHosts,
 	}
 
 	return nil
@@ -163,6 +169,7 @@ func (epi *EndpointInterface) Copy() *EndpointInterface {
 		createdInContainer: epi.createdInContainer,
 		prefixGw4:          epi.prefixGw4,
 		prefixGw6:          epi.prefixGw6,
+		onLinkHosts:        slices.Clone(epi.onLinkHosts),
 	}
 }
 
@@ -310,6 +317,11 @@ func (epi *EndpointInterface) SetCreatedInContainer(cic bool) {
 func (epi *EndpointInterface) SetPrefixGateways(gw4, gw6 netip.Addr) {
 	epi.prefixGw4 = gw4
 	epi.prefixGw6 = gw6
+}
+
+// SetOnLinkHosts implements [driverapi.InterfaceInfo].
+func (epi *EndpointInterface) SetOnLinkHosts(hosts ...netip.Addr) {
+	epi.onLinkHosts = slices.Clone(hosts)
 }
 
 func (ep *Endpoint) InterfaceName() driverapi.InterfaceNameInfo {

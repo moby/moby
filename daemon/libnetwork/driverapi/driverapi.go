@@ -196,6 +196,13 @@ type InterfaceInfo interface {
 	// unicast traffic to other addresses in the prefix is sent to the gateway,
 	// rather than directly to the destination.
 	SetPrefixGateways(gw4, gw6 netip.Addr)
+
+	// SetOnLinkHosts can be called by the driver, along with SetPrefixGateways, to
+	// say that the given addresses must still be reached directly (on-link)
+	// rather than via the prefix gateway. For example, a default gateway that
+	// isn't the prefix gateway. Each address must be in the prefix of the
+	// interface's address in the same family.
+	SetOnLinkHosts(hosts ...netip.Addr)
 }
 
 // InterfaceNameInfo provides a go interface for the drivers to assign names

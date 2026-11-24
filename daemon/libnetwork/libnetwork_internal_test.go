@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"reflect"
 	"runtime"
+	"slices"
 	"testing"
 	"time"
 
@@ -216,6 +217,10 @@ func TestEndpointMarshalling(t *testing.T) {
 			llAddrs:   lla,
 			prefixGw4: netip.MustParseAddr("10.0.1.1"),
 			prefixGw6: netip.MustParseAddr("2001:db8:4003::1"),
+			onLinkHosts: []netip.Addr{
+				netip.MustParseAddr("10.0.1.254"),
+				netip.MustParseAddr("2001:db8:4003::fe"),
+			},
 		},
 		dnsNames: []string{"test", "foobar", "baz"},
 	}
@@ -245,7 +250,7 @@ func compareEndpointInterface(a, b *EndpointInterface) bool {
 	}
 	return a.srcName == b.srcName && a.dstPrefix == b.dstPrefix && a.dstName == b.dstName && a.v4PoolID == b.v4PoolID && a.v6PoolID == b.v6PoolID &&
 		types.CompareIPNet(a.addr, b.addr) && types.CompareIPNet(a.addrv6, b.addrv6) && compareNwLists(a.llAddrs, b.llAddrs) &&
-		a.prefixGw4 == b.prefixGw4 && a.prefixGw6 == b.prefixGw6
+		a.prefixGw4 == b.prefixGw4 && a.prefixGw6 == b.prefixGw6 && slices.Equal(a.onLinkHosts, b.onLinkHosts)
 }
 
 func compareIpamConfList(listA, listB []*IpamConf) bool {

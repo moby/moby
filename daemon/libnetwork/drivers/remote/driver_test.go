@@ -188,6 +188,8 @@ func (test *testEndpoint) SetCreatedInContainer(bool) {}
 
 func (test *testEndpoint) SetPrefixGateways(netip.Addr, netip.Addr) {}
 
+func (test *testEndpoint) SetOnLinkHosts(...netip.Addr) {}
+
 func (test *testEndpoint) SetNames(srcName, dstPrefix, dstName string) error {
 	assert.Equal(test.t, test.srcName, srcName)
 	assert.Equal(test.t, test.dstPrefix, dstPrefix)
@@ -648,6 +650,8 @@ func (r *rollbackEndpoint) NetnsPath() string { return "" }
 func (r *rollbackEndpoint) SetCreatedInContainer(bool) {}
 
 func (r *rollbackEndpoint) SetPrefixGateways(netip.Addr, netip.Addr) {}
+
+func (r *rollbackEndpoint) SetOnLinkHosts(...netip.Addr) {}
 
 func TestRollback(t *testing.T) {
 	plugin := "test-net-driver-rollback"

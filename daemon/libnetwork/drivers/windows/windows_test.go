@@ -159,3 +159,6 @@ func (test *testEndpoint) SetCreatedInContainer(bool) {
 
 func (test *testEndpoint) SetPrefixGateways(netip.Addr, netip.Addr) {
 }
+
+func (test *testEndpoint) SetOnLinkHosts(...netip.Addr) {
+}
