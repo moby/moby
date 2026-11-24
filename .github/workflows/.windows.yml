@@ -27,7 +27,9 @@ on:
 
 env:
   GO_VERSION: "1.27.4"
+  # renovate: datasource=github-tags depName=crazy-max/gotestlist
   GOTESTLIST_VERSION: v0.3.1
+  # renovate: datasource=github-tags depName=vearutop/teststat
   TESTSTAT_VERSION: v0.1.25
   WINDOWS_BASE_IMAGE: mcr.microsoft.com/windows/servercore
   WINDOWS_BASE_TAG_2022: ltsc2022
