@@ -2038,6 +2038,64 @@ func TestAdvertiseAddressesLiveRestore(t *testing.T) {
 	}
 }
 
+func TestAdvertiseAddressesLiveRestoreDisabled(t *testing.T) {
+	skip.If(t, testEnv.IsRootless, "can't listen for ARP/NA messages in rootlesskit's namespace")
+
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t, "--live-restore")
+	defer d.Stop(t)
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	const netName = "dsnet-lr-off"
+	const brName = "br-advaddrlroff"
+	network.CreateNoError(ctx, t, c, netName,
+		network.WithOption(bridge.BridgeName, brName),
+		network.WithOption(netlabel.AdvertiseAddrNMsgs, "0"),
+		network.WithIPv6(),
+		network.WithIPAM("172.23.24.0/24", "172.23.24.1"),
+		network.WithIPAM("fd4c:f70b:973e::/64", "fd4c:f70b:973e::1"),
+	)
+	defer network.RemoveNoError(ctx, t, c, netName)
+
+	const ctrAddr4 = "172.23.24.22"
+	const ctrAddr6 = "fd4c:f70b:973e::2222"
+	ctrId := container.Run(ctx, t, c,
+		container.WithName("ctr-lr-off"),
+		container.WithNetworkMode(netName),
+		container.WithIPv4(netName, ctrAddr4),
+		container.WithIPv6(netName, ctrAddr6),
+	)
+	defer c.ContainerRemove(ctx, ctrId, client.ContainerRemoveOptions{Force: true})
+
+	stopARPListen := network.CollectBcastARPs(t, brName)
+	defer stopARPListen()
+	stopICMP6Listen := network.CollectICMP6(t, brName)
+	defer stopICMP6Listen()
+
+	d.Restart(t, "--live-restore")
+	time.Sleep(5 * time.Second)
+
+	var arpCount, naCount int
+	for _, p := range stopARPListen() {
+		if _, pa, err := network.UnpackUnsolARP(p); err == nil && pa == netip.MustParseAddr(ctrAddr4) {
+			arpCount++
+		}
+	}
+	for _, p := range stopICMP6Listen() {
+		if _, pa, err := network.UnpackUnsolNA(p); err == nil && pa == netip.MustParseAddr(ctrAddr6) {
+			naCount++
+		}
+	}
+	assert.Check(t, is.Equal(arpCount, 0), "ARP messages sent after live-restore with %s=0", netlabel.AdvertiseAddrNMsgs)
+	assert.Check(t, is.Equal(naCount, 0), "NA messages sent after live-restore with %s=0", netlabel.AdvertiseAddrNMsgs)
+
+	if t.Failed() {
+		d.TailLogsT(t, 100)
+	}
+}
+
 // TestNetworkInspectGateway checks that gateways reported in inspect output are parseable as addresses.
 func TestNetworkInspectGateway(t *testing.T) {
 	ctx := setupTest(t)
