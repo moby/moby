@@ -3,11 +3,7 @@ package storagekvv0
 import (
 	"context"
 
-	cerrdefs "github.com/containerd/errdefs"
-	"github.com/containerd/errdefs/pkg/errgrpc"
 	"github.com/moby/extensions"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 // KV accesses records in one namespace.
@@ -32,30 +28,30 @@ func GetKV(resolver extensions.Resolver, namespace string) (*KV, error) {
 func (kv *KV) Get(ctx context.Context, key string) ([]byte, error) {
 	resp, err := kv.provider.Get(ctx, &RecordRequest{Namespace: kv.namespace, Key: key})
 	if err != nil {
-		return nil, recordError(err)
+		return nil, err
 	}
 	return resp.Value, nil
 }
 
 // Create writes a new record, or returns a conflict if the key exists.
 func (kv *KV) Create(ctx context.Context, key string, value []byte) error {
-	return recordError(kv.provider.Create(ctx, &WriteRequest{Namespace: kv.namespace, Key: key, Value: value}))
+	return kv.provider.Create(ctx, &WriteRequest{Namespace: kv.namespace, Key: key, Value: value})
 }
 
 // Update replaces a record, or returns a not-found error if it is absent.
 func (kv *KV) Update(ctx context.Context, key string, value []byte) error {
-	return recordError(kv.provider.Update(ctx, &WriteRequest{Namespace: kv.namespace, Key: key, Value: value}))
+	return kv.provider.Update(ctx, &WriteRequest{Namespace: kv.namespace, Key: key, Value: value})
 }
 
 // Delete removes a record; deleting an absent record succeeds.
 func (kv *KV) Delete(ctx context.Context, key string) error {
-	return recordError(kv.provider.Delete(ctx, &RecordRequest{Namespace: kv.namespace, Key: key}))
+	return kv.provider.Delete(ctx, &RecordRequest{Namespace: kv.namespace, Key: key})
 }
 
 // DeletePrefix atomically removes records matching the nonempty key prefix.
 // Deleting a prefix with no matching records succeeds.
 func (kv *KV) DeletePrefix(ctx context.Context, prefix string) error {
-	return recordError(kv.provider.DeletePrefix(ctx, &DeletePrefixRequest{Namespace: kv.namespace, Prefix: prefix}))
+	return kv.provider.DeletePrefix(ctx, &DeletePrefixRequest{Namespace: kv.namespace, Prefix: prefix})
 }
 
 // ListOptions selects a page of keys in a KV namespace.
@@ -68,34 +64,10 @@ type ListOptions struct {
 // List returns matching keys in ascending byte order, not a snapshot.
 // Reuse NextCursor with the same prefix to continue listing.
 func (kv *KV) List(ctx context.Context, opts ListOptions) (*ListResponse, error) {
-	resp, err := kv.provider.List(ctx, &ListRequest{
+	return kv.provider.List(ctx, &ListRequest{
 		Namespace: kv.namespace,
 		Prefix:    opts.Prefix,
 		Limit:     opts.Limit,
 		Cursor:    opts.Cursor,
 	})
-	return resp, recordError(err)
 }
-
-// Preserve native errors, including context cancellation and filesystem causes.
-// RPC clients need their status errors translated back to Go error categories.
-func recordError(err error) error {
-	if err == nil || cerrdefs.IsUnavailable(err) {
-		return err
-	}
-	s, ok := status.FromError(err)
-	if !ok {
-		return err
-	}
-	native := errgrpc.ToNative(err)
-	if s.Code() == codes.AlreadyExists && !cerrdefs.IsConflict(native) {
-		return errConflict{native}
-	}
-	return native
-}
-
-type errConflict struct{ error }
-
-func (errConflict) Conflict() {}
-
-func (e errConflict) Unwrap() error { return e.error }
