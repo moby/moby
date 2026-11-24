@@ -35,7 +35,7 @@ type grpcRouter struct {
 // Deprecated: The /grpc endpoint is deprecated and will be removed in the next
 // major version. The Engine now properly supports HTTP/2 and h2c requests.
 func NewRouter(backends ...Backend) router.Router {
-	tp, _ := otelutil.NewTracerProvider(context.Background(), false)
+	tp := otelutil.NewTracerProvider(context.Background(), false)
 	opts := []grpc.ServerOption{
 		grpc.StatsHandler(tracing.ServerStatsHandler(otelgrpc.WithTracerProvider(tp))),
 		grpc.ChainUnaryInterceptor(unaryInterceptor, grpcerrors.UnaryServerInterceptor),
