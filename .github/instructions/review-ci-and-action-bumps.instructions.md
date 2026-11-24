@@ -1,3 +1,7 @@
+---
+applyTo: ".github/workflows/**,.github/actions/**,**/Dockerfile*,**/*.Dockerfile,hack/dockerfile/**,docker-bake.hcl"
+---
+
 # Review CI and action bumps carefully
 
 For GitHub Actions, CI, toolchain, base image, or packaging bump PRs, review the effective change, not just the version or SHA update.

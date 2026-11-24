@@ -1,3 +1,7 @@
+---
+applyTo: "**/go.mod,**/go.sum,**/vendor/**"
+---
+
 # Review Go dependency bumps carefully
 
 For Go module, `go.sum`, and `vendor/` bump PRs, review the actual code changes, not just the version bump.
