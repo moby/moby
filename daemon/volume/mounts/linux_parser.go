@@ -74,6 +74,9 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 					return &errMountConfig{mnt, fmt.Errorf("invalid propagation mode: %s", opts.Propagation)}
 				}
 			}
+			if err := validateIDMapping(opts.IDMapping); err != nil {
+				return &errMountConfig{mnt, err}
+			}
 		}
 
 		if err := linuxValidateAbsolute(mnt.Source); err != nil {
@@ -465,4 +468,18 @@ func (p *linuxParser) ValidateTmpfsMountDestination(dest string) error {
 		return err
 	}
 	return linuxValidateAbsolute(dest)
+}
+
+// validateIDMapping validates the ID mapping of an id-mapped bind mount.
+// The mapping itself is derived (and further validated) when the container
+// starts: from the mount source's owner and the container user for
+// "match-user".
+func validateIDMapping(m *mount.IDMapping) error {
+	if m == nil {
+		return nil
+	}
+	if m.Source != mount.IDMappingSourceMatchUser {
+		return fmt.Errorf(`invalid ID mapping: unknown Source %q (must be "match-user")`, m.Source)
+	}
+	return nil
 }

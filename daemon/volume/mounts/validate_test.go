@@ -98,6 +98,36 @@ func TestValidateMount(t *testing.T) {
 			},
 		}
 		tests = append(tests, imageTests...)
+
+		idMappingTests := []struct {
+			input    mount.Mount
+			expected error
+		}{
+			{
+				input: mount.Mount{Type: mount.TypeBind, Source: testDir, Target: testDestinationPath, BindOptions: &mount.BindOptions{
+					IDMapping: &mount.IDMapping{Source: mount.IDMappingSourceMatchUser},
+				}},
+			},
+			{
+				input: mount.Mount{Type: mount.TypeBind, Source: testDir, Target: testDestinationPath, BindOptions: &mount.BindOptions{
+					IDMapping: &mount.IDMapping{Source: mount.IDMappingSourceMatchUser, User: "nginx"},
+				}},
+			},
+			{
+				// An empty IDMapping does not select a mapping source.
+				input: mount.Mount{Type: mount.TypeBind, Source: testDir, Target: testDestinationPath, BindOptions: &mount.BindOptions{
+					IDMapping: &mount.IDMapping{},
+				}},
+				expected: errors.New(`invalid ID mapping: unknown Source "" (must be "match-user")`),
+			},
+			{
+				input: mount.Mount{Type: mount.TypeBind, Source: testDir, Target: testDestinationPath, BindOptions: &mount.BindOptions{
+					IDMapping: &mount.IDMapping{Source: "magic"},
+				}},
+				expected: errors.New(`invalid ID mapping: unknown Source "magic" (must be "match-user")`),
+			},
+		}
+		tests = append(tests, idMappingTests...)
 	}
 
 	for _, tc := range tests {
