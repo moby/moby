@@ -31,7 +31,7 @@ env:
   # renovate: datasource=github-tags depName=crazy-max/gotestlist
   GOTESTLIST_VERSION: v0.3.1
   # renovate: datasource=github-tags depName=vearutop/teststat
-  TESTSTAT_VERSION: v0.1.25
+  TESTSTAT_VERSION: v0.1.29
   ITG_CLI_MATRIX_SIZE: 6
   DOCKER_EXPERIMENTAL: 1
   DOCKER_GRAPHDRIVER: ${{ inputs.storage == 'snapshotter' && 'overlayfs' || 'overlay2' }}
