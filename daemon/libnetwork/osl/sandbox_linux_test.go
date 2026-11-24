@@ -523,6 +523,37 @@ func TestRestoreInterfacesSkipsSharedMACWhenAddressIsGone(t *testing.T) {
 	}
 }
 
+func TestRestoreInterfacesMatchesIPv6OnlyEndpointByAddress(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+
+	key, err := newKey(t)
+	assert.NilError(t, err)
+	n, err := NewSandbox(key, true, false)
+	assert.NilError(t, err)
+	defer destroyTest(t, n)
+
+	assert.NilError(t, ns.NlHandle().LinkAdd(&netlink.Veth{
+		LinkAttrs: netlink.LinkAttrs{Name: vethName1},
+		PeerName:  vethName2,
+	}))
+	addr, err := types.ParseCIDR("2001:db8::44/64")
+	assert.NilError(t, err)
+	opts := []IfaceOption{WithIPv6Address(addr), WithAdvertiseAddrNMsgs(0)}
+	assert.NilError(t, n.AddInterface(t.Context(), vethName2, sboxIfacePrefix, "", opts...))
+	dstName := n.Interfaces()[0].DstName()
+
+	restored, err := NewSandbox(key, true, true)
+	assert.NilError(t, err)
+	defer destroyTest(t, restored)
+	assert.NilError(t, restored.RestoreInterfaces(t.Context(), map[Iface][]IfaceOption{
+		{SrcName: vethName2, DstPrefix: sboxIfacePrefix}: opts,
+	}))
+
+	ifaces := restored.Interfaces()
+	assert.Assert(t, is.Len(ifaces, 1))
+	assert.Check(t, is.Equal(ifaces[0].DstName(), dstName))
+}
+
 func TestSandboxCreate(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 

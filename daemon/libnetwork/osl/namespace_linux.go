@@ -418,7 +418,7 @@ func (n *Namespace) RestoreInterfaces(ctx context.Context, interfaces map[Iface]
 					if err != nil {
 						return err
 					}
-					if name, found := findIfname(i.address, addresses); found {
+					if name, found := findIfname(i.addressIPv6, addresses); found {
 						i.dstName, matched = name, true
 						break
 					}
