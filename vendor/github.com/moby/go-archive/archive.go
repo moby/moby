@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -453,6 +452,11 @@ func (ta *tarAppender) addTarFile(srcPath, archivePath string) error {
 	return nil
 }
 
+type resolvedArchivePath struct {
+	path             string
+	parentWasPresent bool
+}
+
 // resolveArchivePath resolves intermediate symlinks in name using chroot-like
 // semantics when os.Root cannot traverse them. The final path component is
 // intentionally preserved because archive extraction may create or replace it.
@@ -466,13 +470,17 @@ func (ta *tarAppender) addTarFile(srcPath, archivePath string) error {
 // Paths with missing components are supported. Existing symlinks are resolved,
 // and any remaining nonexistent components are retained for later creation.
 //
+// The result records whether this resolution observed the parent directory.
+// Callers may use that observation to avoid a duplicate check for this entry,
+// but must not reuse it for later entries.
+//
 // This helper should eventually be replaced by handle-relative resolution and
 // operations with resolve-in-root semantics, avoiding the resolution/use race
 // and repeated path traversal.
-func resolveArchivePath(root *os.Root, name string) (string, error) {
+func resolveArchivePath(root *os.Root, name string) (resolvedArchivePath, error) {
 	parent, base := filepath.Split(name)
 	if parent == "" {
-		return name, nil
+		return resolvedArchivePath{path: name, parentWasPresent: true}, nil
 	}
 
 	parent = filepath.Clean(parent)
@@ -482,9 +490,9 @@ func resolveArchivePath(root *os.Root, name string) (string, error) {
 	_, statErr := root.Stat(parent)
 	switch {
 	case statErr == nil:
-		return name, nil
+		return resolvedArchivePath{path: name, parentWasPresent: true}, nil
 	case !os.IsNotExist(statErr) && !isPathEscapes(statErr):
-		return "", statErr
+		return resolvedArchivePath{}, statErr
 	}
 
 	// Resolve the parent both to handle ENOENT from missing components or dangling
@@ -492,16 +500,16 @@ func resolveArchivePath(root *os.Root, name string) (string, error) {
 	// absolute symlink. Relative symlink escapes preserve the original Stat error.
 	resolved, err := resolveFSRootPath(root.Name(), parent)
 	if err != nil {
-		return "", err
+		return resolvedArchivePath{}, err
 	}
 
 	if isPathEscapes(statErr) && (!resolved.followedAbsoluteLink || resolved.relativeEscapeBeforeAbsolute) {
-		return "", statErr
+		return resolvedArchivePath{}, statErr
 	}
 
 	relParent, err := filepath.Rel(root.Name(), resolved.path)
 	if err != nil {
-		return "", breakoutError(fmt.Errorf(
+		return resolvedArchivePath{}, breakoutError(fmt.Errorf(
 			"could not make resolved parent %q relative to root %q: %w",
 			resolved.path,
 			root.Name(),
@@ -509,14 +517,14 @@ func resolveArchivePath(root *os.Root, name string) (string, error) {
 		))
 	}
 	if relParent != "." && !filepath.IsLocal(relParent) {
-		return "", breakoutError(fmt.Errorf(
+		return resolvedArchivePath{}, breakoutError(fmt.Errorf(
 			"resolved parent %q escapes root %q",
 			resolved.path,
 			root.Name(),
 		))
 	}
 
-	return filepath.Join(relParent, base), nil
+	return resolvedArchivePath{path: filepath.Join(relParent, base)}, nil
 }
 
 // resolveHardlinkTarget validates a POSIX hardlink target and resolves it to
@@ -534,7 +542,11 @@ func resolveHardlinkTarget(root *os.Root, linkname string) (string, error) {
 	if cleaned == "." || !filepath.IsLocal(cleaned) {
 		return "", breakoutError(fmt.Errorf("invalid hardlink target %q", linkname))
 	}
-	return resolveArchivePath(root, filepath.FromSlash(cleaned))
+	resolved, err := resolveArchivePath(root, filepath.FromSlash(cleaned))
+	if err != nil {
+		return "", err
+	}
+	return resolved.path, nil
 }
 
 // createTarFile extracts a single tar entry into the given root. dstPath is the
@@ -662,30 +674,9 @@ func createTarFile(root *os.Root, dstPath string, hdr *tar.Header, reader io.Rea
 		}
 	}
 
-	var xattrErrs []string
-	absPath := sync.OnceValues(func() (string, error) {
-		return fsRootPath(root.Name(), dstPath)
-	})
-	for key, value := range hdr.PAXRecords {
-		xattr, ok := strings.CutPrefix(key, paxSchilyXattr)
-		if !ok {
-			continue
-		}
-		// os.Root has no xattr support; use the absolute path derived from
-		// the root so the path remains bounded.
-		ap, err := absPath()
-		if err != nil {
-			return err
-		}
-		if err := lsetxattr(ap, xattr, []byte(value), 0); err != nil {
-			if bestEffortXattrs && errors.Is(err, syscall.ENOTSUP) || errors.Is(err, syscall.EPERM) {
-				// EPERM occurs if modifying xattrs is not allowed. This can
-				// happen when running in userns with restrictions (ChromeOS).
-				xattrErrs = append(xattrErrs, err.Error())
-				continue
-			}
-			return err
-		}
+	xattrErrs, err := applyXattrs(root, dstPath, hdr.PAXRecords, bestEffortXattrs, internalOpts)
+	if err != nil {
+		return err
 	}
 
 	if len(xattrErrs) > 0 {
@@ -724,6 +715,40 @@ func createTarFile(root *os.Root, dstPath string, hdr *tar.Header, reader io.Rea
 		}
 	}
 	return nil
+}
+
+// applyXattrs resolves the xattr destination once per entry, and only when
+// there are xattrs to restore.
+func applyXattrs(root *os.Root, name string, records map[string]string, bestEffort bool, opts *archiveoptions.Options) ([]string, error) {
+	for key := range records {
+		if !strings.HasPrefix(key, paxSchilyXattr) {
+			continue
+		}
+		var ignored []string
+		err := withXattrPath(root, name, opts, func(path string) error {
+			for key, value := range records {
+				attr, ok := strings.CutPrefix(key, paxSchilyXattr)
+				if !ok {
+					continue
+				}
+				if err := lsetxattr(path, attr, []byte(value), 0); err != nil {
+					if bestEffort && errors.Is(err, syscall.ENOTSUP) || errors.Is(err, syscall.EPERM) {
+						// EPERM also occurs in restricted user namespaces.
+						ignored = append(ignored, fmt.Sprintf("entry %q: %v", name, err))
+						continue
+					}
+					return err
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			// Include the entry for both xattr and path or isolation errors.
+			err = fmt.Errorf("entry %q: %w", name, err)
+		}
+		return ignored, err
+	}
+	return nil, nil
 }
 
 // Tar creates an archive from the directory at `srcPath`, and returns it as a
@@ -965,15 +990,18 @@ func (t *Tarballer) Do() {
 	}
 }
 
-// unpackedDir records a directory whose mtime must be restored after all
-// entries are extracted, along with the root-relative entry name used during
-// extraction.
+// unpackedDir records a directory whose times must be restored after all
+// entries are extracted.
 type unpackedDir struct {
-	hdr  *tar.Header
-	name string // root-relative entry name
+	name  string // root-relative entry name
+	atime time.Time
+	mtime time.Time
 }
 
 // Unpack unpacks the decompressedArchive to dest with options.
+//
+// On Linux, restoring xattrs without /proc/self/fd requires permission to
+// call unshare(CLONE_FS). Otherwise extraction returns an error.
 func Unpack(decompressedArchive io.Reader, dest string, options *TarOptions) error {
 	if options == nil {
 		options = &TarOptions{}
@@ -1034,10 +1062,11 @@ loop:
 		// dstPath is the native (host-separator) form of the entry name,
 		// used at all filesystem boundaries (os.Root methods, fsRootPath).
 		// hdr.Name stays POSIX (forward-slash) for logical string checks.
-		dstPath, err := resolveArchivePath(root, filepath.FromSlash(hdr.Name))
+		resolvedPath, err := resolveArchivePath(root, filepath.FromSlash(hdr.Name))
 		if err != nil {
 			return err
 		}
+		dstPath := resolvedPath.path
 
 		// If dstPath exists we almost always just want to remove and replace it.
 		// The only exception is when it is a directory *and* the file from
@@ -1075,7 +1104,7 @@ loop:
 		//
 		// This must be done before whiteoutConverter.ConvertRead, which
 		// may set xattrs on the directory or create whiteout files.
-		if err := createImpliedDirectories(root, dstPath, options); err != nil {
+		if err := createImpliedDirectories(root, resolvedPath, options); err != nil {
 			return err
 		}
 
@@ -1096,13 +1125,16 @@ loop:
 		// Directory mtimes must be handled at the end to avoid further
 		// file creation in them to modify the directory mtime
 		if hdr.Typeflag == tar.TypeDir {
-			dirs = append(dirs, unpackedDir{hdr: hdr, name: dstPath})
+			dirs = append(dirs, unpackedDir{
+				name:  dstPath,
+				atime: boundTime(latestTime(hdr.AccessTime, hdr.ModTime)),
+				mtime: boundTime(hdr.ModTime),
+			})
 		}
 	}
 
 	for _, d := range dirs {
-		aTime := boundTime(latestTime(d.hdr.AccessTime, d.hdr.ModTime))
-		if err := chtimes(root, d.name, aTime, boundTime(d.hdr.ModTime)); err != nil {
+		if err := chtimes(root, d.name, d.atime, d.mtime); err != nil {
 			return err
 		}
 	}
@@ -1136,15 +1168,14 @@ func unrepresentableOnWindows(hdr *tar.Header) error {
 // by file paths, without corresponding directory headers from which metadata
 // could be restored.
 //
-// The caller must pass a normalized, root-relative local path. Any archive-path
-// conversion and resolve-in-root handling must already have been applied.
+// The caller must pass the result of resolving the current archive entry.
 // Directory creation is performed through root, so it remains confined to the
 // extraction destination even if the destination tree changes concurrently.
-func createImpliedDirectories(root *os.Root, dstPath string, options *TarOptions) error {
-	parent := filepath.Dir(dstPath)
+func createImpliedDirectories(root *os.Root, resolved resolvedArchivePath, options *TarOptions) error {
+	parent := filepath.Dir(resolved.path)
 
 	// Skip when the parent is the root itself; nothing to create.
-	if parent == "." || parent == "" {
+	if parent == "." || parent == "" || resolved.parentWasPresent {
 		return nil
 	}
 	if _, err := root.Lstat(parent); err == nil {

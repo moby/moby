@@ -1,15 +1,11 @@
 package chrootarchive
 
 import (
-	"errors"
 	"io"
-	"os"
-	"path/filepath"
 
 	"github.com/moby/sys/user"
 
 	"github.com/moby/go-archive"
-	"github.com/moby/go-archive/compression"
 )
 
 // NewArchiver returns a new Archiver which uses chrootarchive.Untar
@@ -49,41 +45,6 @@ func UntarWithRoot(tarArchive io.Reader, dest string, options *archive.TarOption
 // The archive must be an uncompressed stream.
 func UntarUncompressed(tarArchive io.Reader, dest string, options *archive.TarOptions) error {
 	return untarHandler(tarArchive, dest, options, false, dest)
-}
-
-// Handler for teasing out the automatic decompression
-func untarHandler(tarArchive io.Reader, dest string, options *archive.TarOptions, decompress bool, root string) error {
-	if tarArchive == nil {
-		return errors.New("empty archive")
-	}
-	if options == nil {
-		options = &archive.TarOptions{}
-	}
-
-	// If dest is inside a root then directory is created within chroot by extractor.
-	// This case is only currently used by cp.
-	if dest == root {
-		uid, gid := options.IDMap.RootPair()
-
-		dest = filepath.Clean(dest)
-		if _, err := os.Stat(dest); os.IsNotExist(err) {
-			if err := user.MkdirAllAndChown(dest, 0o755, uid, gid, user.WithOnlyNew); err != nil {
-				return err
-			}
-		}
-	}
-
-	r := io.NopCloser(tarArchive)
-	if decompress {
-		decompressedArchive, err := compression.DecompressStream(tarArchive)
-		if err != nil {
-			return err
-		}
-		defer decompressedArchive.Close()
-		r = decompressedArchive
-	}
-
-	return invokeUnpack(r, dest, options, root)
 }
 
 // Tar tars the requested path while chrooted to the specified root.

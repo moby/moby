@@ -1,7 +1,10 @@
 package chrootarchive
 
 import (
+	"errors"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/moby/go-archive"
@@ -25,14 +28,34 @@ func addLongPathPrefix(srcPath string) string {
 	return longPathPrefix + srcPath
 }
 
-func invokeUnpack(decompressedArchive io.ReadCloser, dest string, options *archive.TarOptions, root string) error {
+// Handler for teasing out the automatic decompression
+func untarHandler(tarArchive io.Reader, dest string, options *archive.TarOptions, decompress bool, root string) error {
+	if tarArchive == nil {
+		return errors.New("empty archive")
+	}
+
+	// Create dest here only if it is the root itself; paths below the root are
+	// created by the extractor after entering the chroot.
+	// This case is only currently used by cp.
+	if dest == root {
+		dest = filepath.Clean(dest)
+		if _, err := os.Stat(dest); os.IsNotExist(err) {
+			if err := os.MkdirAll(dest, 0); err != nil {
+				return err
+			}
+		}
+	}
+
 	// Windows is different to Linux here because Windows does not support
 	// chroot. Hence there is no point sandboxing a chrooted process to
 	// do the unpack. We call inline instead within the daemon process.
-	return archive.Unpack(decompressedArchive, addLongPathPrefix(dest), options)
+	if decompress {
+		return archive.Untar(tarArchive, addLongPathPrefix(dest), options)
+	}
+	return archive.UntarUncompressed(tarArchive, addLongPathPrefix(dest), options)
 }
 
-func invokePack(srcPath string, options *archive.TarOptions, root string) (io.ReadCloser, error) {
+func invokePack(srcPath string, options *archive.TarOptions, _ string) (io.ReadCloser, error) {
 	// Windows is different to Linux here because Windows does not support
 	// chroot. Hence there is no point sandboxing a chrooted process to
 	// do the pack. We call inline instead within the daemon process.
