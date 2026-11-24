@@ -31,6 +31,8 @@ on public disclosure before the patch release, the reporter(s) are expected to
 participate in the discussion of the timeline and abide by agreed upon dates
 for public disclosure.
 
+Maintainers writing the advisory should use [SECURITY-ADVISORY-TEMPLATE.md](project/SECURITY-ADVISORY-TEMPLATE.md).
+
 ## Accreditation
 
 Security reports are greatly appreciated and we will publicly thank you,
