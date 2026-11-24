@@ -33,6 +33,13 @@
       "matchStrings": [
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?[ \\t]*\\r?\\n[ \\t]*: \"\\$\\{\\w+:=(?<currentValue>[^}]+)\\}\""
       ]
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github\\/workflows\\/.*\\.ya?ml$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?[ \\t]*\\r?\\n[ \\t]*\\w+_VERSION:[ \\t]+[\"']?(?<currentValue>[^\\s\"']+)"
+      ]
     }
   ],
   "packageRules": [
