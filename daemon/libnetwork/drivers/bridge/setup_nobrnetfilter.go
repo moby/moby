@@ -54,10 +54,33 @@ func (n *bridgeNetwork) brNetfilterMode() (useBrNf, useNoBrNf bool) {
 	// enabled to implement icc=false, or DNAT when the userland-proxy is disabled.
 	// Unless traffic between containers is routed through the host instead.
 	needBrNf := !n.config.EnableICC || !n.driver.config.EnableProxy
-	if needBrNf && n.driver.config.NoBrNetfilter {
+	if needBrNf && n.driver.noBrNetfilter() {
 		return false, true
 	}
 	return needBrNf, false
+}
+
+// brNetfilterProbe is used to check whether br_netfilter is usable, it can be
+// replaced by tests.
+var brNetfilterProbe = brNetfilterUsable
+
+// noBrNetfilter returns true if networks that need br_netfilter must route
+// traffic between containers through the host instead. That's if the driver is
+// configured with NoBrNetfilter, or br_netfilter is not usable.
+//
+// The check for br_netfilter is only made once, when it's first needed (so the
+// module isn't loaded unless a network needs it).
+func (d *driver) noBrNetfilter() bool {
+	if d.config.NoBrNetfilter {
+		return true
+	}
+	d.brNfOnce.Do(func() {
+		d.brNfErr = brNetfilterProbe(d.config.EnableIPTables, d.config.EnableIP6Tables)
+		if d.brNfErr != nil {
+			log.G(context.TODO()).WithError(d.brNfErr).Info("br_netfilter is not usable, routing traffic between containers via the host instead")
+		}
+	})
+	return d.brNfErr != nil
 }
 
 // setupNoBrNetfilter is a bridge setup step, used in place of the br_netfilter

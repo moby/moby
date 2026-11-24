@@ -3,9 +3,12 @@
 package bridge
 
 import (
+	"errors"
+	"fmt"
 	"net"
 	"net/netip"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -170,24 +173,68 @@ func TestNoBrNetfilter(t *testing.T) {
 func TestBrNetfilterMode(t *testing.T) {
 	testcases := []struct {
 		icc, proxy, noBrNf bool
+		probeErr           error
 		expBrNf, expNoBrNf bool
+		expProbe           bool
 	}{
 		{icc: true, proxy: true},
-		{icc: false, proxy: true, expBrNf: true},
-		{icc: true, proxy: false, expBrNf: true},
-		{icc: false, proxy: false, expBrNf: true},
+		{icc: false, proxy: true, expBrNf: true, expProbe: true},
+		{icc: true, proxy: false, expBrNf: true, expProbe: true},
+		{icc: false, proxy: false, expBrNf: true, expProbe: true},
 		{icc: true, proxy: true, noBrNf: true},
 		{icc: false, proxy: true, noBrNf: true, expNoBrNf: true},
 		{icc: true, proxy: false, noBrNf: true, expNoBrNf: true},
 		{icc: false, proxy: false, noBrNf: true, expNoBrNf: true},
+		// br_netfilter is not usable, traffic must be routed via the host.
+		{icc: true, proxy: true, probeErr: errors.New("no br_netfilter")},
+		{icc: false, proxy: true, probeErr: errors.New("no br_netfilter"), expNoBrNf: true, expProbe: true},
+		{icc: true, proxy: false, probeErr: errors.New("no br_netfilter"), expNoBrNf: true, expProbe: true},
 	}
 	for _, tc := range testcases {
-		n := &bridgeNetwork{
-			config: &networkConfiguration{EnableICC: tc.icc},
-			driver: &driver{config: Configuration{EnableProxy: tc.proxy, NoBrNetfilter: tc.noBrNf}},
-		}
-		brNf, noBrNf := n.brNetfilterMode()
-		assert.Check(t, is.Equal(brNf, tc.expBrNf), "icc=%v proxy=%v noBrNf=%v", tc.icc, tc.proxy, tc.noBrNf)
-		assert.Check(t, is.Equal(noBrNf, tc.expNoBrNf), "icc=%v proxy=%v noBrNf=%v", tc.icc, tc.proxy, tc.noBrNf)
+		name := fmt.Sprintf("icc=%v/proxy=%v/noBrNf=%v/probeErr=%v", tc.icc, tc.proxy, tc.noBrNf, tc.probeErr)
+		t.Run(name, func(t *testing.T) {
+			var probed int
+			origProbe := brNetfilterProbe
+			brNetfilterProbe = func(bool, bool) error { probed++; return tc.probeErr }
+			defer func() { brNetfilterProbe = origProbe }()
+
+			n := &bridgeNetwork{
+				config: &networkConfiguration{EnableICC: tc.icc},
+				driver: &driver{config: Configuration{EnableProxy: tc.proxy, NoBrNetfilter: tc.noBrNf}},
+			}
+			brNf, noBrNf := n.brNetfilterMode()
+			assert.Check(t, is.Equal(brNf, tc.expBrNf))
+			assert.Check(t, is.Equal(noBrNf, tc.expNoBrNf))
+			// The result is cached.
+			brNf, noBrNf = n.brNetfilterMode()
+			assert.Check(t, is.Equal(brNf, tc.expBrNf))
+			assert.Check(t, is.Equal(noBrNf, tc.expNoBrNf))
+			if tc.expProbe {
+				assert.Check(t, is.Equal(probed, 1))
+			} else {
+				assert.Check(t, is.Equal(probed, 0))
+			}
+		})
 	}
+}
+
+func TestBrNetfilterUsable(t *testing.T) {
+	dir := t.TempDir()
+	param := func(name, val string) string {
+		p := filepath.Join(dir, name)
+		assert.NilError(t, os.WriteFile(p, []byte(val), 0o644))
+		return p
+	}
+	enabled4 := param("enabled4", "1\n")
+	enabled6 := param("enabled6", "1\n")
+	disabled6 := param("disabled6", "0\n")
+	missing := filepath.Join(dir, "missing")
+
+	assert.Check(t, brNetfilterUsableAt(missing, missing, false, false))
+	assert.Check(t, brNetfilterUsableAt(enabled4, enabled6, true, true))
+	assert.Check(t, brNetfilterUsableAt(enabled4, missing, true, false))
+	// Disabled, but writable.
+	assert.Check(t, brNetfilterUsableAt(enabled4, disabled6, true, true))
+	// The sysctl doesn't exist (for example, in a user namespace from kernel 7.4).
+	assert.Check(t, is.ErrorContains(brNetfilterUsableAt(enabled4, missing, true, true), "missing"))
 }

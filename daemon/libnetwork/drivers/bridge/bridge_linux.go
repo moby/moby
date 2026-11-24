@@ -78,7 +78,8 @@ type Configuration struct {
 	// NoBrNetfilter means networks that would otherwise need br_netfilter (to
 	// implement icc=false, or DNAT between containers on the same network when the
 	// userland proxy is disabled) must instead route traffic between containers
-	// through the host. See [bridgeNetwork.setupNoBrNetfilter].
+	// through the host. See [bridgeNetwork.setupNoBrNetfilter]. If it's false,
+	// traffic is still routed through the host if br_netfilter isn't usable.
 	NoBrNetfilter bool
 }
 
@@ -185,6 +186,10 @@ type driver struct {
 	portmappers   *drvregistry.PortMappers
 	// mu is used to protect accesses to config and networks. Do not hold this lock while locking configNetwork.
 	mu sync.Mutex
+	// brNfOnce is used to check whether br_netfilter is usable, the first time
+	// a network needs it. The result is brNfErr.
+	brNfOnce sync.Once
+	brNfErr  error
 }
 
 // Assert that the driver is a driverapi.IPv6Releaser.
