@@ -1,7 +1,7 @@
 //go:generate go tool mobyextgen
 
 // Package daemonapiv0 gives Moby extensions access to the daemon's Engine API
-// through a regular Moby API client.
+// through a regular HTTP client, such as the Moby API client.
 //
 // This is a temporary shortcut until Moby defines specific extension points
 // for the daemon functionality extensions need.
@@ -16,7 +16,7 @@ import (
 )
 
 // DaemonAPI locates the Engine API endpoint the daemon serves for extensions.
-// Use [NewClient] instead of calling it directly.
+// Use [DialContext] instead of calling it directly.
 type DaemonAPI interface {
 	// Get returns the endpoint.
 	Get(ctx context.Context, req *GetRequest) (*GetResponse, error)
@@ -30,7 +30,7 @@ type DaemonAPI interface {
 //
 // The endpoint is a unix socket that only the daemon user can access; on
 // Windows, only Administrators and LocalSystem.
-// The daemon creates it on the first Get call, which a [NewClient] client
+// The daemon creates it on the first Get call, which a [DialContext] dialer
 // makes when it first connects.
 // Extensions run as the daemon user, so every extension can reach the socket
 // and gets unrestricted Engine API access, whether or not it declares a

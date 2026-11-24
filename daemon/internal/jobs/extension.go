@@ -102,7 +102,10 @@ func (e *Extension) init(ctx context.Context, _ extensions.Config, resolver exte
 	if err != nil {
 		return fmt.Errorf("resolving the container name-generator point: %w", err)
 	}
-	api, err := daemonapiv0.NewClient(apiPoint)
+	api, err := client.New(
+		client.WithHost(daemonapiv0.Host),
+		client.WithDialContext(daemonapiv0.DialContext(apiPoint)),
+	)
 	if err != nil {
 		return fmt.Errorf("creating the daemon API client: %w", err)
 	}

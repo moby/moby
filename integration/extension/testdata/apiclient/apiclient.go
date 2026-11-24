@@ -49,7 +49,10 @@ func (e *extension) Declaration() extensions.Declaration {
 			if err != nil {
 				return err
 			}
-			api, err := daemonapiv0.NewClient(provider)
+			api, err := client.New(
+				client.WithHost(daemonapiv0.Host),
+				client.WithDialContext(daemonapiv0.DialContext(provider)),
+			)
 			if err != nil {
 				return err
 			}

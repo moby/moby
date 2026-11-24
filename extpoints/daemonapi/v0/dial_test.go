@@ -10,7 +10,6 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/moby/moby/client"
 	daemonapiv0 "github.com/moby/moby/extpoints/daemonapi/v0"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -26,7 +25,7 @@ func (f *fakeAPI) Get(context.Context, *daemonapiv0.GetRequest) (*daemonapiv0.Ge
 	return &daemonapiv0.GetResponse{Host: f.host}, nil
 }
 
-func TestNewClientGetsEndpointOnFirstConnect(t *testing.T) {
+func TestDialContextGetsEndpointOnFirstConnect(t *testing.T) {
 	t.Parallel()
 
 	// t.TempDir paths can exceed the unix socket path limit on macOS.
@@ -38,7 +37,7 @@ func TestNewClientGetsEndpointOnFirstConnect(t *testing.T) {
 	l, err := net.Listen("unix", sock)
 	assert.NilError(t, err)
 	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		// Force a new connection per request so the second Ping dials again.
+		// Force a new connection per request so the second request dials again.
 		w.Header().Set("Connection", "close")
 	}))
 	_ = srv.Listener.Close()
@@ -47,14 +46,17 @@ func TestNewClientGetsEndpointOnFirstConnect(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	api := &fakeAPI{host: "unix://" + sock}
-	c, err := daemonapiv0.NewClient(api)
-	assert.NilError(t, err)
-	t.Cleanup(func() { _ = c.Close() })
+	tr := &http.Transport{DialContext: daemonapiv0.DialContext(api)}
+	t.Cleanup(tr.CloseIdleConnections)
+	c := &http.Client{Transport: tr}
 	assert.Check(t, is.Equal(api.calls.Load(), int32(0)))
 
 	for range 2 {
-		_, err = c.Ping(t.Context(), client.PingOptions{})
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://daemonapi/_ping", nil)
 		assert.NilError(t, err)
+		resp, err := c.Do(req)
+		assert.NilError(t, err)
+		_ = resp.Body.Close()
 	}
 	assert.Check(t, is.Equal(api.calls.Load(), int32(1)))
 }

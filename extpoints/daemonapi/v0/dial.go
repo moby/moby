@@ -5,34 +5,40 @@ import (
 	"fmt"
 	"net"
 	"strings"
-
-	"github.com/moby/moby/client"
 )
 
-// placeholderHost only selects the plain unix transport; the client dials the
-// endpoint the provider reports.
-// The client includes its host in connection errors, so the name points at
-// where the real endpoint comes from rather than looking like a real path.
-const placeholderHost = "unix:///resolved-by-daemonapi-v0.sock"
+// Host is a placeholder Engine API host for clients that dial with
+// DialContext.
+// It selects the unix transport and appears in the client's connection
+// errors in place of a real socket path.
+const Host = "unix:///resolved-by-daemonapi-v0.sock"
 
-// NewClient returns an Engine API client for the endpoint api reports.
+// DialContext returns a dial function that connects to the Engine API
+// endpoint api reports, ignoring the network and address it is called with.
+// Pass it to client.WithDialContext after client.WithHost(Host), because
+// WithHost replaces the dial function:
+//
+//	c, err := client.New(
+//		client.WithHost(daemonapiv0.Host),
+//		client.WithDialContext(daemonapiv0.DialContext(api)),
+//	)
+//
+// Without WithHost(Host), the client keeps its default host, so its
+// DaemonHost and its connection errors name that host rather than the
+// endpoint api reports.
+//
 // It is a temporary shortcut; prefer a specific extension point when one
 // covers what the extension needs.
 // Resolve api with Point.Single during initialization, after declaring
 // Point.Dependency().
-// The client asks api for the endpoint when it first connects, so the daemon
-// creates the socket only once an extension actually uses the API.
-// opts are applied after the endpoint, so they may override it.
+// The returned function asks api for the endpoint on its first call, so the
+// daemon creates the socket only once an extension actually uses the API.
 //
 // The daemon serves the API only after it finishes initializing, so API calls
 // made before then, including from Init, fail.
-// The caller owns the returned client and must close it.
-func NewClient(api DaemonAPI, opts ...client.Opt) (*client.Client, error) {
+func DialContext(api DaemonAPI) func(ctx context.Context, network, addr string) (net.Conn, error) {
 	d := &dialer{api: api, lock: make(chan struct{}, 1)}
-	return client.New(append([]client.Opt{
-		client.WithHost(placeholderHost),
-		client.WithDialContext(d.dial),
-	}, opts...)...)
+	return d.dial
 }
 
 type dialer struct {
