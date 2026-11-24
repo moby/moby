@@ -2040,14 +2040,13 @@ func (n *Node) SubscribeLeadership() (q chan events.Event, cancel func()) {
 // createConfigChangeEnts creates a series of Raft entries (i.e.
 // EntryConfChange) to remove the set of given IDs from the cluster. The ID
 // `self` is _not_ removed, even if present in the set.
-// If `self` is not inside the given ids, it creates a Raft entry to add a
-// default member with the given `self`.
-func createConfigChangeEnts(ids []uint64, self uint64, term, index uint64) []raftpb.Entry {
+// If `self` is not inside the given IDs, it creates a Raft entry to add it.
+func createConfigChangeEnts(ids []uint64, self api.RaftMember, term, index uint64) []raftpb.Entry {
 	var ents []raftpb.Entry
 	next := index + 1
 	found := false
 	for _, id := range ids {
-		if id == self {
+		if id == self.RaftID {
 			found = true
 			continue
 		}
@@ -2069,14 +2068,13 @@ func createConfigChangeEnts(ids []uint64, self uint64, term, index uint64) []raf
 		next++
 	}
 	if !found {
-		node := &api.RaftMember{RaftID: self}
-		meta, err := node.Marshal()
+		meta, err := self.Marshal()
 		if err != nil {
 			log.L.WithError(err).Panic("marshal member should never fail")
 		}
 		cc := &raftpb.ConfChange{
 			Type:    raftpb.ConfChangeAddNode,
-			NodeID:  self,
+			NodeID:  self.RaftID,
 			Context: meta,
 		}
 		data, err := cc.Marshal()
