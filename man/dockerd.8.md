@@ -406,6 +406,8 @@ unix://[/path/to/socket] to use.
 
 **--log-driver**="**json-file**|**syslog**|**journald**|**gelf**|**fluentd**|**awslogs**|**splunk**|**etwlogs**|**gcplogs**|**none**"
   Default driver for container logs. Default is **json-file**.
+  The logging drivers that are available depend on the platform and on how the
+  daemon was built. Use **docker info** to list the available logging drivers.
   **Warning**: **docker logs** command works only for **json-file** logging driver.
 
 **--log-format**="*text*|*json*"

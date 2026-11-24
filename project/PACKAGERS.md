@@ -106,6 +106,31 @@ To disable zfs:
 export DOCKER_BUILDTAGS='exclude_graphdriver_zfs'
 ```
 
+There are also build tags for disabling logging drivers. Some of these drivers
+pull in large dependencies (such as cloud provider SDKs), so excluding them
+reduces the size of the daemon binary. By default, all logging drivers that
+are supported on the platform are built in. The `json-file` and `local`
+logging drivers cannot be excluded.
+
+| Build tag                    | Logging driver excluded |
+|------------------------------|-------------------------|
+| `exclude_logdriver_awslogs`  | `awslogs`               |
+| `exclude_logdriver_etwlogs`  | `etwlogs` (Windows)     |
+| `exclude_logdriver_fluentd`  | `fluentd`               |
+| `exclude_logdriver_gcplogs`  | `gcplogs`               |
+| `exclude_logdriver_gelf`     | `gelf`                  |
+| `exclude_logdriver_journald` | `journald` (Linux)      |
+| `exclude_logdriver_splunk`   | `splunk`                |
+| `exclude_logdriver_syslog`   | `syslog`                |
+
+To disable the awslogs and gcplogs logging drivers:
+```bash
+export DOCKER_BUILDTAGS='exclude_logdriver_awslogs exclude_logdriver_gcplogs'
+```
+
+Using an excluded logging driver fails with a "no log driver named ... is
+registered" error, and the driver is not listed in the output of `docker info`.
+
 NOTE: if you need to set more than one build tag, space separate them:
 ```bash
 export DOCKER_BUILDTAGS='exclude_graphdriver_btrfs exclude_graphdriver_zfs'
