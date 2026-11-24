@@ -12,13 +12,16 @@ import (
 	"github.com/containerd/ttrpc"
 	"github.com/docker/go-connections/sockets"
 
-	// Linux-specific containerd plugin registrations: the overlayfs and native
-	// snapshotters, the walking differ, and the runc runtime options type.
+	// Linux-specific containerd plugin registrations: the overlayfs, native,
+	// and EROFS snapshotters, the walking and EROFS differs, and the runc runtime
+	// options type.
 	// The cgroups task monitor is registered by the cgroups import above.
 	//
 	// Cross-platform plugins are registered in server.go.
 	_ "github.com/containerd/containerd/api/types/runc/options"
+	_ "github.com/containerd/containerd/v2/plugins/diff/erofs/plugin"
 	_ "github.com/containerd/containerd/v2/plugins/diff/walking/plugin"
+	_ "github.com/containerd/containerd/v2/plugins/snapshots/erofs/plugin"
 	_ "github.com/containerd/containerd/v2/plugins/snapshots/native/plugin"
 	_ "github.com/containerd/containerd/v2/plugins/snapshots/overlay/plugin"
 )

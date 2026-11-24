@@ -162,6 +162,7 @@ require (
 	github.com/containerd/accelerated-container-image v1.3.0 // indirect
 	github.com/containerd/console v1.0.5 // indirect
 	github.com/containerd/go-cni v1.1.14 // indirect
+	github.com/containerd/go-dmverity v0.1.0 // indirect
 	github.com/containerd/go-runc v1.2.1 // indirect
 	github.com/containerd/nydus-snapshotter v0.15.15 // indirect
 	github.com/containerd/otelttrpc v0.1.0 // indirect

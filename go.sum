@@ -158,6 +158,8 @@ github.com/containerd/fifo v1.1.0 h1:4I2mbh5stb1u6ycIABlBw9zgtlK8viPI9QkQNRQEEmY
 github.com/containerd/fifo v1.1.0/go.mod h1:bmC4NWMbXlt2EZ0Hc7Fx7QzTFxgPID13eH0Qu+MAb2o=
 github.com/containerd/go-cni v1.1.14 h1:jcFWauA5ED2wUHgCdvPB/IyvOtBcXzmgj8LprJ8nJH0=
 github.com/containerd/go-cni v1.1.14/go.mod h1:igdwKOd5qpuMIafFcovqefXeThU/s2MoDSOnkCv77fw=
+github.com/containerd/go-dmverity v0.1.0 h1:aqnpBRI6mmscya/XqvknZ4wQNJnXzx6lKxPa7Q71hDo=
+github.com/containerd/go-dmverity v0.1.0/go.mod h1:vYevYgfeVF244IpQCKshXLvyKoRHwoVrFG0HV6GrUrs=
 github.com/containerd/go-runc v1.2.1 h1:TAnah92bVA7dYDZ7Mm9FrOoFQvnLZdL3z3xT7BS19kA=
 github.com/containerd/go-runc v1.2.1/go.mod h1:Azy6SkBcIFMSMYiYUuSQhZ25zD3zJEYYbbIVplhYD7M=
 github.com/containerd/log v0.2.0 h1:BewD/umNgVnoczglOpX8eRMyEy5t5iPlu5AIpnWDONc=

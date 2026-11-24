@@ -492,6 +492,8 @@ github.com/containerd/containerd/v2/core/transfer/streaming
 github.com/containerd/containerd/v2/core/unpack
 github.com/containerd/containerd/v2/defaults
 github.com/containerd/containerd/v2/internal/cleanup
+github.com/containerd/containerd/v2/internal/dmverity
+github.com/containerd/containerd/v2/internal/erofsutils
 github.com/containerd/containerd/v2/internal/fsverity
 github.com/containerd/containerd/v2/internal/fsview
 github.com/containerd/containerd/v2/internal/kmutex
@@ -535,6 +537,8 @@ github.com/containerd/containerd/v2/pkg/ttrpcutil
 github.com/containerd/containerd/v2/plugins
 github.com/containerd/containerd/v2/plugins/content/local
 github.com/containerd/containerd/v2/plugins/content/local/plugin
+github.com/containerd/containerd/v2/plugins/diff/erofs
+github.com/containerd/containerd/v2/plugins/diff/erofs/plugin
 github.com/containerd/containerd/v2/plugins/diff/lcow
 github.com/containerd/containerd/v2/plugins/diff/walking
 github.com/containerd/containerd/v2/plugins/diff/walking/plugin
@@ -559,6 +563,8 @@ github.com/containerd/containerd/v2/plugins/services/snapshots
 github.com/containerd/containerd/v2/plugins/services/tasks
 github.com/containerd/containerd/v2/plugins/services/version
 github.com/containerd/containerd/v2/plugins/services/warning
+github.com/containerd/containerd/v2/plugins/snapshots/erofs
+github.com/containerd/containerd/v2/plugins/snapshots/erofs/plugin
 github.com/containerd/containerd/v2/plugins/snapshots/native
 github.com/containerd/containerd/v2/plugins/snapshots/native/plugin
 github.com/containerd/containerd/v2/plugins/snapshots/overlay
@@ -587,6 +593,12 @@ github.com/containerd/fifo
 # github.com/containerd/go-cni v1.1.14
 ## explicit; go 1.21
 github.com/containerd/go-cni
+# github.com/containerd/go-dmverity v0.1.0
+## explicit; go 1.24.3
+github.com/containerd/go-dmverity/pkg/dm
+github.com/containerd/go-dmverity/pkg/keyring
+github.com/containerd/go-dmverity/pkg/utils
+github.com/containerd/go-dmverity/pkg/verity
 # github.com/containerd/go-runc v1.2.1
 ## explicit; go 1.21
 github.com/containerd/go-runc
