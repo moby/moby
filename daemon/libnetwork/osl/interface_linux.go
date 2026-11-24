@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/v2/daemon/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/l2disco"
 	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 	"github.com/moby/moby/v2/daemon/libnetwork/ns"
@@ -124,7 +125,10 @@ type Interface struct {
 	// host route to the gateway, and a route to the prefix via the gateway.
 	prefixGw4 netip.Addr
 	prefixGw6 netip.Addr
-	ns        *Namespace
+	// onLinkHosts are addresses in the prefix of an address with a prefix gateway
+	// that must still be reached directly, rather than via the prefix gateway.
+	onLinkHosts []netip.Addr
+	ns          *Namespace
 }
 
 // SrcName returns the name of the interface in the origin network namespace.
@@ -1109,7 +1113,8 @@ func setInterfaceRoutes(ctx context.Context, nlh nlwrap.Handle, iface netlink.Li
 // setInterfacePrefixRoutes adds routes for addresses configured with a prefix
 // gateway, in place of the on-link prefix routes that were not created for
 // them. That's a host route to the gateway, and a route to the address's prefix
-// via the gateway.
+// via the gateway. Plus a host route to each of the interface's onLinkHosts in
+// that prefix.
 func setInterfacePrefixRoutes(ctx context.Context, nlh nlwrap.Handle, iface netlink.Link, i *Interface) error {
 	if !i.prefixGw4.IsValid() && !i.prefixGw6.IsValid() {
 		return nil
@@ -1118,6 +1123,14 @@ func setInterfacePrefixRoutes(ctx context.Context, nlh nlwrap.Handle, iface netl
 		attribute.String("i.SrcName", i.SrcName()),
 		attribute.String("i.DstName", i.DstName())))
 	defer span.End()
+
+	addHostRoute := func(addr netip.Addr) error {
+		return nlh.RouteAdd(&netlink.Route{
+			Scope:     netlink.SCOPE_LINK,
+			LinkIndex: iface.Attrs().Index,
+			Dst:       &net.IPNet{IP: addr.AsSlice(), Mask: net.CIDRMask(addr.BitLen(), addr.BitLen())},
+		})
+	}
 
 	for _, fam := range []struct {
 		addr *net.IPNet
@@ -1130,14 +1143,26 @@ func setInterfacePrefixRoutes(ctx context.Context, nlh nlwrap.Handle, iface netl
 		if fam.addr == nil || !fam.gw.IsValid() {
 			continue
 		}
-		gw := fam.gw.AsSlice()
-		if err := nlh.RouteAdd(&netlink.Route{
-			Scope:     netlink.SCOPE_LINK,
-			LinkIndex: iface.Attrs().Index,
-			Dst:       &net.IPNet{IP: gw, Mask: net.CIDRMask(fam.gw.BitLen(), fam.gw.BitLen())},
-		}); err != nil {
+		if err := addHostRoute(fam.gw); err != nil {
 			return fmt.Errorf("adding route to gateway %s: %w", fam.gw, err)
 		}
+		netipPrefix, ok := netiputil.ToPrefix(fam.addr)
+		if !ok {
+			return fmt.Errorf("invalid address %s", fam.addr)
+		}
+		netipPrefix = netipPrefix.Masked()
+		for _, h := range i.onLinkHosts {
+			if h.Is4() != fam.gw.Is4() || h == fam.gw {
+				continue
+			}
+			if !netipPrefix.Contains(h) {
+				return fmt.Errorf("on-link host %s is not in prefix %s", h, netipPrefix)
+			}
+			if err := addHostRoute(h); err != nil {
+				return fmt.Errorf("adding route to on-link host %s: %w", h, err)
+			}
+		}
+		gw := fam.gw.AsSlice()
 		prefix := &net.IPNet{IP: fam.addr.IP.Mask(fam.addr.Mask), Mask: fam.addr.Mask}
 		if err := nlh.RouteAdd(&netlink.Route{
 			Scope:     netlink.SCOPE_UNIVERSE,

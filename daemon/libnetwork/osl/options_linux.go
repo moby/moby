@@ -148,3 +148,21 @@ func WithPrefixGateways(gw4, gw6 netip.Addr) IfaceOption {
 		return nil
 	}
 }
+
+// WithOnLinkHosts can be used, along with [WithPrefixGateways], to say that the
+// given addresses must still be reached directly (on-link) rather than via the
+// prefix gateway. For example, a default gateway that isn't the prefix gateway.
+// Each address must be in the prefix of the interface's address in the same
+// family. Addresses in a family with no prefix gateway are ignored.
+func WithOnLinkHosts(hosts ...netip.Addr) IfaceOption {
+	return func(i *Interface) error {
+		i.onLinkHosts = i.onLinkHosts[:0]
+		for _, h := range hosts {
+			if !h.IsValid() {
+				return fmt.Errorf("invalid on-link host %s", h)
+			}
+			i.onLinkHosts = append(i.onLinkHosts, h.Unmap())
+		}
+		return nil
+	}
+}
