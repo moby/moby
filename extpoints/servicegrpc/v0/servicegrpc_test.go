@@ -2,11 +2,11 @@ package servicegrpcv0
 
 import (
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/moby/extensions"
 	"google.golang.org/grpc"
-	"gotest.tools/v3/assert"
 )
 
 type staticResolver struct {
@@ -50,15 +50,23 @@ func TestCollect(t *testing.T) {
 		},
 	}
 	services, err := Collect(r)
-	assert.NilError(t, err)
-	assert.Equal(t, len(services), 1)
-	assert.Equal(t, services[0].Name, "a.v1.Svc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(services) != 1 || services[0].Name != "a.v1.Svc" {
+		t.Fatalf("got services %+v, want only a.v1.Svc", services)
+	}
 }
 
 func TestRegistrarRecordsAndForwards(t *testing.T) {
 	target := &recordRegistrar{}
 	rec := &Registrar{Target: target}
 	svcProvider{name: "x.v1.S"}.RegisterServices(rec)
-	assert.DeepEqual(t, rec.Names, []string{"x.v1.S"})
-	assert.DeepEqual(t, target.names, []string{"x.v1.S"})
+	want := []string{"x.v1.S"}
+	if !slices.Equal(rec.Names, want) {
+		t.Errorf("recorded names %q, want %q", rec.Names, want)
+	}
+	if !slices.Equal(target.names, want) {
+		t.Errorf("forwarded names %q, want %q", target.names, want)
+	}
 }
