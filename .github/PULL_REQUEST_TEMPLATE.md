@@ -38,6 +38,13 @@ Good:
 Bad:
 - Refactor test TestFooWithBar
 - Fixed a panic when running docker top
+
+For security fixes, start each line with the GHSA or CVE ID; prefer the GHSA.
+Describe the vulnerability rather than the fix, because the release notes
+already introduce it as a fix:
+- GHSA-xxxx-xxxx-xxxx: Parsing user and group files could read an unbounded amount of data
+- CVE-YYYY-NNNN: Parsing user and group files could read an unbounded amount of data
+If the advisory is in another repository, include its full URL in the PR body.
 -->
 
 ```markdown changelog
