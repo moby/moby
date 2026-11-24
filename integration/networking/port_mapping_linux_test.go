@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -276,27 +277,26 @@ func TestProxy4To6(t *testing.T) {
 func enableIPv6OnAll(t *testing.T) func() {
 	t.Helper()
 
-	out, err := exec.Command("sysctl", "net.ipv6.conf").Output()
+	// Read the values from procfs instead of parsing the output of
+	// "sysctl net.ipv6.conf". Reading an unset "stable_secret" key fails
+	// with EIO, and since procps-ng 4.0.7, such errors on nested keys make
+	// "sysctl net.ipv6.conf" exit with a non-zero status.
+	paths, err := filepath.Glob("/proc/sys/net/ipv6/conf/*/disable_ipv6")
 	assert.NilError(t, err)
 
 	ifaces := map[string]string{}
 	var allVal string
 
-	sysctls := strings.SplitSeq(string(out), "\n")
-	for sysctl := range sysctls {
-		if sysctl == "" {
+	for _, p := range paths {
+		b, err := os.ReadFile(p)
+		assert.NilError(t, err)
+		iface := filepath.Base(filepath.Dir(p))
+		val := strings.TrimSpace(string(b))
+		if iface == "all" {
+			allVal = val
 			continue
 		}
-
-		kv := strings.Split(sysctl, " = ")
-		sub := strings.Split(kv[0], ".")
-		if sub[4] == "disable_ipv6" {
-			if sub[3] == "all" {
-				allVal = kv[1]
-				continue
-			}
-			ifaces[sub[3]] = kv[1]
-		}
+		ifaces[iface] = val
 	}
 
 	assert.NilError(t, exec.Command("sysctl", "net.ipv6.conf.all.disable_ipv6=0").Run())
