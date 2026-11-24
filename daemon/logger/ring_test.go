@@ -3,7 +3,10 @@ package logger
 import (
 	"context"
 	"errors"
+	"fmt"
+	"slices"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 )
@@ -142,6 +145,240 @@ func TestRingDrain(t *testing.T) {
 	ls = r.Drain()
 	if len(ls) != 0 {
 		t.Fatalf("expected 0 messages on 2nd drain: %v", ls)
+	}
+}
+
+type fallibleLogger struct {
+	mu        sync.Mutex
+	errs      []error
+	alwaysErr error
+	attempts  chan struct{}
+	received  chan string
+}
+
+func (l *fallibleLogger) Log(msg *Message) error {
+	l.mu.Lock()
+	err := l.alwaysErr
+	if err == nil && len(l.errs) > 0 {
+		err, l.errs = l.errs[0], l.errs[1:]
+	}
+	l.mu.Unlock()
+
+	if l.attempts != nil {
+		select {
+		case l.attempts <- struct{}{}:
+		default:
+		}
+	}
+	if err != nil {
+		return err
+	}
+	line := string(msg.Line)
+	PutMessage(msg)
+	l.received <- line
+	return nil
+}
+
+func (l *fallibleLogger) Name() string { return "fallible" }
+
+func (l *fallibleLogger) Close() error {
+	if l.received != nil {
+		close(l.received)
+	}
+	return nil
+}
+
+func TestRingLoggerRetries(t *testing.T) {
+	t.Run("default retries recover transient failure in order", func(t *testing.T) {
+		drv := &fallibleLogger{
+			errs:     []error{errors.New("transient 1"), errors.New("transient 2")},
+			received: make(chan string, 2),
+		}
+		ring := NewRingLogger(drv, Info{}, -1)
+
+		if err := ring.Log(&Message{Source: "stdout", Line: []byte("first")}); err != nil {
+			t.Fatal(err)
+		}
+		if err := ring.Log(&Message{Source: "stdout", Line: []byte("second")}); err != nil {
+			t.Fatal(err)
+		}
+
+		var got []string
+		for range 2 {
+			select {
+			case line := <-drv.received:
+				got = append(got, line)
+			case <-time.After(3 * time.Second):
+				t.Fatalf("timed out waiting for retried messages; got %v", got)
+			}
+		}
+		if err := ring.Close(); err != nil {
+			t.Fatal(err)
+		}
+		want := []string{"first", "second"}
+		if !slices.Equal(got, want) {
+			t.Fatalf("got messages %v, want %v", got, want)
+		}
+	})
+
+	t.Run("bounded retries drop exhausted message and return to pool", func(t *testing.T) {
+		drv := &fallibleLogger{
+			errs: []error{
+				nil,                        // "a" succeeds
+				errors.New("lost try 1"),   // "lost" initial attempt fails
+				errors.New("lost retry 1"), // "lost" retry #1 fails -> exhausted
+				errors.New("b try 1"),      // "b" initial attempt fails, retry #1 succeeds
+			},
+			received: make(chan string, 3),
+		}
+		ring := NewRingLogger(drv, Info{
+			Config: map[string]string{"max-non-blocking-retries": "1"},
+		}, -1)
+
+		lostMsg := &Message{Source: "stdout", Line: []byte("lost")}
+		for _, m := range []*Message{
+			{Source: "stdout", Line: []byte("a")},
+			lostMsg,
+			{Source: "stdout", Line: []byte("b")},
+		} {
+			if err := ring.Log(m); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		var got []string
+		for range 2 {
+			select {
+			case line := <-drv.received:
+				got = append(got, line)
+			case <-time.After(3 * time.Second):
+				t.Fatalf("timed out waiting for messages; got %v", got)
+			}
+		}
+		if err := ring.Close(); err != nil {
+			t.Fatal(err)
+		}
+		want := []string{"a", "b"}
+		if !slices.Equal(got, want) {
+			t.Fatalf("got messages %v, want %v", got, want)
+		}
+		if len(lostMsg.Line) != 0 || lostMsg.Source != "" {
+			t.Fatalf("exhausted message was not reset via PutMessage: %+v", lostMsg)
+		}
+	})
+
+	t.Run("zero retries drops on first failure", func(t *testing.T) {
+		drv := &fallibleLogger{
+			errs:     []error{errors.New("fail first")},
+			received: make(chan string, 2),
+		}
+		ring := NewRingLogger(drv, Info{
+			Config: map[string]string{"max-non-blocking-retries": "0"},
+		}, -1)
+
+		dropped := &Message{Source: "stdout", Line: []byte("drop")}
+		if err := ring.Log(dropped); err != nil {
+			t.Fatal(err)
+		}
+		if err := ring.Log(&Message{Source: "stdout", Line: []byte("keep")}); err != nil {
+			t.Fatal(err)
+		}
+
+		select {
+		case got := <-drv.received:
+			if got != "keep" {
+				t.Fatalf("got message %q, want %q", got, "keep")
+			}
+		case <-time.After(3 * time.Second):
+			t.Fatal("timed out waiting for message")
+		}
+		if err := ring.Close(); err != nil {
+			t.Fatal(err)
+		}
+		if len(dropped.Line) != 0 || dropped.Source != "" {
+			t.Fatalf("dropped message was not reset via PutMessage: %+v", dropped)
+		}
+	})
+
+	t.Run("close stops infinite retries promptly", func(t *testing.T) {
+		drv := &fallibleLogger{
+			alwaysErr: errors.New("persistent failure"),
+			attempts:  make(chan struct{}, 16),
+		}
+		ring := NewRingLogger(drv, Info{
+			Config: map[string]string{"max-non-blocking-retries": "-1"},
+		}, -1)
+
+		inFlight := &Message{Source: "stdout", Line: []byte("buffered")}
+		if err := ring.Log(inFlight); err != nil {
+			t.Fatal(err)
+		}
+
+		// Wait for initial attempt and at least one retry.
+		for range 2 {
+			select {
+			case <-drv.attempts:
+			case <-time.After(3 * time.Second):
+				t.Fatal("timed out waiting for retry attempts")
+			}
+		}
+
+		closed := make(chan error, 1)
+		go func() {
+			closed <- ring.Close()
+		}()
+		select {
+		case err := <-closed:
+			if err != nil {
+				t.Fatal(err)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatal("Close blocked while infinite retries were active")
+		}
+		if len(inFlight.Line) != 0 || inFlight.Source != "" {
+			t.Fatalf("in-flight message was not reset via PutMessage on Close: %+v", inFlight)
+		}
+	})
+}
+
+func TestValidateLogOptsMaxNonBlockingRetries(t *testing.T) {
+	const drvName = "test-ring-retry-opts"
+	t.Cleanup(func() {
+		factory.m.Lock()
+		delete(factory.registry, drvName)
+		delete(factory.optValidator, drvName)
+		factory.m.Unlock()
+	})
+	if err := RegisterLogDriver(drvName, func(Info) (Logger, error) { return nopLogger{}, nil }); err != nil {
+		t.Fatal(err)
+	}
+	if err := RegisterLogOptValidator(drvName, func(cfg map[string]string) error {
+		for k := range cfg {
+			return fmt.Errorf("unexpected driver opt %q", k)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, retries := range []string{"-1", "0", "3"} {
+		cfg := map[string]string{
+			"mode":                     "non-blocking",
+			"max-non-blocking-retries": retries,
+		}
+		if err := ValidateLogOpts(drvName, cfg); err != nil {
+			t.Fatalf("ValidateLogOpts(%q) returned unexpected error: %v", retries, err)
+		}
+	}
+
+	if err := ValidateLogOpts(drvName, map[string]string{"max-non-blocking-retries": "3"}); err == nil {
+		t.Fatal("expected error when max-non-blocking-retries is set without mode=non-blocking")
+	}
+	if err := ValidateLogOpts(drvName, map[string]string{
+		"mode":                     "non-blocking",
+		"max-non-blocking-retries": "not-an-int",
+	}); err == nil {
+		t.Fatal("expected error for non-integer max-non-blocking-retries")
 	}
 }
 
