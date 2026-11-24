@@ -6,7 +6,7 @@ import (
 	extensions "github.com/moby/extensions"
 	clientpoint "github.com/moby/extensions/clientpoint"
 	serverpoint "github.com/moby/extensions/serverpoint"
-	containernamegeneratorv0 "github.com/moby/moby/v2/extpoints/containernamegenerator/v0"
+	mobyextcontract "github.com/moby/moby/v2/extpoints/containernamegenerator/v0"
 	grpc "google.golang.org/grpc"
 )
 
@@ -75,30 +75,30 @@ func (c *serviceClient) GenerateContainerName(ctx context.Context, in *GenerateC
 // ServerPoint serves the ContainerNameGenerator point: it registers the point's gRPC service for
 // a provider with an SDK server. A binary passes it to (*sdk.Server).Register.
 var ServerPoint = serverpoint.Registration{
-	Point: containernamegeneratorv0.Point.ID(),
+	Point: mobyextcontract.Point.ID(),
 	Register: func(r grpc.ServiceRegistrar, impl any) {
-		r.RegisterService(&serviceDesc, &grpcServer{impl: impl.(containernamegeneratorv0.ContainerNameGenerator)})
+		r.RegisterService(&serviceDesc, &grpcServer{impl: impl.(mobyextcontract.ContainerNameGenerator)})
 	},
 }
 
 // ClientProvider builds a broker provider for the ContainerNameGenerator point from an
 // out-of-process gRPC connection.
 func ClientProvider(conn grpc.ClientConnInterface) extensions.Provider {
-	return containernamegeneratorv0.Point.Provide(NewClient(conn))
+	return mobyextcontract.Point.Provide(NewClient(conn))
 }
 
 // ClientPoint registers ClientProvider for the ContainerNameGenerator point with a host.
 // Single carries the contract's cardinality: the point admits one provider.
-var ClientPoint = clientpoint.Registration{Point: containernamegeneratorv0.Point.ID(), Provider: ClientProvider, Single: true}
+var ClientPoint = clientpoint.Registration{Point: mobyextcontract.Point.ID(), Provider: ClientProvider, Single: true}
 
-// NewClient returns a containernamegeneratorv0.ContainerNameGenerator that calls the ContainerNameGenerator point over conn.
-func NewClient(conn grpc.ClientConnInterface) containernamegeneratorv0.ContainerNameGenerator {
+// NewClient returns a mobyextcontract.ContainerNameGenerator that calls the ContainerNameGenerator point over conn.
+func NewClient(conn grpc.ClientConnInterface) mobyextcontract.ContainerNameGenerator {
 	return &grpcClient{client: NewContainerNameGeneratorClient(conn)}
 }
 
 // grpcServer serves an implementation of the contract's Go interface.
 type grpcServer struct {
-	impl containernamegeneratorv0.ContainerNameGenerator
+	impl mobyextcontract.ContainerNameGenerator
 }
 
 func (s *grpcServer) GenerateContainerName(ctx context.Context, req *GenerateContainerNameRequest) (*GenerateContainerNameReply, error) {
@@ -113,7 +113,7 @@ type grpcClient struct {
 	client ContainerNameGeneratorClient
 }
 
-func (c *grpcClient) GenerateContainerName(ctx context.Context, req *containernamegeneratorv0.GenerateContainerNameRequest) (*containernamegeneratorv0.GenerateContainerNameReply, error) {
+func (c *grpcClient) GenerateContainerName(ctx context.Context, req *mobyextcontract.GenerateContainerNameRequest) (*mobyextcontract.GenerateContainerNameReply, error) {
 	resp, err := c.client.GenerateContainerName(ctx, generateContainerNameRequestToProto(req))
 	if err != nil {
 		return nil, err
@@ -121,7 +121,7 @@ func (c *grpcClient) GenerateContainerName(ctx context.Context, req *containerna
 	return generateContainerNameReplyFromProto(resp), nil
 }
 
-func generateContainerNameReplyToProto(in *containernamegeneratorv0.GenerateContainerNameReply) *GenerateContainerNameReply {
+func generateContainerNameReplyToProto(in *mobyextcontract.GenerateContainerNameReply) *GenerateContainerNameReply {
 	if in == nil {
 		return nil
 	}
@@ -130,16 +130,16 @@ func generateContainerNameReplyToProto(in *containernamegeneratorv0.GenerateCont
 	return out
 }
 
-func generateContainerNameReplyFromProto(in *GenerateContainerNameReply) *containernamegeneratorv0.GenerateContainerNameReply {
+func generateContainerNameReplyFromProto(in *GenerateContainerNameReply) *mobyextcontract.GenerateContainerNameReply {
 	if in == nil {
 		return nil
 	}
-	out := &containernamegeneratorv0.GenerateContainerNameReply{}
+	out := &mobyextcontract.GenerateContainerNameReply{}
 	out.Name = in.GetName()
 	return out
 }
 
-func generateContainerNameRequestToProto(in *containernamegeneratorv0.GenerateContainerNameRequest) *GenerateContainerNameRequest {
+func generateContainerNameRequestToProto(in *mobyextcontract.GenerateContainerNameRequest) *GenerateContainerNameRequest {
 	if in == nil {
 		return nil
 	}
@@ -150,11 +150,11 @@ func generateContainerNameRequestToProto(in *containernamegeneratorv0.GenerateCo
 	return out
 }
 
-func generateContainerNameRequestFromProto(in *GenerateContainerNameRequest) *containernamegeneratorv0.GenerateContainerNameRequest {
+func generateContainerNameRequestFromProto(in *GenerateContainerNameRequest) *mobyextcontract.GenerateContainerNameRequest {
 	if in == nil {
 		return nil
 	}
-	out := &containernamegeneratorv0.GenerateContainerNameRequest{}
+	out := &mobyextcontract.GenerateContainerNameRequest{}
 	out.Retry = in.GetRetry()
 	out.ContainerID = in.GetContainerId()
 	out.Image = in.GetImage()

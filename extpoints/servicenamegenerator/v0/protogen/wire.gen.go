@@ -6,7 +6,7 @@ import (
 	extensions "github.com/moby/extensions"
 	clientpoint "github.com/moby/extensions/clientpoint"
 	serverpoint "github.com/moby/extensions/serverpoint"
-	servicenamegeneratorv0 "github.com/moby/moby/v2/extpoints/servicenamegenerator/v0"
+	mobyextcontract "github.com/moby/moby/v2/extpoints/servicenamegenerator/v0"
 	grpc "google.golang.org/grpc"
 )
 
@@ -75,30 +75,30 @@ func (c *serviceClient) GenerateServiceName(ctx context.Context, in *GenerateSer
 // ServerPoint serves the ServiceNameGenerator point: it registers the point's gRPC service for
 // a provider with an SDK server. A binary passes it to (*sdk.Server).Register.
 var ServerPoint = serverpoint.Registration{
-	Point: servicenamegeneratorv0.Point.ID(),
+	Point: mobyextcontract.Point.ID(),
 	Register: func(r grpc.ServiceRegistrar, impl any) {
-		r.RegisterService(&serviceDesc, &grpcServer{impl: impl.(servicenamegeneratorv0.ServiceNameGenerator)})
+		r.RegisterService(&serviceDesc, &grpcServer{impl: impl.(mobyextcontract.ServiceNameGenerator)})
 	},
 }
 
 // ClientProvider builds a broker provider for the ServiceNameGenerator point from an
 // out-of-process gRPC connection.
 func ClientProvider(conn grpc.ClientConnInterface) extensions.Provider {
-	return servicenamegeneratorv0.Point.Provide(NewClient(conn))
+	return mobyextcontract.Point.Provide(NewClient(conn))
 }
 
 // ClientPoint registers ClientProvider for the ServiceNameGenerator point with a host.
 // Single carries the contract's cardinality: the point admits one provider.
-var ClientPoint = clientpoint.Registration{Point: servicenamegeneratorv0.Point.ID(), Provider: ClientProvider, Single: true}
+var ClientPoint = clientpoint.Registration{Point: mobyextcontract.Point.ID(), Provider: ClientProvider, Single: true}
 
-// NewClient returns a servicenamegeneratorv0.ServiceNameGenerator that calls the ServiceNameGenerator point over conn.
-func NewClient(conn grpc.ClientConnInterface) servicenamegeneratorv0.ServiceNameGenerator {
+// NewClient returns a mobyextcontract.ServiceNameGenerator that calls the ServiceNameGenerator point over conn.
+func NewClient(conn grpc.ClientConnInterface) mobyextcontract.ServiceNameGenerator {
 	return &grpcClient{client: NewServiceNameGeneratorClient(conn)}
 }
 
 // grpcServer serves an implementation of the contract's Go interface.
 type grpcServer struct {
-	impl servicenamegeneratorv0.ServiceNameGenerator
+	impl mobyextcontract.ServiceNameGenerator
 }
 
 func (s *grpcServer) GenerateServiceName(ctx context.Context, req *GenerateServiceNameRequest) (*GenerateServiceNameReply, error) {
@@ -113,7 +113,7 @@ type grpcClient struct {
 	client ServiceNameGeneratorClient
 }
 
-func (c *grpcClient) GenerateServiceName(ctx context.Context, req *servicenamegeneratorv0.GenerateServiceNameRequest) (*servicenamegeneratorv0.GenerateServiceNameReply, error) {
+func (c *grpcClient) GenerateServiceName(ctx context.Context, req *mobyextcontract.GenerateServiceNameRequest) (*mobyextcontract.GenerateServiceNameReply, error) {
 	resp, err := c.client.GenerateServiceName(ctx, generateServiceNameRequestToProto(req))
 	if err != nil {
 		return nil, err
@@ -121,7 +121,7 @@ func (c *grpcClient) GenerateServiceName(ctx context.Context, req *servicenamege
 	return generateServiceNameReplyFromProto(resp), nil
 }
 
-func generateServiceNameReplyToProto(in *servicenamegeneratorv0.GenerateServiceNameReply) *GenerateServiceNameReply {
+func generateServiceNameReplyToProto(in *mobyextcontract.GenerateServiceNameReply) *GenerateServiceNameReply {
 	if in == nil {
 		return nil
 	}
@@ -130,16 +130,16 @@ func generateServiceNameReplyToProto(in *servicenamegeneratorv0.GenerateServiceN
 	return out
 }
 
-func generateServiceNameReplyFromProto(in *GenerateServiceNameReply) *servicenamegeneratorv0.GenerateServiceNameReply {
+func generateServiceNameReplyFromProto(in *GenerateServiceNameReply) *mobyextcontract.GenerateServiceNameReply {
 	if in == nil {
 		return nil
 	}
-	out := &servicenamegeneratorv0.GenerateServiceNameReply{}
+	out := &mobyextcontract.GenerateServiceNameReply{}
 	out.Name = in.GetName()
 	return out
 }
 
-func generateServiceNameRequestToProto(in *servicenamegeneratorv0.GenerateServiceNameRequest) *GenerateServiceNameRequest {
+func generateServiceNameRequestToProto(in *mobyextcontract.GenerateServiceNameRequest) *GenerateServiceNameRequest {
 	if in == nil {
 		return nil
 	}
@@ -149,11 +149,11 @@ func generateServiceNameRequestToProto(in *servicenamegeneratorv0.GenerateServic
 	return out
 }
 
-func generateServiceNameRequestFromProto(in *GenerateServiceNameRequest) *servicenamegeneratorv0.GenerateServiceNameRequest {
+func generateServiceNameRequestFromProto(in *GenerateServiceNameRequest) *mobyextcontract.GenerateServiceNameRequest {
 	if in == nil {
 		return nil
 	}
-	out := &servicenamegeneratorv0.GenerateServiceNameRequest{}
+	out := &mobyextcontract.GenerateServiceNameRequest{}
 	out.Retry = in.GetRetry()
 	out.Image = in.GetImage()
 	return out

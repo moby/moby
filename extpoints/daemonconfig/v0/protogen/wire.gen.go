@@ -6,7 +6,7 @@ import (
 	extensions "github.com/moby/extensions"
 	clientpoint "github.com/moby/extensions/clientpoint"
 	serverpoint "github.com/moby/extensions/serverpoint"
-	daemonconfigv0 "github.com/moby/moby/v2/extpoints/daemonconfig/v0"
+	mobyextcontract "github.com/moby/moby/v2/extpoints/daemonconfig/v0"
 	grpc "google.golang.org/grpc"
 )
 
@@ -21,6 +21,7 @@ const (
 // proto-level shape of the point, not the point's Go interface: a contract
 // method returning a bare error returns an empty response message here.
 type DaemonConfigServer interface {
+	// Get returns a fresh copy of the snapshot.
 	Get(context.Context, *GetRequest) (*GetResponse, error)
 }
 
@@ -54,6 +55,7 @@ func handleGet(srv any, ctx context.Context, dec func(any) error, interceptor gr
 // outside the framework - one calling a service an extension publishes on the
 // API socket - can reach it with a plain gRPC client.
 type DaemonConfigClient interface {
+	// Get returns a fresh copy of the snapshot.
 	Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error)
 }
 
@@ -75,30 +77,30 @@ func (c *serviceClient) Get(ctx context.Context, in *GetRequest, opts ...grpc.Ca
 // ServerPoint serves the DaemonConfig point: it registers the point's gRPC service for
 // a provider with an SDK server. A binary passes it to (*sdk.Server).Register.
 var ServerPoint = serverpoint.Registration{
-	Point: daemonconfigv0.Point.ID(),
+	Point: mobyextcontract.Point.ID(),
 	Register: func(r grpc.ServiceRegistrar, impl any) {
-		r.RegisterService(&serviceDesc, &grpcServer{impl: impl.(daemonconfigv0.DaemonConfig)})
+		r.RegisterService(&serviceDesc, &grpcServer{impl: impl.(mobyextcontract.DaemonConfig)})
 	},
 }
 
 // ClientProvider builds a broker provider for the DaemonConfig point from an
 // out-of-process gRPC connection.
 func ClientProvider(conn grpc.ClientConnInterface) extensions.Provider {
-	return daemonconfigv0.Point.Provide(NewClient(conn))
+	return mobyextcontract.Point.Provide(NewClient(conn))
 }
 
 // ClientPoint registers ClientProvider for the DaemonConfig point with a host.
 // Single carries the contract's cardinality: the point admits one provider.
-var ClientPoint = clientpoint.Registration{Point: daemonconfigv0.Point.ID(), Provider: ClientProvider, Single: true}
+var ClientPoint = clientpoint.Registration{Point: mobyextcontract.Point.ID(), Provider: ClientProvider, Single: true}
 
-// NewClient returns a daemonconfigv0.DaemonConfig that calls the DaemonConfig point over conn.
-func NewClient(conn grpc.ClientConnInterface) daemonconfigv0.DaemonConfig {
+// NewClient returns a mobyextcontract.DaemonConfig that calls the DaemonConfig point over conn.
+func NewClient(conn grpc.ClientConnInterface) mobyextcontract.DaemonConfig {
 	return &grpcClient{client: NewDaemonConfigClient(conn)}
 }
 
 // grpcServer serves an implementation of the contract's Go interface.
 type grpcServer struct {
-	impl daemonconfigv0.DaemonConfig
+	impl mobyextcontract.DaemonConfig
 }
 
 func (s *grpcServer) Get(ctx context.Context, req *GetRequest) (*GetResponse, error) {
@@ -113,7 +115,7 @@ type grpcClient struct {
 	client DaemonConfigClient
 }
 
-func (c *grpcClient) Get(ctx context.Context, req *daemonconfigv0.GetRequest) (*daemonconfigv0.GetResponse, error) {
+func (c *grpcClient) Get(ctx context.Context, req *mobyextcontract.GetRequest) (*mobyextcontract.GetResponse, error) {
 	resp, err := c.client.Get(ctx, getRequestToProto(req))
 	if err != nil {
 		return nil, err
@@ -121,7 +123,7 @@ func (c *grpcClient) Get(ctx context.Context, req *daemonconfigv0.GetRequest) (*
 	return getResponseFromProto(resp), nil
 }
 
-func getRequestToProto(in *daemonconfigv0.GetRequest) *GetRequest {
+func getRequestToProto(in *mobyextcontract.GetRequest) *GetRequest {
 	if in == nil {
 		return nil
 	}
@@ -129,15 +131,15 @@ func getRequestToProto(in *daemonconfigv0.GetRequest) *GetRequest {
 	return out
 }
 
-func getRequestFromProto(in *GetRequest) *daemonconfigv0.GetRequest {
+func getRequestFromProto(in *GetRequest) *mobyextcontract.GetRequest {
 	if in == nil {
 		return nil
 	}
-	out := &daemonconfigv0.GetRequest{}
+	out := &mobyextcontract.GetRequest{}
 	return out
 }
 
-func getResponseToProto(in *daemonconfigv0.GetResponse) *GetResponse {
+func getResponseToProto(in *mobyextcontract.GetResponse) *GetResponse {
 	if in == nil {
 		return nil
 	}
@@ -146,11 +148,11 @@ func getResponseToProto(in *daemonconfigv0.GetResponse) *GetResponse {
 	return out
 }
 
-func getResponseFromProto(in *GetResponse) *daemonconfigv0.GetResponse {
+func getResponseFromProto(in *GetResponse) *mobyextcontract.GetResponse {
 	if in == nil {
 		return nil
 	}
-	out := &daemonconfigv0.GetResponse{}
+	out := &mobyextcontract.GetResponse{}
 	out.RootDir = in.GetRootDir()
 	return out
 }

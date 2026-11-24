@@ -6,6 +6,7 @@ package org.mobyproject.extension.containernamegenerator.v0;
 
 option go_package = "github.com/moby/moby/v2/extpoints/containernamegenerator/v0/protogen";
 
+// ContainerNameGenerator generates a default container name.
 service ContainerNameGenerator {
   rpc GenerateContainerName(GenerateContainerNameRequest) returns (GenerateContainerNameReply);
 }
