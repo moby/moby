@@ -198,6 +198,27 @@ func New(ctx context.Context, cfgOptions ...config.Option) (_ *Controller, retEr
 		return nil, err
 	}
 
+	// Fill the in-memory caches of networks and endpoints. After this, only
+	// storeNetwork, deleteStoredNetwork, storeEndpoint and deleteStoredEndpoint
+	// change them, each one together with the store under the cache's lock.
+	// Code that reads from the store must not add what it reads to the
+	// caches: it could add an object that has been deleted since it was read.
+	if nws, err := c.getNetworks(); err != nil {
+		log.G(ctx).WithError(err).Error("Failed to load networks from the store")
+	} else {
+		for _, n := range nws {
+			c.networks[n.id] = n
+			eps, err := n.getEndpointsFromStore()
+			if err != nil {
+				log.G(ctx).WithError(err).Error("Failed to load endpoints from the store")
+				continue
+			}
+			for _, ep := range eps {
+				c.endpoints[ep.id] = ep
+			}
+		}
+	}
+
 	c.WalkNetworks(func(nw *Network) bool {
 		if n := nw; n.hasSpecialDriver() && !n.ConfigOnly() {
 			if err := n.controller.addNetwork(ctx, n); err != nil {
