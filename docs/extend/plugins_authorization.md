@@ -67,9 +67,43 @@ request.
 
 The sequence diagrams below depict an allow and deny authorization flow:
 
-![Authorization Allow flow](images/authz_allow.png)
+### Authorization allow scenario
 
-![Authorization Deny flow](images/authz_deny.png)
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Daemon
+    participant AuthZPlugin
+
+    Client->>Daemon: HTTP request
+    Daemon->>Daemon: Authentication
+    Daemon->>AuthZPlugin: HTTP request, user
+    Note right of AuthZPlugin: Process request
+    AuthZPlugin-->>Daemon: Allow
+    Daemon->>Daemon: Daemon command flow
+    Daemon->>AuthZPlugin: HTTP response, user
+    Note right of AuthZPlugin: Process response
+    AuthZPlugin-->>Daemon: Allow
+    Daemon-->>Client: HTTP response
+```
+
+### Authorization deny scenario
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Daemon
+    participant AuthZPlugin
+
+    Client->>Daemon: HTTP request
+    Daemon->>Daemon: Authentication
+    Daemon->>AuthZPlugin: HTTP request, user
+    Note right of AuthZPlugin: Process request
+    AuthZPlugin-->>Daemon: Deny, error message
+    Daemon-->>Client: Error message
+```
+
+### Authorization data and policy requirements
 
 Each request sent to the plugin includes the authenticated user, the HTTP
 headers, and the request/response body. Only the user name and the
@@ -82,14 +116,6 @@ credentials or tokens are passed.
 > Furthermore, HTTP request/response bodies where the `Content-Type` is `application/json` are forwarded;
 > bodies of any other type are not visible to the plugin and cannot be used for enforcement,
 > even though the daemon acts on this data.
-
-For commands that can potentially hijack the HTTP connection (`HTTP
-Upgrade`), such as `exec`, the authorization plugin is only called for the
-initial HTTP requests. Once the plugin approves the command, authorization is
-not applied to the rest of the flow. Specifically, the streaming data is not
-passed to the authorization plugins. For commands that return chunked HTTP
-response, such as `logs` and `events`, only the HTTP request is sent to the
-authorization plugins.
 
 The Engine's authorization middleware fails closed: when a plugin returns an error or returns `Allow: false`,
 the request is denied and the error is surfaced to the client. Plugins should also fail closed: if the plugin
@@ -107,6 +133,98 @@ cannot confidently evaluate a request, it should return an error or `Allow: fals
 > writes, do not rely on `ResponseBody` for security-relevant decisions; perform the filtering
 > in a separate layer in front of the daemon.
 
+### Streaming responses and connection hijacking
+
+For commands that can potentially hijack the HTTP connection, such as `exec`,
+request authorization is performed on the initial HTTP request. Once the
+connection is hijacked, subsequent traffic bypasses authorization and is not
+forwarded to authorization plugins.
+
+For commands that return chunked HTTP responses, such as `logs` and `events`,
+request authorization is performed on the initial HTTP request. Response
+authorization may still be invoked after the handler returns, but cannot
+inspect or restrict response data already streamed to the client.
+
+The following diagrams illustrate how authorization works for streaming HTTP
+responses and connection hijacking. In both cases, authorization of the initial
+request does not extend to the subsequent data stream.
+
+### Chunked responses
+
+For streaming responses, such as `logs` and `events`, the plugin authorizes
+the initial request. Response authorization may still be performed after the
+handler returns, but cannot inspect or restrict data already sent to the
+client.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Daemon
+    participant AuthZPlugin
+
+    Client->>Daemon: HTTP request
+    Daemon->>Daemon: Authentication
+    Daemon->>AuthZPlugin: HTTP request, user
+    Note right of AuthZPlugin: Process request
+    AuthZPlugin-->>Daemon: Allow
+    Daemon-->>Client: Chunked response 1
+    Daemon-->>Client: Chunked response 2
+    Daemon-->>Client: Chunked response 3
+    opt If response authorization is performed
+        Daemon->>AuthZPlugin: Response callback, user
+        Note right of AuthZPlugin: Flushed response data, status, and headers unavailable
+        AuthZPlugin-->>Daemon: Allow
+    end
+```
+
+### Connection hijacking
+
+For connections hijacked by the daemon, such as interactive `exec` sessions,
+the plugin authorizes the initial HTTP request. Hijacking does not necessarily
+require an HTTP Upgrade header. Once hijacked, subsequent communication
+bypasses authorization.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Daemon
+    participant AuthZPlugin
+
+    Client->>Daemon: HTTP request
+    Daemon->>Daemon: Authentication
+    Daemon->>AuthZPlugin: HTTP request, user
+    Note right of AuthZPlugin: Process request
+    AuthZPlugin-->>Daemon: Allow
+
+    alt Connection hijacked
+        Daemon-->>Client: HTTP response / connection handoff
+        Daemon<<->>Client: Bidirectional stream
+        Note over Daemon,AuthZPlugin: Subsequent traffic bypasses authorization
+        opt If response authorization is performed
+            Daemon->>AuthZPlugin: Response callback, user
+            Note right of AuthZPlugin: Handshake metadata and stream unavailable
+            AuthZPlugin-->>Daemon: Allow
+        end
+    else Connection not hijacked
+        Daemon->>AuthZPlugin: Response callback, user
+        Note right of AuthZPlugin: Process response
+        AuthZPlugin-->>Daemon: Allow
+        Daemon-->>Client: HTTP response
+    end
+```
+
+> [!WARNING]
+> Once a connection is hijacked, subsequent communication bypasses authorization.
+> Response authorization may still be invoked after the handler returns, but cannot
+> inspect or restrict data already exchanged over the hijacked connection. The
+> response callback also cannot inspect the handshake status and headers written
+> directly to the hijacked connection.
+>
+> If the handler returns an error before hijacking the connection, response
+> authorization runs before the daemon generates the HTTP error response.
+> The plugin cannot inspect that error response, and any denial returned
+> by the response callback is ignored in favor of the handler error.
+
 ### Response body size and partial buffering
 
 The internal buffer that holds the response body between the daemon's HTTP
@@ -123,11 +241,49 @@ is the practical effect of this 64 KiB threshold combined with the
 is immediately drained to the client and is therefore no longer available
 for plugin inspection by the time the handler returns.
 
+### Additional queries to the daemon
+
 During request/response processing, some authorization flows might
 need to do additional queries to the Docker daemon. To complete such flows,
 plugins can call the daemon API similar to a regular user. To enable these
 additional queries, the plugin must provide the means for an administrator to
 configure proper authentication and security policies.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Daemon
+    participant AuthZPlugin
+
+    Client->>Daemon: HTTP request
+    Daemon->>Daemon: Authentication
+    Daemon->>AuthZPlugin: HTTP request, user
+    Note right of AuthZPlugin: Process request
+
+    opt Additional daemon query
+        AuthZPlugin->>Daemon: Additional HTTP request
+        Daemon->>Daemon: Authenticate additional request
+        Daemon->>AuthZPlugin: Authorize additional request
+        Note right of AuthZPlugin: Process without repeating the query
+        AuthZPlugin-->>Daemon: Allow
+        Daemon->>Daemon: Additional command flow
+        Daemon->>AuthZPlugin: Authorize additional response
+        AuthZPlugin-->>Daemon: Allow
+        Daemon-->>AuthZPlugin: HTTP response
+    end
+
+    Note right of AuthZPlugin: Additional processing
+    AuthZPlugin-->>Daemon: Allow
+    Daemon->>Daemon: Daemon command flow
+    Daemon->>AuthZPlugin: HTTP response, user
+    Note right of AuthZPlugin: Process response
+    AuthZPlugin-->>Daemon: Allow
+    Daemon-->>Client: HTTP response
+```
+
+Additional requests made by the authorization plugin go through the daemon's
+normal authentication and authorization flow. Plugins must account for these
+requests to avoid recursive authorization calls or deadlocks.
 
 ## Docker client flows
 
