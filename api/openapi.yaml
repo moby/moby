@@ -1031,6 +1031,11 @@ components:
                   description: |-
                     Name of the logging driver used for the container or "none"
                     if logging is disabled.
+
+                    The logging drivers that are available depend on the platform
+                    and on how the daemon was built. The `Plugins.Log` field of
+                    the [`/info`](#operation/SystemInfo) response lists the
+                    logging drivers that are available.
                   type: "string"
                   enum:
                     - "local"
@@ -7484,7 +7489,11 @@ components:
             type: "string"
           example: ["img-authz-plugin", "hbm"]
         Log:
-          description: "Names of available logging-drivers, and logging-driver plugins."
+          description: |
+            Names of available logging-drivers, and logging-driver plugins.
+
+            The list of logging-drivers depends on the platform and on how the
+            daemon was built.
           type: "array"
           items:
             type: "string"
