@@ -485,8 +485,8 @@ github.com/moby/patternmatcher v0.6.1 h1:qlhtafmr6kgMIJjKJMDmMWq7WLkKIo23hsrpR3x
 github.com/moby/patternmatcher v0.6.1/go.mod h1:hDPoyOpDY7OrrMDLaYoY3hf52gNCR/YOUYxkhApJIxc=
 github.com/moby/policy-helpers v0.0.0-20261111163703-6acab594b423 h1:xb6LvBzm71FAt54shlWrx7Znxr3ns0Mm/Hk1ABdv08E=
 github.com/moby/policy-helpers v0.0.0-20261111163703-6acab594b423/go.mod h1:hNMdiq4WjSmuyvy8lWcflH6erzSg/MgZlFyM7vC7Z2c=
-github.com/moby/profiles/apparmor v0.3.0 h1:HNEjRGeh3eUdhr35Ar3oHyDU9sf79S2SQTyq1mrJu0k=
-github.com/moby/profiles/apparmor v0.3.0/go.mod h1:QatdynU8N2E+cQ5obf9JRwq05Wb7bPdyrAEUf6NDyK8=
+github.com/moby/profiles/apparmor v0.3.1 h1:/s4RfLECwnHIpiOH9xghWgmirKar6kCVm/45cvgq1xk=
+github.com/moby/profiles/apparmor v0.3.1/go.mod h1:QatdynU8N2E+cQ5obf9JRwq05Wb7bPdyrAEUf6NDyK8=
 github.com/moby/profiles/seccomp v0.3.0 h1:1vJ94fIWXz206DLWq7ddPD6qLP82N7351JI/9iGy3IY=
 github.com/moby/profiles/seccomp v0.3.0/go.mod h1:H3JkVP4MWq+Q87sSWRUEdiZvK52WErUbcxr+mJHKVoM=
 github.com/moby/pubsub v1.0.0 h1:jkp/imWsmJz2f6LyFsk7EkVeN2HxR/HTTOY8kHrsxfA=
