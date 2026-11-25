@@ -1280,6 +1280,7 @@ github.com/moby/docker-image-spec/specs-go/v1
 github.com/moby/extensions
 github.com/moby/extensions/client
 github.com/moby/extensions/clientpoint
+github.com/moby/extensions/cmd/mobyextgen
 github.com/moby/extensions/example/greeter/v0
 github.com/moby/extensions/example/greeter/v0/protogen
 github.com/moby/extensions/extpoints/service/v0
@@ -1537,6 +1538,16 @@ github.com/philhofer/fwd
 github.com/pkg/errors
 # github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10
 ## explicit; go 1.20
+github.com/planetscale/vtprotobuf/cmd/protoc-gen-go-vtproto
+github.com/planetscale/vtprotobuf/features/clone
+github.com/planetscale/vtprotobuf/features/equal
+github.com/planetscale/vtprotobuf/features/grpc
+github.com/planetscale/vtprotobuf/features/marshal
+github.com/planetscale/vtprotobuf/features/pool
+github.com/planetscale/vtprotobuf/features/size
+github.com/planetscale/vtprotobuf/features/unmarshal
+github.com/planetscale/vtprotobuf/generator
+github.com/planetscale/vtprotobuf/generator/pattern
 github.com/planetscale/vtprotobuf/protohelpers
 github.com/planetscale/vtprotobuf/types/known/timestamppb
 github.com/planetscale/vtprotobuf/vtproto

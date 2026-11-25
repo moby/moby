@@ -6,6 +6,8 @@ tool (
 	github.com/gogo/protobuf/protoc-gen-gogo
 	github.com/gogo/protobuf/protoc-gen-gogofaster
 	github.com/gogo/protobuf/protoc-gen-gogoslick
+	github.com/moby/extensions/cmd/mobyextgen
+	github.com/planetscale/vtprotobuf/cmd/protoc-gen-go-vtproto
 	google.golang.org/protobuf/cmd/protoc-gen-go
 )
 
