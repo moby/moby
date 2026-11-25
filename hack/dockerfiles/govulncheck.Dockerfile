@@ -4,7 +4,7 @@ ARG GO_VERSION=1.27.4
 
 # GOVULNCHECK_VERSION sets the version of govulncheck to install.
 # renovate: datasource=github-tags depName=golang/vuln
-ARG GOVULNCHECK_VERSION=v1.9.0
+ARG GOVULNCHECK_VERSION=v1.10.0
 ARG FORMAT=text
 
 FROM golang:${GO_VERSION}-alpine AS base
