@@ -21,7 +21,7 @@ on:
 env:
   GO_VERSION: "1.27.4"
   # renovate: datasource=github-tags depName=crazy-max/gotestlist
-  GOTESTLIST_VERSION: v0.3.1
+  GOTESTLIST_VERSION: v0.5.0
   # renovate: datasource=github-tags depName=vearutop/teststat
   TESTSTAT_VERSION: v0.1.29
   SETUP_BUILDX_VERSION: edge
