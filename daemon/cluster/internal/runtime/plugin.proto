@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+option go_package = "github.com/moby/moby/v2/daemon/cluster/internal/runtime";
+
 // PluginSpec defines the base payload which clients can specify for creating
 // a service with the plugin runtime.
 message PluginSpec {

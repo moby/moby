@@ -71,7 +71,8 @@ func (c *Cluster) listNetworks(ctx context.Context, filters *swarmapi.ListNetwor
 	var appdata *gogotypes.Any
 	if withStatus {
 		var err error
-		appdata, err = gogotypes.MarshalAny(&netextra.GetNetworkExtraOptions{
+
+		appdata, err = netextra.MarshalOptions(&netextra.GetNetworkExtraOptions{
 			WithIPAMStatus: withStatus,
 		})
 		if err != nil {
@@ -96,7 +97,8 @@ func (c *Cluster) GetNetwork(input string, withStatus bool) (network.Inspect, er
 	var appdata *gogotypes.Any
 	if withStatus {
 		var err error
-		appdata, err = gogotypes.MarshalAny(&netextra.GetNetworkExtraOptions{
+
+		appdata, err = netextra.MarshalOptions(&netextra.GetNetworkExtraOptions{
 			WithIPAMStatus: withStatus,
 		})
 		if err != nil {

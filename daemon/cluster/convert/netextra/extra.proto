@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package docker.engine.netextra;
 
-option go_package = "netextra";
+option go_package = "github.com/moby/moby/v2/daemon/cluster/convert/netextra";
 
 message GetNetworkExtraOptions {
 	bool WithIPAMStatus = 1;
