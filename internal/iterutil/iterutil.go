@@ -17,17 +17,6 @@ func SameValues[T comparable](a, b iter.Seq[T]) bool {
 	return maps.Equal(m, n)
 }
 
-// Deref adapts an iterator of pointers to an iterator of values.
-func Deref[T any, P *T](s iter.Seq[P]) iter.Seq[T] {
-	return func(yield func(T) bool) {
-		for p := range s {
-			if !yield(*p) {
-				return
-			}
-		}
-	}
-}
-
 // Chain concatenates multiple iterators into a single iterator.
 func Chain[T any](iters ...iter.Seq[T]) iter.Seq[T] {
 	return func(yield func(T) bool) {

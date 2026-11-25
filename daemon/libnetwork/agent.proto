@@ -1,15 +1,11 @@
 syntax = "proto3";
 
-import "github.com/gogo/protobuf/gogoproto/gogo.proto";
-
 package libnetwork;
 
-option (gogoproto.marshaler_all) = true;
-option (gogoproto.unmarshaler_all) = true;
-option (gogoproto.stringer_all) = true;
-option (gogoproto.gostring_all) = true;
-option (gogoproto.sizer_all) = true;
-option (gogoproto.goproto_stringer_all) = false;
+option go_package = "github.com/moby/moby/v2/daemon/libnetwork";
+
+// Field names containing initialisms are camelCase so that the generated Go
+// field names keep them (for example, ServiceID).
 
 // EndpointRecord specifies all the endpoint specific information that
 // needs to gossiped to nodes participating in the network.
@@ -21,13 +17,13 @@ message EndpointRecord {
 	string service_name = 2;
 
 	// Service ID of the service to which this endpoint belongs.
-	string service_id = 3 [(gogoproto.customname) = "ServiceID"];
+	string serviceID = 3;
 
 	// Virtual IP of the service to which this endpoint belongs.
-	string virtual_ip = 4 [(gogoproto.customname) = "VirtualIP"];
+	string virtualIP = 4;
 
 	// IP assigned to this endpoint.
-	string endpoint_ip = 5 [(gogoproto.customname) = "EndpointIP"];
+	string endpointIP = 5;
 
 	// IngressPorts exposed by the service to which this endpoint belongs.
 	repeated PortConfig ingress_ports = 6;
@@ -50,11 +46,9 @@ message EndpointRecord {
 // request to this port to any node on the cluster.
 message PortConfig {
 	enum Protocol {
-		option (gogoproto.goproto_enum_prefix) = false;
-
-		TCP = 0 [(gogoproto.enumvalue_customname) = "ProtocolTCP"];
-		UDP = 1 [(gogoproto.enumvalue_customname) = "ProtocolUDP"];
-		SCTP = 2 [(gogoproto.enumvalue_customname) = "ProtocolSCTP"];
+		TCP = 0;
+		UDP = 1;
+		SCTP = 2;
 	}
 
 	// Name for the port. If provided the port information can

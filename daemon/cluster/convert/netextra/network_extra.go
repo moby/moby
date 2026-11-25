@@ -1,4 +1,4 @@
-//go:generate protoc --gogofaster_out=. extra.proto
+//go:generate protoc -I=../../../.. --go_out=../../../.. --go_opt=paths=source_relative --go-vtproto_out=../../../.. --go-vtproto_opt=paths=source_relative,features=marshal+unmarshal+size daemon/cluster/convert/netextra/extra.proto
 
 package netextra
 
@@ -7,23 +7,54 @@ import (
 
 	"github.com/gogo/protobuf/types"
 	"github.com/moby/moby/api/types/network"
+	"google.golang.org/protobuf/proto"
 )
 
-func OptionsFrom(typeurl string, value []byte) (GetNetworkExtraOptions, error) {
-	if typeurl == "" {
-		return GetNetworkExtraOptions{}, nil
-	}
-	appdata := &types.Any{TypeUrl: typeurl, Value: value}
+type vtMessage interface {
+	proto.Message
+	MarshalVT() ([]byte, error)
+}
 
+// marshalAny encodes m with the type URL that [types.MarshalAny] produced,
+// which these messages were encoded with before they moved off gogo/protobuf.
+func marshalAny(m vtMessage) (*types.Any, error) {
+	value, err := m.MarshalVT()
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.Any{
+		TypeUrl: "type.googleapis.com/" + string(m.ProtoReflect().Descriptor().FullName()),
+		Value:   value,
+	}, nil
+}
+
+// isType reports whether typeurl names m's message type, matching only the
+// part after the last '/' as [types.Is] does.
+func isType(typeurl string, m proto.Message) bool {
+	name := string(m.ProtoReflect().Descriptor().FullName())
+	prefix := len(typeurl) - len(name)
+
+	return prefix >= 1 && typeurl[prefix-1] == '/' && typeurl[prefix:] == name
+}
+
+// MarshalOptions encodes opts as appdata for the Swarm network API.
+func MarshalOptions(opts *GetNetworkExtraOptions) (*types.Any, error) {
+	return marshalAny(opts)
+}
+
+func OptionsFrom(typeurl string, value []byte) (*GetNetworkExtraOptions, error) {
 	var xo GetNetworkExtraOptions
-	if !types.Is(appdata, &xo) {
+	if !isType(typeurl, &xo) {
 		// Forward-compatibility: ignore unknown message types
-		return GetNetworkExtraOptions{}, nil
+		return &xo, nil
 	}
-	if err := types.UnmarshalAny(appdata, &xo); err != nil {
-		return GetNetworkExtraOptions{}, err
+
+	if err := xo.UnmarshalVT(value); err != nil {
+		return nil, err
 	}
-	return xo, nil
+
+	return &xo, nil
 }
 
 func StatusFrom(extra *types.Any) (*network.Status, error) {
@@ -32,11 +63,12 @@ func StatusFrom(extra *types.Any) (*network.Status, error) {
 	}
 
 	var x Extra
-	if !types.Is(extra, &x) {
+	if !isType(extra.TypeUrl, &x) {
 		// Forward-compatibility: ignore unknown message types
 		return nil, nil
 	}
-	if err := types.UnmarshalAny(extra, &x); err != nil {
+
+	if err := x.UnmarshalVT(extra.Value); err != nil {
 		return nil, err
 	}
 
@@ -78,7 +110,6 @@ func MarshalStatus(status *network.Status) (*types.Any, error) {
 			DynamicIPsAvailable: s.DynamicIPsAvailable,
 		})
 	}
-	return types.MarshalAny(&Extra{
-		IPAMStatus: ipam,
-	})
+
+	return marshalAny(&Extra{IPAMStatus: ipam})
 }

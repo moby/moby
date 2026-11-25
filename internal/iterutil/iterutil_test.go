@@ -21,15 +21,6 @@ func TestSameValues(t *testing.T) {
 	assert.Check(t, !SameValues(slices.Values(a), slices.Values(c)))
 }
 
-func TestDeref(t *testing.T) {
-	a := make([]*int, 3)
-	for i := range a {
-		a[i] = &i
-	}
-	b := slices.Collect(Deref(slices.Values(a)))
-	assert.DeepEqual(t, b, []int{0, 1, 2})
-}
-
 func TestChain(t *testing.T) {
 	a := []int{1, 2, 3}
 	b := []int{4, 5}

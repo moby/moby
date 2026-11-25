@@ -46,29 +46,29 @@ func withEmptyPortConfigTbl(t *testing.T) {
 // didn't, each would take a first reference and both would try to reserve host
 // port 8080.
 func TestPublishedPortIgnoresTargetPort(t *testing.T) {
-	a, err := publishedPort(&PortConfig{Protocol: ProtocolTCP, PublishedPort: 8080, TargetPort: 80})
+	a, err := publishedPort(&PortConfig{Protocol: PortConfig_TCP, PublishedPort: 8080, TargetPort: 80})
 	assert.NilError(t, err)
-	b, err := publishedPort(&PortConfig{Protocol: ProtocolTCP, PublishedPort: 8080, TargetPort: 8080})
+	b, err := publishedPort(&PortConfig{Protocol: PortConfig_TCP, PublishedPort: 8080, TargetPort: 8080})
 	assert.NilError(t, err)
 
 	assert.Check(t, is.Equal(a, b))
 	assert.Check(t, is.Equal(a, types.PublishedPort{Proto: types.TCP, Port: 8080, HostPort: 8080, NoSelfConnect: true}))
 
 	// A differing protocol is a different reservation.
-	udp, err := publishedPort(&PortConfig{Protocol: ProtocolUDP, PublishedPort: 8080, TargetPort: 80})
+	udp, err := publishedPort(&PortConfig{Protocol: PortConfig_UDP, PublishedPort: 8080, TargetPort: 80})
 	assert.NilError(t, err)
 	assert.Check(t, a != udp)
 }
 
 func TestPublishedPortsRejectsOutOfRange(t *testing.T) {
-	_, err := publishedPort(&PortConfig{Protocol: ProtocolTCP, PublishedPort: math.MaxUint16 + 1})
+	_, err := publishedPort(&PortConfig{Protocol: PortConfig_TCP, PublishedPort: math.MaxUint16 + 1})
 	assert.Check(t, is.ErrorContains(err, "out of range"))
 
 	// The whole set is narrowed before any of it is returned, so a caller is never
 	// left with a partial conversion to undo.
 	pps, err := publishedPorts([]*PortConfig{
-		{Protocol: ProtocolTCP, PublishedPort: 8080, TargetPort: 80},
-		{Protocol: ProtocolTCP, PublishedPort: math.MaxUint16 + 1},
+		{Protocol: PortConfig_TCP, PublishedPort: 8080, TargetPort: 80},
+		{Protocol: PortConfig_TCP, PublishedPort: math.MaxUint16 + 1},
 	})
 	assert.Check(t, is.ErrorContains(err, "out of range"))
 	assert.Check(t, is.Len(pps, 0))
@@ -82,9 +82,9 @@ func TestPublishedPortsRejectsOutOfRange(t *testing.T) {
 func TestIngressPortRefsAcrossGenerations(t *testing.T) {
 	withEmptyPortConfigTbl(t)
 
-	ppsA, err := publishedPorts([]*PortConfig{{Protocol: ProtocolTCP, PublishedPort: 8080, TargetPort: 80}})
+	ppsA, err := publishedPorts([]*PortConfig{{Protocol: PortConfig_TCP, PublishedPort: 8080, TargetPort: 80}})
 	assert.NilError(t, err)
-	ppsB, err := publishedPorts([]*PortConfig{{Protocol: ProtocolTCP, PublishedPort: 8080, TargetPort: 8080}})
+	ppsB, err := publishedPorts([]*PortConfig{{Protocol: PortConfig_TCP, PublishedPort: 8080, TargetPort: 8080}})
 	assert.NilError(t, err)
 
 	want := types.PublishedPort{Proto: types.TCP, Port: 8080, HostPort: 8080, NoSelfConnect: true}
@@ -134,8 +134,8 @@ func TestIngressPortRefsRollbackBalanced(t *testing.T) {
 func TestAddIngressPortsRollsBackEveryReference(t *testing.T) {
 	withEmptyPortConfigTbl(t)
 
-	shared := &PortConfig{Protocol: ProtocolTCP, PublishedPort: 8080, TargetPort: 80}
-	fresh := &PortConfig{Protocol: ProtocolTCP, PublishedPort: 9090, TargetPort: 90}
+	shared := &PortConfig{Protocol: PortConfig_TCP, PublishedPort: 8080, TargetPort: 80}
+	fresh := &PortConfig{Protocol: PortConfig_TCP, PublishedPort: 9090, TargetPort: 90}
 	sharedPP, err := publishedPort(shared)
 	assert.NilError(t, err)
 
@@ -288,7 +288,7 @@ func lbWithBackends(backends ...*lbBackend) *loadBalancer {
 		service: &service{
 			name:         "svc",
 			id:           "svcid",
-			ingressPorts: portConfigs{{Protocol: ProtocolTCP, PublishedPort: 8080, TargetPort: 80}},
+			ingressPorts: portConfigs{{Protocol: PortConfig_TCP, PublishedPort: 8080, TargetPort: 80}},
 		},
 	}
 	for i, be := range backends {

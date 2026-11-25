@@ -16,8 +16,8 @@ func privilegesFromAPI(privs []*swarm.RuntimePrivilege) []*PluginPrivilege {
 
 // FromAPI converts an API RuntimeSpec to a PluginSpec,
 // which can be proto encoded.
-func FromAPI(spec swarm.RuntimeSpec) PluginSpec {
-	return PluginSpec{
+func FromAPI(spec swarm.RuntimeSpec) *PluginSpec {
+	return &PluginSpec{
 		Name:       spec.Name,
 		Remote:     spec.Remote,
 		Privileges: privilegesFromAPI(spec.Privileges),
@@ -38,7 +38,7 @@ func privilegesToAPI(privs []*PluginPrivilege) []*swarm.RuntimePrivilege {
 	return out
 }
 
-func ToAPI(spec PluginSpec) swarm.RuntimeSpec {
+func ToAPI(spec *PluginSpec) swarm.RuntimeSpec {
 	return swarm.RuntimeSpec{
 		Name:       spec.Name,
 		Remote:     spec.Remote,

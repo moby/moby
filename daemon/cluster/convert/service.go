@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gogo/protobuf/proto"
 	gogotypes "github.com/gogo/protobuf/types"
 	types "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/daemon/cluster/internal/runtime"
@@ -214,8 +213,7 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 
 			s.Mode.Global = &types.GlobalService{} // must always be global
 
-			ps := runtime.FromAPI(*s.TaskTemplate.PluginSpec)
-			pluginSpec, err := proto.Marshal(&ps)
+			pluginSpec, err := runtime.FromAPI(*s.TaskTemplate.PluginSpec).MarshalVT()
 			if err != nil {
 				return swarmapi.ServiceSpec{}, err
 			}
@@ -726,10 +724,11 @@ func taskSpecFromGRPC(taskSpec swarmapi.TaskSpec) (types.TaskSpec, error) {
 			switch g.Kind {
 			case string(types.RuntimePlugin):
 				var p runtime.PluginSpec
-				if err := proto.Unmarshal(g.Payload.Value, &p); err != nil {
+				if err := p.UnmarshalVT(g.Payload.Value); err != nil {
 					return t, errors.Wrap(err, "error unmarshalling plugin spec")
 				}
-				ap := runtime.ToAPI(p)
+
+				ap := runtime.ToAPI(&p)
 				t.PluginSpec = &ap
 			}
 		}

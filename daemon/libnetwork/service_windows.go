@@ -100,7 +100,7 @@ func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
 			continue
 		}
 
-		if port.Protocol == ProtocolUDP {
+		if port.Protocol == PortConfig_UDP {
 			protocol = 17
 		}
 

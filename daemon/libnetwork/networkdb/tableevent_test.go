@@ -28,15 +28,15 @@ func TestWatch_out_of_order(t *testing.T) {
 
 	msgs := messageBuffer{t: t}
 	appendTableEvent := tableEventHelper(&msgs, "node1", "network1", "table1")
-	msgs.Append(MessageTypeNetworkEvent, &NetworkEvent{
-		Type:      NetworkEventTypeJoin,
+	msgs.Append(MessageType_NETWORK_EVENT, &NetworkEvent{
+		Type:      NetworkEvent_JOIN,
 		LTime:     1,
 		NodeName:  "node1",
 		NetworkID: "network1",
 	})
-	appendTableEvent(1, TableEventTypeCreate, "tombstone1", []byte("a"))
-	appendTableEvent(2, TableEventTypeDelete, "tombstone1", []byte("b"))
-	appendTableEvent(3, TableEventTypeCreate, "key1", []byte("value1"))
+	appendTableEvent(1, TableEvent_CREATE, "tombstone1", []byte("a"))
+	appendTableEvent(2, TableEvent_DELETE, "tombstone1", []byte("b"))
+	appendTableEvent(3, TableEvent_CREATE, "key1", []byte("value1"))
 	d.NotifyMsg(msgs.Compound())
 	msgs.Reset()
 
@@ -51,26 +51,26 @@ func TestWatch_out_of_order(t *testing.T) {
 
 	// Receive events from node1, with events not received or received out of order
 	// Create, (hidden update), delete
-	appendTableEvent(4, TableEventTypeCreate, "key2", []byte("a"))
-	appendTableEvent(6, TableEventTypeDelete, "key2", []byte("b"))
+	appendTableEvent(4, TableEvent_CREATE, "key2", []byte("a"))
+	appendTableEvent(6, TableEvent_DELETE, "key2", []byte("b"))
 	// (Hidden recreate), delete
-	appendTableEvent(8, TableEventTypeDelete, "key2", []byte("c"))
+	appendTableEvent(8, TableEvent_DELETE, "key2", []byte("c"))
 	// (Hidden recreate), update
-	appendTableEvent(10, TableEventTypeUpdate, "key2", []byte("d"))
+	appendTableEvent(10, TableEvent_UPDATE, "key2", []byte("d"))
 
 	// Update, create
-	appendTableEvent(11, TableEventTypeUpdate, "key3", []byte("b"))
-	appendTableEvent(10, TableEventTypeCreate, "key3", []byte("a"))
+	appendTableEvent(11, TableEvent_UPDATE, "key3", []byte("b"))
+	appendTableEvent(10, TableEvent_CREATE, "key3", []byte("a"))
 
 	// (Hidden create), update, update
-	appendTableEvent(13, TableEventTypeUpdate, "key4", []byte("b"))
-	appendTableEvent(14, TableEventTypeUpdate, "key4", []byte("c"))
+	appendTableEvent(13, TableEvent_UPDATE, "key4", []byte("b"))
+	appendTableEvent(14, TableEvent_UPDATE, "key4", []byte("c"))
 
 	// Delete, create
-	appendTableEvent(16, TableEventTypeDelete, "key5", []byte("a"))
-	appendTableEvent(15, TableEventTypeCreate, "key5", []byte("a"))
+	appendTableEvent(16, TableEvent_DELETE, "key5", []byte("a"))
+	appendTableEvent(15, TableEvent_CREATE, "key5", []byte("a"))
 	// (Hidden recreate), delete
-	appendTableEvent(18, TableEventTypeDelete, "key5", []byte("b"))
+	appendTableEvent(18, TableEvent_DELETE, "key5", []byte("b"))
 
 	d.NotifyMsg(msgs.Compound())
 	msgs.Reset()
@@ -107,59 +107,59 @@ func TestWatch_filters(t *testing.T) {
 
 	var ltime lamport.Clock
 	msgs := messageBuffer{t: t}
-	msgs.Append(MessageTypeNetworkEvent, &NetworkEvent{
-		Type:      NetworkEventTypeJoin,
-		LTime:     ltime.Increment(),
+	msgs.Append(MessageType_NETWORK_EVENT, &NetworkEvent{
+		Type:      NetworkEvent_JOIN,
+		LTime:     uint64(ltime.Increment()),
 		NodeName:  "node1",
 		NetworkID: "network1",
 	})
-	msgs.Append(MessageTypeNetworkEvent, &NetworkEvent{
-		Type:      NetworkEventTypeJoin,
-		LTime:     ltime.Increment(),
+	msgs.Append(MessageType_NETWORK_EVENT, &NetworkEvent{
+		Type:      NetworkEvent_JOIN,
+		LTime:     uint64(ltime.Increment()),
 		NodeName:  "node1",
 		NetworkID: "network2",
 	})
 	for _, nid := range []string{"network1", "network2"} {
 		for _, tname := range []string{"table1", "table2"} {
-			msgs.Append(MessageTypeTableEvent, &TableEvent{
-				Type:      TableEventTypeCreate,
-				LTime:     ltime.Increment(),
+			msgs.Append(MessageType_TABLE_EVENT, &TableEvent{
+				Type:      TableEvent_CREATE,
+				LTime:     uint64(ltime.Increment()),
 				NodeName:  "node1",
 				NetworkID: nid,
 				TableName: tname,
 				Key:       nid + "." + tname + ".dead",
 				Value:     []byte("deaddead"),
 			})
-			msgs.Append(MessageTypeTableEvent, &TableEvent{
-				Type:      TableEventTypeDelete,
-				LTime:     ltime.Increment(),
+			msgs.Append(MessageType_TABLE_EVENT, &TableEvent{
+				Type:      TableEvent_DELETE,
+				LTime:     uint64(ltime.Increment()),
 				NodeName:  "node1",
 				NetworkID: nid,
 				TableName: tname,
 				Key:       nid + "." + tname + ".dead",
 				Value:     []byte("deaddead"),
 			})
-			msgs.Append(MessageTypeTableEvent, &TableEvent{
-				Type:      TableEventTypeCreate,
-				LTime:     ltime.Increment(),
+			msgs.Append(MessageType_TABLE_EVENT, &TableEvent{
+				Type:      TableEvent_CREATE,
+				LTime:     uint64(ltime.Increment()),
 				NodeName:  "node1",
 				NetworkID: nid,
 				TableName: tname,
 				Key:       nid + "." + tname + ".update",
 				Value:     []byte("initial"),
 			})
-			msgs.Append(MessageTypeTableEvent, &TableEvent{
-				Type:      TableEventTypeCreate,
-				LTime:     ltime.Increment(),
+			msgs.Append(MessageType_TABLE_EVENT, &TableEvent{
+				Type:      TableEvent_CREATE,
+				LTime:     uint64(ltime.Increment()),
 				NodeName:  "node1",
 				NetworkID: nid,
 				TableName: tname,
 				Key:       nid + "." + tname,
 				Value:     []byte("a"),
 			})
-			msgs.Append(MessageTypeTableEvent, &TableEvent{
-				Type:      TableEventTypeUpdate,
-				LTime:     ltime.Increment(),
+			msgs.Append(MessageType_TABLE_EVENT, &TableEvent{
+				Type:      TableEvent_UPDATE,
+				LTime:     uint64(ltime.Increment()),
 				NodeName:  "node1",
 				NetworkID: nid,
 				TableName: tname,
@@ -242,30 +242,30 @@ func TestLeaveRejoinOutOfOrder(t *testing.T) {
 	msgs := messageBuffer{t: t}
 	appendTableEvent := tableEventHelper(&msgs, "node1", "network1", "table1")
 
-	msgs.Append(MessageTypeNetworkEvent, &NetworkEvent{
-		Type:      NetworkEventTypeJoin,
+	msgs.Append(MessageType_NETWORK_EVENT, &NetworkEvent{
+		Type:      NetworkEvent_JOIN,
 		LTime:     1,
 		NodeName:  "node1",
 		NetworkID: "network1",
 	})
 	// Simulate node1 leaving, rejoining, and creating an entry,
 	// but the table events are broadcast before the network events.
-	appendTableEvent(1, TableEventTypeCreate, "key1", []byte("a"))
-	msgs.Append(MessageTypeNetworkEvent, &NetworkEvent{
-		Type:      NetworkEventTypeLeave,
+	appendTableEvent(1, TableEvent_CREATE, "key1", []byte("a"))
+	msgs.Append(MessageType_NETWORK_EVENT, &NetworkEvent{
+		Type:      NetworkEvent_LEAVE,
 		LTime:     2,
 		NodeName:  "node1",
 		NetworkID: "network1",
 	})
-	msgs.Append(MessageTypeNetworkEvent, &NetworkEvent{
-		Type:      NetworkEventTypeJoin,
+	msgs.Append(MessageType_NETWORK_EVENT, &NetworkEvent{
+		Type:      NetworkEvent_JOIN,
 		LTime:     3,
 		NodeName:  "node1",
 		NetworkID: "network1",
 	})
 	// Simulate a bulk sync or receiving a rebroadcasted copy of the table
 	// event from another node.
-	appendTableEvent(1, TableEventTypeCreate, "key1", []byte("a"))
+	appendTableEvent(1, TableEvent_CREATE, "key1", []byte("a"))
 
 	d.NotifyMsg(msgs.Compound())
 
@@ -297,7 +297,7 @@ type messageBuffer struct {
 	msgs [][]byte
 }
 
-func (mb *messageBuffer) Append(typ MessageType, msg any) {
+func (mb *messageBuffer) Append(typ MessageType, msg vtMarshaler) {
 	mb.t.Helper()
 	buf, err := encodeMessage(typ, msg)
 	if err != nil {
@@ -317,9 +317,9 @@ func (mb *messageBuffer) Reset() {
 func tableEventHelper(mb *messageBuffer, nodeName, networkID, tableName string) func(ltime lamport.Time, typ TableEvent_Type, key string, value []byte) {
 	return func(ltime lamport.Time, typ TableEvent_Type, key string, value []byte) {
 		mb.t.Helper()
-		mb.Append(MessageTypeTableEvent, &TableEvent{
+		mb.Append(MessageType_TABLE_EVENT, &TableEvent{
 			Type:      typ,
-			LTime:     ltime,
+			LTime:     uint64(ltime),
 			NodeName:  nodeName,
 			NetworkID: networkID,
 			TableName: tableName,

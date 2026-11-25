@@ -2,7 +2,6 @@ package local
 
 import (
 	"bytes"
-	"encoding/binary"
 	"io"
 	"os"
 	"path/filepath"
@@ -10,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	protoio "github.com/gogo/protobuf/io"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/logger/internal/logdriver"
 	"github.com/moby/moby/v2/daemon/logger/loggertest"
@@ -54,7 +53,8 @@ func TestWriteLog(t *testing.T) {
 	f, err := os.Open(logPath)
 	assert.NilError(t, err)
 	t.Cleanup(func() { assert.NilError(t, f.Close()) })
-	dec := protoio.NewUint32DelimitedReader(f, binary.BigEndian, 1e6)
+
+	dec := logdriver.NewLogEntryDecoder(f)
 
 	lenBuf := make([]byte, encodeBinaryLen)
 	seekMsgLen := func() {
@@ -64,7 +64,8 @@ func TestWriteLog(t *testing.T) {
 
 	for i := range messages {
 		var got logdriver.LogEntry
-		err = dec.ReadMsg(&got)
+
+		err = dec.Decode(&got)
 		assert.NilError(t, err)
 
 		var want logdriver.LogEntry
@@ -74,7 +75,7 @@ func TestWriteLog(t *testing.T) {
 			{Key: "tag", Value: "custom-tag"},
 		}
 		messageToProto(&messages[i], extraAttrs, &want, &partial)
-		assert.Check(t, is.DeepEqual(want, got), "msg %d: expected:\n%+v\ngot:\n%+v", i, want, got)
+		assert.Check(t, is.DeepEqual(&want, &got, cmpopts.IgnoreUnexported(logdriver.LogEntry{}, logdriver.PartialLogEntryMetadata{}, logdriver.LogAttr{})), "msg %d: expected:\n%+v\ngot:\n%+v", i, &want, &got)
 
 		if i < len(messages)-1 {
 			seekMsgLen()
@@ -113,7 +114,8 @@ func BenchmarkLogWrite(b *testing.B) {
 	} {
 		b.Run(strconv.Itoa(len(data)), func(b *testing.B) {
 			entry := &logdriver.LogEntry{Line: data, Source: "stdout", TimeNano: t.UnixNano()}
-			b.SetBytes(int64(entry.Size() + encodeBinaryLen + encodeBinaryLen))
+			b.SetBytes(int64(entry.SizeVT() + encodeBinaryLen + encodeBinaryLen))
+
 			for b.Loop() {
 				msg := logger.NewMessage()
 				msg.Line = data

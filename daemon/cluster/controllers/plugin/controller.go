@@ -8,7 +8,6 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/gogo/protobuf/proto"
 	plugintypes "github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
@@ -75,11 +74,11 @@ func readSpec(t *api.Task) (swarm.RuntimeSpec, error) {
 	var cfg runtime.PluginSpec
 
 	generic := t.Spec.GetGeneric()
-	if err := proto.Unmarshal(generic.Payload.Value, &cfg); err != nil {
+	if err := cfg.UnmarshalVT(generic.Payload.Value); err != nil {
 		return swarm.RuntimeSpec{}, errors.Wrap(err, "error reading plugin spec")
 	}
 
-	return runtime.ToAPI(cfg), nil
+	return runtime.ToAPI(&cfg), nil
 }
 
 // Update is the update phase from swarmkit

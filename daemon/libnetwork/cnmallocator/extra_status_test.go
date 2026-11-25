@@ -4,7 +4,6 @@ import (
 	"net/netip"
 	"testing"
 
-	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/moby/v2/daemon/cluster/convert/netextra"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
@@ -16,7 +15,8 @@ import (
 // as [github.com/moby/moby/v2/daemon/cluster.Cluster] marshals it.
 func ipamStatusAppdata(t *testing.T) (typeurl string, appdata []byte) {
 	t.Helper()
-	msg, err := gogotypes.MarshalAny(&netextra.GetNetworkExtraOptions{WithIPAMStatus: true})
+
+	msg, err := netextra.MarshalOptions(&netextra.GetNetworkExtraOptions{WithIPAMStatus: true})
 	assert.NilError(t, err)
 	return msg.TypeUrl, msg.Value
 }

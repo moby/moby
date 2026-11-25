@@ -1,14 +1,12 @@
 package logger
 
 import (
-	"encoding/binary"
 	"errors"
 	"io"
 	"sync"
 	"testing"
 	"time"
 
-	protoio "github.com/gogo/protobuf/io"
 	"github.com/moby/moby/v2/daemon/logger/internal/logdriver"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -36,10 +34,11 @@ func newMockLoggingPlugin() *mockLoggingPlugin {
 
 func (l *mockLoggingPlugin) StartLogging(file string, info Info) error {
 	go func() {
-		dec := protoio.NewUint32DelimitedReader(l.inStream, binary.BigEndian, 1e6)
+		dec := logdriver.NewLogEntryDecoder(l.inStream)
+
 		for {
 			var msg logdriver.LogEntry
-			if err := dec.ReadMsg(&msg); err != nil {
+			if err := dec.Decode(&msg); err != nil {
 				l.c.L.Lock()
 				if l.err == nil {
 					l.err = err

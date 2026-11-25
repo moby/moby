@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/netip"
 
-	"github.com/gogo/protobuf/proto"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/hashable"
 )
 
@@ -19,7 +18,7 @@ type Peer struct {
 
 func UnmarshalPeerRecord(data []byte) (*Peer, error) {
 	var pr PeerRecord
-	if err := proto.Unmarshal(data, &pr); err != nil {
+	if err := pr.UnmarshalVT(data); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal peer record: %w", err)
 	}
 	var (

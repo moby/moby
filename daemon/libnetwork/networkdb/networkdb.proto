@@ -1,50 +1,43 @@
 syntax = "proto3";
 
-import "github.com/gogo/protobuf/gogoproto/gogo.proto";
-
 package networkdb;
 
-option (gogoproto.marshaler_all) = true;
-option (gogoproto.unmarshaler_all) = true;
-option (gogoproto.stringer_all) = true;
-option (gogoproto.gostring_all) = true;
-option (gogoproto.sizer_all) = true;
-option (gogoproto.goproto_stringer_all) = false;
+option go_package = "github.com/moby/moby/v2/daemon/libnetwork/networkdb";
+
+// Field names containing initialisms are camelCase so that the generated Go
+// field names keep them (for example, NetworkID).
 
 // MessageType enum defines all the core message types that networkdb
 // uses to communicate to peers.
 enum MessageType {
-	option (gogoproto.goproto_enum_prefix) = false;
-	option (gogoproto.enum_customname) = "MessageType";
-
-	INVALID = 0 [(gogoproto.enumvalue_customname) = "MessageTypeInvalid"];
+	INVALID = 0;
 
 	// NetworkEvent message type is used to communicate network
 	// attachments on the node.
-	NETWORK_EVENT = 1 [(gogoproto.enumvalue_customname) = "MessageTypeNetworkEvent"];
+	NETWORK_EVENT = 1;
 
 	// TableEvent message type is used to communicate any table
 	// CRUD event that happened on the node.
-	TABLE_EVENT = 2 [(gogoproto.enumvalue_customname) = "MessageTypeTableEvent"];
+	TABLE_EVENT = 2;
 
 	// PushPull message type is used to syncup all network
 	// attachments on a peer node either during startup of this
 	// node or with a random peer node periodically thereafter.
-	PUSH_PULL = 3 [(gogoproto.enumvalue_customname) = "MessageTypePushPull"];
+	PUSH_PULL = 3;
 
 	// BulkSync message is used to bulksync the whole networkdb
 	// state with a peer node during startup of this node or with
 	// a random peer node periodically thereafter.
-	BULK_SYNC = 4 [(gogoproto.enumvalue_customname) = "MessageTypeBulkSync"];
+	BULK_SYNC = 4;
 
 	// Compound message type is used to form a compound message
 	// which is a pack of many message of above types, packed into
 	// a single compound message.
-	COMPOUND = 5 [(gogoproto.enumvalue_customname) = "MessageTypeCompound"];
+	COMPOUND = 5;
 
 	// NodeEvent message type is used to communicate node
 	// join/leave events in the cluster
-	NODE_EVENT = 6 [(gogoproto.enumvalue_customname) = "MessageTypeNodeEvent"];
+	NODE_EVENT = 6;
 }
 
 // GossipMessage is a basic message header used by all messages types.
@@ -56,14 +49,11 @@ message GossipMessage {
 // NodeEvent message payload definition.
 message NodeEvent {
 	enum Type {
-		option (gogoproto.goproto_enum_prefix) = false;
-		option (gogoproto.enum_customname) = "Type";
-
-		INVALID = 0 [(gogoproto.enumvalue_customname) = "NodeEventTypeInvalid"];
+		INVALID = 0;
 		// Join event is generated when this node joins the cluster.
-		JOIN = 1 [(gogoproto.enumvalue_customname) = "NodeEventTypeJoin"];;
+		JOIN = 1;
 		// Leave event is generated when this node leaves the cluster.
-		LEAVE = 2 [(gogoproto.enumvalue_customname) = "NodeEventTypeLeave"];;
+		LEAVE = 2;
 	}
 
 	Type type = 1;
@@ -71,7 +61,7 @@ message NodeEvent {
 	// Lamport time using a network lamport clock indicating the
 	// time this event was generated on the node where it was
 	// generated.
-	uint64 l_time = 2 [(gogoproto.customtype) = "github.com/moby/moby/v2/daemon/libnetwork/internal/lamport.Time", (gogoproto.nullable) = false];
+	uint64 l_time = 2;
 	// Source node name.
 	string node_name = 3;
 }
@@ -79,14 +69,11 @@ message NodeEvent {
 // NetworkEvent message payload definition.
 message NetworkEvent {
 	enum Type {
-		option (gogoproto.goproto_enum_prefix) = false;
-		option (gogoproto.enum_customname) = "Type";
-
-		INVALID = 0 [(gogoproto.enumvalue_customname) = "NetworkEventTypeInvalid"];
+		INVALID = 0;
 		// Join event is generated when this node joins a network.
-		JOIN = 1 [(gogoproto.enumvalue_customname) = "NetworkEventTypeJoin"];;
+		JOIN = 1;
 		// Leave event is generated when this node leaves a network.
-		LEAVE = 2 [(gogoproto.enumvalue_customname) = "NetworkEventTypeLeave"];;
+		LEAVE = 2;
 	}
 
 	Type type = 1;
@@ -94,22 +81,22 @@ message NetworkEvent {
 	// Lamport time using a network lamport clock indicating the
 	// time this event was generated on the node where it was
 	// generated.
-	uint64 l_time = 2 [(gogoproto.customtype) = "github.com/moby/moby/v2/daemon/libnetwork/internal/lamport.Time", (gogoproto.nullable) = false];
+	uint64 l_time = 2;
 	// Source node name.
 	string node_name = 3;
 	// ID of the network for which the event is generated.
-	string network_id = 4 [(gogoproto.customname) = "NetworkID"];
+	string networkID = 4;
 }
 
 // NetworkEntry for push pull of networks.
 message NetworkEntry {
 	// ID of the network
-	string network_id = 1 [(gogoproto.customname) = "NetworkID"];
+	string networkID = 1;
 	// Latest lamport time of the network attachment when this
 	// network event was recorded.
-	uint64 l_time = 2 [(gogoproto.customtype) = "github.com/moby/moby/v2/daemon/libnetwork/internal/lamport.Time", (gogoproto.nullable) = false];
+	uint64 l_time = 2;
 	// Source node name where this network attachment happened.
-	string node_name = 3 [(gogoproto.customname) = "NodeName"];
+	string node_name = 3;
 	// Indicates if a leave from this network is in progress.
 	bool leaving = 4;
 }
@@ -117,37 +104,34 @@ message NetworkEntry {
 // NetworkPushpull message payload definition.
 message NetworkPushPull {
 	// Lamport time when this push pull was initiated.
-	uint64 l_time = 1 [(gogoproto.customtype) = "github.com/moby/moby/v2/daemon/libnetwork/internal/lamport.Time", (gogoproto.nullable) = false];
+	uint64 l_time = 1;
 	repeated NetworkEntry networks = 2;
 	// Name of the node sending this push pull payload.
-	string node_name = 3 [(gogoproto.customname) = "NodeName"];
+	string node_name = 3;
 }
 
 // TableEvent message payload definition.
 message TableEvent {
 	enum Type {
-		option (gogoproto.goproto_enum_prefix) = false;
-		option (gogoproto.enum_customname) = "Type";
-
-		INVALID = 0 [(gogoproto.enumvalue_customname) = "TableEventTypeInvalid"];
+		INVALID = 0;
 		// Create signifies that this table entry was just
 		// created.
-		CREATE = 1 [(gogoproto.enumvalue_customname) = "TableEventTypeCreate"];
+		CREATE = 1;
 		// Update signifies that this table entry was just
 		// updated.
-		UPDATE = 2 [(gogoproto.enumvalue_customname) = "TableEventTypeUpdate"];
+		UPDATE = 2;
 		// Delete signifies that this table entry was just
 		// updated.
-		DELETE = 3 [(gogoproto.enumvalue_customname) = "TableEventTypeDelete"];
+		DELETE = 3;
 	}
 
 	Type type = 1;
 	// Lamport time when this event was generated.
-	uint64 l_time = 2 [(gogoproto.customtype) = "github.com/moby/moby/v2/daemon/libnetwork/internal/lamport.Time", (gogoproto.nullable) = false];
+	uint64 l_time = 2;
 	// Node name where this event originated.
 	string node_name = 3;
 	// ID of the network to which this table entry belongs.
-	string network_id = 4 [(gogoproto.customname) = "NetworkID"];
+	string networkID = 4;
 	// Name of the table to which this table entry belongs.
 	string table_name = 5;
 	// Entry key.
@@ -155,13 +139,13 @@ message TableEvent {
 	// Entry value.
 	bytes value = 7;
 	// Residual reap time for the entry before getting deleted in seconds
-	int32 residual_reap_time = 8 [(gogoproto.customname) = "ResidualReapTime"];;
+	int32 residual_reap_time = 8;
 }
 
 // BulkSync message payload definition.
 message BulkSyncMessage {
 	// Lamport time when this bulk sync was initiated.
-	uint64 l_time = 1 [(gogoproto.customtype) = "github.com/moby/moby/v2/daemon/libnetwork/internal/lamport.Time", (gogoproto.nullable) = false];
+	uint64 l_time = 1;
 	// Indicates if this bulksync is a response to a bulk sync
 	// request from a peer node.
 	bool unsolicited = 2;

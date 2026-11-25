@@ -1,6 +1,6 @@
 package libnetwork
 
-//go:generate protoc -I=. -I=../../vendor/ --gogofaster_out=import_path=github.com/moby/moby/v2/daemon/libnetwork:. agent.proto
+//go:generate protoc -I=../.. --go_out=../.. --go_opt=paths=source_relative --go-vtproto_out=../.. --go-vtproto_opt=paths=source_relative,features=marshal+unmarshal+size daemon/libnetwork/agent.proto
 
 import (
 	"context"
@@ -15,7 +15,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/go-events"
-	"github.com/gogo/protobuf/proto"
 	"github.com/moby/moby/v2/daemon/libnetwork/cluster"
 	"github.com/moby/moby/v2/daemon/libnetwork/discoverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
@@ -500,7 +499,7 @@ type ServiceInfo struct {
 }
 
 type epRecord struct {
-	ep      EndpointRecord
+	ep      *EndpointRecord
 	info    map[string]string
 	lbIndex int
 }
@@ -523,8 +522,8 @@ func (n *Network) Services() map[string]ServiceInfo {
 	eps := make(map[string]epRecord)
 	c := n.controller
 	for eid, value := range agent.networkDB.GetTableByNetwork(libnetworkEPTable, nwID) {
-		var epRec EndpointRecord
-		if err := proto.Unmarshal(value.Value, &epRec); err != nil {
+		epRec := &EndpointRecord{}
+		if err := epRec.UnmarshalVT(value.Value); err != nil {
 			log.G(context.TODO()).Errorf("Unmarshal of libnetworkEPTable failed for endpoint %s in network %s, %v", eid, nwID, err)
 			continue
 		}
@@ -702,7 +701,7 @@ func (ep *Endpoint) addServiceInfoToCluster(sb *Sandbox) error {
 		}
 	}
 
-	buf, err := proto.Marshal(&EndpointRecord{
+	buf, err := (&EndpointRecord{
 		Name:            primaryDNSName,
 		ServiceName:     ep.svcName,
 		ServiceID:       ep.svcID,
@@ -712,7 +711,7 @@ func (ep *Endpoint) addServiceInfoToCluster(sb *Sandbox) error {
 		TaskAliases:     dnsAliases,
 		EndpointIP:      ep.Iface().Address().IP.String(),
 		ServiceDisabled: false,
-	})
+	}).MarshalVT()
 	if err != nil {
 		return err
 	}
@@ -798,13 +797,13 @@ func disableServiceInNetworkDB(a *nwAgent, n *Network, ep *Endpoint) {
 		return
 	}
 	// Should never fail
-	if err := proto.Unmarshal(inBuf, &epRec); err != nil {
+	if err := epRec.UnmarshalVT(inBuf); err != nil {
 		log.G(context.TODO()).Errorf("disableServiceInNetworkDB unmarshal failed for %s %s err:%s", ep.id, n.id, err)
 		return
 	}
 	epRec.ServiceDisabled = true
 	// Should never fail
-	outBuf, err := proto.Marshal(&epRec)
+	outBuf, err := epRec.MarshalVT()
 	if err != nil {
 		log.G(context.TODO()).Errorf("disableServiceInNetworkDB marshalling failed for %s %s err:%s", ep.id, n.id, err)
 		return
@@ -911,23 +910,37 @@ type endpointEvent struct {
 }
 
 func unmarshalEndpointRecord(data []byte) (*endpointEvent, error) {
-	var epRec EndpointRecord
-	if err := proto.Unmarshal(data, &epRec); err != nil {
+	ev := &endpointEvent{}
+	if err := ev.EndpointRecord.UnmarshalVT(data); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal endpoint record: %w", err)
 	}
 
-	vip, _ := netip.ParseAddr(epRec.VirtualIP)
-	eip, _ := netip.ParseAddr(epRec.EndpointIP)
+	ev.VirtualIP, _ = netip.ParseAddr(ev.EndpointRecord.VirtualIP)
+	ev.EndpointIP, _ = netip.ParseAddr(ev.EndpointRecord.EndpointIP)
 
-	if epRec.Name == "" || !eip.IsValid() {
+	if ev.Name == "" || !ev.EndpointIP.IsValid() {
 		return nil, fmt.Errorf("invalid endpoint name/ip in service table event %s", data)
 	}
 
-	return &endpointEvent{
-		EndpointRecord: epRec,
-		VirtualIP:      vip,
-		EndpointIP:     eip,
-	}, nil
+	return ev, nil
+}
+
+// portConfigKey holds the fields of a [PortConfig] in a comparable form, as
+// protobuf messages cannot be compared with ==. It must include every field.
+type portConfigKey struct {
+	name          string
+	protocol      PortConfig_Protocol
+	targetPort    uint32
+	publishedPort uint32
+}
+
+func (pc *PortConfig) key() portConfigKey {
+	return portConfigKey{
+		name:          pc.Name,
+		protocol:      pc.Protocol,
+		targetPort:    pc.TargetPort,
+		publishedPort: pc.PublishedPort,
+	}
 }
 
 // EquivalentTo returns true if ev is semantically equivalent to other,
@@ -942,8 +955,8 @@ func (ev *endpointEvent) EquivalentTo(other *endpointEvent) bool {
 		ev.VirtualIP == other.VirtualIP &&
 		ev.EndpointIP == other.EndpointIP &&
 		iterutil.SameValues(
-			iterutil.Deref(slices.Values(ev.IngressPorts)),
-			iterutil.Deref(slices.Values(other.IngressPorts))) &&
+			iterutil.Map(slices.Values(ev.IngressPorts), (*PortConfig).key),
+			iterutil.Map(slices.Values(other.IngressPorts), (*PortConfig).key)) &&
 		iterutil.SameValues(slices.Values(ev.Aliases), slices.Values(other.Aliases)) &&
 		iterutil.SameValues(slices.Values(ev.TaskAliases), slices.Values(other.TaskAliases))
 }

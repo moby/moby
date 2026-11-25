@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/gogo/protobuf/proto"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/lamport"
 )
 
 type delegate struct {
@@ -59,7 +59,8 @@ func (n *node) canReceiveNetworkEvents() bool {
 func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
 	// Update our local clock if the received messages has newer
 	// time.
-	nDB.networkClock.Witness(nEvent.LTime)
+	ltime := lamport.Time(nEvent.LTime)
+	nDB.networkClock.Witness(ltime)
 
 	nDB.Lock()
 	defer nDB.Unlock()
@@ -74,12 +75,12 @@ func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
 	}
 
 	// check if the event is fresh
-	if n.ltime >= nEvent.LTime {
+	if n.ltime >= ltime {
 		return false
 	}
 
 	// If we are here means that the event is fresher and the node is known. Update the laport time
-	n.ltime = nEvent.LTime
+	n.ltime = ltime
 
 	// If the node is not known from memberlist we cannot process save any state of it else if it actually
 	// dies we won't receive any notification and we will remain stuck with it
@@ -89,20 +90,20 @@ func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
 	}
 
 	switch nEvent.Type {
-	case NodeEventTypeJoin:
+	case NodeEvent_JOIN:
 		moved := nDB.reactivateNode(context.TODO(), n.Name)
 		if moved {
 			log.G(context.TODO()).Infof("%v(%v): Node join event for %s/%s", nDB.config.Hostname, nDB.config.NodeID, n.Name, n.Addr)
 		}
 		return moved
-	case NodeEventTypeLeave:
+	case NodeEvent_LEAVE:
 		moved := nDB.forgetNode(context.TODO(), n.Name)
 		if moved {
 			log.G(context.TODO()).Infof("%v(%v): Node leave event for %s/%s", nDB.config.Hostname, nDB.config.NodeID, n.Name, n.Addr)
 		}
 		return moved
 	default:
-		// TODO(thaJeztah): make switch exhaustive; add networkdb.NodeEventTypeInvalid
+		// TODO(thaJeztah): make switch exhaustive; add networkdb.NodeEvent_INVALID
 		return false
 	}
 }
@@ -110,7 +111,8 @@ func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
 func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 	// Update our local clock if the received messages has newer
 	// time.
-	nDB.networkClock.Witness(nEvent.LTime)
+	ltime := lamport.Time(nEvent.LTime)
+	nDB.networkClock.Witness(ltime)
 
 	nDB.Lock()
 	defer nDB.Unlock()
@@ -122,7 +124,7 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 	nodeNetworks, ok := nDB.networks[nEvent.NodeName]
 	if !ok {
 		// We haven't heard about this node at all.  Ignore the leave
-		if nEvent.Type == NetworkEventTypeLeave {
+		if nEvent.Type == NetworkEvent_LEAVE {
 			return false
 		}
 
@@ -133,12 +135,13 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 	if n, ok := nodeNetworks[nEvent.NetworkID]; ok {
 		// We have the latest state. Ignore the event
 		// since it is stale.
-		if n.ltime >= nEvent.LTime {
+		if n.ltime >= ltime {
 			return false
 		}
 
-		n.ltime = nEvent.LTime
-		n.leaving = nEvent.Type == NetworkEventTypeLeave
+		n.ltime = ltime
+
+		n.leaving = nEvent.Type == NetworkEvent_LEAVE
 		if n.leaving {
 			n.reapTime = nDB.config.reapNetworkInterval
 
@@ -147,7 +150,7 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 			nDB.deleteNodeNetworkEntries(nEvent.NetworkID, nEvent.NodeName)
 		}
 
-		if nEvent.Type == NetworkEventTypeLeave {
+		if nEvent.Type == NetworkEvent_LEAVE {
 			nDB.deleteNetworkNode(nEvent.NetworkID, nEvent.NodeName)
 		} else if _, active := nDB.nodes[nEvent.NodeName]; active {
 			// Only an active node is a gossip peer. Otherwise, changeNodeState
@@ -158,7 +161,7 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 		return true
 	}
 
-	if nEvent.Type == NetworkEventTypeLeave {
+	if nEvent.Type == NetworkEvent_LEAVE {
 		return false
 	}
 
@@ -169,7 +172,7 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 	}
 
 	// This remote network join is being seen the first time.
-	nodeNetworks[nEvent.NetworkID] = &network{ltime: nEvent.LTime}
+	nodeNetworks[nEvent.NetworkID] = &network{ltime: ltime}
 
 	nDB.addNetworkNode(nEvent.NetworkID, nEvent.NodeName)
 	return true
@@ -177,7 +180,8 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 
 func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool {
 	// Update our local clock if the received messages has newer time.
-	nDB.tableClock.Witness(tEvent.LTime)
+	ltime := lamport.Time(tEvent.LTime)
+	nDB.tableClock.Witness(ltime)
 
 	nDB.Lock()
 	// Hold the lock until after we broadcast the event to watchers so that
@@ -207,16 +211,16 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 		entryPresent = true
 		// We have the latest state. Ignore the event
 		// since it is stale.
-		if prev.ltime >= tEvent.LTime {
+		if prev.ltime >= ltime {
 			return false
 		}
 	}
 
 	e := &entry{
-		ltime:    tEvent.LTime,
+		ltime:    ltime,
 		node:     tEvent.NodeName,
 		value:    tEvent.Value,
-		deleting: tEvent.Type == TableEventTypeDelete,
+		deleting: tEvent.Type == TableEvent_DELETE,
 		reapTime: time.Duration(tEvent.ResidualReapTime) * time.Second,
 	}
 
@@ -239,7 +243,7 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 		obs(nDB.config.NodeID, tEvent.NetworkID, tEvent.TableName, tEvent.Key, isBulkSync)
 	}
 
-	if !entryPresent && tEvent.Type == TableEventTypeDelete {
+	if !entryPresent && tEvent.Type == TableEvent_DELETE {
 		// We will rebroadcast the message for an unknown entry if all the conditions are met:
 		// 1) the message was received from a bulk sync
 		// 2) we had already synced this network (during the network join)
@@ -272,7 +276,7 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 		Key:       tEvent.Key,
 	}
 	switch tEvent.Type {
-	case TableEventTypeCreate, TableEventTypeUpdate:
+	case TableEvent_CREATE, TableEvent_UPDATE:
 		// Gossip messages could arrive out-of-order so it is possible
 		// for an entry's UPDATE event to be received before its CREATE
 		// event. The local watchers should not need to care about such
@@ -282,7 +286,7 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 		if entryPresent && !prev.deleting {
 			event.Prev = prev.value
 		}
-	case TableEventTypeDelete:
+	case TableEvent_DELETE:
 		if !entryPresent || prev.deleting {
 			goto SkipBroadcast
 		}
@@ -291,7 +295,7 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 		// (e.g. if the DELETE event was received out-of-order).
 		event.Prev = prev.value
 	default:
-		// TODO(thaJeztah): make switch exhaustive; add networkdb.TableEventTypeInvalid
+		// TODO(thaJeztah): make switch exhaustive; add networkdb.TableEvent_INVALID
 	}
 
 	nDB.broadcaster.Write(event)
@@ -315,7 +319,7 @@ func (nDB *NetworkDB) handleCompound(buf []byte, isBulkSync bool) {
 
 func (nDB *NetworkDB) handleTableMessage(buf []byte, isBulkSync bool) {
 	var tEvent TableEvent
-	if err := proto.Unmarshal(buf, &tEvent); err != nil {
+	if err := tEvent.UnmarshalVT(buf); err != nil {
 		log.G(context.TODO()).Errorf("Error decoding table event message: %v", err)
 		return
 	}
@@ -327,7 +331,8 @@ func (nDB *NetworkDB) handleTableMessage(buf []byte, isBulkSync bool) {
 
 	if rebroadcast := nDB.handleTableEvent(&tEvent, isBulkSync); rebroadcast {
 		var err error
-		buf, err = encodeRawMessage(MessageTypeTableEvent, buf)
+
+		buf, err = encodeRawMessage(MessageType_TABLE_EVENT, buf)
 		if err != nil {
 			log.G(context.TODO()).Errorf("Error marshalling gossip message for network event rebroadcast: %v", err)
 			return
@@ -355,21 +360,22 @@ func (nDB *NetworkDB) handleTableMessage(buf []byte, isBulkSync bool) {
 			id:    tEvent.NetworkID,
 			tname: tEvent.TableName,
 			key:   tEvent.Key,
-			ltime: tEvent.LTime,
+			ltime: lamport.Time(tEvent.LTime),
 		})
 	}
 }
 
 func (nDB *NetworkDB) handleNodeMessage(buf []byte) {
 	var nEvent NodeEvent
-	if err := proto.Unmarshal(buf, &nEvent); err != nil {
+	if err := nEvent.UnmarshalVT(buf); err != nil {
 		log.G(context.TODO()).Errorf("Error decoding node event message: %v", err)
 		return
 	}
 
 	if rebroadcast := nDB.handleNodeEvent(&nEvent); rebroadcast {
 		var err error
-		buf, err = encodeRawMessage(MessageTypeNodeEvent, buf)
+
+		buf, err = encodeRawMessage(MessageType_NODE_EVENT, buf)
 		if err != nil {
 			log.G(context.TODO()).Errorf("Error marshalling gossip message for node event rebroadcast: %v", err)
 			return
@@ -378,21 +384,22 @@ func (nDB *NetworkDB) handleNodeMessage(buf []byte) {
 		nDB.nodeBroadcasts.QueueBroadcast(&relayedNodeEventMessage{
 			msg:   buf,
 			node:  nEvent.NodeName,
-			ltime: nEvent.LTime,
+			ltime: lamport.Time(nEvent.LTime),
 		})
 	}
 }
 
 func (nDB *NetworkDB) handleNetworkMessage(buf []byte) {
 	var nEvent NetworkEvent
-	if err := proto.Unmarshal(buf, &nEvent); err != nil {
+	if err := nEvent.UnmarshalVT(buf); err != nil {
 		log.G(context.TODO()).Errorf("Error decoding network event message: %v", err)
 		return
 	}
 
 	if rebroadcast := nDB.handleNetworkEvent(&nEvent); rebroadcast {
 		var err error
-		buf, err = encodeRawMessage(MessageTypeNetworkEvent, buf)
+
+		buf, err = encodeRawMessage(MessageType_NETWORK_EVENT, buf)
 		if err != nil {
 			log.G(context.TODO()).Errorf("Error marshalling gossip message for network event rebroadcast: %v", err)
 			return
@@ -401,7 +408,7 @@ func (nDB *NetworkDB) handleNetworkMessage(buf []byte) {
 		nDB.networkBroadcasts.QueueBroadcast(&networkEventMessage{
 			msg:   buf,
 			id:    nEvent.NetworkID,
-			ltime: nEvent.LTime,
+			ltime: lamport.Time(nEvent.LTime),
 			node:  nEvent.NodeName,
 		})
 	}
@@ -409,13 +416,13 @@ func (nDB *NetworkDB) handleNetworkMessage(buf []byte) {
 
 func (nDB *NetworkDB) handleBulkSync(buf []byte) {
 	var bsm BulkSyncMessage
-	if err := proto.Unmarshal(buf, &bsm); err != nil {
+	if err := bsm.UnmarshalVT(buf); err != nil {
 		log.G(context.TODO()).Errorf("Error decoding bulk sync message: %v", err)
 		return
 	}
 
 	if bsm.LTime > 0 {
-		nDB.tableClock.Witness(bsm.LTime)
+		nDB.tableClock.Witness(lamport.Time(bsm.LTime))
 	}
 
 	nDB.handleMessage(bsm.Payload, true)
@@ -424,7 +431,7 @@ func (nDB *NetworkDB) handleBulkSync(buf []byte) {
 	acks := nDB.bulkSyncAckTbl[bsm.NodeName]
 	var pendingAcks []bulkSyncSubscription
 	for _, ack := range acks {
-		if bsm.LTime > ack.LTime {
+		if lamport.Time(bsm.LTime) > ack.LTime {
 			close(ack.Done)
 		} else {
 			pendingAcks = append(pendingAcks, ack)
@@ -460,15 +467,15 @@ func (nDB *NetworkDB) handleMessage(buf []byte, isBulkSync bool) {
 	}
 
 	switch mType {
-	case MessageTypeNodeEvent:
+	case MessageType_NODE_EVENT:
 		nDB.handleNodeMessage(data)
-	case MessageTypeNetworkEvent:
+	case MessageType_NETWORK_EVENT:
 		nDB.handleNetworkMessage(data)
-	case MessageTypeTableEvent:
+	case MessageType_TABLE_EVENT:
 		nDB.handleTableMessage(data, isBulkSync)
-	case MessageTypeBulkSync:
+	case MessageType_BULK_SYNC:
 		nDB.handleBulkSync(data)
-	case MessageTypeCompound:
+	case MessageType_COMPOUND:
 		nDB.handleCompound(data, isBulkSync)
 	default:
 		log.G(context.TODO()).Errorf("%v(%v): unknown message type %d", nDB.config.Hostname, nDB.config.NodeID, mType)
@@ -501,13 +508,13 @@ func (d *delegate) LocalState(join bool) []byte {
 	defer d.nDB.RUnlock()
 
 	pp := NetworkPushPull{
-		LTime:    d.nDB.networkClock.Time(),
+		LTime:    uint64(d.nDB.networkClock.Time()),
 		NodeName: d.nDB.config.NodeID,
 	}
 
 	for nid, n := range d.nDB.thisNodeNetworks {
 		pp.Networks = append(pp.Networks, &NetworkEntry{
-			LTime:     n.ltime,
+			LTime:     uint64(n.ltime),
 			NetworkID: nid,
 			NodeName:  d.nDB.config.NodeID,
 			Leaving:   n.leaving,
@@ -516,7 +523,7 @@ func (d *delegate) LocalState(join bool) []byte {
 	for name, nn := range d.nDB.networks {
 		for nid, n := range nn {
 			pp.Networks = append(pp.Networks, &NetworkEntry{
-				LTime:     n.ltime,
+				LTime:     uint64(n.ltime),
 				NetworkID: nid,
 				NodeName:  name,
 				Leaving:   n.leaving,
@@ -524,7 +531,7 @@ func (d *delegate) LocalState(join bool) []byte {
 		}
 	}
 
-	buf, err := encodeMessage(MessageTypePushPull, &pp)
+	buf, err := encodeMessage(MessageType_PUSH_PULL, &pp)
 	if err != nil {
 		log.G(context.TODO()).Errorf("Failed to encode local network state: %v", err)
 		return nil
@@ -540,18 +547,19 @@ func (d *delegate) MergeRemoteState(buf []byte, isJoin bool) {
 	}
 
 	var gMsg GossipMessage
-	err := proto.Unmarshal(buf, &gMsg)
+
+	err := gMsg.UnmarshalVT(buf)
 	if err != nil {
 		log.G(context.TODO()).Errorf("Error unmarshalling push pull message: %v", err)
 		return
 	}
 
-	if gMsg.Type != MessageTypePushPull {
+	if gMsg.Type != MessageType_PUSH_PULL {
 		log.G(context.TODO()).Errorf("Invalid message type %v received from remote", buf[0])
 	}
 
 	pp := NetworkPushPull{}
-	if err := proto.Unmarshal(gMsg.Data, &pp); err != nil {
+	if err := pp.UnmarshalVT(gMsg.Data); err != nil {
 		log.G(context.TODO()).Errorf("Failed to decode remote network state: %v", err)
 		return
 	}
@@ -559,7 +567,7 @@ func (d *delegate) MergeRemoteState(buf []byte, isJoin bool) {
 	nodeEvent := &NodeEvent{
 		LTime:    pp.LTime,
 		NodeName: pp.NodeName,
-		Type:     NodeEventTypeJoin,
+		Type:     NodeEvent_JOIN,
 	}
 	d.nDB.handleNodeEvent(nodeEvent)
 

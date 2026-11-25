@@ -3,9 +3,8 @@ module github.com/moby/moby/v2
 go 1.26.8
 
 tool (
-	github.com/gogo/protobuf/protoc-gen-gogo
-	github.com/gogo/protobuf/protoc-gen-gogofaster
-	github.com/gogo/protobuf/protoc-gen-gogoslick
+	github.com/moby/extensions/cmd/mobyextgen
+	github.com/planetscale/vtprotobuf/cmd/protoc-gen-go-vtproto
 	google.golang.org/protobuf/cmd/protoc-gen-go
 )
 
@@ -94,6 +93,7 @@ require (
 	github.com/opencontainers/selinux v1.15.1
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/pkg/errors v0.9.1
+	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10
 	github.com/prometheus/client_golang v1.25.0
 	github.com/rootless-containers/rootlesskit/v3 v3.3.0
 	github.com/sirupsen/logrus v1.10.2
@@ -244,7 +244,6 @@ require (
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/petermattis/goid v0.0.0-20240813172612-4fcff4a6cae7 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
-	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/prometheus/client_model v0.6.3 // indirect
 	github.com/prometheus/common v0.72.0 // indirect
 	github.com/prometheus/procfs v0.22.0 // indirect

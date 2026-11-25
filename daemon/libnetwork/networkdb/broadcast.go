@@ -43,12 +43,12 @@ func (m *networkEventMessage) Finished() {
 func (nDB *NetworkDB) sendNetworkEvent(nid string, event NetworkEvent_Type, ltime lamport.Time) error {
 	nEvent := NetworkEvent{
 		Type:      event,
-		LTime:     ltime,
+		LTime:     uint64(ltime),
 		NodeName:  nDB.config.NodeID,
 		NetworkID: nid,
 	}
 
-	raw, err := encodeMessage(MessageTypeNetworkEvent, &nEvent)
+	raw, err := encodeMessage(MessageType_NETWORK_EVENT, &nEvent)
 	if err != nil {
 		return err
 	}
@@ -134,11 +134,11 @@ func (m *relayedNodeEventMessage) Finished() {}
 func (nDB *NetworkDB) sendNodeEvent(event NodeEvent_Type) error {
 	nEvent := NodeEvent{
 		Type:     event,
-		LTime:    nDB.networkClock.Increment(),
+		LTime:    uint64(nDB.networkClock.Increment()),
 		NodeName: nDB.config.NodeID,
 	}
 
-	raw, err := encodeMessage(MessageTypeNodeEvent, &nEvent)
+	raw, err := encodeMessage(MessageType_NODE_EVENT, &nEvent)
 	if err != nil {
 		return err
 	}
@@ -202,7 +202,7 @@ func (m *tableEventMessage) Finished() {
 func (nDB *NetworkDB) sendTableEvent(event TableEvent_Type, nid string, tname string, key string, entry *entry) error {
 	tEvent := TableEvent{
 		Type:      event,
-		LTime:     entry.ltime,
+		LTime:     uint64(entry.ltime),
 		NodeName:  nDB.config.NodeID,
 		NetworkID: nid,
 		TableName: tname,
@@ -212,7 +212,7 @@ func (nDB *NetworkDB) sendTableEvent(event TableEvent_Type, nid string, tname st
 		ResidualReapTime: int32(entry.reapTime.Seconds()),
 	}
 
-	raw, err := encodeMessage(MessageTypeTableEvent, &tEvent)
+	raw, err := encodeMessage(MessageType_TABLE_EVENT, &tEvent)
 	if err != nil {
 		return err
 	}

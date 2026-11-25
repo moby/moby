@@ -172,12 +172,14 @@ func fetchTable(ip string, port int, network, tableName string, clusterPeers, ne
 		switch tableName {
 		case "endpoint_table":
 			var elem libnetwork.EndpointRecord
-			_ = elem.Unmarshal(decoded)
-			log.G(context.TODO()).Debugf("key:%s value:%+v owner:%s", v.Key, elem, v.Owner)
+
+			_ = elem.UnmarshalVT(decoded)
+			log.G(context.TODO()).Debugf("key:%s value:%v owner:%s", v.Key, &elem, v.Owner)
 		case "overlay_peer_table":
 			var elem overlay.PeerRecord
-			_ = elem.Unmarshal(decoded)
-			log.G(context.TODO()).Debugf("key:%s value:%+v owner:%s", v.Key, elem, v.Owner)
+
+			_ = elem.UnmarshalVT(decoded)
+			log.G(context.TODO()).Debugf("key:%s value:%v owner:%s", v.Key, &elem, v.Owner)
 		}
 
 		if _, ok := networkPeers[v.Owner]; !ok {
