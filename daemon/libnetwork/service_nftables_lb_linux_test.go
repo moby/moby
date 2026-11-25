@@ -19,7 +19,7 @@ import (
 )
 
 func ingressPort(published, target uint32) *PortConfig {
-	return &PortConfig{Protocol: ProtocolTCP, PublishedPort: published, TargetPort: target}
+	return &PortConfig{Protocol: PortConfig_TCP, PublishedPort: published, TargetPort: target}
 }
 
 // addrMap renders a map of []net.IP as a map of []string, with the IPs sorted.
@@ -71,8 +71,8 @@ func TestComposeNFTLB(t *testing.T) {
 			// 9090 reaches only the generation that publishes it. Routing it to an
 			// old task would be a connection refused.
 			wantPorts: map[portKey][]string{
-				{proto: ProtocolTCP, port: 8080}: {"10.0.1.3", "10.0.1.4", "10.0.1.9"},
-				{proto: ProtocolTCP, port: 9090}: {"10.0.1.9"},
+				{proto: PortConfig_TCP, port: 8080}: {"10.0.1.3", "10.0.1.4", "10.0.1.9"},
+				{proto: PortConfig_TCP, port: 9090}: {"10.0.1.9"},
 			},
 		},
 		{
@@ -89,8 +89,8 @@ func TestComposeNFTLB(t *testing.T) {
 			},
 			wantVIPs: map[string][]string{vip.String(): {"10.0.1.9"}},
 			wantPorts: map[portKey][]string{
-				{proto: ProtocolTCP, port: 8080}: {"10.0.1.9"},
-				{proto: ProtocolTCP, port: 9090}: {"10.0.1.9"},
+				{proto: PortConfig_TCP, port: 8080}: {"10.0.1.9"},
+				{proto: PortConfig_TCP, port: 9090}: {"10.0.1.9"},
 			},
 		},
 		{
@@ -105,7 +105,7 @@ func TestComposeNFTLB(t *testing.T) {
 				},
 			},
 			wantVIPs:  map[string][]string{vip.String(): {}},
-			wantPorts: map[portKey][]string{{proto: ProtocolTCP, port: 8080}: {}},
+			wantPorts: map[portKey][]string{{proto: PortConfig_TCP, port: 8080}: {}},
 		},
 		{
 			// Distinct services share the load-balancer sandbox, and so its tables,
@@ -128,8 +128,8 @@ func TestComposeNFTLB(t *testing.T) {
 				"10.0.0.6": {"10.0.1.7"},
 			},
 			wantPorts: map[portKey][]string{
-				{proto: ProtocolTCP, port: 8080}: {"10.0.1.3"},
-				{proto: ProtocolTCP, port: 9090}: {"10.0.1.7"},
+				{proto: PortConfig_TCP, port: 8080}: {"10.0.1.3"},
+				{proto: PortConfig_TCP, port: 9090}: {"10.0.1.7"},
 			},
 		},
 	}
@@ -299,7 +299,7 @@ func TestNFTLBNATElementsDistinctServices(t *testing.T) {
 		{id: "svc-b", ports: "9090:90/UDP"}: {
 			vip:      net.IPv4(10, 0, 0, 6),
 			backends: []net.IP{net.IPv4(10, 0, 1, 7)},
-			ports:    []*PortConfig{{Protocol: ProtocolUDP, PublishedPort: 9090, TargetPort: 90}},
+			ports:    []*PortConfig{{Protocol: PortConfig_UDP, PublishedPort: 9090, TargetPort: 90}},
 		},
 	}}
 

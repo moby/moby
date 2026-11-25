@@ -10,7 +10,6 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
-	"github.com/gogo/protobuf/proto"
 	"github.com/moby/moby/v2/daemon/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
@@ -126,11 +125,11 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 		return fmt.Errorf("overlay: failed to add local endpoint to network peer db: %w", err)
 	}
 
-	buf, err := proto.Marshal(&PeerRecord{
+	buf, err := (&PeerRecord{
 		EndpointIP:       ep.addr.String(),
 		EndpointMAC:      ep.mac.String(),
 		TunnelEndpointIP: d.advertiseAddress.String(),
-	})
+	}).MarshalVT()
 	if err != nil {
 		return err
 	}
@@ -149,7 +148,7 @@ func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (s
 	}
 
 	var peer PeerRecord
-	if err := proto.Unmarshal(value, &peer); err != nil {
+	if err := peer.UnmarshalVT(value); err != nil {
 		log.G(context.TODO()).Errorf("DecodeTableEntry: failed to unmarshal peer record for key %s: %v", key, err)
 		return "", nil
 	}

@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/containerd/log"
-	"github.com/gogo/protobuf/proto"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/overlay"
 	"go.opentelemetry.io/otel"
@@ -35,11 +34,11 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 		return fmt.Errorf("could not find endpoint with id %s", eid)
 	}
 
-	buf, err := proto.Marshal(&overlay.PeerRecord{
+	buf, err := (&overlay.PeerRecord{
 		EndpointIP:       ep.addr.String(),
 		EndpointMAC:      ep.mac.String(),
 		TunnelEndpointIP: n.providerAddress,
-	})
+	}).MarshalVT()
 	if err != nil {
 		return err
 	}
