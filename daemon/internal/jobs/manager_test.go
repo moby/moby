@@ -16,7 +16,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
-	jobsv0 "github.com/moby/moby/v2/extpoints/jobs/api/v0"
+	jobsv0 "github.com/moby/moby/extpoints/jobs/api/v0"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"

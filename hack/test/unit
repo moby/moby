@@ -18,6 +18,7 @@ TESTDIRS="${TESTDIRS:-./...}"
 
 : "${api_pkg_list:=}"
 : "${client_pkg_list:=}"
+: "${extpoints_pkg_list:=}"
 : "${pkg_list:=}"
 : "${libnetwork_pkg_list:=}"
 
@@ -84,7 +85,28 @@ if [ -n "${client_pkg_list}" ]; then
 fi
 
 case "$TESTDIRS" in
-	"./api"* | "./client"*)
+	"./extpoints"* | "./...")
+		extpoints_pkg_list=$(go -C ./extpoints list -mod=readonly "${TESTDIRS/#\.\/extpoints/\.}")
+		;;
+esac
+if [ -n "${extpoints_pkg_list}" ]; then
+	# These are tests for a separate module; see the api module above for
+	# why '-mod=readonly' is used.
+	(
+		cd extpoints
+		gotestsum --format=testname --jsonfile=../bundles/extpoints-go-test-report.json --junitfile=../bundles/extpoints-junit-report.xml -- \
+			"${BUILDFLAGS[@]}" \
+			-cover \
+			-coverprofile=../bundles/extpoints-coverage.out \
+			-covermode=atomic \
+			-mod=readonly \
+			${TESTFLAGS} \
+			${extpoints_pkg_list} || exit $?
+	)
+fi
+
+case "$TESTDIRS" in
+	"./api"* | "./client"* | "./extpoints"*)
 		# modules are handled above
 		;;
 	*)

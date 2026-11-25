@@ -11,9 +11,9 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/extensions"
+	jobsv0 "github.com/moby/moby/extpoints/jobs/api/v0"
+	storagekvv0 "github.com/moby/moby/extpoints/storage/kv/v0"
 	"github.com/moby/moby/v2/errdefs"
-	jobsv0 "github.com/moby/moby/v2/extpoints/jobs/api/v0"
-	storagekvv0 "github.com/moby/moby/v2/extpoints/storage/kv/v0"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

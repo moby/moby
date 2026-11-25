@@ -9,8 +9,8 @@ import (
 	"syscall"
 
 	"github.com/moby/extensions/sdk"
-	daemonapipb "github.com/moby/moby/v2/extpoints/daemonapi/v0/protogen"
-	servicegrpcv0 "github.com/moby/moby/v2/extpoints/servicegrpc/v0"
+	daemonapipb "github.com/moby/moby/extpoints/daemonapi/v0/protogen"
+	servicegrpcv0 "github.com/moby/moby/extpoints/servicegrpc/v0"
 	"github.com/moby/moby/v2/integration/extension/testdata/apiclient"
 )
 

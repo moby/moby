@@ -21,6 +21,7 @@ on:
       - 'docker-v*'
       - 'api/v*'
       - 'client/v*'
+      - 'extpoints/v*'
   pull_request:
 
 jobs:

@@ -10,11 +10,11 @@ import (
 	"github.com/moby/extensions"
 	servicev0 "github.com/moby/extensions/extpoints/service/v0"
 	"github.com/moby/moby/client"
-	containernamegeneratorv0 "github.com/moby/moby/v2/extpoints/containernamegenerator/v0"
-	containerstatev0 "github.com/moby/moby/v2/extpoints/containerstate/v0"
-	daemonapiv0 "github.com/moby/moby/v2/extpoints/daemonapi/v0"
-	jobsv0 "github.com/moby/moby/v2/extpoints/jobs/api/v0"
-	storagekvv0 "github.com/moby/moby/v2/extpoints/storage/kv/v0"
+	containernamegeneratorv0 "github.com/moby/moby/extpoints/containernamegenerator/v0"
+	containerstatev0 "github.com/moby/moby/extpoints/containerstate/v0"
+	daemonapiv0 "github.com/moby/moby/extpoints/daemonapi/v0"
+	jobsv0 "github.com/moby/moby/extpoints/jobs/api/v0"
+	storagekvv0 "github.com/moby/moby/extpoints/storage/kv/v0"
 )
 
 // ExtensionID identifies the builtin jobs extension.
@@ -102,7 +102,10 @@ func (e *Extension) init(ctx context.Context, _ extensions.Config, resolver exte
 	if err != nil {
 		return fmt.Errorf("resolving the container name-generator point: %w", err)
 	}
-	api, err := daemonapiv0.NewClient(apiPoint)
+	api, err := client.New(
+		client.WithHost(daemonapiv0.Host),
+		client.WithDialContext(daemonapiv0.DialContext(apiPoint)),
+	)
 	if err != nil {
 		return fmt.Errorf("creating the daemon API client: %w", err)
 	}

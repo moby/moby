@@ -14,9 +14,9 @@ import (
 	"unicode/utf8"
 
 	"github.com/moby/extensions"
+	daemonconfigv0 "github.com/moby/moby/extpoints/daemonconfig/v0"
+	storagekv "github.com/moby/moby/extpoints/storage/kv/v0"
 	"github.com/moby/moby/v2/errdefs"
-	daemonconfigv0 "github.com/moby/moby/v2/extpoints/daemonconfig/v0"
-	storagekv "github.com/moby/moby/v2/extpoints/storage/kv/v0"
 	bolt "go.etcd.io/bbolt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

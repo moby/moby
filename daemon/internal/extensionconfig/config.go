@@ -5,8 +5,8 @@ import (
 	"context"
 
 	"github.com/moby/extensions"
+	daemonconfigv0 "github.com/moby/moby/extpoints/daemonconfig/v0"
 	"github.com/moby/moby/v2/daemon/config"
-	daemonconfigv0 "github.com/moby/moby/v2/extpoints/daemonconfig/v0"
 )
 
 // New declares a config provider with an immutable persistent-root snapshot.

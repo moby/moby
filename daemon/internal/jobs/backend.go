@@ -9,7 +9,7 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
-	containerstatev0 "github.com/moby/moby/v2/extpoints/containerstate/v0"
+	containerstatev0 "github.com/moby/moby/extpoints/containerstate/v0"
 )
 
 // engineBackend runs job containers through the Engine API and observes

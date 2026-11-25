@@ -6,7 +6,7 @@ import (
 	extensions "github.com/moby/extensions"
 	clientpoint "github.com/moby/extensions/clientpoint"
 	serverpoint "github.com/moby/extensions/serverpoint"
-	mobyextcontract "github.com/moby/moby/v2/extpoints/containernamegenerator/v0"
+	mobyextcontract "github.com/moby/moby/extpoints/containernamegenerator/v0"
 	grpc "google.golang.org/grpc"
 )
 
@@ -30,7 +30,7 @@ type ContainerNameGeneratorServer interface {
 var serviceDesc = grpc.ServiceDesc{
 	ServiceName: serviceName,
 	HandlerType: (*ContainerNameGeneratorServer)(nil),
-	Metadata:    "extpoints/containernamegenerator/v0/container_name_generator.proto",
+	Metadata:    "containernamegenerator/v0/container_name_generator.proto",
 	Methods: []grpc.MethodDesc{
 		{MethodName: "GenerateContainerName", Handler: handleGenerateContainerName},
 	},

@@ -10,9 +10,9 @@ import (
 	"github.com/containerd/errdefs/pkg/errgrpc"
 	"github.com/moby/extensions/stream"
 	containertypes "github.com/moby/moby/api/types/container"
+	containerstatev0 "github.com/moby/moby/extpoints/containerstate/v0"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/errdefs"
-	containerstatev0 "github.com/moby/moby/v2/extpoints/containerstate/v0"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

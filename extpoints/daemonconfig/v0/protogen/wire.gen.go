@@ -6,7 +6,7 @@ import (
 	extensions "github.com/moby/extensions"
 	clientpoint "github.com/moby/extensions/clientpoint"
 	serverpoint "github.com/moby/extensions/serverpoint"
-	mobyextcontract "github.com/moby/moby/v2/extpoints/daemonconfig/v0"
+	mobyextcontract "github.com/moby/moby/extpoints/daemonconfig/v0"
 	grpc "google.golang.org/grpc"
 )
 
@@ -31,7 +31,7 @@ type DaemonConfigServer interface {
 var serviceDesc = grpc.ServiceDesc{
 	ServiceName: serviceName,
 	HandlerType: (*DaemonConfigServer)(nil),
-	Metadata:    "extpoints/daemonconfig/v0/daemon_config.proto",
+	Metadata:    "daemonconfig/v0/daemon_config.proto",
 	Methods: []grpc.MethodDesc{
 		{MethodName: "Get", Handler: handleGet},
 	},

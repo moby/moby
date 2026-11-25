@@ -147,9 +147,10 @@ func (l Launcher) Launch(ctx context.Context, bin string) (*Launched, error) {
 		}
 	case <-launchCtx.Done():
 		// Closing the pipe interrupts Encode if the extension is not reading its
-		// startup configuration. Wait for the writer before reaping the process.
+		// startup configuration. Wait for the writer before reaping the process;
+		// its error only reflects that close.
 		_ = stdin.Close()
-		<-writeDone
+		_ = <-writeDone
 		stop()
 		return nil, fmt.Errorf("write startup config for extension %q: %w", name, launchCtx.Err())
 	}

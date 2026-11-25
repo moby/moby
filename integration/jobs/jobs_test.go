@@ -6,8 +6,8 @@ import (
 
 	extensionclient "github.com/moby/extensions/client"
 	"github.com/moby/moby/client"
-	jobsv0 "github.com/moby/moby/v2/extpoints/jobs/api/v0"
-	jobspb "github.com/moby/moby/v2/extpoints/jobs/api/v0/protogen"
+	jobsv0 "github.com/moby/moby/extpoints/jobs/api/v0"
+	jobspb "github.com/moby/moby/extpoints/jobs/api/v0/protogen"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
 	"google.golang.org/grpc/codes"

@@ -6,7 +6,7 @@ import (
 	extensions "github.com/moby/extensions"
 	clientpoint "github.com/moby/extensions/clientpoint"
 	serverpoint "github.com/moby/extensions/serverpoint"
-	mobyextcontract "github.com/moby/moby/v2/extpoints/storage/kv/v0"
+	mobyextcontract "github.com/moby/moby/extpoints/storage/kv/v0"
 	grpc "google.golang.org/grpc"
 )
 
@@ -48,7 +48,7 @@ type StorageServer interface {
 var serviceDesc = grpc.ServiceDesc{
 	ServiceName: serviceName,
 	HandlerType: (*StorageServer)(nil),
-	Metadata:    "extpoints/storage/kv/v0/storage.proto",
+	Metadata:    "storage/kv/v0/storage.proto",
 	Methods: []grpc.MethodDesc{
 		{MethodName: "Get", Handler: handleGet},
 		{MethodName: "Create", Handler: handleCreate},

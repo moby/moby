@@ -10,10 +10,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/moby/moby/client"
-	daemonapiv0 "github.com/moby/moby/v2/extpoints/daemonapi/v0"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
+	daemonapiv0 "github.com/moby/moby/extpoints/daemonapi/v0"
 )
 
 type fakeAPI struct {
@@ -26,19 +23,23 @@ func (f *fakeAPI) Get(context.Context, *daemonapiv0.GetRequest) (*daemonapiv0.Ge
 	return &daemonapiv0.GetResponse{Host: f.host}, nil
 }
 
-func TestNewClientGetsEndpointOnFirstConnect(t *testing.T) {
+func TestDialContextGetsEndpointOnFirstConnect(t *testing.T) {
 	t.Parallel()
 
 	// t.TempDir paths can exceed the unix socket path limit on macOS.
 	dir, err := os.MkdirTemp("", "daemonapi")
-	assert.NilError(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
 	t.Cleanup(func() { _ = os.RemoveAll(dir) })
 
 	sock := filepath.Join(dir, "api.sock")
 	l, err := net.Listen("unix", sock)
-	assert.NilError(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
 	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		// Force a new connection per request so the second Ping dials again.
+		// Force a new connection per request so the second request dials again.
 		w.Header().Set("Connection", "close")
 	}))
 	_ = srv.Listener.Close()
@@ -47,14 +48,25 @@ func TestNewClientGetsEndpointOnFirstConnect(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	api := &fakeAPI{host: "unix://" + sock}
-	c, err := daemonapiv0.NewClient(api)
-	assert.NilError(t, err)
-	t.Cleanup(func() { _ = c.Close() })
-	assert.Check(t, is.Equal(api.calls.Load(), int32(0)))
+	tr := &http.Transport{DialContext: daemonapiv0.DialContext(api)}
+	t.Cleanup(tr.CloseIdleConnections)
+	c := &http.Client{Transport: tr}
+	if n := api.calls.Load(); n != 0 {
+		t.Errorf("Get called %d times before connecting, want 0", n)
+	}
 
 	for range 2 {
-		_, err = c.Ping(t.Context(), client.PingOptions{})
-		assert.NilError(t, err)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://daemonapi/_ping", http.NoBody)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := c.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = resp.Body.Close()
 	}
-	assert.Check(t, is.Equal(api.calls.Load(), int32(1)))
+	if n := api.calls.Load(); n != 1 {
+		t.Errorf("Get called %d times, want 1", n)
+	}
 }

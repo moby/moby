@@ -4,7 +4,7 @@ syntax = "proto3";
 
 package org.mobyproject.extension.daemon.config.v0;
 
-option go_package = "github.com/moby/moby/v2/extpoints/daemonconfig/v0/protogen";
+option go_package = "github.com/moby/moby/extpoints/daemonconfig/v0/protogen";
 
 // DaemonConfig provides an immutable snapshot of extension bootstrap settings.
 // It does not expose the daemon's full configuration or a generic lookup API.

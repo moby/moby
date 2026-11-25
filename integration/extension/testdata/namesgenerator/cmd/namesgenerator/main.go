@@ -3,8 +3,8 @@ package main
 
 import (
 	"github.com/moby/extensions/sdk"
-	containernamegeneratorpb "github.com/moby/moby/v2/extpoints/containernamegenerator/v0/protogen"
-	servicenamegeneratorpb "github.com/moby/moby/v2/extpoints/servicenamegenerator/v0/protogen"
+	containernamegeneratorpb "github.com/moby/moby/extpoints/containernamegenerator/v0/protogen"
+	servicenamegeneratorpb "github.com/moby/moby/extpoints/servicenamegenerator/v0/protogen"
 	namesgeneratorimage "github.com/moby/moby/v2/internal/namesgenerator/image"
 )
 
