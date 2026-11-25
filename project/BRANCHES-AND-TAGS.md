@@ -11,6 +11,7 @@ The Moby Project repository contains multiple components with their own versioni
 - **Docker Engine** - built from this repository, versioned independently
 - **API** (`api/`) - a separate Go module containing the materialization of the API specification, follows API versioning
 - **Client** (`client/`) - a separate Go module of the client library
+- **Extension points** (`extpoints/`) - a separate Go module of the extension point contracts
 
 # Branches
 
@@ -76,11 +77,12 @@ The general format of a tag is `vX.Y.Z[-suffix[N]]`:
 
 Different components use different tag prefixes:
 
-| Component     | Tag Format              | Example           |
-|---------------|-------------------------|-------------------|
-| Moby          | `vX.Y.Z`                | `v2.0.0-beta.5`   |
-| Docker Engine | `docker-vX.Y.Z`         | `docker-v29.1.2`  |
-| API           | `api/vX.Y.Z`            | `api/v1.52.0`     |
-| Client        | `client/vX.Y.Z`         | `client/v1.52.0`  |
+| Component     | Tag Format              | Example            |
+|---------------|-------------------------|--------------------|
+| Moby          | `vX.Y.Z`                | `v2.0.0-beta.5`    |
+| Docker Engine | `docker-vX.Y.Z`         | `docker-v29.1.2`   |
+| API           | `api/vX.Y.Z`            | `api/v1.52.0`      |
+| Client        | `client/vX.Y.Z`         | `client/v1.52.0`   |
+| Extpoints     | `extpoints/vX.Y.Z`      | `extpoints/v0.1.0` |
 
 For the current release state, see [GitHub Releases](https://github.com/moby/moby/releases).
