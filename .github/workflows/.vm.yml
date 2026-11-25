@@ -21,7 +21,7 @@ on:
 env:
   GO_VERSION: "1.27.4"
   # renovate: datasource=github-tags depName=vearutop/teststat
-  TESTSTAT_VERSION: v0.1.25
+  TESTSTAT_VERSION: v0.1.29
   TEMPLATE_NAME: ${{ inputs.template }}
 
 jobs:
