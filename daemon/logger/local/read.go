@@ -197,7 +197,7 @@ func (d *decoder) decodeLogEntry() (*logger.Message, error) {
 	}
 	d.nextMsgLen = 0
 
-	if err := d.proto.Unmarshal(d.buf[:msgLen]); err != nil {
+	if err := d.proto.UnmarshalVT(d.buf[:msgLen]); err != nil {
 		return nil, errors.Wrapf(err, "error unmarshalling log entry (size=%d)", msgLen)
 	}
 

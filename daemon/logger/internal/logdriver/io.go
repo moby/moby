@@ -33,7 +33,7 @@ type logEntryEncoder struct {
 }
 
 func (e *logEntryEncoder) Encode(l *LogEntry) error {
-	n := l.Size()
+	n := l.SizeVT()
 
 	total := n + binaryEncodeLen
 	if total > len(e.buf) {
@@ -41,7 +41,7 @@ func (e *logEntryEncoder) Encode(l *LogEntry) error {
 	}
 	binary.BigEndian.PutUint32(e.buf, uint32(n))
 
-	if _, err := l.MarshalTo(e.buf[binaryEncodeLen:]); err != nil {
+	if _, err := l.MarshalToVT(e.buf[binaryEncodeLen:]); err != nil {
 		return err
 	}
 	_, err := e.w.Write(e.buf[:total])
@@ -83,5 +83,6 @@ func (d *logEntryDecoder) Decode(l *LogEntry) error {
 	if _, err := io.ReadFull(d.r, d.buf[:size]); err != nil {
 		return err
 	}
-	return l.Unmarshal(d.buf[:size])
+
+	return l.UnmarshalVT(d.buf[:size])
 }

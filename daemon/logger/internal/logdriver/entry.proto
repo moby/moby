@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+option go_package = "github.com/moby/moby/v2/daemon/logger/internal/logdriver";
+
 message LogAttr {
 	string key = 1;
 	string value = 2;

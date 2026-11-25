@@ -119,7 +119,7 @@ func marshal(m *logger.Message, attrs []*logdriver.LogAttr, buffer *[]byte) erro
 	var proto logdriver.LogEntry
 	var md logdriver.PartialLogEntryMetadata
 	messageToProto(m, attrs, &proto, &md)
-	protoSize := proto.Size()
+	protoSize := proto.SizeVT()
 	writeLen := protoSize + (2 * encodeBinaryLen) // + len(messageDelimiter)
 
 	buf := *buffer
@@ -135,7 +135,8 @@ func marshal(m *logger.Message, attrs []*logdriver.LogAttr, buffer *[]byte) erro
 	*buffer = buf
 
 	binary.BigEndian.PutUint32(buf[:encodeBinaryLen], uint32(protoSize))
-	n, err := proto.MarshalTo(buf[encodeBinaryLen:writeLen])
+
+	n, err := proto.MarshalToVT(buf[encodeBinaryLen:writeLen])
 	if err != nil {
 		return errors.Wrap(err, "error marshaling log entry")
 	}
