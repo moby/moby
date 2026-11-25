@@ -71,6 +71,7 @@ func newServer(ctx context.Context, cfg *serverConfig) (*containerdServer, error
 // pluginRegistrations returns the registrations used to initialize the
 // embedded server, after applying the configured disabled plugin filter.
 func pluginRegistrations(cfg *serverConfig) []plugin.Registration {
+	configureErofsDiffer(cfg)
 	return registry.Graph(srvconfig.V2DisabledFilter(cfg.containerd.DisabledPlugins))
 }
 

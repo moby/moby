@@ -3,11 +3,15 @@
 package embedded
 
 import (
+	"bytes"
 	"net"
+	"os/exec"
 	"path/filepath"
+	"slices"
 
 	"github.com/containerd/containerd/v2/core/metrics/cgroups"
 	"github.com/containerd/containerd/v2/plugins"
+	"github.com/containerd/containerd/v2/plugins/services"
 	"github.com/containerd/plugin"
 	"github.com/containerd/ttrpc"
 	"github.com/docker/go-connections/sockets"
@@ -25,6 +29,39 @@ import (
 	_ "github.com/containerd/containerd/v2/plugins/snapshots/native/plugin"
 	_ "github.com/containerd/containerd/v2/plugins/snapshots/overlay/plugin"
 )
+
+// configureErofsDiffer adds the EROFS differ after the walking differ when
+// mkfs.erofs supports tar mode. The walking differ returns ErrNotImplemented
+// for native EROFS layers, allowing the diff service to fall back to EROFS.
+func configureErofsDiffer(cfg *serverConfig) {
+	const erofsDiffer = "io.containerd.differ.v1.erofs"
+	if slices.Contains(cfg.containerd.DisabledPlugins, erofsDiffer) {
+		return
+	}
+
+	pluginID := plugins.ServicePlugin.String() + "." + services.DiffService
+	pluginConfig, ok := cfg.containerd.Plugins[pluginID].(map[string]any)
+	if cfg.containerd.Plugins[pluginID] != nil && !ok {
+		return
+	}
+	if _, configured := pluginConfig["default"]; configured {
+		return
+	}
+
+	output, err := exec.Command("mkfs.erofs", "--help").CombinedOutput()
+	if err != nil || !bytes.Contains(output, []byte("--tar=")) {
+		return
+	}
+
+	if cfg.containerd.Plugins == nil {
+		cfg.containerd.Plugins = make(map[string]any)
+	}
+	if pluginConfig == nil {
+		pluginConfig = make(map[string]any)
+	}
+	pluginConfig["default"] = []string{"walking", "erofs"}
+	cfg.containerd.Plugins[pluginID] = pluginConfig
+}
 
 func defaultAddress(stateDir string) string {
 	return filepath.Join(stateDir, "containerd.sock")

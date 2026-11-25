@@ -19,6 +19,8 @@ import (
 	_ "github.com/containerd/containerd/v2/plugins/snapshots/windows"
 )
 
+func configureErofsDiffer(*serverConfig) {}
+
 func defaultAddress(stateDir string) string {
 	return `\\.\pipe\docker-containerd-embedded-` + stateDirID(stateDir)
 }
