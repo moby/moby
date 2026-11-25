@@ -1,6 +1,6 @@
 package networkdb
 
-//go:generate protoc -I=. -I=../../../vendor/ --gogofaster_out=import_path=github.com/moby/moby/v2/daemon/libnetwork/networkdb:. networkdb.proto
+//go:generate protoc -I=../../.. --go_out=../../.. --go_opt=paths=source_relative --go-vtproto_out=../../.. --go-vtproto_opt=paths=source_relative,features=marshal+unmarshal+size daemon/libnetwork/networkdb/networkdb.proto
 
 import (
 	"context"
@@ -152,9 +152,10 @@ type network struct {
 // attachment that is, or is not, in the process of leaving.
 func networkEventType(leaving bool) NetworkEvent_Type {
 	if leaving {
-		return NetworkEventTypeLeave
+		return NetworkEvent_LEAVE
 	}
-	return NetworkEventTypeJoin
+
+	return NetworkEvent_JOIN
 }
 
 // thisNodeNetwork describes a network attachment on the local node.
@@ -524,7 +525,7 @@ func (nDB *NetworkDB) CreateEntry(tname, nid, key string, value []byte) error {
 	nDB.createOrUpdateEntry(nid, tname, key, entry)
 	nDB.Unlock()
 
-	if err := nDB.sendTableEvent(TableEventTypeCreate, nid, tname, key, entry); err != nil {
+	if err := nDB.sendTableEvent(TableEvent_CREATE, nid, tname, key, entry); err != nil {
 		return fmt.Errorf("cannot send create event for table %s, %v", tname, err)
 	}
 
@@ -553,7 +554,7 @@ func (nDB *NetworkDB) UpdateEntry(tname, nid, key string, value []byte) error {
 	nDB.createOrUpdateEntry(nid, tname, key, entry)
 	nDB.Unlock()
 
-	if err := nDB.sendTableEvent(TableEventTypeUpdate, nid, tname, key, entry); err != nil {
+	if err := nDB.sendTableEvent(TableEvent_UPDATE, nid, tname, key, entry); err != nil {
 		return fmt.Errorf("cannot send table update event: %v", err)
 	}
 
@@ -609,7 +610,7 @@ func (nDB *NetworkDB) DeleteEntry(tname, nid, key string) error {
 	nDB.createOrUpdateEntry(nid, tname, key, entry)
 	nDB.Unlock()
 
-	if err := nDB.sendTableEvent(TableEventTypeDelete, nid, tname, key, entry); err != nil {
+	if err := nDB.sendTableEvent(TableEvent_DELETE, nid, tname, key, entry); err != nil {
 		return fmt.Errorf("cannot send table delete event: %v", err)
 	}
 
@@ -812,7 +813,7 @@ func (nDB *NetworkDB) JoinNetwork(nid string) error {
 	}
 	nDB.addNetworkNode(nid, nDB.config.NodeID)
 
-	if err := nDB.sendNetworkEvent(nid, NetworkEventTypeJoin, ltime); err != nil {
+	if err := nDB.sendNetworkEvent(nid, NetworkEvent_JOIN, ltime); err != nil {
 		nDB.Unlock()
 		return fmt.Errorf("failed to send join network event for %s: %v", nid, err)
 	}
@@ -844,7 +845,7 @@ func (nDB *NetworkDB) JoinNetwork(nid string) error {
 // networkdb
 func (nDB *NetworkDB) LeaveNetwork(nid string) error {
 	ltime := nDB.networkClock.Increment()
-	if err := nDB.sendNetworkEvent(nid, NetworkEventTypeLeave, ltime); err != nil {
+	if err := nDB.sendNetworkEvent(nid, NetworkEvent_LEAVE, ltime); err != nil {
 		return fmt.Errorf("failed to send leave network event for %s: %v", nid, err)
 	}
 

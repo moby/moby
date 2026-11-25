@@ -28,7 +28,7 @@ func newTestNetworkDBWithPeer(t *testing.T) (*NetworkDB, *eventDelegate, *member
 	mn := &memberlist.Node{Name: "node1", Addr: net.IPv4(1, 2, 3, 4)}
 	ed.NotifyJoin(mn)
 	nDB.handleNetworkEvent(&NetworkEvent{
-		Type:      NetworkEventTypeJoin,
+		Type:      NetworkEvent_JOIN,
 		LTime:     1,
 		NodeName:  "node1",
 		NetworkID: "network1",
@@ -57,7 +57,7 @@ func TestFailedNodeEntriesHiddenAndRestored(t *testing.T) {
 	watch, cancel := nDB.Watch("table1", "network1")
 	defer cancel()
 
-	deliver(2, TableEventTypeCreate, "key1", []byte("v1"))
+	deliver(2, TableEvent_CREATE, "key1", []byte("v1"))
 	ed.NotifyLeave(mn)
 
 	// The entry must stop being visible, and the watchers must be told that
@@ -111,7 +111,7 @@ func TestFailedNodeEntriesHiddenAndRestored(t *testing.T) {
 // remembered for it, unlike for a failed node.
 func TestLeftNodeClearsNetworkMembership(t *testing.T) {
 	nDB, _, _, deliver := newTestNetworkDBWithPeer(t)
-	deliver(2, TableEventTypeCreate, "key1", []byte("v1"))
+	deliver(2, TableEvent_CREATE, "key1", []byte("v1"))
 
 	watch, cancel := nDB.Watch("table1", "network1")
 	defer cancel()
@@ -151,7 +151,7 @@ func TestFailedNodeRelayedEventsRemembered(t *testing.T) {
 
 	// An update for the failed owner, relayed by a node which can still
 	// reach it.
-	deliver(2, TableEventTypeCreate, "key1", []byte("relayed"))
+	deliver(2, TableEvent_CREATE, "key1", []byte("relayed"))
 
 	_, err := nDB.GetEntry("table1", "network1", "key1")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound), "relayed update should not be visible while the owner is down")
@@ -165,7 +165,7 @@ func TestFailedNodeRelayedEventsRemembered(t *testing.T) {
 	assert.Check(t, is.Equal(nDB.config.reapEntryInterval, e.reapTime), "remembered entry should age out")
 
 	// A fresher relayed update replaces what is remembered.
-	deliver(3, TableEventTypeUpdate, "key1", []byte("fresher"))
+	deliver(3, TableEvent_UPDATE, "key1", []byte("fresher"))
 
 	// Nothing was published while the owner was down, and the freshest state
 	// remembered is what gets published when it returns.
@@ -182,13 +182,13 @@ func TestFailedNodeRelayedEventsRemembered(t *testing.T) {
 // was down does not come back when the owner does.
 func TestFailedNodeRelayedDeleteKept(t *testing.T) {
 	nDB, ed, mn, deliver := newTestNetworkDBWithPeer(t)
-	deliver(2, TableEventTypeCreate, "key1", []byte("v1"))
+	deliver(2, TableEvent_CREATE, "key1", []byte("v1"))
 
 	watch, cancel := nDB.Watch("table1", "network1")
 	defer cancel()
 
 	ed.NotifyLeave(mn)
-	deliver(3, TableEventTypeDelete, "key1", []byte("v1"))
+	deliver(3, TableEvent_DELETE, "key1", []byte("v1"))
 
 	ed.NotifyJoin(mn)
 	_, err := nDB.GetEntry("table1", "network1", "key1")
@@ -204,7 +204,7 @@ func TestFailedNodeRelayedDeleteKept(t *testing.T) {
 // second time.
 func TestFailedThenLeftDropsRememberedState(t *testing.T) {
 	nDB, ed, mn, deliver := newTestNetworkDBWithPeer(t)
-	deliver(2, TableEventTypeCreate, "key1", []byte("v1"))
+	deliver(2, TableEvent_CREATE, "key1", []byte("v1"))
 
 	watch, cancel := nDB.Watch("table1", "network1")
 	defer cancel()
@@ -235,7 +235,7 @@ func TestFailedThenLeftDropsRememberedState(t *testing.T) {
 // expired.
 func TestFailedNodeEntriesExpire(t *testing.T) {
 	nDB, ed, mn, deliver := newTestNetworkDBWithPeer(t)
-	deliver(2, TableEventTypeCreate, "key1", []byte("v1"))
+	deliver(2, TableEvent_CREATE, "key1", []byte("v1"))
 
 	watch, cancel := nDB.Watch("table1", "network1")
 	defer cancel()
@@ -274,18 +274,18 @@ func TestWatchSnapshotSkipsHiddenEntries(t *testing.T) {
 	// A second, healthy remote node with an entry of its own.
 	ed.NotifyJoin(&memberlist.Node{Name: "node2", Addr: net.IPv4(1, 2, 3, 5)})
 	nDB.handleNetworkEvent(&NetworkEvent{
-		Type:      NetworkEventTypeJoin,
+		Type:      NetworkEvent_JOIN,
 		LTime:     2,
 		NodeName:  "node2",
 		NetworkID: "network1",
 	})
 
-	deliver(2, TableEventTypeCreate, "key1", []byte("hidden"))
+	deliver(2, TableEvent_CREATE, "key1", []byte("hidden"))
 
 	d := &delegate{nDB}
 	msgs := messageBuffer{t: t}
 	appendNode2TableEvent := tableEventHelper(&msgs, "node2", "network1", "table1")
-	appendNode2TableEvent(3, TableEventTypeCreate, "key2", []byte("visible"))
+	appendNode2TableEvent(3, TableEvent_CREATE, "key2", []byte("visible"))
 	d.NotifyMsg(msgs.Compound())
 
 	ed.NotifyLeave(mn)
@@ -305,10 +305,10 @@ func TestBulkSyncFromInactiveNodeRemembered(t *testing.T) {
 	ed.NotifyLeave(mn)
 
 	payload := &messageBuffer{t: t}
-	tableEventHelper(payload, "node1", "network1", "table1")(2, TableEventTypeCreate, "key1", []byte("synced"))
+	tableEventHelper(payload, "node1", "network1", "table1")(2, TableEvent_CREATE, "key1", []byte("synced"))
 
 	msgs := &messageBuffer{t: t}
-	msgs.Append(MessageTypeBulkSync, &BulkSyncMessage{
+	msgs.Append(MessageType_BULK_SYNC, &BulkSyncMessage{
 		LTime:    2,
 		NodeName: "node1",
 		Networks: []string{"network1"},
@@ -331,8 +331,8 @@ func TestBulkSyncFromInactiveNodeRemembered(t *testing.T) {
 // of a hidden entry fail as if it did not exist.
 func TestHiddenEntriesDoNotExistForPublicAPI(t *testing.T) {
 	nDB, ed, mn, deliver := newTestNetworkDBWithPeer(t)
-	deliver(2, TableEventTypeCreate, "key1", []byte("remote"))
-	deliver(2, TableEventTypeCreate, "key2", []byte("remote"))
+	deliver(2, TableEvent_CREATE, "key1", []byte("remote"))
+	deliver(2, TableEvent_CREATE, "key2", []byte("remote"))
 	ed.NotifyLeave(mn)
 
 	// A hidden entry does not hold its key against the local node.
@@ -348,7 +348,8 @@ func TestHiddenEntriesDoNotExistForPublicAPI(t *testing.T) {
 	// When the owner returns, only the entry it still owns is restored, and
 	// its stale re-send of the taken-over key is rejected.
 	ed.NotifyJoin(mn)
-	deliver(2, TableEventTypeCreate, "key1", []byte("remote"))
+	deliver(2, TableEvent_CREATE, "key1", []byte("remote"))
+
 	v, err = nDB.GetEntry("table1", "network1", "key1")
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal("local", string(v)), "the taken-over key should not be reclaimed by a stale re-send")
@@ -362,7 +363,7 @@ func TestHiddenEntriesDoNotExistForPublicAPI(t *testing.T) {
 // remembered for it.
 func TestReapFailedNodeClearsNetworkState(t *testing.T) {
 	nDB, ed, mn, deliver := newTestNetworkDBWithPeer(t)
-	deliver(2, TableEventTypeCreate, "key1", []byte("v1"))
+	deliver(2, TableEvent_CREATE, "key1", []byte("v1"))
 
 	ed.NotifyLeave(mn)
 

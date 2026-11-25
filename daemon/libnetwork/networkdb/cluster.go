@@ -15,6 +15,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/hashicorp/memberlist"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/lamport"
 )
 
 const (
@@ -185,7 +186,7 @@ func (nDB *NetworkDB) retryJoin(ctx context.Context, members []string) {
 	for ctx.Err() == nil {
 		if _, err := nDB.memberlist.Join(members); err != nil {
 			log.G(ctx).Errorf("Failed to join memberlist %s on retry: %v", members, err)
-		} else if err := nDB.sendNodeEvent(NodeEventTypeJoin); err != nil {
+		} else if err := nDB.sendNodeEvent(NodeEvent_JOIN); err != nil {
 			log.G(ctx).Errorf("failed to send node join on retry: %v", err)
 		} else {
 			return
@@ -212,7 +213,7 @@ func (nDB *NetworkDB) clusterJoin(members []string) error {
 		return fmt.Errorf("could not join node to memberlist: %v", err)
 	}
 
-	if err := nDB.sendNodeEvent(NodeEventTypeJoin); err != nil {
+	if err := nDB.sendNodeEvent(NodeEvent_JOIN); err != nil {
 		return fmt.Errorf("failed to send node join: %v", err)
 	}
 
@@ -222,7 +223,7 @@ func (nDB *NetworkDB) clusterJoin(members []string) error {
 func (nDB *NetworkDB) clusterLeave() error {
 	mlist := nDB.memberlist
 
-	if err := nDB.sendNodeEvent(NodeEventTypeLeave); err != nil {
+	if err := nDB.sendNodeEvent(NodeEvent_LEAVE); err != nil {
 		log.G(context.TODO()).WithError(err).Error("failed to send node leave event")
 	}
 
@@ -400,7 +401,7 @@ func (nDB *NetworkDB) reconnectNode() {
 		return
 	}
 
-	if err := nDB.sendNodeEvent(NodeEventTypeJoin); err != nil {
+	if err := nDB.sendNodeEvent(NodeEvent_JOIN); err != nil {
 		return
 	}
 
@@ -715,15 +716,15 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 
 	for _, nid := range networks {
 		nDB.indexes[byNetwork].Root().WalkPrefix([]byte("/"+nid), func(path []byte, v *entry) bool {
-			eType := TableEventTypeCreate
+			eType := TableEvent_CREATE
 			if v.deleting {
-				eType = TableEventTypeDelete
+				eType = TableEvent_DELETE
 			}
 
 			params := strings.Split(string(path[1:]), "/")
 			tEvent := TableEvent{
 				Type:      eType,
-				LTime:     v.ltime,
+				LTime:     uint64(v.ltime),
 				NodeName:  v.node,
 				NetworkID: nid,
 				TableName: params[1],
@@ -733,9 +734,9 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 				ResidualReapTime: int32(v.reapTime.Seconds()),
 			}
 
-			msg, err := encodeMessage(MessageTypeTableEvent, &tEvent)
+			msg, err := encodeMessage(MessageType_TABLE_EVENT, &tEvent)
 			if err != nil {
-				log.G(context.TODO()).WithError(err).Errorf("Encode failure during bulk sync: %#v", tEvent)
+				log.G(context.TODO()).WithError(err).Errorf("Encode failure during bulk sync: %v", &tEvent)
 				return false
 			}
 
@@ -749,14 +750,14 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 	compound := makeCompoundMessage(msgs)
 
 	bsm := BulkSyncMessage{
-		LTime:       nDB.tableClock.Increment(),
+		LTime:       uint64(nDB.tableClock.Increment()),
 		Unsolicited: unsolicited,
 		NodeName:    nDB.config.NodeID,
 		Networks:    networks,
 		Payload:     compound,
 	}
 
-	buf, err := encodeMessage(MessageTypeBulkSync, &bsm)
+	buf, err := encodeMessage(MessageType_BULK_SYNC, &bsm)
 	if err != nil {
 		return fmt.Errorf("failed to encode bulk sync message: %v", err)
 	}
@@ -767,7 +768,7 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 		nDB.Lock()
 		ch := make(chan struct{})
 		nDB.bulkSyncAckTbl[node] = append(nDB.bulkSyncAckTbl[node], bulkSyncSubscription{
-			LTime: bsm.LTime,
+			LTime: lamport.Time(bsm.LTime),
 			Done:  ch,
 		})
 		nDB.Unlock()
@@ -914,14 +915,14 @@ func (nDB *NetworkDB) appendNetworkEvents(msgs [][]byte, networks []string, node
 func appendNetworkEventMsg(msgs [][]byte, nodeName, nid string, n network) [][]byte {
 	nEvent := NetworkEvent{
 		Type:      networkEventType(n.leaving),
-		LTime:     n.ltime,
+		LTime:     uint64(n.ltime),
 		NodeName:  nodeName,
 		NetworkID: nid,
 	}
 
-	msg, err := encodeMessage(MessageTypeNetworkEvent, &nEvent)
+	msg, err := encodeMessage(MessageType_NETWORK_EVENT, &nEvent)
 	if err != nil {
-		log.G(context.TODO()).WithError(err).Errorf("Encode failure during bulk sync: %#v", nEvent)
+		log.G(context.TODO()).WithError(err).Errorf("Encode failure during bulk sync: %v", &nEvent)
 		return msgs
 	}
 	return append(msgs, msg)

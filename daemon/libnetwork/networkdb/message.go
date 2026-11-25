@@ -1,7 +1,5 @@
 package networkdb
 
-import "github.com/gogo/protobuf/proto"
-
 const (
 	// Compound message header overhead 1 byte(message type) + 4
 	// bytes (num messages)
@@ -12,13 +10,17 @@ const (
 	compoundOverhead = 4
 )
 
+type vtMarshaler interface {
+	MarshalVT() ([]byte, error)
+}
+
 func encodeRawMessage(t MessageType, raw []byte) ([]byte, error) {
 	gMsg := GossipMessage{
 		Type: t,
 		Data: raw,
 	}
 
-	buf, err := proto.Marshal(&gMsg)
+	buf, err := gMsg.MarshalVT()
 	if err != nil {
 		return nil, err
 	}
@@ -26,8 +28,8 @@ func encodeRawMessage(t MessageType, raw []byte) ([]byte, error) {
 	return buf, nil
 }
 
-func encodeMessage(t MessageType, msg any) ([]byte, error) {
-	buf, err := proto.Marshal(msg.(proto.Message))
+func encodeMessage(t MessageType, msg vtMarshaler) ([]byte, error) {
+	buf, err := msg.MarshalVT()
 	if err != nil {
 		return nil, err
 	}
@@ -43,9 +45,9 @@ func encodeMessage(t MessageType, msg any) ([]byte, error) {
 func decodeMessage(buf []byte) (MessageType, []byte, error) {
 	var gMsg GossipMessage
 
-	err := proto.Unmarshal(buf, &gMsg)
+	err := gMsg.UnmarshalVT(buf)
 	if err != nil {
-		return MessageTypeInvalid, nil, err
+		return MessageType_INVALID, nil, err
 	}
 
 	return gMsg.Type, gMsg.Data, nil
@@ -63,17 +65,17 @@ func makeCompoundMessage(msgs [][]byte) []byte {
 		})
 	}
 
-	buf, err := proto.Marshal(&cMsg)
+	buf, err := cMsg.MarshalVT()
 	if err != nil {
 		return nil
 	}
 
 	gMsg := GossipMessage{
-		Type: MessageTypeCompound,
+		Type: MessageType_COMPOUND,
 		Data: buf,
 	}
 
-	buf, err = proto.Marshal(&gMsg)
+	buf, err = gMsg.MarshalVT()
 	if err != nil {
 		return nil
 	}
@@ -85,7 +87,7 @@ func makeCompoundMessage(msgs [][]byte) []byte {
 // the slices of individual messages. Returns any potential error.
 func decodeCompoundMessage(buf []byte) ([][]byte, error) {
 	var cMsg CompoundMessage
-	if err := proto.Unmarshal(buf, &cMsg); err != nil {
+	if err := cMsg.UnmarshalVT(buf); err != nil {
 		return nil, err
 	}
 
