@@ -272,7 +272,7 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 	// Initialize the trace recorder for buildkit.
 	detect.Recorder = detect.NewTraceRecorder()
 
-	tp, otelShutdown := otelutil.NewTracerProvider(ctx, true)
+	tp := otelutil.NewTracerProvider(ctx, true)
 	otel.SetTracerProvider(tp)
 	log.G(ctx).Logger.AddHook(logotel.NewLogrusHook())
 
@@ -305,6 +305,9 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 	}
 
 	d.StoreHosts(hosts)
+
+	// Register OTEL forwarders for the telemetry extension.
+	unregisterTraceSpanForwarders := d.RegisterTraceSpanForwarders(ctx, tp)
 
 	// validate after NewDaemon has restored enabled plugins. Don't change order.
 	if err := validateAuthzPlugins(cli.Config.AuthorizationPlugins, pluginStore); err != nil {
@@ -416,6 +419,11 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 
 	// notify systemd that we're shutting down
 	notifyStopping()
+
+	// Unregister the span processors added for forwarding telemetry to flush any
+	// batched telemetry and ensure we don't get export errors on shutdown
+	// due to the grpc connection being closed.
+	unregisterTraceSpanForwarders()
 	shutdownDaemon(ctx, d)
 
 	// shutdown / close BuildKit backend
@@ -428,7 +436,7 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 	defer shutdownCancel()
 
-	if err := otelShutdown(shutdownCtx); err != nil {
+	if err := tp.Shutdown(shutdownCtx); err != nil {
 		log.G(ctx).WithError(err).Error("failed to shutdown OTEL tracing")
 	}
 

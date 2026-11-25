@@ -15,9 +15,12 @@ import (
 	"github.com/moby/extensions/grpcproxy"
 	"github.com/moby/extensions/host"
 	"github.com/moby/moby/v2/daemon/config"
+	"github.com/moby/moby/v2/daemon/internal/otlp/otlptrace"
 	"github.com/moby/moby/v2/daemon/internal/rootless"
+	tracev0 "github.com/moby/moby/v2/extpoints/otel/collector/trace/v0"
 	servicegrpcv0 "github.com/moby/moby/v2/extpoints/servicegrpc/v0"
 	"github.com/moby/moby/v2/pkg/homedir"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
 )
 
@@ -139,6 +142,7 @@ func (daemon *Daemon) ExposeExtensionServices(gs *grpc.Server) (*grpcproxy.Proxy
 	if daemon.extensionHost == nil {
 		return nil, nil
 	}
+
 	reserved := make(map[string]struct{})
 	for name := range gs.GetServiceInfo() {
 		reserved[name] = struct{}{}
@@ -176,6 +180,29 @@ func (daemon *Daemon) ExposeExtensionServices(gs *grpc.Server) (*grpcproxy.Proxy
 		return nil, nil
 	}
 	return grpcproxy.New(routes), nil
+}
+
+func (daemon *Daemon) RegisterTraceSpanForwarders(ctx context.Context, tp *sdktrace.TracerProvider) (unregister func()) {
+	var registered []sdktrace.SpanProcessor
+	if providers, err := tracev0.Point.All(daemon.extensionHost); err == nil {
+		for _, provider := range providers {
+			if exporter, err := otlptrace.New(ctx, provider.Impl); err == nil {
+				sp := sdktrace.NewBatchSpanProcessor(exporter)
+				tp.RegisterSpanProcessor(sp)
+				registered = append(registered, sp)
+			} else {
+				log.G(ctx).WithError(err).Error("unable to create otlp trace forwarder from telemetry extension provider")
+			}
+		}
+	} else {
+		log.G(ctx).WithError(err).Error("cannot retrieve telemetry extension clients")
+	}
+
+	return func() {
+		for _, sp := range registered {
+			tp.UnregisterSpanProcessor(sp)
+		}
+	}
 }
 
 // offeredServices collects in-process services for validation before registration.
