@@ -1,6 +1,9 @@
 package pflag
 
-import "strconv"
+import (
+	"errors"
+	"strconv"
+)
 
 // -- uint16 value
 type uint16Value uint16
@@ -12,8 +15,11 @@ func newUint16Value(val uint16, p *uint16) *uint16Value {
 
 func (i *uint16Value) Set(s string) error {
 	v, err := strconv.ParseUint(s, 0, 16)
+	if err != nil {
+		return errors.New("must be a non-negative integer")
+	}
 	*i = uint16Value(v)
-	return err
+	return nil
 }
 
 func (i *uint16Value) Type() string {
