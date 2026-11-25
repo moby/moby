@@ -65,8 +65,13 @@ type containerdServer struct {
 // Command-owned behavior such as process mutation, proxy plugins, TCP/TLS, and
 // Prometheus registration is intentionally not part of the embedded server.
 func newServer(ctx context.Context, cfg *serverConfig) (*containerdServer, error) {
-	registrations := registry.Graph(srvconfig.V2DisabledFilter(cfg.containerd.DisabledPlugins))
-	return newServerWithRegistrations(ctx, cfg, registrations)
+	return newServerWithRegistrations(ctx, cfg, pluginRegistrations(cfg))
+}
+
+// pluginRegistrations returns the registrations used to initialize the
+// embedded server, after applying the configured disabled plugin filter.
+func pluginRegistrations(cfg *serverConfig) []plugin.Registration {
+	return registry.Graph(srvconfig.V2DisabledFilter(cfg.containerd.DisabledPlugins))
 }
 
 // newServerWithRegistrations mirrors containerd's plugin lifecycle for the

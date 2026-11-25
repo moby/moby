@@ -7,14 +7,14 @@ import (
 
 	"github.com/containerd/containerd/v2/plugins"
 	"github.com/containerd/plugin"
-	"github.com/containerd/plugin/registry"
 )
 
-func TestErofsPluginsRegistered(t *testing.T) {
+func TestPluginRegistrationsIncludeErofs(t *testing.T) {
 	registered := make(map[plugin.Type]bool)
-	for _, p := range registry.Graph(nil) {
-		if p.ID == "erofs" {
-			registered[p.Type] = true
+	cfg := &serverConfig{}
+	for _, registration := range pluginRegistrations(cfg) {
+		if registration.ID == "erofs" {
+			registered[registration.Type] = true
 		}
 	}
 
