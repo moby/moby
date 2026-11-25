@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sync"
 
 	"github.com/containerd/log"
 	"github.com/moby/extensions"
@@ -18,6 +19,8 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/rootless"
 	servicegrpcv0 "github.com/moby/moby/v2/extpoints/servicegrpc/v0"
 	"github.com/moby/moby/v2/pkg/homedir"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
 )
 
@@ -129,6 +132,45 @@ func defaultExtensionDir() (string, error) {
 		}
 	}
 	return filepath.Join(libexecDir, "docker", "moby-extensions"), nil
+}
+
+// TelemetrySinks sends daemon telemetry to the extensions that provide the
+// trace and metric sink points.
+type TelemetrySinks struct {
+	// TracerProvider is the provider passed to StartTelemetrySinks, a new one
+	// if none was passed and an extension provides a trace sink, or nil.
+	TracerProvider *sdktrace.TracerProvider
+	// MeterProvider exports to the metric sinks, or is nil if no extension
+	// provides one.
+	MeterProvider *sdkmetric.MeterProvider
+
+	stopTraces, stopMetrics func(context.Context)
+}
+
+// StartTelemetrySinks starts exporting spans recorded by tp, and metrics
+// recorded by the returned meter provider, to extension sinks.
+func (daemon *Daemon) StartTelemetrySinks(ctx context.Context, tp *sdktrace.TracerProvider) (*TelemetrySinks, error) {
+	tp, stopTraces, err := startTraceSinks(ctx, tp, daemon.extensionHost)
+	if err != nil {
+		return nil, err
+	}
+
+	mp, stopMetrics, err := startMetricSinks(ctx, daemon.extensionHost)
+	if err != nil {
+		stopTraces(ctx)
+		return nil, err
+	}
+
+	return &TelemetrySinks{TracerProvider: tp, MeterProvider: mp, stopTraces: stopTraces, stopMetrics: stopMetrics}, nil
+}
+
+// Stop flushes buffered telemetry to the sinks and stops exporting.
+// Call it before the daemon shuts down extensions.
+func (s *TelemetrySinks) Stop(ctx context.Context) {
+	var wg sync.WaitGroup
+	wg.Go(func() { s.stopTraces(ctx) })
+	wg.Go(func() { s.stopMetrics(ctx) })
+	wg.Wait()
 }
 
 // ExposeExtensionServices publishes service.grpc services and points offered
