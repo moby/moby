@@ -18,15 +18,16 @@ validate_tidy_modules() {
 			return 1
 		fi
 	done
-	# run mod tidy
-	./hack/vendor.sh tidy
+	# run mod tidy; errexit is ignored in the caller's "if" condition, so
+	# failures must be propagated explicitly
+	./hack/vendor.sh tidy || return
 	# check if any files have changed
 	git diff --quiet HEAD -- "${tidy_files[@]}" && [ -z "$(git ls-files --others --exclude-standard)" ]
 }
 
 validate_vendor_diff() {
 	# recreate vendor/
-	./hack/vendor.sh vendor
+	./hack/vendor.sh vendor || return
 	# check if any files have changed
 	git diff --quiet HEAD -- "${vendor_files[@]}" && [ -z "$(git ls-files --others --exclude-standard)" ]
 }
