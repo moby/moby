@@ -119,8 +119,21 @@ func marshal(m *logger.Message, attrs []*logdriver.LogAttr, buffer *[]byte) erro
 	var proto logdriver.LogEntry
 	var md logdriver.PartialLogEntryMetadata
 	messageToProto(m, attrs, &proto, &md)
-	protoSize := proto.Size()
-	writeLen := protoSize + (2 * encodeBinaryLen) // + len(messageDelimiter)
+
+	// Log entries are framed by a 4-byte big-endian payload size
+	// at both ends, allowing forward and backward traversal.
+	//
+	//  0             encodeBinaryLen        payloadEnd    writeLen
+	//  |             |                      |             |
+	//  +-------------+----------------------+-------------+
+	//  | payload size|   protobuf payload   | payload size|
+	//  +-------------+----------------------+-------------+
+	//  |<-- 4 bytes->|<----- protoSize ---->|<-- 4 bytes->|
+	var (
+		protoSize  = proto.Size()
+		payloadEnd = encodeBinaryLen + protoSize
+		writeLen   = payloadEnd + encodeBinaryLen
+	)
 
 	buf := *buffer
 	if writeLen > cap(buf) {
@@ -135,14 +148,15 @@ func marshal(m *logger.Message, attrs []*logdriver.LogAttr, buffer *[]byte) erro
 	*buffer = buf
 
 	binary.BigEndian.PutUint32(buf[:encodeBinaryLen], uint32(protoSize))
-	n, err := proto.MarshalTo(buf[encodeBinaryLen:writeLen])
+	// The buffer is already sized, so avoid recalculating the message size.
+	n, err := proto.MarshalToSizedBuffer(buf[encodeBinaryLen:payloadEnd])
 	if err != nil {
 		return errors.Wrap(err, "error marshaling log entry")
 	}
-	if n+(encodeBinaryLen*2) != writeLen {
+	if n != protoSize {
 		return io.ErrShortWrite
 	}
-	binary.BigEndian.PutUint32(buf[writeLen-encodeBinaryLen:writeLen], uint32(protoSize))
+	binary.BigEndian.PutUint32(buf[payloadEnd:], uint32(protoSize))
 	return nil
 }
 

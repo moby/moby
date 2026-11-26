@@ -127,6 +127,38 @@ func BenchmarkLogWrite(b *testing.B) {
 	}
 }
 
+func BenchmarkMarshal(b *testing.B) {
+	msg := &logger.Message{
+		Source:    "stdout",
+		Timestamp: time.Now().UTC(),
+		Line:      []byte("a short string"),
+	}
+
+	attrs := []*logdriver.LogAttr{
+		{Key: "label1", Value: "value1"},
+		{Key: "label2", Value: "value2"},
+		{Key: "tag", Value: "custom-tag"},
+	}
+
+	for _, tc := range []struct {
+		name  string
+		attrs []*logdriver.LogAttr
+	}{
+		{name: "without-attrs"},
+		{name: "with-attrs", attrs: attrs},
+	} {
+		b.Run(tc.name, func(b *testing.B) {
+			buf := make([]byte, initialBufSize)
+			b.ReportAllocs()
+			for b.Loop() {
+				if err := marshal(msg, tc.attrs, &buf); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
 func copyLogMessage(src *logger.Message) *logger.Message {
 	dst := logger.NewMessage()
 	dst.Source = src.Source
