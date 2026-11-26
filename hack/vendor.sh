@@ -92,6 +92,9 @@ case "$1" in
 	vendor) vendor ;;
 	replace) replace ;;
 	dropreplace) dropreplace "$2" ;;
-	"" | all) tidy && vendor ;;
+	"" | all)
+		tidy
+		vendor
+		;;
 	*) help ;;
 esac
