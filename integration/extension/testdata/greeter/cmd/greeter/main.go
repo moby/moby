@@ -3,7 +3,7 @@ package main
 
 import (
 	"github.com/moby/extensions/sdk"
-	servicegrpcv0 "github.com/moby/moby/v2/extpoints/servicegrpc/v0"
+	servicegrpcv0 "github.com/moby/moby/extpoints/servicegrpc/v0"
 	"github.com/moby/moby/v2/integration/extension/testdata/greeter"
 )
 

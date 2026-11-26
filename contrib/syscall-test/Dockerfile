@@ -17,4 +17,4 @@ RUN gcc -g -Wall -static userns.c -o /usr/bin/userns-test \
 	&& gcc -g -Wall -static socket.c -o /usr/bin/socket-test \
 	&& gcc -g -Wall -static raw.c -o /usr/bin/raw-test
 
-RUN [ "$(uname -m)" = "x86_64" ] && gcc -s -m32 -nostdlib exit32.s -o /usr/bin/exit32-test || true
+RUN [ "$(uname -m)" = "x86_64" ] && gcc -s -m32 -nostdlib -static exit32.s -o /usr/bin/exit32-test || true

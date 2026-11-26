@@ -2,7 +2,7 @@ package daemon
 
 import (
 	"github.com/moby/extensions"
-	containerstatev0 "github.com/moby/moby/v2/extpoints/containerstate/v0"
+	containerstatev0 "github.com/moby/moby/extpoints/containerstate/v0"
 )
 
 // monolithExtensionID identifies the builtin extension that exposes daemon

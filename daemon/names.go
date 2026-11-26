@@ -8,12 +8,12 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	containernamegeneratorv0 "github.com/moby/moby/extpoints/containernamegenerator/v0"
+	servicenamegeneratorv0 "github.com/moby/moby/extpoints/servicenamegenerator/v0"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/names"
 	"github.com/moby/moby/v2/errdefs"
-	containernamegeneratorv0 "github.com/moby/moby/v2/extpoints/containernamegenerator/v0"
-	servicenamegeneratorv0 "github.com/moby/moby/v2/extpoints/servicenamegenerator/v0"
 )
 
 var (

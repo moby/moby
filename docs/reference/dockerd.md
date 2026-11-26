@@ -6,8 +6,8 @@ aliases:
 - /engine/reference/commandline/daemon/
 ---
 
-<!-- This file is maintained within the docker/cli GitHub
-     repository at https://github.com/docker/cli/. Make all
+<!-- This file is maintained within the moby/moby GitHub
+     repository at https://github.com/moby/moby/. Make all
      pull requests against that repo. If you see this file in
      another repository, consider it read-only there, as it will
      periodically be overwritten by the definitive file. Pull
@@ -99,7 +99,7 @@ Options:
       --node-generic-resource list            Advertise user-defined resource
   -p, --pidfile string                        Path to use for daemon PID file (default "/var/run/docker.pid")
       --raw-logs                              Full timestamps without ANSI coloring
-      --registry-mirror list                  Preferred registry mirror
+      --registry-mirror list                  Preferred Docker Hub registry mirror
       --rootless                              Enable rootless mode; typically used with RootlessKit
       --seccomp-profile string                Path to seccomp profile. Set to "unconfined" to disable the default seccomp profile (default "builtin")
       --selinux-enabled                       Enable selinux support
@@ -143,17 +143,18 @@ Some of these environment variables are supported both by the Docker Daemon and
 the `docker` CLI. Refer to [Environment variables](https://docs.docker.com/reference/cli/docker/#environment-variables)
 to learn about environment variables supported by the `docker` CLI.
 
-| Variable            | Description                                                                                                                                                                             |
-| :------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DOCKER_CERT_PATH`  | Location of your authentication keys. This variable is used both by the [`docker` CLI](https://docs.docker.com/reference/cli/docker/) and the `dockerd` daemon.             |
-| `DOCKER_DRIVER`     | The storage driver to use.                                                                                                                                                              |
-| `DOCKER_RAMDISK`    | If set this disables `pivot_root`.                                                                                                                                                      |
-| `DOCKER_TLS_VERIFY` | When set Docker uses TLS and verifies the remote. This variable is used both by the [`docker` CLI](https://docs.docker.com/reference/cli/docker/) and the `dockerd` daemon. |
-| `DOCKER_TMPDIR`     | Location for temporary files created by the daemon.                                                                                                                                     |
-| `HTTP_PROXY`        | Proxy URL for HTTP requests unless overridden by NoProxy. See the [Go specification](https://pkg.go.dev/golang.org/x/net/http/httpproxy#Config) for details.                            |
-| `HTTPS_PROXY`       | Proxy URL for HTTPS requests unless overridden by NoProxy. See the [Go specification](https://pkg.go.dev/golang.org/x/net/http/httpproxy#Config) for details.                           |
-| `MOBY_DISABLE_PIGZ` | Disables the use of [`unpigz`](https://linux.die.net/man/1/pigz) to decompress layers in parallel when pulling images, even if it is installed.                                         |
-| `NO_PROXY`          | Comma-separated values specifying hosts that should be excluded from proxying. See the [Go specification](https://pkg.go.dev/golang.org/x/net/http/httpproxy#Config) for details.       |
+| Variable                 | Description                                                                                                                                                                             |
+| :----------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DOCKER_CERT_PATH`       | Location of your authentication keys. This variable is used both by the [`docker` CLI](https://docs.docker.com/reference/cli/docker/) and the `dockerd` daemon.             |
+| `DOCKER_DRIVER`          | The storage driver to use.                                                                                                                                                              |
+| `DOCKER_MIN_API_VERSION` | Minimum API version that the daemon supports. See [Minimum API version](#minimum-api-version).                                                                                          |
+| `DOCKER_RAMDISK`         | If set this disables `pivot_root`.                                                                                                                                                      |
+| `DOCKER_TLS_VERIFY`      | When set Docker uses TLS and verifies the remote. This variable is used both by the [`docker` CLI](https://docs.docker.com/reference/cli/docker/) and the `dockerd` daemon. |
+| `DOCKER_TMPDIR`          | Location for temporary files created by the daemon.                                                                                                                                     |
+| `HTTP_PROXY`             | Proxy URL for HTTP requests unless overridden by NoProxy. See the [Go specification](https://pkg.go.dev/golang.org/x/net/http/httpproxy#Config) for details.                            |
+| `HTTPS_PROXY`            | Proxy URL for HTTPS requests unless overridden by NoProxy. See the [Go specification](https://pkg.go.dev/golang.org/x/net/http/httpproxy#Config) for details.                           |
+| `MOBY_DISABLE_PIGZ`      | Disables the use of [`unpigz`](https://linux.die.net/man/1/pigz) to decompress layers in parallel when pulling images, even if it is installed.                                         |
+| `NO_PROXY`               | Comma-separated values specifying hosts that should be excluded from proxying. See the [Go specification](https://pkg.go.dev/golang.org/x/net/http/httpproxy#Config) for details.       |
 
 ## Examples
 
@@ -186,6 +187,17 @@ requests via three different types of Socket: `unix`, `tcp`, and `fd`.
 By default, a `unix` domain socket (or IPC socket) is created at
 `/var/run/docker.sock`, requiring either `root` permission, or `docker` group
 membership.
+
+Use the `group` option in the [daemon configuration file](#daemon-configuration-file),
+or the `--group` (`-G`) flag, to set the group that owns the `unix` socket.
+The default is `docker`. Use an empty string (`--group=""`) to keep the
+daemon's own group instead. On Windows, `--group` sets the users or groups that
+can access the named pipe.
+
+The `group` option only applies to `unix` sockets that the daemon creates. With
+systemd socket activation (`-H fd://`), systemd creates the socket, and the
+`SocketUser`, `SocketGroup`, and `SocketMode` settings of the socket unit set
+its ownership and permissions.
 
 If you need to access the Docker daemon remotely, you need to enable the tcp
 Socket. When using a TCP socket, the Docker daemon provides un-encrypted and
@@ -646,6 +658,23 @@ the `containerd` socket using the `--containerd` flag. For example:
 $ sudo dockerd --containerd /run/containerd/containerd.sock
 ```
 
+#### Configure embedded containerd
+
+With the experimental `embedded-containerd` [feature](#feature), the daemon
+runs containerd within its own process, even if `--containerd` is set. The
+daemon then loads containerd configuration files (`*.toml`) from the
+`containerd.d` directory next to the daemon configuration file, for example
+`/etc/docker/containerd.d` on Linux. The daemon merges the files in lexical
+order.
+
+Each drop-in file must set `version` to 4 or later, and must not contain a
+non-empty `imports` list. Only the `plugins`, `disabled_plugins`, and
+`required_plugins` settings apply, excluding server settings such as gRPC,
+TTRPC, debug, and metrics.
+
+The daemon ignores these files, and logs a warning, when it doesn't use
+embedded containerd.
+
 #### Configure cgroup driver
 
 You can configure how the runtime should manage container cgroups, using the
@@ -772,6 +801,18 @@ You can also configure the timeout with the `default-stop-timeout` option in the
 [daemon configuration file](#daemon-configuration-file). You can reload this
 option without restarting the daemon.
 
+### Default namespace modes
+
+The `default-cgroupns-mode` option in the
+[daemon configuration file](#daemon-configuration-file), or the
+`--default-cgroupns-mode` flag, sets the default cgroup namespace mode for new
+containers, either `host` or `private`. If unset, the default is `host` on
+cgroup v1 hosts, and `private` on cgroup v2 hosts.
+
+The `default-ipc-mode` option, or the `--default-ipc-mode` flag, sets the
+default IPC mode for new containers, either `private` or `shareable`. The
+default is `private`.
+
 ### Default `ulimit` settings
 
 The `--default-ulimit` flag lets you set the default `ulimit` options to use for
@@ -811,7 +852,13 @@ For information about how to create an authorization plugin, refer to the
 
 The `--apparmor-profile` option sets the path to an AppArmor profile definition
 for Docker's default `docker-default` container profile. This option is only
-supported on Linux hosts. The file can be a static profile or a Go template.
+supported on Linux hosts.
+
+The file can be a static AppArmor profile or a Go template. A file without Go
+template actions renders unchanged, so you can use an existing static profile
+without converting it to a template. A static profile must declare
+`docker-default`, and provide declarations and includes that are valid on the
+host.
 
 The equivalent `daemon.json` configuration is:
 
@@ -821,8 +868,33 @@ The equivalent `daemon.json` configuration is:
 }
 ```
 
-Restart the daemon to apply changes. For template values, safe file placement,
-security considerations, and verification, see
+Go templates can use the following values to adapt a profile to the host:
+
+- `.Name` is the required profile name, `docker-default`.
+- `.Abi` is `abi/3.0` when that AppArmor ABI is available, or an empty string
+  otherwise.
+- `.Imports` contains global-scope host declarations. It contains
+  `#include <tunables/global>` when available, or `@{PROC}=/proc/` otherwise.
+- `.InnerImports` contains `#include <abstractions/base>` when that
+  profile-scope abstraction is available.
+- `.DaemonProfile` is the AppArmor profile applied to the daemon, or
+  `unconfined`.
+
+Use the [built-in profile template](https://github.com/moby/profiles/blob/main/apparmor/template.go)
+as the starting point for a portable custom policy.
+
+The daemon reads and parses the file at startup. If AppArmor is enabled, the
+daemon renders the file and loads the result with `apparmor_parser`, replacing
+the loaded `docker-default` profile. Restart the daemon to apply changes to the
+file. If the file can't be read or parsed, the daemon fails to start. If
+`apparmor_parser` rejects the rendered profile, the daemon logs an error and
+doesn't update the loaded profile.
+
+This option only changes Docker's default AppArmor profile. Containers
+configured with another profile, or with `unconfined`, continue to use that
+setting.
+
+For safe file placement, security considerations, and verification, see
 [Customize the default AppArmor profile](https://docs.docker.com/engine/security/apparmor/#customize-the-default-profile).
 
 ### Daemon user namespace options
@@ -839,6 +911,22 @@ the host.
 
 For details about how to use this feature, as well as limitations, see
 [Isolate containers with a user namespace](https://docs.docker.com/engine/security/userns-remap/).
+
+The `userns-remap` option in the
+[daemon configuration file](#daemon-configuration-file), or the
+`--userns-remap` flag, enables user namespaces for containers, and accepts the
+following values:
+
+- `default` makes the daemon use the `dockremap` user and group, creating them
+  if they don't exist.
+- A user name or UID, optionally followed by a group name or GID, for example
+  `testuser`, `testuser:testuser`, or `1000:1000`. If you omit the group, the
+  daemon uses the group with the same name or ID as the user.
+
+The daemon uses the subordinate ID ranges of the user, from `/etc/subuid` and
+`/etc/subgid`, as the user namespace mappings for container processes. It looks
+up the entries in both files by the user's name or UID, so the group doesn't
+affect the mappings.
 
 ### Configure host gateway IP
 
@@ -873,6 +961,88 @@ $ docker run -it --add-host host.docker.internal:host-gateway \
   busybox ping -6 host.docker.internal
 PING host.docker.internal (2001:db8::1111): 56 data bytes
 ```
+
+### Default bridge network
+
+By default, the daemon creates the `docker0` bridge for the default bridge
+network. The following options in the
+[daemon configuration file](#daemon-configuration-file), or the equivalent
+flags, configure the default bridge network:
+
+| Option               | Flag                   | Description                                                                                                                                         |
+| :------------------- | :--------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bridge`             | `-b`, `--bridge`       | Attach containers to a pre-existing bridge instead of `docker0`. Use `none` to disable the default bridge network.                                  |
+| `bip`                | `--bip`                | IPv4 address of the bridge, in CIDR notation. You can't use it together with `bridge`.                                                              |
+| `bip6`               | `--bip6`               | IPv6 address of the bridge, in CIDR notation. You can't use it together with `bridge`.                                                              |
+| `fixed-cidr`         | `--fixed-cidr`         | IPv4 subnet that containers get addresses from, for example `10.20.0.0/16`. It must be nested in the bridge subnet, defined by `bridge` or `bip`.   |
+| `fixed-cidr-v6`      | `--fixed-cidr-v6`      | IPv6 subnet that containers get addresses from, for example `2001:db8::/64`.                                                                        |
+| `default-gateway`    | `--default-gateway`    | IPv4 default gateway for containers. It must be part of the bridge subnet.                                                                          |
+| `default-gateway-v6` | `--default-gateway-v6` | IPv6 default gateway for containers.                                                                                                                |
+| `icc`                | `--icc`                | Allow unrestricted inter-container communication. The default is `true`. If disabled, containers can still communicate using `docker run --link`.   |
+| `ip`                 | `--ip`                 | Default host IP address to use when publishing container ports. The default is `0.0.0.0`.                                                           |
+| `ipv6`               | `--ipv6`               | Enable IPv6. See [IPv6 on the default bridge network](#ipv6-on-the-default-bridge-network).                                                         |
+| `mtu`                | `--mtu`                | Network MTU.                                                                                                                                        |
+
+For example, the following configuration assigns `192.168.1.1/24` to the
+bridge, and allocates container addresses from `192.168.1.0/25`:
+
+```json
+{
+  "bip": "192.168.1.1/24",
+  "fixed-cidr": "192.168.1.0/25"
+}
+```
+
+The equivalent command line is:
+
+```console
+$ sudo dockerd --bip 192.168.1.1/24 --fixed-cidr 192.168.1.0/25
+```
+
+#### IPv6 on the default bridge network
+
+The `ipv6` option in the [daemon configuration file](#daemon-configuration-file),
+or the `--ipv6` flag, enables IPv6 on the default bridge network.
+
+By default, the daemon allocates an IPv6 subnet for the default bridge network
+from its default address pools. Unless the `default-address-pools` option
+includes an IPv6 pool, the daemon adds a Unique Local Address (ULA) prefix,
+derived from its host ID, to these pools. Use `default-address-pools` or
+`fixed-cidr-v6` to override the subnet.
+
+Unless you set `ip-forward` to `false`, the daemon also enables IPv6
+forwarding, or checks that it's enabled with the `nftables` firewall backend.
+See [IP forwarding](#ip-forwarding).
+
+### IP forwarding
+
+The `ip-forward` option in the [daemon configuration file](#daemon-configuration-file),
+or the `--ip-forward` flag, is enabled by default. How it behaves depends on
+the firewall backend:
+
+- With the `iptables` backend, the daemon enables IP forwarding in the host's
+  system configuration when a bridge network needs it. If IP forwarding is
+  already enabled on the host, this option has no effect.
+- With the `nftables` backend, the daemon doesn't enable IP forwarding.
+  Instead, it checks that IP forwarding is enabled on the host, and fails to
+  set up bridge networks if it isn't. Enable IP forwarding on the host, or set
+  `ip-forward` to `false` to disable the check.
+
+The same applies to IPv6 forwarding when there is an IPv6 enabled bridge
+network, for which both `net.ipv6.conf.all.forwarding` and
+`net.ipv6.conf.default.forwarding` must be enabled. Enabling IPv6 forwarding
+may cause the host to reject Router Advertisements, and interfere with its
+existing IPv6 configuration.
+
+When the daemon enables IP forwarding itself, and `iptables` or `ip6tables` is
+enabled, it also sets the default policy of the `FORWARD` chain in the
+iptables or ip6tables `filter` table to `DROP`. For IPv6, this happens if the
+daemon enables either of the two IPv6 forwarding settings.
+
+The `ip-forward-no-drop` option, or the `--ip-forward-no-drop` flag, tells the
+daemon to enable IP forwarding without modifying the default policy of the
+`FORWARD` chain. The daemon doesn't modify the policy either when IP
+forwarding is already enabled on the host, including both IPv6 settings.
 
 ### Configure CDI devices
 
@@ -918,7 +1088,7 @@ The feature in enabled by default. To disable it, use the `cdi` options in the `
 
 To check the status of the CDI devices, run `docker info`.
 
-#### Daemon logging format {#log-format}
+### Daemon logging format {#log-format}
 
 The `--log-format` option or "log-format" option in the [daemon configuration file](#daemon-configuration-file)
 lets you set the format for logs produced by the daemon. The logging format should
@@ -945,6 +1115,11 @@ The following example shows a `daemon.json` configuration file with the
 }
 ```
 
+The `raw-logs` option in the [daemon configuration file](#daemon-configuration-file),
+or the `--raw-logs` flag, disables ANSI coloring of the `text` logging format.
+Without this option, the daemon outputs colorized logs if it detects a
+terminal.
+
 ### Miscellaneous options
 
 IP masquerading uses address translation to allow containers without a public
@@ -958,7 +1133,21 @@ set like this:
 ```console
 $ export DOCKER_TMPDIR=/mnt/disk2/tmp
 $ sudo -E dockerd --data-root /var/lib/docker -H unix://
-````
+```
+
+#### Live restore
+
+The `live-restore` option in the [daemon configuration file](#daemon-configuration-file),
+or the `--live-restore` flag, keeps containers running while the daemon is
+down, so that the daemon restores them when it starts instead of restarting
+them. This option is only supported on Linux hosts.
+
+Live restore is supported when upgrading the daemon to a new patch release.
+It may work when upgrading to a new minor or major release, but this isn't
+guaranteed.
+
+For more information, see
+[Live restore](https://docs.docker.com/engine/daemon/live-restore/).
 
 #### Default cgroup parent
 
@@ -1023,6 +1212,16 @@ Example of usage:
   ]
 }
 ```
+
+#### Swarm default advertise address
+
+The `swarm-default-advertise-addr` option in the
+[daemon configuration file](#daemon-configuration-file), or the
+`--swarm-default-advertise-addr` flag, sets the default address that the node
+advertises to other members of a Swarm cluster, when `docker swarm init` or
+`docker swarm join` doesn't specify `--advertise-addr`. The value is either an
+IP address or the name of a network interface, such as `eth0`. You can't
+specify a port with this option.
 
 ### Enable feature in the daemon (--feature) {#feature}
 
@@ -1115,10 +1314,14 @@ The following is a full example of the allowed configuration options on Linux:
       ]
     }
   },
+  "cdi-spec-dirs": ["/etc/cdi", "/var/run/cdi"],
   "cgroup-parent": "",
   "containerd": "/run/containerd/containerd.sock",
   "containerd-namespace": "docker",
   "containerd-plugins-namespace": "docker-plugins",
+  "cpu-rt-period": 0,
+  "cpu-rt-runtime": 0,
+  "cri-containerd": false,
   "data-root": "",
   "debug": true,
   "default-address-pools": [
@@ -1134,6 +1337,7 @@ The following is a full example of the allowed configuration options on Linux:
   "default-cgroupns-mode": "private",
   "default-gateway": "",
   "default-gateway-v6": "",
+  "default-ipc-mode": "private",
   "default-network-opts": {},
   "default-runtime": "runc",
   "default-shm-size": "64M",
@@ -1159,7 +1363,7 @@ The following is a full example of the allowed configuration options on Linux:
   "fixed-cidr": "",
   "fixed-cidr-v6": "",
   "group": "",
-  "host-gateway-ip": "",
+  "host-gateway-ips": [],
   "hosts": [],
   "proxies": {
     "http-proxy": "http://proxy.example.com:80",
@@ -1172,6 +1376,7 @@ The following is a full example of the allowed configuration options on Linux:
   "insecure-registries": [],
   "ip": "0.0.0.0",
   "ip-forward": false,
+  "ip-forward-no-drop": false,
   "ip-masq": false,
   "iptables": false,
   "ip6tables": false,
@@ -1194,7 +1399,10 @@ The following is a full example of the allowed configuration options on Linux:
   "max-concurrent-downloads": 3,
   "max-concurrent-uploads": 5,
   "max-download-attempts": 5,
+  "metrics-addr": "",
+  "min-api-version": "1.40",
   "mtu": 0,
+  "network-control-plane-mtu": 1500,
   "no-new-privileges": false,
   "node-generic-resources": [
     "NVIDIA-GPU=UUID1",
@@ -1203,6 +1411,7 @@ The following is a full example of the allowed configuration options on Linux:
   "pidfile": "",
   "raw-logs": false,
   "registry-mirrors": [],
+  "rootless": false,
   "runtimes": {
     "cc-runtime": {
       "path": "/usr/bin/cc-runtime"
@@ -1269,7 +1478,7 @@ The following is a full example of the allowed configuration options on Windows:
   "features": {},
   "fixed-cidr": "",
   "group": "",
-  "host-gateway-ip": "",
+  "host-gateway-ips": [],
   "hosts": [],
   "insecure-registries": [],
   "labels": [],
@@ -1352,6 +1561,9 @@ The list of currently supported options that can be reconfigured is this:
 | `max-concurrent-uploads`           | Configures the max concurrent uploads for each push.                                                        |
 | `max-download-attempts`            | Configures the max download attempts for each pull.                                                         |
 | `default-runtime`                  | Configures the runtime to be used if not is specified at container creation.                                |
+| `default-shm-size`                 | Configures the default shm size for new containers (Linux only).                                            |
+| `default-ipc-mode`                 | Configures the default IPC mode for new containers (Linux only).                                            |
+| `default-cgroupns-mode`            | Configures the default cgroup namespace mode for new containers (Linux only).                               |
 | `default-stop-timeout`             | Configures the timeout for stopping containers that have no container-specific timeout.                     |
 | `runtimes`                         | Configures the list of available OCI runtimes that can be used to run containers.                           |
 | `authorization-plugin`             | Specifies the authorization plugins to use.                                                                 |
@@ -1359,6 +1571,25 @@ The list of currently supported options that can be reconfigured is this:
 | `registry-mirrors`                 | Specifies a list of registry mirrors.                                                                       |
 | `shutdown-timeout`                 | Configures the daemon's existing configuration timeout with a new timeout for shutting down all containers. |
 | `features`                         | Enables or disables specific features.                                                                      |
+
+### Minimum API version
+
+By default, the daemon rejects API requests with an API version older than
+`1.40`. To accept older API versions, set the `min-api-version` option in the
+[daemon configuration file](#daemon-configuration-file), or the
+`DOCKER_MIN_API_VERSION` environment variable. The value must be between `1.24`
+and the current API version, without a `v` prefix. If you set both, the
+configuration file takes precedence.
+
+```json
+{
+  "min-api-version": "1.24"
+}
+```
+
+API versions older than `1.40` are deprecated, and support for them will be
+removed in a future release. Only lower the minimum API version for clients
+that you can't upgrade.
 
 ### Run multiple daemons
 
@@ -1425,6 +1656,31 @@ $ sudo dockerd \
         --bridge=none \
         --data-root=/var/lib/docker-bootstrap \
         --exec-root=/var/run/docker-bootstrap
+```
+
+### Default address pools
+
+The `default-address-pools` option in the
+[daemon configuration file](#daemon-configuration-file), or the
+`--default-address-pool` flag, sets the pools that the IPAM driver selects
+subnets from for local networks. Each pool has a `base` prefix that the IPAM
+driver splits into subnets of the given `size`.
+
+The following example makes the IPAM driver allocate subnets from
+`172.30.[0-255].0/24`:
+
+```json
+{
+  "default-address-pools": [
+    { "base": "172.30.0.0/16", "size": 24 }
+  ]
+}
+```
+
+The equivalent command line is:
+
+```console
+$ sudo dockerd --default-address-pool base=172.30.0.0/16,size=24
 ```
 
 ### Default network options

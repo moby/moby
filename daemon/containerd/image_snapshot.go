@@ -46,7 +46,7 @@ func (i *ImageService) CreateLayerFromImage(img *image.Image, layerName string, 
 	return i.createLayer(descriptor, layerName, rwLayerOpts, nil)
 }
 
-func (i *ImageService) createLayer(descriptor *ocispec.Descriptor, layerName string, rwLayerOpts *layer.CreateRWLayerOpts, initFunc layer.MountInit) (container.RWLayer, error) {
+func (i *ImageService) createLayer(descriptor *ocispec.Descriptor, layerName string, rwLayerOpts *layer.CreateRWLayerOpts, initFunc layer.MountInit) (_ container.RWLayer, retErr error) {
 	ctx := context.TODO()
 	var parentSnapshot string
 	if descriptor != nil {
@@ -67,6 +67,13 @@ func (i *ImageService) createLayer(descriptor *ocispec.Descriptor, layerName str
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if retErr != nil {
+			if err := ls.Delete(ctx, lease); err != nil && !cerrdefs.IsNotFound(err) {
+				log.G(ctx).WithFields(log.Fields{"error": err, "lease": lease.ID}).Warn("failed to release lease after layer creation failed")
+			}
+		}
+	}()
 	ctx = leases.WithLease(ctx, lease.ID)
 
 	if initFunc != nil {

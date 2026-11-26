@@ -1077,7 +1077,7 @@ github.com/mitchellh/copystructure
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.35.0-rc1
+# github.com/moby/buildkit v0.35.1
 ## explicit; go 1.26.8
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
@@ -1275,12 +1275,11 @@ github.com/moby/buildkit/worker/label
 # github.com/moby/docker-image-spec v1.3.1
 ## explicit; go 1.18
 github.com/moby/docker-image-spec/specs-go/v1
-# github.com/moby/extensions v0.0.0-20261020100352-d2819d88bcbe
+# github.com/moby/extensions v0.0.0-20261120190433-fb779cf107cd
 ## explicit; go 1.26.0
 github.com/moby/extensions
 github.com/moby/extensions/client
 github.com/moby/extensions/clientpoint
-github.com/moby/extensions/cmd/mobyextgen
 github.com/moby/extensions/example/greeter/v0
 github.com/moby/extensions/example/greeter/v0/protogen
 github.com/moby/extensions/extpoints/service/v0
@@ -1311,7 +1310,7 @@ github.com/moby/ipvs
 # github.com/moby/locker v1.0.1
 ## explicit; go 1.13
 github.com/moby/locker
-# github.com/moby/moby/api v1.56.1 => ./api
+# github.com/moby/moby/api v1.57.0 => ./api
 ## explicit; go 1.24
 github.com/moby/moby/api/pkg/authconfig
 github.com/moby/moby/api/pkg/stdcopy
@@ -1333,28 +1332,46 @@ github.com/moby/moby/api/types/storage
 github.com/moby/moby/api/types/swarm
 github.com/moby/moby/api/types/system
 github.com/moby/moby/api/types/volume
-# github.com/moby/moby/client v0.6.2 => ./client
-## explicit; go 1.24
+# github.com/moby/moby/client v0.6.3 => ./client
+## explicit; go 1.25
 github.com/moby/moby/client
 github.com/moby/moby/client/internal
+github.com/moby/moby/client/internal/httperror
 github.com/moby/moby/client/internal/mod
 github.com/moby/moby/client/internal/timestamp
 github.com/moby/moby/client/pkg/jsonmessage
 github.com/moby/moby/client/pkg/security
 github.com/moby/moby/client/pkg/stringid
 github.com/moby/moby/client/pkg/versions
+# github.com/moby/moby/extpoints v0.0.0-00010101000000-000000000000 => ./extpoints
+## explicit; go 1.26.0
+github.com/moby/moby/extpoints/containernamegenerator/v0
+github.com/moby/moby/extpoints/containernamegenerator/v0/protogen
+github.com/moby/moby/extpoints/containerstate/v0
+github.com/moby/moby/extpoints/containerstate/v0/protogen
+github.com/moby/moby/extpoints/daemonapi/v0
+github.com/moby/moby/extpoints/daemonapi/v0/protogen
+github.com/moby/moby/extpoints/daemonconfig/v0
+github.com/moby/moby/extpoints/daemonconfig/v0/protogen
+github.com/moby/moby/extpoints/jobs/api/v0
+github.com/moby/moby/extpoints/jobs/api/v0/protogen
+github.com/moby/moby/extpoints/servicegrpc/v0
+github.com/moby/moby/extpoints/servicenamegenerator/v0
+github.com/moby/moby/extpoints/servicenamegenerator/v0/protogen
+github.com/moby/moby/extpoints/storage/kv/v0
+github.com/moby/moby/extpoints/storage/kv/v0/protogen
 # github.com/moby/patternmatcher v0.6.1
 ## explicit; go 1.19
 github.com/moby/patternmatcher
 github.com/moby/patternmatcher/ignorefile
-# github.com/moby/policy-helpers v0.0.0-20261022152518-485a1bec29f6
+# github.com/moby/policy-helpers v0.0.0-20261111163703-6acab594b423
 ## explicit; go 1.25.8
 github.com/moby/policy-helpers
 github.com/moby/policy-helpers/image
 github.com/moby/policy-helpers/roots
 github.com/moby/policy-helpers/roots/dhi
 github.com/moby/policy-helpers/types
-# github.com/moby/profiles/apparmor v0.3.0
+# github.com/moby/profiles/apparmor v0.3.1
 ## explicit; go 1.23.0
 github.com/moby/profiles/apparmor
 # github.com/moby/profiles/seccomp v0.3.0
@@ -1456,7 +1473,7 @@ github.com/moby/sys/signal
 # github.com/moby/sys/symlink v0.3.0
 ## explicit; go 1.17
 github.com/moby/sys/symlink
-# github.com/moby/sys/user v0.5.0
+# github.com/moby/sys/user v0.5.1
 ## explicit; go 1.24
 github.com/moby/sys/user
 # github.com/moby/sys/userns v0.2.1
@@ -1475,8 +1492,8 @@ github.com/munnerz/goautoneg
 # github.com/oklog/ulid/v2 v2.1.2
 ## explicit; go 1.15
 github.com/oklog/ulid/v2
-# github.com/opencontainers/cgroups v0.1.0
-## explicit; go 1.24.0
+# github.com/opencontainers/cgroups v0.1.1
+## explicit; go 1.25.0
 github.com/opencontainers/cgroups
 github.com/opencontainers/cgroups/devices/config
 # github.com/opencontainers/go-digest v1.0.0
@@ -2003,7 +2020,7 @@ golang.org/x/crypto/scrypt
 golang.org/x/crypto/sha3
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
-# golang.org/x/mod v0.42.0
+# golang.org/x/mod v0.43.0
 ## explicit; go 1.26.0
 golang.org/x/mod/semver
 golang.org/x/mod/sumdb/note
@@ -2023,7 +2040,7 @@ golang.org/x/net/ipv4
 golang.org/x/net/ipv6
 golang.org/x/net/trace
 golang.org/x/net/websocket
-# golang.org/x/oauth2 v0.37.0
+# golang.org/x/oauth2 v0.38.0
 ## explicit; go 1.26.0
 golang.org/x/oauth2
 golang.org/x/oauth2/authhandler
@@ -2035,13 +2052,13 @@ golang.org/x/oauth2/google/internal/stsexchange
 golang.org/x/oauth2/internal
 golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
-# golang.org/x/sync v0.24.0
+# golang.org/x/sync v0.25.0
 ## explicit; go 1.26.0
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
 golang.org/x/sync/singleflight
 golang.org/x/sync/syncmap
-# golang.org/x/sys v0.49.1-0.20261022125458-f5cb0306ac0e
+# golang.org/x/sys v0.50.0
 ## explicit; go 1.26.0
 golang.org/x/sys/cpu
 golang.org/x/sys/plan9
@@ -2052,10 +2069,10 @@ golang.org/x/sys/windows/svc
 golang.org/x/sys/windows/svc/debug
 golang.org/x/sys/windows/svc/eventlog
 golang.org/x/sys/windows/svc/mgr
-# golang.org/x/term v0.47.0
+# golang.org/x/term v0.48.0
 ## explicit; go 1.26.0
 golang.org/x/term
-# golang.org/x/text v0.43.0
+# golang.org/x/text v0.44.0
 ## explicit; go 1.26.0
 golang.org/x/text/currency
 golang.org/x/text/encoding
@@ -2296,7 +2313,7 @@ sigs.k8s.io/json/internal/golang/encoding/json
 # sigs.k8s.io/yaml v1.6.0
 ## explicit; go 1.22
 sigs.k8s.io/yaml
-# tags.cncf.io/container-device-interface v1.1.1
+# tags.cncf.io/container-device-interface v1.1.2
 ## explicit; go 1.23
 tags.cncf.io/container-device-interface/internal/ociedit
 tags.cncf.io/container-device-interface/internal/validation
@@ -2308,3 +2325,4 @@ tags.cncf.io/container-device-interface/pkg/parser
 tags.cncf.io/container-device-interface/specs-go
 # github.com/moby/moby/api => ./api
 # github.com/moby/moby/client => ./client
+# github.com/moby/moby/extpoints => ./extpoints

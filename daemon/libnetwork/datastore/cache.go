@@ -14,6 +14,10 @@ type cache struct {
 	mu  sync.Mutex
 	kmm map[string]kvMap
 	ds  store.Store
+	// index is the last index given to an object that the cache keeps
+	// in place of the store. It only increases, so that a copy from
+	// before a delete has an index that no object created later has.
+	index uint64
 }
 
 func newCache(ds store.Store) *cache {
@@ -85,24 +89,26 @@ func (c *cache) add(kvObject KVObject, atomic bool) error {
 	}
 
 	c.mu.Lock()
+	defer c.mu.Unlock()
+	key := Key(kvObject.Key()...)
 	// If atomic is true, cache needs to maintain its own index
 	// for atomicity and the add needs to be atomic.
 	if atomic {
-		if prev, ok := kmap[Key(kvObject.Key()...)]; ok {
-			if prev.Index() != kvObject.Index() {
-				c.mu.Unlock()
-				return ErrKeyModified
-			}
+		prev, ok := kmap[key]
+		switch {
+		case !kvObject.Exists() && ok:
+			return ErrKeyModified
+		case kvObject.Exists() && !ok:
+			return ErrKeyNotFound
+		case ok && prev.Index() != kvObject.Index():
+			return ErrKeyModified
 		}
 
-		// Increment index
-		index := kvObject.Index()
-		index++
-		kvObject.SetIndex(index)
+		c.index++
+		kvObject.SetIndex(c.index)
 	}
 
-	kmap[Key(kvObject.Key()...)] = kvObject
-	c.mu.Unlock()
+	kmap[key] = kvObject
 	return nil
 }
 
@@ -114,17 +120,20 @@ func (c *cache) del(kvObject KVObject, atomic bool) error {
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	key := Key(kvObject.Key()...)
 	// If atomic is true, cache needs to maintain its own index
 	// for atomicity and del needs to be atomic.
 	if atomic {
-		if prev, ok := kmap[Key(kvObject.Key()...)]; ok {
-			if prev.Index() != kvObject.Index() {
-				return ErrKeyModified
-			}
+		prev, ok := kmap[key]
+		if !ok {
+			return ErrKeyNotFound
+		}
+		if prev.Index() != kvObject.Index() {
+			return ErrKeyModified
 		}
 	}
 
-	delete(kmap, Key(kvObject.Key()...))
+	delete(kmap, key)
 	return nil
 }
 

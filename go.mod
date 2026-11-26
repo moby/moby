@@ -6,7 +6,6 @@ tool (
 	github.com/gogo/protobuf/protoc-gen-gogo
 	github.com/gogo/protobuf/protoc-gen-gogofaster
 	github.com/gogo/protobuf/protoc-gen-gogoslick
-	github.com/moby/extensions/cmd/mobyextgen
 	google.golang.org/protobuf/cmd/protoc-gen-go
 )
 
@@ -64,17 +63,18 @@ require (
 	github.com/miekg/dns v1.1.73
 	github.com/mistifyio/go-zfs/v4 v4.0.0
 	github.com/mitchellh/copystructure v1.2.0
-	github.com/moby/buildkit v0.35.0-rc1
+	github.com/moby/buildkit v0.35.1
 	github.com/moby/docker-image-spec v1.3.1
-	github.com/moby/extensions v0.0.0-20261020100352-d2819d88bcbe
+	github.com/moby/extensions v0.0.0-20261120190433-fb779cf107cd
 	github.com/moby/go-archive v0.3.3
 	github.com/moby/ipvs v1.1.0
 	github.com/moby/locker v1.0.1
-	github.com/moby/moby/api v1.56.1
-	github.com/moby/moby/client v0.6.2
+	github.com/moby/moby/api v1.57.0
+	github.com/moby/moby/client v0.6.3
+	github.com/moby/moby/extpoints v0.0.0-00010101000000-000000000000
 	github.com/moby/patternmatcher v0.6.1
-	github.com/moby/policy-helpers v0.0.0-20261022152518-485a1bec29f6
-	github.com/moby/profiles/apparmor v0.3.0
+	github.com/moby/policy-helpers v0.0.0-20261111163703-6acab594b423
+	github.com/moby/profiles/apparmor v0.3.1
 	github.com/moby/profiles/seccomp v0.3.0
 	github.com/moby/pubsub v1.0.0
 	github.com/moby/swarmkit/v2 v2.1.3
@@ -84,10 +84,10 @@ require (
 	github.com/moby/sys/reexec v0.1.0
 	github.com/moby/sys/signal v0.7.1
 	github.com/moby/sys/symlink v0.3.0
-	github.com/moby/sys/user v0.5.0
+	github.com/moby/sys/user v0.5.1
 	github.com/moby/sys/userns v0.2.1
 	github.com/moby/term v0.5.2
-	github.com/opencontainers/cgroups v0.1.0
+	github.com/opencontainers/cgroups v0.1.1
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/opencontainers/runtime-spec v1.3.0
@@ -113,9 +113,9 @@ require (
 	go.opentelemetry.io/otel/sdk v1.47.0
 	go.opentelemetry.io/otel/trace v1.47.0
 	golang.org/x/net v0.62.0
-	golang.org/x/sync v0.24.0
-	golang.org/x/sys v0.49.1-0.20261022125458-f5cb0306ac0e // includes fix for https://go.dev/issue/82324
-	golang.org/x/text v0.43.0
+	golang.org/x/sync v0.25.0
+	golang.org/x/sys v0.50.0
+	golang.org/x/text v0.44.0
 	golang.org/x/time v0.16.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20261012220534-4341edf3f941
 	google.golang.org/grpc v1.85.0
@@ -123,7 +123,7 @@ require (
 	gotest.tools/v3 v3.5.2
 	pgregory.net/rapid v1.3.0
 	resenje.org/singleflight v0.4.3
-	tags.cncf.io/container-device-interface v1.1.1
+	tags.cncf.io/container-device-interface v1.1.2
 )
 
 require (
@@ -296,9 +296,9 @@ require (
 	go.yaml.in/yaml/v2 v2.4.5 // indirect
 	go.yaml.in/yaml/v3 v3.0.6 // indirect
 	golang.org/x/crypto v0.58.0 // indirect
-	golang.org/x/mod v0.42.0 // indirect
-	golang.org/x/oauth2 v0.37.0 // indirect
-	golang.org/x/term v0.47.0 // indirect
+	golang.org/x/mod v0.43.0 // indirect
+	golang.org/x/oauth2 v0.38.0 // indirect
+	golang.org/x/term v0.48.0 // indirect
 	google.golang.org/api v0.304.0 // indirect
 	google.golang.org/genproto v0.0.0-20261012220534-4341edf3f941 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20261012220534-4341edf3f941 // indirect
@@ -313,3 +313,5 @@ require (
 replace github.com/moby/moby/api => ./api
 
 replace github.com/moby/moby/client => ./client
+
+replace github.com/moby/moby/extpoints => ./extpoints

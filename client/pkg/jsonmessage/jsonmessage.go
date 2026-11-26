@@ -11,10 +11,9 @@ import (
 
 	"github.com/docker/go-units"
 	"github.com/moby/moby/api/types/jsonstream"
+	"github.com/moby/moby/client/internal/httperror"
 	"github.com/moby/term"
 )
-
-var timeNow = time.Now // For overriding in tests.
 
 // RFC3339NanoFixed is time.RFC3339Nano with nanoseconds padded using zeros to
 // ensure the formatted time is always the same number of characters.
@@ -101,7 +100,7 @@ func RenderTUIProgress(p jsonstream.Progress, width uint16) string {
 	var timeLeftBox string
 	if width > 50 {
 		if p.Current > 0 && p.Start > 0 && percentage < 50 {
-			fromStart := timeNow().UTC().Sub(time.Unix(p.Start, 0))
+			fromStart := time.Now().UTC().Sub(time.Unix(p.Start, 0))
 			perEntry := fromStart / time.Duration(p.Current)
 			left := time.Duration(p.Total-p.Current) * perEntry
 			timeLeftBox = " " + left.Round(time.Second).String()
@@ -144,7 +143,7 @@ func cursorDown(out io.Writer, l uint) {
 // error if [jsonstream.Message.Error] is non-nil.
 func Display(jm jsonstream.Message, out io.Writer, isTerminal bool, width uint16) error {
 	if jm.Error != nil {
-		return jm.Error
+		return httperror.FromStatusCode(jm.Error, jm.Error.Code)
 	}
 	var endl string
 	if isTerminal && jm.Stream == "" && jm.Progress != nil {

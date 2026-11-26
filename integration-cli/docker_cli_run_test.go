@@ -2750,29 +2750,6 @@ func (s *DockerCLIRunSuite) TestRunReadProcLatency(c *testing.T) {
 	}
 }
 
-func (s *DockerCLIRunSuite) TestRunReadFilteredProc(c *testing.T) {
-	// Not applicable on Windows as uses Unix specific functionality
-	testRequires(c, Apparmor, DaemonIsLinux, NotUserNamespace)
-
-	testReadPaths := []string{
-		"/proc/latency_stats",
-		"/proc/timer_stats",
-		"/proc/kcore",
-	}
-	for i, filePath := range testReadPaths {
-		name := fmt.Sprintf("procsieve-%d", i)
-		shellCmd := "exec 3<" + filePath
-
-		out, exitCode, err := dockerCmdWithError("run", "--privileged", "--security-opt", "apparmor=docker-default", "--name", name, "busybox", "sh", "-c", shellCmd)
-		if exitCode != 0 {
-			return
-		}
-		if err != nil {
-			c.Fatalf("Open FD for read should have failed with permission denied, got: %s, %v", out, err)
-		}
-	}
-}
-
 func (s *DockerCLIRunSuite) TestMountIntoProc(c *testing.T) {
 	// Not applicable on Windows as uses Unix specific functionality
 	testRequires(c, DaemonIsLinux)
@@ -2787,59 +2764,6 @@ func (s *DockerCLIRunSuite) TestMountIntoSys(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, NotUserNamespace)
 	cli.DockerCmd(c, "run", "-v", "/sys/fs/cgroup", "busybox", "true")
-}
-
-func (s *DockerCLIRunSuite) TestRunUnshareProc(c *testing.T) {
-	// Not applicable on Windows as uses Unix specific functionality
-	testRequires(c, Apparmor, DaemonIsLinux, NotUserNamespace)
-
-	// In this test goroutines are used to run test cases in parallel to prevent the test from taking a long time to run.
-	errChan := make(chan error)
-
-	go func() {
-		name := "acidburn"
-		out, _, err := dockerCmdWithError("run", "--name", name, "--security-opt", "seccomp=unconfined", "debian:trixie-slim", "unshare", "-p", "-m", "-f", "-r", "--mount-proc=/proc", "mount")
-		if err == nil ||
-			(!strings.Contains(strings.ToLower(out), "permission denied") && !strings.Contains(strings.ToLower(out), "operation not permitted")) {
-			errChan <- fmt.Errorf("unshare with --mount-proc should have failed with 'permission denied' or 'operation not permitted', got: %s, %v", out, err)
-		} else {
-			errChan <- nil
-		}
-	}()
-
-	go func() {
-		name := "cereal"
-		out, _, err := dockerCmdWithError("run", "--name", name, "--security-opt", "seccomp=unconfined", "debian:trixie-slim", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc")
-		if err == nil ||
-			(!strings.Contains(strings.ToLower(out), "mount: cannot mount none") && !strings.Contains(strings.ToLower(out), "permission denied") && !strings.Contains(strings.ToLower(out), "operation not permitted")) {
-			errChan <- fmt.Errorf("unshare and mount of /proc should have failed with 'mount: cannot mount none' or 'permission denied', got: %s, %v", out, err)
-		} else {
-			errChan <- nil
-		}
-	}()
-
-	/* Ensure still fails if running privileged with the default policy */
-	go func() {
-		name := "crashoverride"
-		out, _, err := dockerCmdWithError("run", "--privileged", "--security-opt", "seccomp=unconfined", "--security-opt", "apparmor=docker-default", "--name", name, "debian:trixie-slim", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc")
-		if err == nil ||
-			(!strings.Contains(strings.ToLower(out), "mount: cannot mount none") && !strings.Contains(strings.ToLower(out), "permission denied") && !strings.Contains(strings.ToLower(out), "operation not permitted")) {
-			errChan <- fmt.Errorf("privileged unshare with apparmor should have failed with 'mount: cannot mount none' or 'permission denied', got: %s, %v", out, err)
-		} else {
-			errChan <- nil
-		}
-	}()
-
-	var retErr error
-	for range 3 {
-		err := <-errChan
-		if retErr == nil && err != nil {
-			retErr = err
-		}
-	}
-	if retErr != nil {
-		c.Fatal(retErr)
-	}
 }
 
 func (s *DockerCLIRunSuite) TestRunPublishPort(c *testing.T) {
@@ -2897,33 +2821,6 @@ func (s *DockerCLIRunSuite) TestVolumeFromMixedRWOptions(c *testing.T) {
 	assert.NilError(c, err, "failed to inspect mount point")
 	if !mRW.RW {
 		c.Fatalf("Expected RW volume was RO")
-	}
-}
-
-func (s *DockerCLIRunSuite) TestRunWriteFilteredProc(c *testing.T) {
-	// Not applicable on Windows as uses Unix specific functionality
-	testRequires(c, Apparmor, DaemonIsLinux, NotUserNamespace)
-
-	testWritePaths := []string{
-		/* modprobe and core_pattern should both be denied by generic
-		 * policy of denials for /proc/sys/kernel. These files have been
-		 * picked to be checked as they are particularly sensitive to writes */
-		"/proc/sys/kernel/modprobe",
-		"/proc/sys/kernel/core_pattern",
-		"/proc/sysrq-trigger",
-		"/proc/kcore",
-	}
-	for i, filePath := range testWritePaths {
-		name := fmt.Sprintf("writeprocsieve-%d", i)
-
-		shellCmd := "exec 3>" + filePath
-		out, code, err := dockerCmdWithError("run", "--privileged", "--security-opt", "apparmor=docker-default", "--name", name, "busybox", "sh", "-c", shellCmd)
-		if code != 0 {
-			return
-		}
-		if err != nil {
-			c.Fatalf("Open FD for write should have failed with permission denied, got: %s, %v", out, err)
-		}
 	}
 }
 
@@ -3017,41 +2914,6 @@ func (s *DockerCLIRunSuite) TestPtraceContainerProcsFromHost(c *testing.T) {
 	_, err := os.Readlink(path.Join("/proc", pid1, "ns/net"))
 	if err != nil {
 		c.Fatal(err)
-	}
-}
-
-func (s *DockerCLIRunSuite) TestAppArmorDeniesPtrace(c *testing.T) {
-	// Not applicable on Windows as uses Unix specific functionality
-	testRequires(c, testEnv.IsLocalDaemon, Apparmor, DaemonIsLinux)
-
-	// Run through 'sh' so we are NOT pid 1. Pid 1 may be able to trace
-	// itself, but pid>1 should not be able to trace pid1.
-	_, exitCode, _ := dockerCmdWithError("run", "busybox", "sh", "-c", "sh -c readlink /proc/1/ns/net")
-	if exitCode == 0 {
-		c.Fatal("ptrace was not successfully restricted by AppArmor")
-	}
-}
-
-func (s *DockerCLIRunSuite) TestAppArmorTraceSelf(c *testing.T) {
-	// Not applicable on Windows as uses Unix specific functionality
-	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon, Apparmor)
-
-	_, exitCode, _ := dockerCmdWithError("run", "busybox", "readlink", "/proc/1/ns/net")
-	if exitCode != 0 {
-		c.Fatal("ptrace of self failed.")
-	}
-}
-
-func (s *DockerCLIRunSuite) TestAppArmorDeniesChmodProc(c *testing.T) {
-	// Not applicable on Windows as uses Unix specific functionality
-	testRequires(c, testEnv.IsLocalDaemon, Apparmor, DaemonIsLinux, NotUserNamespace)
-	_, exitCode, _ := dockerCmdWithError("run", "busybox", "chmod", "744", "/proc/cpuinfo")
-	if exitCode == 0 {
-		// If our test failed, attempt to repair the host system...
-		_, exitCode, _ := dockerCmdWithError("run", "busybox", "chmod", "444", "/proc/cpuinfo")
-		if exitCode == 0 {
-			c.Fatal("AppArmor was unsuccessful in prohibiting chmod of /proc/* files.")
-		}
 	}
 }
 

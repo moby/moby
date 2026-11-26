@@ -1,8 +1,10 @@
 package libnetwork
 
 import (
+	"fmt"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -63,4 +65,37 @@ func TestNetworkStore(t *testing.T) {
 	// Store the second network again
 	err = c.storeNetwork(t.Context(), nw2)
 	assert.NilError(t, err)
+}
+
+// A network read from the store just before its deletion must not end up in
+// the cache after it.
+func TestNetworkStoreDeleteRacingRead(t *testing.T) {
+	c, err := New(t.Context())
+	assert.NilError(t, err)
+
+	stop := make(chan struct{})
+	var readers sync.WaitGroup
+	for range 4 {
+		readers.Go(func() {
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+					_, err := c.getNetworks()
+					assert.Check(t, err)
+				}
+			}
+		})
+	}
+
+	for i := range 2000 {
+		nw := &Network{id: fmt.Sprintf("testNetwork%d", i), controller: c, persist: true}
+		assert.NilError(t, c.storeNetwork(t.Context(), nw))
+		assert.NilError(t, c.deleteStoredNetwork(nw))
+	}
+	close(stop)
+	readers.Wait()
+
+	assert.Check(t, is.Len(c.findNetworks(func(nw *Network) bool { return strings.HasPrefix(nw.id, "testNetwork") }), 0))
 }

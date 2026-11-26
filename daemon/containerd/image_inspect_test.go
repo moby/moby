@@ -8,7 +8,9 @@ import (
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/snapshots"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log/logtest"
+	"github.com/containerd/platforms"
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/internal/testutil/specialimage"
 	"github.com/opencontainers/image-spec/identity"
@@ -82,11 +84,75 @@ func TestImageInspect(t *testing.T) {
 		err = cs.Delete(ctx, lastLayer.Digest)
 		assert.NilError(t, err)
 
-		inspect, err := service.ImageInspect(ctx, img.Name, imagebackend.ImageInspectOpts{})
+		for name, platform := range map[string]*ocispec.Platform{
+			"no platform":   nil,
+			"host platform": new(platforms.DefaultSpec()),
+		} {
+			t.Run(name, func(t *testing.T) {
+				inspect, err := service.ImageInspect(ctx, img.Name, imagebackend.ImageInspectOpts{Platform: platform})
+				assert.NilError(t, err)
+
+				assert.Check(t, inspect.Config != nil)
+				assert.Check(t, is.Len(inspect.RootFS.Layers, len(mfst.Layers)))
+			})
+		}
+	})
+
+	t.Run("inspect falls back to a pulled platform and rejects a requested platform that was not pulled", func(t *testing.T) {
+		ctx := logtest.WithT(ctx, t)
+		service := fakeImageService(t, ctx, cs)
+		host := ocispec.Platform{OS: "linux", Architecture: "amd64"}
+		service.defaultPlatformOverride = &host
+
+		img := toContainerdImage(t, func(dir string) (*ocispec.Index, error) {
+			idx, _, err := specialimage.PartialMultiPlatform(dir, "only386:latest", specialimage.PartialOpts{
+				Stored:  []ocispec.Platform{{OS: "linux", Architecture: "386"}},
+				Missing: []ocispec.Platform{host},
+			})
+			return idx, err
+		})
+		_, err := service.images.Create(ctx, img)
 		assert.NilError(t, err)
 
-		assert.Check(t, inspect.Config != nil)
-		assert.Check(t, is.Len(inspect.RootFS.Layers, len(mfst.Layers)))
+		inspect, err := service.ImageInspect(ctx, img.Name, imagebackend.ImageInspectOpts{})
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(inspect.Architecture, "386"))
+		assert.Check(t, is.Equal(inspect.RootFS.Type, "layers"))
+
+		_, err = service.ImageInspect(ctx, img.Name, imagebackend.ImageInspectOpts{Platform: &host})
+		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
+	})
+
+	t.Run("inspect image whose only present manifest has no config", func(t *testing.T) {
+		ctx := logtest.WithT(ctx, t)
+		service := fakeImageService(t, ctx, cs)
+		host := ocispec.Platform{OS: "linux", Architecture: "riscv64"}
+		service.defaultPlatformOverride = &host
+
+		img := toContainerdImage(t, func(dir string) (*ocispec.Index, error) {
+			idx, _, err := specialimage.PartialMultiPlatform(dir, "noconfig:latest", specialimage.PartialOpts{
+				Stored: []ocispec.Platform{host},
+			})
+			return idx, err
+		})
+		_, err := service.images.Create(ctx, img)
+		assert.NilError(t, err)
+
+		mfst, err := c8dimages.Manifest(ctx, cs, img.Target, platforms.Only(host))
+		assert.NilError(t, err)
+		err = cs.Delete(ctx, mfst.Config.Digest)
+		assert.NilError(t, err)
+
+		// The manifest isn't picked as the best match, so inspect describes
+		// the index without any image data.
+		inspect, err := service.ImageInspect(ctx, img.Name, imagebackend.ImageInspectOpts{})
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(inspect.ID, img.Target.Digest.String()))
+		assert.Check(t, is.Equal(inspect.Architecture, ""))
+		assert.Check(t, is.Len(inspect.RootFS.Layers, 0))
+
+		_, err = service.ImageInspect(ctx, img.Name, imagebackend.ImageInspectOpts{Platform: &host})
+		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	})
 
 	t.Run("inspect image size by platform", func(t *testing.T) {

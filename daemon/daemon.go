@@ -1112,6 +1112,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		LiveRestoreEnabled: cfgStore.LiveRestoreEnabled,
 		LogPluginEvent:     d.LogPluginEvent, // todo: make private
 		AuthzMiddleware:    authzMiddleware,
+		RawSysInfo:         d.RawSysInfo,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't create plugin manager")

@@ -15,8 +15,8 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/moby/extensions"
-	containernamegeneratorv0 "github.com/moby/moby/v2/extpoints/containernamegenerator/v0"
-	servicenamegeneratorv0 "github.com/moby/moby/v2/extpoints/servicenamegenerator/v0"
+	containernamegeneratorv0 "github.com/moby/moby/extpoints/containernamegenerator/v0"
+	servicenamegeneratorv0 "github.com/moby/moby/extpoints/servicenamegenerator/v0"
 )
 
 // ID is the extension ID and binary name.

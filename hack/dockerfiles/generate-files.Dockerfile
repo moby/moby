@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG GO_VERSION=1.27.3
+ARG GO_VERSION=1.27.4
 ARG BASE_DEBIAN_DISTRO=trixie
 ARG PROTOC_VERSION=3.11.4
 
@@ -46,8 +46,9 @@ FROM tools AS generated
 RUN --mount=from=src,source=/out,target=.,rw <<EOT
   set -ex
   go generate -v ./...
+  go -C extpoints generate -v ./...
   mkdir /out
-  git ls-files -m --others -- ':!vendor' 'profiles/seccomp/default.json' '**/*.pb.go' | tar -cf - --files-from - | tar -C /out -xf -
+  git ls-files -m --others -- ':!vendor' 'profiles/seccomp/default.json' '**/*.pb.go' 'extpoints/**/*.proto' 'extpoints/**/wire.gen.go' | tar -cf - --files-from - | tar -C /out -xf -
 EOT
 
 FROM scratch AS update
@@ -61,7 +62,7 @@ RUN --mount=from=src,source=/out,target=.,rw \
   if [ "$(ls -A /generated-files)" ]; then
     cp -rf /generated-files/* .
   fi
-  diff=$(git status --porcelain -- ':!vendor' 'profiles/seccomp/default.json' '**/*.pb.go')
+  diff=$(git status --porcelain -- ':!vendor' 'profiles/seccomp/default.json' '**/*.pb.go' 'extpoints/**/*.proto' 'extpoints/**/wire.gen.go')
   if [ -n "$diff" ]; then
     echo >&2 'ERROR: The result of "go generate" differs. Please update with "make generate-files"'
     echo "$diff"

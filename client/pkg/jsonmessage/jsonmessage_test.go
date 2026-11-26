@@ -1,14 +1,19 @@
-package jsonmessage
+package jsonmessage_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/jsonstream"
+	"github.com/moby/moby/client/pkg/jsonmessage"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -23,18 +28,11 @@ func TestRenderTUIProgress(t *testing.T) {
 		return expected{short: short, long: long}
 	}
 
-	start := time.Date(2017, 12, 3, 15, 10, 1, 0, time.UTC)
-	timeAfter := func(delta time.Duration) func() time.Time {
-		return func() time.Time {
-			return start.Add(delta)
-		}
-	}
-
 	testcases := []struct {
 		name     string
 		progress jsonstream.Progress
 		expected expected
-		nowFunc  func() time.Time
+		elapsed  time.Duration
 	}{
 		{
 			name: "no progress",
@@ -49,9 +47,8 @@ func TestRenderTUIProgress(t *testing.T) {
 			progress: jsonstream.Progress{
 				Current: 20,
 				Total:   100,
-				Start:   start.Unix(),
 			},
-			nowFunc: timeAfter(time.Second),
+			elapsed: time.Second,
 			expected: shortAndLong(
 				"     20B/100B 4s",
 				"[==========>                                        ]      20B/100B 4s",
@@ -101,13 +98,15 @@ func TestRenderTUIProgress(t *testing.T) {
 
 	for _, testcase := range testcases {
 		t.Run(testcase.name, func(t *testing.T) {
-			if testcase.nowFunc != nil {
-				originalTimeNow := timeNow
-				timeNow = testcase.nowFunc
-				defer func() { timeNow = originalTimeNow }()
-			}
-			assert.Equal(t, RenderTUIProgress(testcase.progress, 100), testcase.expected.short)
-			assert.Equal(t, RenderTUIProgress(testcase.progress, 200), testcase.expected.long)
+			synctest.Test(t, func(t *testing.T) {
+				if testcase.elapsed > 0 {
+					testcase.progress.Start = time.Now().Unix()
+					time.Sleep(testcase.elapsed)
+				}
+
+				assert.Equal(t, jsonmessage.RenderTUIProgress(testcase.progress, 100), testcase.expected.short)
+				assert.Equal(t, jsonmessage.RenderTUIProgress(testcase.progress, 200), testcase.expected.long)
+			})
 		})
 	}
 }
@@ -154,7 +153,7 @@ func TestDisplay(t *testing.T) {
 	for jsonMessage, expectedMessages := range messages {
 		// Without terminal
 		data := bytes.NewBuffer([]byte{})
-		if err := Display(jsonMessage, data, false, 0); err != nil {
+		if err := jsonmessage.Display(jsonMessage, data, false, 0); err != nil {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[0] {
@@ -162,7 +161,7 @@ func TestDisplay(t *testing.T) {
 		}
 		// With terminal
 		data = bytes.NewBuffer([]byte{})
-		if err := Display(jsonMessage, data, true, 0); err != nil {
+		if err := jsonmessage.Display(jsonMessage, data, true, 0); err != nil {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[1] {
@@ -173,24 +172,73 @@ func TestDisplay(t *testing.T) {
 
 // Test jsonstream.Message with an Error. It returns an error with the given text, not the meaning of the HTTP code.
 func TestDisplayWithJSONError(t *testing.T) {
-	data := bytes.NewBuffer([]byte{})
-	jsonMessage := jsonstream.Message{Error: &jsonstream.Error{Code: 404, Message: "Can't find it"}}
-
-	err := Display(jsonMessage, data, true, 0)
-	if err == nil || err.Error() != "Can't find it" {
-		t.Fatalf("Expected a jsonstream.Error 404, got %q", err)
+	tests := []struct {
+		name        string
+		code        int
+		isErr       func(error) bool
+		wantWrapped bool
+	}{
+		{
+			name: "no status code",
+		},
+		{
+			name:        "not found",
+			code:        http.StatusNotFound,
+			isErr:       cerrdefs.IsNotFound,
+			wantWrapped: true,
+		},
+		{
+			name:        "unauthorized",
+			code:        http.StatusUnauthorized,
+			isErr:       cerrdefs.IsUnauthorized,
+			wantWrapped: true,
+		},
+		{
+			name:        "rate limited",
+			code:        http.StatusTooManyRequests,
+			isErr:       cerrdefs.IsResourceExhausted,
+			wantWrapped: true,
+		},
+		{
+			name:        "internal error",
+			code:        http.StatusInternalServerError,
+			isErr:       cerrdefs.IsInternal,
+			wantWrapped: true,
+		},
+		{
+			name:        "unknown code",
+			code:        599,
+			isErr:       cerrdefs.IsInternal,
+			wantWrapped: true,
+		},
 	}
 
-	jsonMessage = jsonstream.Message{Error: &jsonstream.Error{Code: 401, Message: "Anything"}}
-	err = Display(jsonMessage, data, true, 0)
-	assert.Check(t, is.Error(err, "Anything"))
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			original := &jsonstream.Error{
+				Code:    tc.code,
+				Message: "test error",
+			}
+
+			err := jsonmessage.Display(jsonstream.Message{Error: original}, io.Discard, false, 0)
+
+			assert.Check(t, is.Error(err, "test error"))
+			assert.Check(t, errors.Is(err, original))
+
+			if tc.wantWrapped {
+				assert.Check(t, tc.isErr(err))
+			} else {
+				assert.Equal(t, err, original)
+			}
+		})
+	}
 }
 
 func TestDisplayStreamInvalidJSON(t *testing.T) {
 	data := bytes.NewBuffer([]byte{})
 	reader := strings.NewReader("This is not a 'valid' JSON []")
 	exp := "invalid character "
-	if err := DisplayStream(reader, data); err == nil || !strings.HasPrefix(err.Error(), exp) {
+	if err := jsonmessage.DisplayStream(reader, data); err == nil || !strings.HasPrefix(err.Error(), exp) {
 		t.Fatalf("Expected error (%s...), got %q", exp, err)
 	}
 }
@@ -250,15 +298,15 @@ func TestDisplayStreamWithMessagePrinter(t *testing.T) {
 
 	for _, testcase := range testcases {
 		t.Run(testcase.name, func(t *testing.T) {
-			opts := []DisplayOpt{
-				WithMessagePrinter(testcase.printer),
+			opts := []jsonmessage.DisplayOpt{
+				jsonmessage.WithMessagePrinter(testcase.printer),
 			}
 			if testcase.auxCallback != nil {
-				opts = append(opts, WithAuxCallback(testcase.auxCallback))
+				opts = append(opts, jsonmessage.WithAuxCallback(testcase.auxCallback))
 			}
 
 			var out bytes.Buffer
-			err := DisplayStream(strings.NewReader(testcase.input), &out, opts...)
+			err := jsonmessage.DisplayStream(strings.NewReader(testcase.input), &out, opts...)
 			if testcase.expectedErr != "" {
 				assert.Error(t, err, testcase.expectedErr)
 			} else {
@@ -302,7 +350,7 @@ func TestDisplayJSONMessagesStream(t *testing.T) {
 		reader := strings.NewReader(jsonMessage)
 
 		// Without terminal
-		if err := DisplayStream(reader, data); err != nil {
+		if err := jsonmessage.DisplayStream(reader, data); err != nil {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[0] {
@@ -312,7 +360,7 @@ func TestDisplayJSONMessagesStream(t *testing.T) {
 		// With terminal (forcing terminal mode)
 		data = bytes.NewBuffer([]byte{})
 		reader = strings.NewReader(jsonMessage)
-		if err := DisplayJSONMessagesStream(reader, data, 0, true, nil); err != nil {
+		if err := jsonmessage.DisplayJSONMessagesStream(reader, data, 0, true, nil); err != nil {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[1] {

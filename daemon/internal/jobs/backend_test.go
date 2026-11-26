@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
+	containerstatev0 "github.com/moby/moby/extpoints/containerstate/v0"
 	"github.com/moby/moby/v2/errdefs"
-	containerstatev0 "github.com/moby/moby/v2/extpoints/containerstate/v0"
 	"gotest.tools/v3/assert"
 )
 

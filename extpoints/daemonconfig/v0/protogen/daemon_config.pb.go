@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.12
 // 	protoc        (unknown)
-// source: extpoints/daemonconfig/v0/daemon_config.proto
+// source: daemonconfig/v0/daemon_config.proto
 
 package protogen
 
@@ -29,7 +29,7 @@ type GetRequest struct {
 
 func (x *GetRequest) Reset() {
 	*x = GetRequest{}
-	mi := &file_extpoints_daemonconfig_v0_daemon_config_proto_msgTypes[0]
+	mi := &file_daemonconfig_v0_daemon_config_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -41,7 +41,7 @@ func (x *GetRequest) String() string {
 func (*GetRequest) ProtoMessage() {}
 
 func (x *GetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_extpoints_daemonconfig_v0_daemon_config_proto_msgTypes[0]
+	mi := &file_daemonconfig_v0_daemon_config_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -54,7 +54,7 @@ func (x *GetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRequest.ProtoReflect.Descriptor instead.
 func (*GetRequest) Descriptor() ([]byte, []int) {
-	return file_extpoints_daemonconfig_v0_daemon_config_proto_rawDescGZIP(), []int{0}
+	return file_daemonconfig_v0_daemon_config_proto_rawDescGZIP(), []int{0}
 }
 
 type GetResponse struct {
@@ -66,7 +66,7 @@ type GetResponse struct {
 
 func (x *GetResponse) Reset() {
 	*x = GetResponse{}
-	mi := &file_extpoints_daemonconfig_v0_daemon_config_proto_msgTypes[1]
+	mi := &file_daemonconfig_v0_daemon_config_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -78,7 +78,7 @@ func (x *GetResponse) String() string {
 func (*GetResponse) ProtoMessage() {}
 
 func (x *GetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_extpoints_daemonconfig_v0_daemon_config_proto_msgTypes[1]
+	mi := &file_daemonconfig_v0_daemon_config_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -91,7 +91,7 @@ func (x *GetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetResponse.ProtoReflect.Descriptor instead.
 func (*GetResponse) Descriptor() ([]byte, []int) {
-	return file_extpoints_daemonconfig_v0_daemon_config_proto_rawDescGZIP(), []int{1}
+	return file_daemonconfig_v0_daemon_config_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *GetResponse) GetRootDir() string {
@@ -101,36 +101,36 @@ func (x *GetResponse) GetRootDir() string {
 	return ""
 }
 
-var File_extpoints_daemonconfig_v0_daemon_config_proto protoreflect.FileDescriptor
+var File_daemonconfig_v0_daemon_config_proto protoreflect.FileDescriptor
 
-const file_extpoints_daemonconfig_v0_daemon_config_proto_rawDesc = "" +
+const file_daemonconfig_v0_daemon_config_proto_rawDesc = "" +
 	"\n" +
-	"-extpoints/daemonconfig/v0/daemon_config.proto\x12*org.mobyproject.extension.daemon.config.v0\"\f\n" +
+	"#daemonconfig/v0/daemon_config.proto\x12*org.mobyproject.extension.daemon.config.v0\"\f\n" +
 	"\n" +
 	"GetRequest\"(\n" +
 	"\vGetResponse\x12\x19\n" +
 	"\broot_dir\x18\x01 \x01(\tR\arootDir2\x86\x01\n" +
 	"\fDaemonConfig\x12v\n" +
-	"\x03Get\x126.org.mobyproject.extension.daemon.config.v0.GetRequest\x1a7.org.mobyproject.extension.daemon.config.v0.GetResponseB<Z:github.com/moby/moby/v2/extpoints/daemonconfig/v0/protogenb\x06proto3"
+	"\x03Get\x126.org.mobyproject.extension.daemon.config.v0.GetRequest\x1a7.org.mobyproject.extension.daemon.config.v0.GetResponseB9Z7github.com/moby/moby/extpoints/daemonconfig/v0/protogenb\x06proto3"
 
 var (
-	file_extpoints_daemonconfig_v0_daemon_config_proto_rawDescOnce sync.Once
-	file_extpoints_daemonconfig_v0_daemon_config_proto_rawDescData []byte
+	file_daemonconfig_v0_daemon_config_proto_rawDescOnce sync.Once
+	file_daemonconfig_v0_daemon_config_proto_rawDescData []byte
 )
 
-func file_extpoints_daemonconfig_v0_daemon_config_proto_rawDescGZIP() []byte {
-	file_extpoints_daemonconfig_v0_daemon_config_proto_rawDescOnce.Do(func() {
-		file_extpoints_daemonconfig_v0_daemon_config_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_extpoints_daemonconfig_v0_daemon_config_proto_rawDesc), len(file_extpoints_daemonconfig_v0_daemon_config_proto_rawDesc)))
+func file_daemonconfig_v0_daemon_config_proto_rawDescGZIP() []byte {
+	file_daemonconfig_v0_daemon_config_proto_rawDescOnce.Do(func() {
+		file_daemonconfig_v0_daemon_config_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_daemonconfig_v0_daemon_config_proto_rawDesc), len(file_daemonconfig_v0_daemon_config_proto_rawDesc)))
 	})
-	return file_extpoints_daemonconfig_v0_daemon_config_proto_rawDescData
+	return file_daemonconfig_v0_daemon_config_proto_rawDescData
 }
 
-var file_extpoints_daemonconfig_v0_daemon_config_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
-var file_extpoints_daemonconfig_v0_daemon_config_proto_goTypes = []any{
+var file_daemonconfig_v0_daemon_config_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_daemonconfig_v0_daemon_config_proto_goTypes = []any{
 	(*GetRequest)(nil),  // 0: org.mobyproject.extension.daemon.config.v0.GetRequest
 	(*GetResponse)(nil), // 1: org.mobyproject.extension.daemon.config.v0.GetResponse
 }
-var file_extpoints_daemonconfig_v0_daemon_config_proto_depIdxs = []int32{
+var file_daemonconfig_v0_daemon_config_proto_depIdxs = []int32{
 	0, // 0: org.mobyproject.extension.daemon.config.v0.DaemonConfig.Get:input_type -> org.mobyproject.extension.daemon.config.v0.GetRequest
 	1, // 1: org.mobyproject.extension.daemon.config.v0.DaemonConfig.Get:output_type -> org.mobyproject.extension.daemon.config.v0.GetResponse
 	1, // [1:2] is the sub-list for method output_type
@@ -140,26 +140,26 @@ var file_extpoints_daemonconfig_v0_daemon_config_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for field type_name
 }
 
-func init() { file_extpoints_daemonconfig_v0_daemon_config_proto_init() }
-func file_extpoints_daemonconfig_v0_daemon_config_proto_init() {
-	if File_extpoints_daemonconfig_v0_daemon_config_proto != nil {
+func init() { file_daemonconfig_v0_daemon_config_proto_init() }
+func file_daemonconfig_v0_daemon_config_proto_init() {
+	if File_daemonconfig_v0_daemon_config_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeFor[x]().PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_extpoints_daemonconfig_v0_daemon_config_proto_rawDesc), len(file_extpoints_daemonconfig_v0_daemon_config_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_daemonconfig_v0_daemon_config_proto_rawDesc), len(file_daemonconfig_v0_daemon_config_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_extpoints_daemonconfig_v0_daemon_config_proto_goTypes,
-		DependencyIndexes: file_extpoints_daemonconfig_v0_daemon_config_proto_depIdxs,
-		MessageInfos:      file_extpoints_daemonconfig_v0_daemon_config_proto_msgTypes,
+		GoTypes:           file_daemonconfig_v0_daemon_config_proto_goTypes,
+		DependencyIndexes: file_daemonconfig_v0_daemon_config_proto_depIdxs,
+		MessageInfos:      file_daemonconfig_v0_daemon_config_proto_msgTypes,
 	}.Build()
-	File_extpoints_daemonconfig_v0_daemon_config_proto = out.File
-	file_extpoints_daemonconfig_v0_daemon_config_proto_goTypes = nil
-	file_extpoints_daemonconfig_v0_daemon_config_proto_depIdxs = nil
+	File_daemonconfig_v0_daemon_config_proto = out.File
+	file_daemonconfig_v0_daemon_config_proto_goTypes = nil
+	file_daemonconfig_v0_daemon_config_proto_depIdxs = nil
 }

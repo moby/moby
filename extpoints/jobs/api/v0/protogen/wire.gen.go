@@ -6,7 +6,7 @@ import (
 	extensions "github.com/moby/extensions"
 	clientpoint "github.com/moby/extensions/clientpoint"
 	serverpoint "github.com/moby/extensions/serverpoint"
-	mobyextcontract "github.com/moby/moby/v2/extpoints/jobs/api/v0"
+	mobyextcontract "github.com/moby/moby/extpoints/jobs/api/v0"
 	grpc "google.golang.org/grpc"
 )
 
@@ -95,7 +95,7 @@ type JobsServer interface {
 var serviceDesc = grpc.ServiceDesc{
 	ServiceName: serviceName,
 	HandlerType: (*JobsServer)(nil),
-	Metadata:    "extpoints/jobs/api/v0/jobs.proto",
+	Metadata:    "jobs/api/v0/jobs.proto",
 	Methods: []grpc.MethodDesc{
 		{MethodName: "Create", Handler: handleCreate},
 		{MethodName: "Run", Handler: handleRun},

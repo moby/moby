@@ -3,6 +3,9 @@ package daemon
 import (
 	"path/filepath"
 	"testing"
+
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 // regression test for https://github.com/moby/moby/issues/52300
@@ -89,5 +92,22 @@ func TestSanitizeTestName(t *testing.T) {
 				t.Errorf("got %q, want %q", out, want)
 			}
 		})
+	}
+}
+
+func TestSetEnvVar(t *testing.T) {
+	var d Daemon
+	for _, step := range []struct {
+		name, val string
+		want      []string
+	}{
+		{name: "FOO", val: "1", want: []string{"FOO=1"}},
+		{name: "BAR", val: "2", want: []string{"FOO=1", "BAR=2"}},
+		{name: "FOO", val: "3", want: []string{"FOO=3", "BAR=2"}},
+		{name: "BAR", val: "4", want: []string{"FOO=3", "BAR=4"}},
+		{name: "FOO", val: "", want: []string{"FOO=", "BAR=4"}},
+	} {
+		d.SetEnvVar(step.name, step.val)
+		assert.Check(t, is.DeepEqual(d.extraEnv, step.want), "after SetEnvVar(%q, %q)", step.name, step.val)
 	}
 }

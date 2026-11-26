@@ -3,7 +3,10 @@
 
 package apparmor
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 // NOTE: This profile is replicated in containerd and libpod. If you make a
 //       change to this profile, please make follow-up PRs to those projects so
@@ -52,16 +55,6 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
   capability,
   file,
   umount,
-  # Host (privileged) processes may send signals to container processes.
-  signal (receive) peer=unconfined,
-  # runc may send signals to container processes (for "docker stop").
-  signal (receive) peer=runc,
-  # crun may send signals to container processes (for "docker stop" when used with crun OCI runtime).
-  signal (receive) peer=crun,
-  # dockerd may send signals to container processes (for "docker kill").
-  signal (receive) peer={{.DaemonProfile}},
-  # Container processes may send signals amongst themselves.
-  signal (send,receive) peer={{.PeerName}},
 
   deny @{PROC}/* w,   # deny write for all files directly in /proc (not in a subdir)
   # deny write to files not in /proc/<number>/** or /proc/sys/**
@@ -82,9 +75,25 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
   deny /sys/devices/virtual/powercap/** rwklx,
   deny /sys/kernel/security/** rwklx,
 
-  # allow processes within the container to trace each other,
-  # provided all other LSM and yama setting allow it.
+  # Host (privileged) processes may send signals to container processes.
+  signal (receive) peer=unconfined,
+  # runc may send signals to container processes (for "docker stop").
+  signal (receive) peer=runc,
+  # crun may send signals to container processes (for "docker stop").
+  signal (receive) peer=crun,
+  # dockerd may send signals to container processes (for "docker kill").
+  signal (receive) peer={{.DaemonProfile}},
+  # Container processes may send signals amongst themselves.
+  signal (send,receive) peer={{.PeerName}},
+  # With kernel.apparmor_restrict_unprivileged_unconfined=1, an unprivileged
+  # profile change is converted to stacking, producing a stacked label such
+  # as "<name>//&unconfined".
+  # Allow signals to peers with this stacked label as well.
+  signal (send,receive) peer={{.StackedPeerName "unconfined"}},
+  # allow processes within the container to trace each other, provided all other LSM and yama settings allow it.
   ptrace (trace,tracedby,read,readby) peer={{.PeerName}},
+  # Same stacked-label peer as the signal rule above.
+  ptrace (trace,tracedby,read,readby) peer={{.StackedPeerName "unconfined"}},
 }
 `
 
@@ -115,6 +124,16 @@ func (d profileData) Name() string {
 // PeerName returns the quoted AppArmor peer pattern matching the profile name.
 func (d profileData) PeerName() string {
 	return quotePeerName(d.name)
+}
+
+// StackedPeerName returns the quoted AppArmor peer pattern matching the
+// profile name stacked with the given profiles. Like the kernel's canonical
+// label, the components are sorted by name and deduplicated, so the profile
+// name is not necessarily first (e.g. "unconfined//&zzz").
+func (d profileData) StackedPeerName(stacked ...string) string {
+	names := slices.Concat([]string{d.name}, stacked)
+	slices.Sort(names)
+	return quotePeerName(strings.Join(slices.Compact(names), "//&"))
 }
 
 // Imports returns the AppArmor functions imported before the profile definition.

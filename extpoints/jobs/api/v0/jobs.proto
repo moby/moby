@@ -4,7 +4,7 @@ syntax = "proto3";
 
 package org.mobyproject.extension.jobs.api.v0;
 
-option go_package = "github.com/moby/moby/v2/extpoints/jobs/api/v0/protogen";
+option go_package = "github.com/moby/moby/extpoints/jobs/api/v0/protogen";
 
 // Jobs is the jobs service. All methods are unary; blocking semantics
 // (Wait) hold the request open until the condition is met.

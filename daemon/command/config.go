@@ -18,7 +18,7 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 		registryMirrors    = opts.NewNamedListOptsRef("registry-mirrors", &conf.Mirrors, registry.ValidateMirror)
 		insecureRegistries = opts.NewNamedListOptsRef("insecure-registries", &conf.InsecureRegistries, registry.ValidateIndexName)
 	)
-	flags.Var(registryMirrors, "registry-mirror", "Preferred Docker registry mirror")
+	flags.Var(registryMirrors, "registry-mirror", "Preferred Docker Hub registry mirror")
 	flags.Var(insecureRegistries, "insecure-registry", "Enable insecure registry communication")
 
 	flags.Var(opts.NewNamedListOptsRef("storage-opts", &conf.GraphOptions, nil), "storage-opt", "Storage driver options")

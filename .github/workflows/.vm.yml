@@ -19,8 +19,9 @@ on:
         default: ""
 
 env:
-  GO_VERSION: "1.27.3"
-  TESTSTAT_VERSION: v0.1.25
+  GO_VERSION: "1.27.4"
+  # renovate: datasource=github-tags depName=vearutop/teststat
+  TESTSTAT_VERSION: v0.1.29
   TEMPLATE_NAME: ${{ inputs.template }}
 
 jobs:
@@ -201,7 +202,7 @@ jobs:
     steps:
       -
         name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false

@@ -8,6 +8,9 @@ a security issue, please bring it to their attention right away!
 Please **DO NOT** file a public issue, instead send your report privately
 to [security@docker.com](mailto:security@docker.com).
 
+See [THREAT_MODEL.md](THREAT_MODEL.md) for what the project considers a
+vulnerability.
+
 Reporter(s) can expect a response within 72 hours, acknowledging the issue was
 received.
 
@@ -27,6 +30,8 @@ disclosure, and patch release will be determined. If there is an embargo period
 on public disclosure before the patch release, the reporter(s) are expected to
 participate in the discussion of the timeline and abide by agreed upon dates
 for public disclosure.
+
+Maintainers writing the advisory should use [SECURITY-ADVISORY-TEMPLATE.md](project/SECURITY-ADVISORY-TEMPLATE.md).
 
 ## Accreditation
 

@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.12
 // 	protoc        (unknown)
-// source: extpoints/containernamegenerator/v0/container_name_generator.proto
+// source: containernamegenerator/v0/container_name_generator.proto
 
 package protogen
 
@@ -30,7 +30,7 @@ type GenerateContainerNameReply struct {
 
 func (x *GenerateContainerNameReply) Reset() {
 	*x = GenerateContainerNameReply{}
-	mi := &file_extpoints_containernamegenerator_v0_container_name_generator_proto_msgTypes[0]
+	mi := &file_containernamegenerator_v0_container_name_generator_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42,7 +42,7 @@ func (x *GenerateContainerNameReply) String() string {
 func (*GenerateContainerNameReply) ProtoMessage() {}
 
 func (x *GenerateContainerNameReply) ProtoReflect() protoreflect.Message {
-	mi := &file_extpoints_containernamegenerator_v0_container_name_generator_proto_msgTypes[0]
+	mi := &file_containernamegenerator_v0_container_name_generator_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -55,7 +55,7 @@ func (x *GenerateContainerNameReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateContainerNameReply.ProtoReflect.Descriptor instead.
 func (*GenerateContainerNameReply) Descriptor() ([]byte, []int) {
-	return file_extpoints_containernamegenerator_v0_container_name_generator_proto_rawDescGZIP(), []int{0}
+	return file_containernamegenerator_v0_container_name_generator_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *GenerateContainerNameReply) GetName() string {
@@ -76,7 +76,7 @@ type GenerateContainerNameRequest struct {
 
 func (x *GenerateContainerNameRequest) Reset() {
 	*x = GenerateContainerNameRequest{}
-	mi := &file_extpoints_containernamegenerator_v0_container_name_generator_proto_msgTypes[1]
+	mi := &file_containernamegenerator_v0_container_name_generator_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -88,7 +88,7 @@ func (x *GenerateContainerNameRequest) String() string {
 func (*GenerateContainerNameRequest) ProtoMessage() {}
 
 func (x *GenerateContainerNameRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_extpoints_containernamegenerator_v0_container_name_generator_proto_msgTypes[1]
+	mi := &file_containernamegenerator_v0_container_name_generator_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -101,7 +101,7 @@ func (x *GenerateContainerNameRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateContainerNameRequest.ProtoReflect.Descriptor instead.
 func (*GenerateContainerNameRequest) Descriptor() ([]byte, []int) {
-	return file_extpoints_containernamegenerator_v0_container_name_generator_proto_rawDescGZIP(), []int{1}
+	return file_containernamegenerator_v0_container_name_generator_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *GenerateContainerNameRequest) GetRetry() int64 {
@@ -125,11 +125,11 @@ func (x *GenerateContainerNameRequest) GetImage() string {
 	return ""
 }
 
-var File_extpoints_containernamegenerator_v0_container_name_generator_proto protoreflect.FileDescriptor
+var File_containernamegenerator_v0_container_name_generator_proto protoreflect.FileDescriptor
 
-const file_extpoints_containernamegenerator_v0_container_name_generator_proto_rawDesc = "" +
+const file_containernamegenerator_v0_container_name_generator_proto_rawDesc = "" +
 	"\n" +
-	"Bextpoints/containernamegenerator/v0/container_name_generator.proto\x123org.mobyproject.extension.containernamegenerator.v0\"0\n" +
+	"8containernamegenerator/v0/container_name_generator.proto\x123org.mobyproject.extension.containernamegenerator.v0\"0\n" +
 	"\x1aGenerateContainerNameReply\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\"m\n" +
 	"\x1cGenerateContainerNameRequest\x12\x14\n" +
@@ -137,26 +137,26 @@ const file_extpoints_containernamegenerator_v0_container_name_generator_proto_ra
 	"\fcontainer_id\x18\x02 \x01(\tR\vcontainerId\x12\x14\n" +
 	"\x05image\x18\x03 \x01(\tR\x05image2\xd6\x01\n" +
 	"\x16ContainerNameGenerator\x12\xbb\x01\n" +
-	"\x15GenerateContainerName\x12Q.org.mobyproject.extension.containernamegenerator.v0.GenerateContainerNameRequest\x1aO.org.mobyproject.extension.containernamegenerator.v0.GenerateContainerNameReplyBFZDgithub.com/moby/moby/v2/extpoints/containernamegenerator/v0/protogenb\x06proto3"
+	"\x15GenerateContainerName\x12Q.org.mobyproject.extension.containernamegenerator.v0.GenerateContainerNameRequest\x1aO.org.mobyproject.extension.containernamegenerator.v0.GenerateContainerNameReplyBCZAgithub.com/moby/moby/extpoints/containernamegenerator/v0/protogenb\x06proto3"
 
 var (
-	file_extpoints_containernamegenerator_v0_container_name_generator_proto_rawDescOnce sync.Once
-	file_extpoints_containernamegenerator_v0_container_name_generator_proto_rawDescData []byte
+	file_containernamegenerator_v0_container_name_generator_proto_rawDescOnce sync.Once
+	file_containernamegenerator_v0_container_name_generator_proto_rawDescData []byte
 )
 
-func file_extpoints_containernamegenerator_v0_container_name_generator_proto_rawDescGZIP() []byte {
-	file_extpoints_containernamegenerator_v0_container_name_generator_proto_rawDescOnce.Do(func() {
-		file_extpoints_containernamegenerator_v0_container_name_generator_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_extpoints_containernamegenerator_v0_container_name_generator_proto_rawDesc), len(file_extpoints_containernamegenerator_v0_container_name_generator_proto_rawDesc)))
+func file_containernamegenerator_v0_container_name_generator_proto_rawDescGZIP() []byte {
+	file_containernamegenerator_v0_container_name_generator_proto_rawDescOnce.Do(func() {
+		file_containernamegenerator_v0_container_name_generator_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_containernamegenerator_v0_container_name_generator_proto_rawDesc), len(file_containernamegenerator_v0_container_name_generator_proto_rawDesc)))
 	})
-	return file_extpoints_containernamegenerator_v0_container_name_generator_proto_rawDescData
+	return file_containernamegenerator_v0_container_name_generator_proto_rawDescData
 }
 
-var file_extpoints_containernamegenerator_v0_container_name_generator_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
-var file_extpoints_containernamegenerator_v0_container_name_generator_proto_goTypes = []any{
+var file_containernamegenerator_v0_container_name_generator_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_containernamegenerator_v0_container_name_generator_proto_goTypes = []any{
 	(*GenerateContainerNameReply)(nil),   // 0: org.mobyproject.extension.containernamegenerator.v0.GenerateContainerNameReply
 	(*GenerateContainerNameRequest)(nil), // 1: org.mobyproject.extension.containernamegenerator.v0.GenerateContainerNameRequest
 }
-var file_extpoints_containernamegenerator_v0_container_name_generator_proto_depIdxs = []int32{
+var file_containernamegenerator_v0_container_name_generator_proto_depIdxs = []int32{
 	1, // 0: org.mobyproject.extension.containernamegenerator.v0.ContainerNameGenerator.GenerateContainerName:input_type -> org.mobyproject.extension.containernamegenerator.v0.GenerateContainerNameRequest
 	0, // 1: org.mobyproject.extension.containernamegenerator.v0.ContainerNameGenerator.GenerateContainerName:output_type -> org.mobyproject.extension.containernamegenerator.v0.GenerateContainerNameReply
 	1, // [1:2] is the sub-list for method output_type
@@ -166,26 +166,26 @@ var file_extpoints_containernamegenerator_v0_container_name_generator_proto_depI
 	0, // [0:0] is the sub-list for field type_name
 }
 
-func init() { file_extpoints_containernamegenerator_v0_container_name_generator_proto_init() }
-func file_extpoints_containernamegenerator_v0_container_name_generator_proto_init() {
-	if File_extpoints_containernamegenerator_v0_container_name_generator_proto != nil {
+func init() { file_containernamegenerator_v0_container_name_generator_proto_init() }
+func file_containernamegenerator_v0_container_name_generator_proto_init() {
+	if File_containernamegenerator_v0_container_name_generator_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeFor[x]().PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_extpoints_containernamegenerator_v0_container_name_generator_proto_rawDesc), len(file_extpoints_containernamegenerator_v0_container_name_generator_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_containernamegenerator_v0_container_name_generator_proto_rawDesc), len(file_containernamegenerator_v0_container_name_generator_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_extpoints_containernamegenerator_v0_container_name_generator_proto_goTypes,
-		DependencyIndexes: file_extpoints_containernamegenerator_v0_container_name_generator_proto_depIdxs,
-		MessageInfos:      file_extpoints_containernamegenerator_v0_container_name_generator_proto_msgTypes,
+		GoTypes:           file_containernamegenerator_v0_container_name_generator_proto_goTypes,
+		DependencyIndexes: file_containernamegenerator_v0_container_name_generator_proto_depIdxs,
+		MessageInfos:      file_containernamegenerator_v0_container_name_generator_proto_msgTypes,
 	}.Build()
-	File_extpoints_containernamegenerator_v0_container_name_generator_proto = out.File
-	file_extpoints_containernamegenerator_v0_container_name_generator_proto_goTypes = nil
-	file_extpoints_containernamegenerator_v0_container_name_generator_proto_depIdxs = nil
+	File_containernamegenerator_v0_container_name_generator_proto = out.File
+	file_containernamegenerator_v0_container_name_generator_proto_goTypes = nil
+	file_containernamegenerator_v0_container_name_generator_proto_depIdxs = nil
 }

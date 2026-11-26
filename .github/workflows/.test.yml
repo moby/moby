@@ -27,9 +27,11 @@ on:
         default: "graphdriver"
 
 env:
-  GO_VERSION: "1.27.3"
-  GOTESTLIST_VERSION: v0.3.1
-  TESTSTAT_VERSION: v0.1.25
+  GO_VERSION: "1.27.4"
+  # renovate: datasource=github-tags depName=crazy-max/gotestlist
+  GOTESTLIST_VERSION: v0.5.0
+  # renovate: datasource=github-tags depName=vearutop/teststat
+  TESTSTAT_VERSION: v0.1.29
   ITG_CLI_MATRIX_SIZE: 6
   DOCKER_EXPERIMENTAL: 1
   DOCKER_GRAPHDRIVER: ${{ inputs.storage == 'snapshotter' && 'overlayfs' || 'overlay2' }}
@@ -307,7 +309,7 @@ jobs:
     steps:
       -
         name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
@@ -341,7 +343,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       -
         name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
@@ -534,7 +536,7 @@ jobs:
     steps:
       -
         name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false

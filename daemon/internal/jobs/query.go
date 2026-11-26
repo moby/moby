@@ -10,8 +10,8 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	jobsv0 "github.com/moby/moby/extpoints/jobs/api/v0"
 	"github.com/moby/moby/v2/errdefs"
-	jobsv0 "github.com/moby/moby/v2/extpoints/jobs/api/v0"
 )
 
 // Inspect returns a job with its latest run composed in.

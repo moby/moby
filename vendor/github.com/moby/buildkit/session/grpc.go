@@ -63,7 +63,7 @@ func serve(ctx context.Context, grpcServer *grpc.Server, conn net.Conn) {
 		conn.Close()
 	}()
 	bklog.G(ctx).Debugf("serving grpc connection")
-	(&http2.Server{}).ServeConn(conn, &http2.ServeConnOpts{Handler: grpcServer}) //nolint:staticcheck // This existing HTTP/2 connection is already established.
+	newHTTP2Server(ctx).ServeConn(conn, &http2.ServeConnOpts{Handler: grpcServer}) //nolint:staticcheck // This existing HTTP/2 connection is already established.
 }
 
 func grpcClientConn(ctx context.Context, conn net.Conn, opts map[string][]string) (context.Context, *grpc.ClientConn, error) {
@@ -176,9 +176,8 @@ func monitorHealth(ctx context.Context, conn net.Conn, cc *grpc.ClientConn, canc
 				bklog.G(ctx).WithError(err).WithFields(logFields).Warn("healthcheck failed")
 			} else {
 				consecutiveSuccessful++
-				consecutiveFailures = 0
-
-				if consecutiveSuccessful >= cfg.successResetThreshold {
+				if consecutiveFailures > 0 && consecutiveSuccessful >= cfg.successResetThreshold {
+					consecutiveFailures = 0
 					bklog.G(ctx).WithFields(logFields).Debug("reset healthcheck failure")
 				}
 			}

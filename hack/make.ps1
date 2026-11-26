@@ -356,6 +356,24 @@ Function Run-UnitTests() {
     $p.Start() | Out-Null
     $p.WaitForExit()
     if ($p.ExitCode -ne 0) { Throw "Unit tests failed" }
+
+    # extpoints is a separate module, so the root "./..." does not include it.
+    # -mod=readonly ignores the root vendor directory and keeps go.mod unchanged.
+    $jsonFilePath = $bundlesDir + "\go-test-report-unit-tests-extpoints.json"
+    $xmlFilePath = $bundlesDir + "\junit-report-unit-tests-extpoints.xml"
+    $coverageFilePath = $bundlesDir + "\coverage-report-unit-tests-extpoints.txt"
+    $goTestArg = "--format=testname --jsonfile=$jsonFilePath --junitfile=$xmlFilePath -- " + $raceParm + " -mod=readonly -coverprofile=$coverageFilePath -covermode=atomic -ldflags -w -a -test.timeout=10m ./..."
+    Write-Host "INFO: Invoking extpoints unit tests run with $GOTESTSUM_LOCATION\gotestsum.exe $goTestArg"
+    $pinfo = New-Object System.Diagnostics.ProcessStartInfo
+    $pinfo.FileName = "$GOTESTSUM_LOCATION\gotestsum.exe"
+    $pinfo.WorkingDirectory = "$($PWD.Path)\extpoints"
+    $pinfo.UseShellExecute = $false
+    $pinfo.Arguments = $goTestArg
+    $p = New-Object System.Diagnostics.Process
+    $p.StartInfo = $pinfo
+    $p.Start() | Out-Null
+    $p.WaitForExit()
+    if ($p.ExitCode -ne 0) { Throw "extpoints unit tests failed" }
 }
 
 # Run the integration tests
@@ -543,7 +561,7 @@ Try {
 
             if (-not ($buildx = $env:BUILDX_VERSION)) {
                 # renovate: datasource=docker depName=docker/buildx-bin versioning=docker
-                $buildx = "0.38.2"
+                $buildx = "0.39.1"
             }
             Write-Host "INFO: Downloading docker/buildx version $buildx..."
             $url = "https://github.com/docker/buildx/releases/download/v${buildx}/buildx-v${buildx}.windows-amd64.exe"

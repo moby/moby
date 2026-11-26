@@ -11,7 +11,7 @@ import (
 	clientpoint "github.com/moby/extensions/clientpoint"
 	serverpoint "github.com/moby/extensions/serverpoint"
 	extensionstream "github.com/moby/extensions/stream"
-	mobyextcontract "github.com/moby/moby/v2/extpoints/containerstate/v0"
+	mobyextcontract "github.com/moby/moby/extpoints/containerstate/v0"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -43,7 +43,7 @@ type ContainerStateWatcherServer interface {
 var serviceDesc = grpc.ServiceDesc{
 	ServiceName: serviceName,
 	HandlerType: (*ContainerStateWatcherServer)(nil),
-	Metadata:    "extpoints/containerstate/v0/container_state_watcher.proto",
+	Metadata:    "containerstate/v0/container_state_watcher.proto",
 	Methods: []grpc.MethodDesc{
 		{MethodName: "Wait", Handler: handleWait},
 	},

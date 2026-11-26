@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.12
 // 	protoc        (unknown)
-// source: extpoints/storage/kv/v0/storage.proto
+// source: storage/kv/v0/storage.proto
 
 package protogen
 
@@ -31,7 +31,7 @@ type DeletePrefixRequest struct {
 
 func (x *DeletePrefixRequest) Reset() {
 	*x = DeletePrefixRequest{}
-	mi := &file_extpoints_storage_kv_v0_storage_proto_msgTypes[0]
+	mi := &file_storage_kv_v0_storage_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43,7 +43,7 @@ func (x *DeletePrefixRequest) String() string {
 func (*DeletePrefixRequest) ProtoMessage() {}
 
 func (x *DeletePrefixRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_extpoints_storage_kv_v0_storage_proto_msgTypes[0]
+	mi := &file_storage_kv_v0_storage_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -56,7 +56,7 @@ func (x *DeletePrefixRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeletePrefixRequest.ProtoReflect.Descriptor instead.
 func (*DeletePrefixRequest) Descriptor() ([]byte, []int) {
-	return file_extpoints_storage_kv_v0_storage_proto_rawDescGZIP(), []int{0}
+	return file_storage_kv_v0_storage_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *DeletePrefixRequest) GetNamespace() string {
@@ -82,7 +82,7 @@ type GetResponse struct {
 
 func (x *GetResponse) Reset() {
 	*x = GetResponse{}
-	mi := &file_extpoints_storage_kv_v0_storage_proto_msgTypes[1]
+	mi := &file_storage_kv_v0_storage_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -94,7 +94,7 @@ func (x *GetResponse) String() string {
 func (*GetResponse) ProtoMessage() {}
 
 func (x *GetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_extpoints_storage_kv_v0_storage_proto_msgTypes[1]
+	mi := &file_storage_kv_v0_storage_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -107,7 +107,7 @@ func (x *GetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetResponse.ProtoReflect.Descriptor instead.
 func (*GetResponse) Descriptor() ([]byte, []int) {
-	return file_extpoints_storage_kv_v0_storage_proto_rawDescGZIP(), []int{1}
+	return file_storage_kv_v0_storage_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *GetResponse) GetValue() []byte {
@@ -129,7 +129,7 @@ type ListRequest struct {
 
 func (x *ListRequest) Reset() {
 	*x = ListRequest{}
-	mi := &file_extpoints_storage_kv_v0_storage_proto_msgTypes[2]
+	mi := &file_storage_kv_v0_storage_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -141,7 +141,7 @@ func (x *ListRequest) String() string {
 func (*ListRequest) ProtoMessage() {}
 
 func (x *ListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_extpoints_storage_kv_v0_storage_proto_msgTypes[2]
+	mi := &file_storage_kv_v0_storage_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -154,7 +154,7 @@ func (x *ListRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRequest.ProtoReflect.Descriptor instead.
 func (*ListRequest) Descriptor() ([]byte, []int) {
-	return file_extpoints_storage_kv_v0_storage_proto_rawDescGZIP(), []int{2}
+	return file_storage_kv_v0_storage_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ListRequest) GetNamespace() string {
@@ -195,7 +195,7 @@ type ListResponse struct {
 
 func (x *ListResponse) Reset() {
 	*x = ListResponse{}
-	mi := &file_extpoints_storage_kv_v0_storage_proto_msgTypes[3]
+	mi := &file_storage_kv_v0_storage_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -207,7 +207,7 @@ func (x *ListResponse) String() string {
 func (*ListResponse) ProtoMessage() {}
 
 func (x *ListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_extpoints_storage_kv_v0_storage_proto_msgTypes[3]
+	mi := &file_storage_kv_v0_storage_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -220,7 +220,7 @@ func (x *ListResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListResponse.ProtoReflect.Descriptor instead.
 func (*ListResponse) Descriptor() ([]byte, []int) {
-	return file_extpoints_storage_kv_v0_storage_proto_rawDescGZIP(), []int{3}
+	return file_storage_kv_v0_storage_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ListResponse) GetKeys() []string {
@@ -247,7 +247,7 @@ type RecordRequest struct {
 
 func (x *RecordRequest) Reset() {
 	*x = RecordRequest{}
-	mi := &file_extpoints_storage_kv_v0_storage_proto_msgTypes[4]
+	mi := &file_storage_kv_v0_storage_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -259,7 +259,7 @@ func (x *RecordRequest) String() string {
 func (*RecordRequest) ProtoMessage() {}
 
 func (x *RecordRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_extpoints_storage_kv_v0_storage_proto_msgTypes[4]
+	mi := &file_storage_kv_v0_storage_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -272,7 +272,7 @@ func (x *RecordRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordRequest.ProtoReflect.Descriptor instead.
 func (*RecordRequest) Descriptor() ([]byte, []int) {
-	return file_extpoints_storage_kv_v0_storage_proto_rawDescGZIP(), []int{4}
+	return file_storage_kv_v0_storage_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *RecordRequest) GetNamespace() string {
@@ -300,7 +300,7 @@ type WriteRequest struct {
 
 func (x *WriteRequest) Reset() {
 	*x = WriteRequest{}
-	mi := &file_extpoints_storage_kv_v0_storage_proto_msgTypes[5]
+	mi := &file_storage_kv_v0_storage_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -312,7 +312,7 @@ func (x *WriteRequest) String() string {
 func (*WriteRequest) ProtoMessage() {}
 
 func (x *WriteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_extpoints_storage_kv_v0_storage_proto_msgTypes[5]
+	mi := &file_storage_kv_v0_storage_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -325,7 +325,7 @@ func (x *WriteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WriteRequest.ProtoReflect.Descriptor instead.
 func (*WriteRequest) Descriptor() ([]byte, []int) {
-	return file_extpoints_storage_kv_v0_storage_proto_rawDescGZIP(), []int{5}
+	return file_storage_kv_v0_storage_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *WriteRequest) GetNamespace() string {
@@ -357,7 +357,7 @@ type CreateResponse struct {
 
 func (x *CreateResponse) Reset() {
 	*x = CreateResponse{}
-	mi := &file_extpoints_storage_kv_v0_storage_proto_msgTypes[6]
+	mi := &file_storage_kv_v0_storage_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -369,7 +369,7 @@ func (x *CreateResponse) String() string {
 func (*CreateResponse) ProtoMessage() {}
 
 func (x *CreateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_extpoints_storage_kv_v0_storage_proto_msgTypes[6]
+	mi := &file_storage_kv_v0_storage_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -382,7 +382,7 @@ func (x *CreateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateResponse.ProtoReflect.Descriptor instead.
 func (*CreateResponse) Descriptor() ([]byte, []int) {
-	return file_extpoints_storage_kv_v0_storage_proto_rawDescGZIP(), []int{6}
+	return file_storage_kv_v0_storage_proto_rawDescGZIP(), []int{6}
 }
 
 type UpdateResponse struct {
@@ -393,7 +393,7 @@ type UpdateResponse struct {
 
 func (x *UpdateResponse) Reset() {
 	*x = UpdateResponse{}
-	mi := &file_extpoints_storage_kv_v0_storage_proto_msgTypes[7]
+	mi := &file_storage_kv_v0_storage_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -405,7 +405,7 @@ func (x *UpdateResponse) String() string {
 func (*UpdateResponse) ProtoMessage() {}
 
 func (x *UpdateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_extpoints_storage_kv_v0_storage_proto_msgTypes[7]
+	mi := &file_storage_kv_v0_storage_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -418,7 +418,7 @@ func (x *UpdateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateResponse.ProtoReflect.Descriptor instead.
 func (*UpdateResponse) Descriptor() ([]byte, []int) {
-	return file_extpoints_storage_kv_v0_storage_proto_rawDescGZIP(), []int{7}
+	return file_storage_kv_v0_storage_proto_rawDescGZIP(), []int{7}
 }
 
 type DeleteResponse struct {
@@ -429,7 +429,7 @@ type DeleteResponse struct {
 
 func (x *DeleteResponse) Reset() {
 	*x = DeleteResponse{}
-	mi := &file_extpoints_storage_kv_v0_storage_proto_msgTypes[8]
+	mi := &file_storage_kv_v0_storage_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -441,7 +441,7 @@ func (x *DeleteResponse) String() string {
 func (*DeleteResponse) ProtoMessage() {}
 
 func (x *DeleteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_extpoints_storage_kv_v0_storage_proto_msgTypes[8]
+	mi := &file_storage_kv_v0_storage_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -454,7 +454,7 @@ func (x *DeleteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteResponse.ProtoReflect.Descriptor instead.
 func (*DeleteResponse) Descriptor() ([]byte, []int) {
-	return file_extpoints_storage_kv_v0_storage_proto_rawDescGZIP(), []int{8}
+	return file_storage_kv_v0_storage_proto_rawDescGZIP(), []int{8}
 }
 
 type DeletePrefixResponse struct {
@@ -465,7 +465,7 @@ type DeletePrefixResponse struct {
 
 func (x *DeletePrefixResponse) Reset() {
 	*x = DeletePrefixResponse{}
-	mi := &file_extpoints_storage_kv_v0_storage_proto_msgTypes[9]
+	mi := &file_storage_kv_v0_storage_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -477,7 +477,7 @@ func (x *DeletePrefixResponse) String() string {
 func (*DeletePrefixResponse) ProtoMessage() {}
 
 func (x *DeletePrefixResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_extpoints_storage_kv_v0_storage_proto_msgTypes[9]
+	mi := &file_storage_kv_v0_storage_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -490,14 +490,14 @@ func (x *DeletePrefixResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeletePrefixResponse.ProtoReflect.Descriptor instead.
 func (*DeletePrefixResponse) Descriptor() ([]byte, []int) {
-	return file_extpoints_storage_kv_v0_storage_proto_rawDescGZIP(), []int{9}
+	return file_storage_kv_v0_storage_proto_rawDescGZIP(), []int{9}
 }
 
-var File_extpoints_storage_kv_v0_storage_proto protoreflect.FileDescriptor
+var File_storage_kv_v0_storage_proto protoreflect.FileDescriptor
 
-const file_extpoints_storage_kv_v0_storage_proto_rawDesc = "" +
+const file_storage_kv_v0_storage_proto_rawDesc = "" +
 	"\n" +
-	"%extpoints/storage/kv/v0/storage.proto\x12'org.mobyproject.extension.storage.kv.v0\"K\n" +
+	"\x1bstorage/kv/v0/storage.proto\x12'org.mobyproject.extension.storage.kv.v0\"K\n" +
 	"\x13DeletePrefixRequest\x12\x1c\n" +
 	"\tnamespace\x18\x01 \x01(\tR\tnamespace\x12\x16\n" +
 	"\x06prefix\x18\x02 \x01(\tR\x06prefix\"#\n" +
@@ -529,22 +529,22 @@ const file_extpoints_storage_kv_v0_storage_proto_rawDesc = "" +
 	"\x06Update\x125.org.mobyproject.extension.storage.kv.v0.WriteRequest\x1a7.org.mobyproject.extension.storage.kv.v0.UpdateResponse\x12y\n" +
 	"\x06Delete\x126.org.mobyproject.extension.storage.kv.v0.RecordRequest\x1a7.org.mobyproject.extension.storage.kv.v0.DeleteResponse\x12\x8b\x01\n" +
 	"\fDeletePrefix\x12<.org.mobyproject.extension.storage.kv.v0.DeletePrefixRequest\x1a=.org.mobyproject.extension.storage.kv.v0.DeletePrefixResponse\x12s\n" +
-	"\x04List\x124.org.mobyproject.extension.storage.kv.v0.ListRequest\x1a5.org.mobyproject.extension.storage.kv.v0.ListResponseB:Z8github.com/moby/moby/v2/extpoints/storage/kv/v0/protogenb\x06proto3"
+	"\x04List\x124.org.mobyproject.extension.storage.kv.v0.ListRequest\x1a5.org.mobyproject.extension.storage.kv.v0.ListResponseB7Z5github.com/moby/moby/extpoints/storage/kv/v0/protogenb\x06proto3"
 
 var (
-	file_extpoints_storage_kv_v0_storage_proto_rawDescOnce sync.Once
-	file_extpoints_storage_kv_v0_storage_proto_rawDescData []byte
+	file_storage_kv_v0_storage_proto_rawDescOnce sync.Once
+	file_storage_kv_v0_storage_proto_rawDescData []byte
 )
 
-func file_extpoints_storage_kv_v0_storage_proto_rawDescGZIP() []byte {
-	file_extpoints_storage_kv_v0_storage_proto_rawDescOnce.Do(func() {
-		file_extpoints_storage_kv_v0_storage_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_extpoints_storage_kv_v0_storage_proto_rawDesc), len(file_extpoints_storage_kv_v0_storage_proto_rawDesc)))
+func file_storage_kv_v0_storage_proto_rawDescGZIP() []byte {
+	file_storage_kv_v0_storage_proto_rawDescOnce.Do(func() {
+		file_storage_kv_v0_storage_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_storage_kv_v0_storage_proto_rawDesc), len(file_storage_kv_v0_storage_proto_rawDesc)))
 	})
-	return file_extpoints_storage_kv_v0_storage_proto_rawDescData
+	return file_storage_kv_v0_storage_proto_rawDescData
 }
 
-var file_extpoints_storage_kv_v0_storage_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
-var file_extpoints_storage_kv_v0_storage_proto_goTypes = []any{
+var file_storage_kv_v0_storage_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_storage_kv_v0_storage_proto_goTypes = []any{
 	(*DeletePrefixRequest)(nil),  // 0: org.mobyproject.extension.storage.kv.v0.DeletePrefixRequest
 	(*GetResponse)(nil),          // 1: org.mobyproject.extension.storage.kv.v0.GetResponse
 	(*ListRequest)(nil),          // 2: org.mobyproject.extension.storage.kv.v0.ListRequest
@@ -556,7 +556,7 @@ var file_extpoints_storage_kv_v0_storage_proto_goTypes = []any{
 	(*DeleteResponse)(nil),       // 8: org.mobyproject.extension.storage.kv.v0.DeleteResponse
 	(*DeletePrefixResponse)(nil), // 9: org.mobyproject.extension.storage.kv.v0.DeletePrefixResponse
 }
-var file_extpoints_storage_kv_v0_storage_proto_depIdxs = []int32{
+var file_storage_kv_v0_storage_proto_depIdxs = []int32{
 	4, // 0: org.mobyproject.extension.storage.kv.v0.Storage.Get:input_type -> org.mobyproject.extension.storage.kv.v0.RecordRequest
 	5, // 1: org.mobyproject.extension.storage.kv.v0.Storage.Create:input_type -> org.mobyproject.extension.storage.kv.v0.WriteRequest
 	5, // 2: org.mobyproject.extension.storage.kv.v0.Storage.Update:input_type -> org.mobyproject.extension.storage.kv.v0.WriteRequest
@@ -576,26 +576,26 @@ var file_extpoints_storage_kv_v0_storage_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for field type_name
 }
 
-func init() { file_extpoints_storage_kv_v0_storage_proto_init() }
-func file_extpoints_storage_kv_v0_storage_proto_init() {
-	if File_extpoints_storage_kv_v0_storage_proto != nil {
+func init() { file_storage_kv_v0_storage_proto_init() }
+func file_storage_kv_v0_storage_proto_init() {
+	if File_storage_kv_v0_storage_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeFor[x]().PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_extpoints_storage_kv_v0_storage_proto_rawDesc), len(file_extpoints_storage_kv_v0_storage_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_storage_kv_v0_storage_proto_rawDesc), len(file_storage_kv_v0_storage_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_extpoints_storage_kv_v0_storage_proto_goTypes,
-		DependencyIndexes: file_extpoints_storage_kv_v0_storage_proto_depIdxs,
-		MessageInfos:      file_extpoints_storage_kv_v0_storage_proto_msgTypes,
+		GoTypes:           file_storage_kv_v0_storage_proto_goTypes,
+		DependencyIndexes: file_storage_kv_v0_storage_proto_depIdxs,
+		MessageInfos:      file_storage_kv_v0_storage_proto_msgTypes,
 	}.Build()
-	File_extpoints_storage_kv_v0_storage_proto = out.File
-	file_extpoints_storage_kv_v0_storage_proto_goTypes = nil
-	file_extpoints_storage_kv_v0_storage_proto_depIdxs = nil
+	File_storage_kv_v0_storage_proto = out.File
+	file_storage_kv_v0_storage_proto_goTypes = nil
+	file_storage_kv_v0_storage_proto_depIdxs = nil
 }

@@ -19,7 +19,7 @@ on:
   pull_request:
 
 env:
-  GO_VERSION: "1.27.3"
+  GO_VERSION: "1.27.4"
   DESTDIR: ./build
   SETUP_BUILDX_VERSION: edge
   SETUP_BUILDKIT_IMAGE: moby/buildkit:latest
@@ -103,7 +103,7 @@ jobs:
           path: moby
       -
         name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
@@ -167,7 +167,7 @@ jobs:
         working-directory: buildkit
 
   build-windows:
-    runs-on: windows-2022
+    runs-on: windows-2025
     timeout-minutes: 60 # guardrails timeout for the whole job
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
@@ -195,7 +195,7 @@ jobs:
           echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2022 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
 
       - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
@@ -253,7 +253,7 @@ jobs:
           retention-days: 2
 
   test-windows:
-    runs-on: windows-2022
+    runs-on: windows-2025
     timeout-minutes: 60 # guardrails timeout for the whole job
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
@@ -309,7 +309,7 @@ jobs:
           path: moby
 
       - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false

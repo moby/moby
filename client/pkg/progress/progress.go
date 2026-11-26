@@ -49,6 +49,8 @@ func (out chanOutput) WriteProgress(p Progress) error {
 
 // ChanOutput returns an Output that writes progress updates to the
 // supplied channel.
+//
+// Deprecated: this utility is no longer used, and will be removed in the next release.
 func ChanOutput(progressChan chan<- Progress) Output {
 	return chanOutput(progressChan)
 }
@@ -59,35 +61,47 @@ func (discardOutput) WriteProgress(Progress) error {
 	return nil
 }
 
-// DiscardOutput returns an Output that discards progress
+// DiscardOutput returns an Output that discards progress.
+//
+// Deprecated: this utility is no longer used, and will be removed in the next release.
 func DiscardOutput() Output {
 	return discardOutput{}
 }
 
 // Update is a convenience function to write a progress update to the channel.
+//
+// Deprecated: this utility is no longer used, and will be removed in the next release.
 func Update(out Output, id, action string) {
 	_ = out.WriteProgress(Progress{ID: id, Action: action})
 }
 
 // Updatef is a convenience function to write a printf-formatted progress update
 // to the channel.
+//
+// Deprecated: this utility is no longer used, and will be removed in the next release.
 func Updatef(out Output, id, format string, a ...any) {
 	_ = out.WriteProgress(Progress{ID: id, Action: fmt.Sprintf(format, a...)})
 }
 
 // Message is a convenience function to write a progress message to the channel.
+//
+// Deprecated: this utility is no longer used, and will be removed in the next release.
 func Message(out Output, id, message string) {
 	_ = out.WriteProgress(Progress{ID: id, Message: message})
 }
 
 // Messagef is a convenience function to write a printf-formatted progress
 // message to the channel.
+//
+// Deprecated: this utility is no longer used, and will be removed in the next release.
 func Messagef(out Output, id, format string, a ...any) {
 	_ = out.WriteProgress(Progress{ID: id, Message: fmt.Sprintf(format, a...)})
 }
 
 // Aux sends auxiliary information over a progress interface, which will not be
 // formatted for the UI. This is used for things such as push signing.
+//
+// Deprecated: this utility is no longer used, and will be removed in the next release.
 func Aux(out Output, a any) {
 	_ = out.WriteProgress(Progress{Aux: a})
 }

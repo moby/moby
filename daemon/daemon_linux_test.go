@@ -3,15 +3,27 @@
 package daemon
 
 import (
+	"errors"
 	"net"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/v2/daemon/config"
+	"github.com/moby/moby/v2/daemon/libnetwork"
+	nwconfig "github.com/moby/moby/v2/daemon/libnetwork/config"
+	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
+	"github.com/moby/moby/v2/daemon/libnetwork/ipamutils"
+	"github.com/moby/moby/v2/daemon/libnetwork/kvstore/boltdb"
+	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
+	"github.com/moby/moby/v2/daemon/pkg/opts"
+	"github.com/moby/moby/v2/internal/testutil/libnetworkutils"
 	"github.com/moby/moby/v2/internal/testutil/netnsutils"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
@@ -403,4 +415,147 @@ func createBridge(t *testing.T, name string, bips ...*net.IPNet) {
 	if err := netlink.LinkSetUp(link); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// TestConfigureNetworkingRestart checks what happens to docker0 when
+// configureNetworking runs on daemon restart, deleting the "bridge" network
+// left in the store by the previous start and creating it again.
+//
+// Regression test for https://github.com/moby/moby/issues/54134 (a daemon with
+// a user-managed bridge must not delete docker0). It also checks that docker0
+// is still removed with --bridge=none (https://github.com/moby/moby/issues/26071),
+// and still gets an address from default-address-pools (https://github.com/moby/moby/pull/36396).
+func TestConfigureNetworkingRestart(t *testing.T) {
+	const userBridge = "br-usermanaged"
+	var pools opts.PoolsOpt
+	assert.NilError(t, pools.Set("base=10.123.0.0/16,size=24"))
+
+	testcases := []struct {
+		name string
+		// iface is the --bridge option, for both daemon starts.
+		iface       string
+		liveRestore bool
+		expDocker0  bool
+		// expSubnet is the default bridge network's subnet after the restart,
+		// or "" if there should be no default bridge network.
+		expSubnet string
+		// expSameSubnet means the default bridge network should keep the subnet
+		// it got on the first start. That subnet comes from the built-in pools,
+		// so it depends on the host (for example, nameservers in /etc/resolv.conf
+		// are excluded), and can't be hard-coded.
+		expSameSubnet bool
+	}{
+		{
+			name:       "docker0 gets a subnet from default-address-pools",
+			expDocker0: true,
+			expSubnet:  "10.123.0.0/24",
+		},
+		{
+			name:          "docker0 keeps its subnet with live-restore",
+			liveRestore:   true,
+			expDocker0:    true,
+			expSameSubnet: true,
+		},
+		{
+			name:       "bridge none removes docker0",
+			iface:      config.DisableNetworkBridge,
+			expDocker0: false,
+		},
+		{
+			name:       "user-managed bridge leaves docker0 alone",
+			iface:      userBridge,
+			expDocker0: true,
+			expSubnet:  "192.168.150.0/24",
+		},
+		{
+			name:       "user-managed bridge named docker0 is not removed",
+			iface:      bridge.DefaultBridgeName,
+			expDocker0: true,
+			expSubnet:  "192.168.150.0/24",
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer netnsutils.SetupTestOSContext(t)()
+			dbPath := filepath.Join(t.TempDir(), "local-kv.db")
+
+			// startDaemon does the network setup of a daemon start. The caller must
+			// close the returned store before the next start.
+			startDaemon := func(cfg *config.Config, pools []*ipamutils.NetworkToSplit) (*libnetwork.Controller, *boltdb.BoltDB) {
+				t.Helper()
+				store, err := boltdb.New(dbPath)
+				assert.NilError(t, err)
+				c, err := libnetwork.New(t.Context(),
+					nwconfig.WithKVStore(store),
+					nwconfig.OptionDefaultAddressPoolConfig(pools),
+					libnetworkutils.OptionTempNetnsDir(t),
+				)
+				if err != nil {
+					store.Close()
+					t.Fatal(err)
+				}
+				if err := configureNetworking(t.Context(), c, cfg); err != nil {
+					store.Close()
+					t.Fatal(err)
+				}
+				return c, store
+			}
+
+			if tc.iface != "" && tc.iface != config.DisableNetworkBridge {
+				createBridge(t, tc.iface, &net.IPNet{IP: net.IPv4(192, 168, 150, 1), Mask: net.CIDRMask(24, 32)})
+				if tc.iface != bridge.DefaultBridgeName {
+					// A docker0 device that this daemon did not create.
+					createBridge(t, bridge.DefaultBridgeName, &net.IPNet{IP: net.IPv4(172, 17, 0, 1), Mask: net.CIDRMask(16, 32)})
+				}
+			}
+
+			// First start, without default-address-pools, so that the "bridge"
+			// network is stored with a subnet from the built-in pools. Except for
+			// --bridge=none, which would not create a "bridge" network.
+			cfg := &config.Config{}
+			if tc.iface != config.DisableNetworkBridge {
+				cfg.BridgeConfig.Iface = tc.iface
+			}
+			c, store := startDaemon(cfg, ipamutils.GetLocalScopeDefaultNetworks())
+			expSubnet := tc.expSubnet
+			if tc.expSameSubnet {
+				expSubnet = bridgeSubnet(t, c)
+			}
+			store.Close()
+
+			// Restart with default-address-pools.
+			cfg = &config.Config{}
+			cfg.BridgeConfig.Iface = tc.iface
+			cfg.DisableBridge = tc.iface == config.DisableNetworkBridge
+			cfg.LiveRestoreEnabled = tc.liveRestore
+			cfg.NetworkConfig.DefaultAddressPools = pools
+			c, store = startDaemon(cfg, pools.Value())
+			defer store.Close()
+
+			_, err := nlwrap.LinkByName(bridge.DefaultBridgeName)
+			if tc.expDocker0 {
+				assert.Check(t, err)
+			} else {
+				assert.Check(t, errors.As(err, &netlink.LinkNotFoundError{}), "expected LinkNotFoundError, got: %v", err)
+			}
+
+			if expSubnet == "" {
+				_, err := c.NetworkByName(network.NetworkBridge)
+				assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
+				return
+			}
+			assert.Check(t, is.Equal(bridgeSubnet(t, c), expSubnet))
+		})
+	}
+}
+
+// bridgeSubnet returns the IPv4 subnet of the default bridge network.
+func bridgeSubnet(t *testing.T, c *libnetwork.Controller) string {
+	t.Helper()
+	n, err := c.NetworkByName(network.NetworkBridge)
+	assert.NilError(t, err)
+	v4Info, _ := n.IpamInfo()
+	assert.Assert(t, is.Len(v4Info, 1))
+	return v4Info[0].Pool.String()
 }

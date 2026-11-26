@@ -3,6 +3,7 @@
 package user
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -21,51 +22,48 @@ func mkdirAs(path string, mode os.FileMode, uid, gid int, mkAll bool, opts ...Mk
 		return err
 	}
 
-	stat, err := os.Stat(path)
-	if err == nil {
+	stat, statErr := os.Stat(path)
+	if statErr == nil {
 		if !stat.IsDir() {
 			return &os.PathError{Op: "mkdir", Path: path, Err: syscall.ENOTDIR}
 		}
+		// The requested directory already exists. Leave it unchanged when only
+		// newly created directories should receive the requested metadata.
 		if options.onlyNew {
 			return nil
 		}
-
-		// short-circuit -- we were called with an existing directory and chown was requested
 		return setPermissions(path, mode, uid, gid, stat)
 	}
 
-	// make an array containing the original path asked for, plus (for mkAll == true)
-	// all path components leading up to the complete path that don't exist before we MkdirAll
-	// so that we can chown all of them properly at the end.  If onlyNew is true, we won't
-	// chown the full directory path if it exists
-	var paths []string
-	if os.IsNotExist(err) {
-		paths = append(paths, path)
+	// Track the requested directory and any parent directories created by
+	// Mkdir/MkdirAll to set their ownership and permissions afterward.
+	var createdDirs []string
+	if errors.Is(statErr, os.ErrNotExist) {
+		createdDirs = append(createdDirs, path)
 	}
 
 	if mkAll {
-		// walk back to "/" looking for directories which do not exist
-		// and add them to the paths array for chown after creation
-		dirPath := path
-		for {
-			dirPath = filepath.Dir(dirPath)
-			if dirPath == "/" {
-				break
-			}
-			if _, err = os.Stat(dirPath); os.IsNotExist(err) {
-				paths = append(paths, dirPath)
+		if errors.Is(statErr, os.ErrNotExist) {
+			// Walk back to "/" looking for directories which do not exist
+			// and add them to the paths array for chown after creation.
+			// Stop at the first existing directory.
+			for p := filepath.Dir(path); p != "/"; p = filepath.Dir(p) {
+				if _, err := os.Stat(p); err == nil {
+					break
+				} else if errors.Is(err, os.ErrNotExist) {
+					createdDirs = append(createdDirs, p)
+				}
 			}
 		}
-		if err = os.MkdirAll(path, mode); err != nil {
+		if err := os.MkdirAll(path, mode); err != nil {
 			return err
 		}
-	} else if err = os.Mkdir(path, mode); err != nil {
+	} else if err := os.Mkdir(path, mode); err != nil {
 		return err
 	}
-	// even if it existed, we will chown the requested path + any subpaths that
-	// didn't exist when we called MkdirAll
-	for _, pathComponent := range paths {
-		if err = setPermissions(pathComponent, mode, uid, gid, nil); err != nil {
+	// Apply the requested ownership and permissions to each newly created directory.
+	for _, dir := range createdDirs {
+		if err := setPermissions(dir, mode, uid, gid, nil); err != nil {
 			return err
 		}
 	}

@@ -14,9 +14,9 @@ import (
 	"github.com/moby/extensions"
 	"github.com/moby/extensions/grpcproxy"
 	"github.com/moby/extensions/host"
+	servicegrpcv0 "github.com/moby/moby/extpoints/servicegrpc/v0"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/internal/rootless"
-	servicegrpcv0 "github.com/moby/moby/v2/extpoints/servicegrpc/v0"
 	"github.com/moby/moby/v2/pkg/homedir"
 	"google.golang.org/grpc"
 )

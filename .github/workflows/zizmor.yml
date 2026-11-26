@@ -21,16 +21,26 @@ on:
       - 'docker-v*'
       - 'api/v*'
       - 'client/v*'
+      - 'extpoints/v*'
   pull_request:
 
 jobs:
   run:
     if: github.repository == 'moby/moby'
-    uses: crazy-max/.github/.github/workflows/zizmor.yml@f91220cba053bd54299ba645a599ee8ed436f222 # v1.11.0
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       security-events: write
-    with:
-      min-severity: medium
-      min-confidence: medium
-      persona: pedantic
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      -
+        name: Run zizmor
+        uses: zizmorcore/zizmor-action@1b4550e929643b8b26a62303c6bd64814271a4f1 # v0.9.2
+        with:
+          min-severity: medium
+          min-confidence: medium
+          persona: pedantic

@@ -6,7 +6,8 @@
     // https://docs.renovatebot.com/presets-helpers/
     "helpers:pinGitHubActionDigestsToSemver",
     "helpers:githubDigestChangelogs",
-    ":gitSignOff"
+    ":gitSignOff",
+    ":semanticCommitsDisabled"
   ],
   "postUpdateOptions": ["gomodTidy"],
   "minimumReleaseAge": "3 days",
@@ -14,7 +15,7 @@
   "customManagers": [
     {
       "customType": "regex",
-      "managerFilePatterns": ["/^Dockerfile$/"],
+      "managerFilePatterns": ["**/*Dockerfile*"],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?[ \\t]*\\r?\\n[ \\t]*ARG[ \\t]+\\w+=(?<currentValue>\\S+)"
       ]
@@ -31,6 +32,13 @@
       "managerFilePatterns": ["/^hack\\/.*\\.(?:sh|installer)$/"],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?[ \\t]*\\r?\\n[ \\t]*: \"\\$\\{\\w+:=(?<currentValue>[^}]+)\\}\""
+      ]
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github\\/workflows\\/.*\\.ya?ml$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?[ \\t]*\\r?\\n[ \\t]*\\w+_VERSION:[ \\t]+[\"']?(?<currentValue>[^\\s\"']+)"
       ]
     }
   ],

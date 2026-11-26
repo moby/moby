@@ -62,6 +62,7 @@ $ grpcurl -plaintext -unix -proto extpoints/jobs/api/v0/jobs.proto \
   It is idempotent on a canonical spec hash; the same name with a different spec fails with `AlreadyExists`.
   Specs are immutable: remove and re-create a job to change it.
 - Schedule triggers take five-field cron expressions (numbers, lists, ranges and steps) evaluated in the job's IANA timezone, UTC by default.
+  Daylight-saving changes follow crontab(5) semantics: a fixed-time schedule whose occurrence falls in a skipped span fires right after the transition and fires only once in a repeated span, while a schedule with a wildcard minute or hour field follows the wall clock.
 - When a schedule fires during a run, `forbid` (default) drops the fire and `queue` defers one.
   An explicit `Run` on a running job fails with `FailedPrecondition`.
 - After daemon downtime, `one` (default) fires a single catch-up run and `skip` drops missed fires.

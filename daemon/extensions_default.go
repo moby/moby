@@ -15,13 +15,13 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/extensionstorage/bbolt"
 	"github.com/moby/moby/v2/daemon/internal/jobs"
 
-	containernamegeneratorpb "github.com/moby/moby/v2/extpoints/containernamegenerator/v0/protogen"
-	containerstatepb "github.com/moby/moby/v2/extpoints/containerstate/v0/protogen"
-	daemonapipb "github.com/moby/moby/v2/extpoints/daemonapi/v0/protogen"
-	daemonconfigpb "github.com/moby/moby/v2/extpoints/daemonconfig/v0/protogen"
-	jobspb "github.com/moby/moby/v2/extpoints/jobs/api/v0/protogen"
-	servicenamegeneratorpb "github.com/moby/moby/v2/extpoints/servicenamegenerator/v0/protogen"
-	storagepb "github.com/moby/moby/v2/extpoints/storage/kv/v0/protogen"
+	containernamegeneratorpb "github.com/moby/moby/extpoints/containernamegenerator/v0/protogen"
+	containerstatepb "github.com/moby/moby/extpoints/containerstate/v0/protogen"
+	daemonapipb "github.com/moby/moby/extpoints/daemonapi/v0/protogen"
+	daemonconfigpb "github.com/moby/moby/extpoints/daemonconfig/v0/protogen"
+	jobspb "github.com/moby/moby/extpoints/jobs/api/v0/protogen"
+	servicenamegeneratorpb "github.com/moby/moby/extpoints/servicenamegenerator/v0/protogen"
+	storagepb "github.com/moby/moby/extpoints/storage/kv/v0/protogen"
 	namesgeneratorlegacy "github.com/moby/moby/v2/internal/namesgenerator/legacy"
 )
 

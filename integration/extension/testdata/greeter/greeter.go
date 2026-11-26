@@ -8,7 +8,7 @@ import (
 	greeterv0 "github.com/moby/extensions/example/greeter/v0"
 	greeterpb "github.com/moby/extensions/example/greeter/v0/protogen"
 	servicev0 "github.com/moby/extensions/extpoints/service/v0"
-	servicegrpcv0 "github.com/moby/moby/v2/extpoints/servicegrpc/v0"
+	servicegrpcv0 "github.com/moby/moby/extpoints/servicegrpc/v0"
 	"google.golang.org/grpc"
 )
 
