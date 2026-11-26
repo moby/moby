@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strconv"
 	"testing"
 	"time"
 
@@ -39,6 +40,22 @@ func TestJSONLogsMarshalJSONBuf(t *testing.T) {
 
 		assert.Assert(t, regexP(buf.String(), expression))
 		assert.NilError(t, json.Unmarshal(buf.Bytes(), &map[string]any{}))
+	}
+}
+
+func TestJSONLogsMarshalJSONBufInvalidYear(t *testing.T) {
+	for _, year := range []int{-1, 10000} {
+		t.Run(strconv.Itoa(year), func(t *testing.T) {
+			jsonLog := &JSONLogs{
+				Log:     []byte("A log line"),
+				Stream:  "stdout",
+				Created: time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC),
+			}
+			buf := bytes.NewBufferString("prefix")
+			err := jsonLog.MarshalJSONBuf(buf)
+			assert.Error(t, err, "time.MarshalJSON: year outside of range [0,9999]")
+			assert.Equal(t, buf.String(), `prefix{"log":"A log line","stream":"stdout",`)
+		})
 	}
 }
 
