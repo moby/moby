@@ -178,7 +178,8 @@ cleanup_test_suite_binaries() {
 repeat() {
 	for i in $(seq 1 ${TEST_REPEAT}); do
 		echo "Running integration-test (iteration $i)"
-		$@
+		# errexit is ignored when the caller runs this in a "||" list
+		$@ || return
 	done
 }
 
