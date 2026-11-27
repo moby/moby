@@ -38,7 +38,7 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 	}
 
 	restoreConfig := false
-	backupHostConfig := *ctr.HostConfig
+	var backupHostConfig container.HostConfig
 
 	defer func() {
 		if restoreConfig {
@@ -57,6 +57,8 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 		ctr.Unlock()
 		return errCannotUpdate(ctr.ID, errors.New(`container is marked for removal and cannot be "update"`))
 	}
+
+	backupHostConfig = *ctr.HostConfig
 
 	if err := ctr.UpdateContainer(hostConfig); err != nil {
 		restoreConfig = true
