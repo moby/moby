@@ -12,10 +12,10 @@
 openapi: "3.2.0"
 jsonSchemaDialect: "https://spec.openapis.org/oas/3.1/dialect/base"
 servers:
-  - url: "/v1.57"
+  - url: "/v1.58"
 info:
   title: "Docker Engine API"
-  version: "1.57"
+  version: "1.58"
   x-logo:
     url: "https://docs.docker.com/assets/images/logo-docker-main.png"
   description: |
@@ -49,7 +49,7 @@ info:
     is returned.
 
     If you omit the version-prefix, the current version of the API is used.
-    For example, calling `/info` is the same as calling `/v1.57/info`. Using the
+    For example, calling `/info` is the same as calling `/v1.58/info`. Using the
     API without a version-prefix is deprecated and will be removed in a future release.
 
     Engine releases in the near future should support this version of the API,

@@ -13,6 +13,8 @@ keywords: "API, Docker, rcli, REST, documentation"
      will be rejected.
 -->
 
+## v1.58 API changes
+
 ## v1.57 API changes
 
 * `GET /events`: `die` events for containers now include a `restarting`
