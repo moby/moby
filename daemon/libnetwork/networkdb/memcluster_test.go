@@ -4,19 +4,23 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"maps"
 	"net"
 	"net/netip"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"testing"
 	"testing/synctest"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	"github.com/docker/go-events"
 	"github.com/hashicorp/memberlist"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 // Helpers for running a cluster of NetworkDB instances inside a
@@ -29,7 +33,8 @@ import (
 // two things: waits cost nothing, and [synctest.Wait] becomes an exact "the
 // cluster has finished reacting to everything it already knows" signal.
 //
-// Everything in this file may only be called from inside a bubble.
+// Everything in this file may only be called from inside a bubble, apart from
+// runInCluster and runBubbled, which are how a test gets into one.
 
 // tableUnderTest is the single NetworkDB table these tests read and write.
 const tableUnderTest = "some_table"
@@ -39,6 +44,18 @@ const tableUnderTest = "some_table"
 const (
 	formationStep    = 100 * time.Millisecond
 	formationTimeout = 60 * time.Second
+
+	// propagation budgets bound the verify* helpers below: how long one
+	// change is given to reach the node being asked about. Sized like
+	// settleTimeout rather than like a gossip round, because the tail of
+	// NetworkDB's convergence is its anti-entropy sweep rather than gossip,
+	// and a budget which only covers the gossip path turns the slow half of
+	// a bimodal distribution into a test failure.
+	propagationStep    = 10 * time.Millisecond
+	propagationTimeout = 90 * time.Second
+
+	// watchTimeout bounds a wait for one watch event. Same reasoning.
+	watchTimeout = 90 * time.Second
 
 	// shutdownDrain has to exceed the longest wait Close() cannot cut short.
 	// That is bulkSyncNode's ack wait: a flat 30s timer with no ctx case
@@ -56,6 +73,46 @@ const (
 type memCluster struct {
 	dbs []*NetworkDB
 	mn  *memNetwork
+
+	// closed is the set of instances the test has already shut down itself,
+	// which the teardown must not shut down again. See closeNode.
+	closed map[*NetworkDB]struct{}
+
+	// relaunches counts the nodes brought back by relaunch, so each gets a
+	// node ID of its own without reaching for randomness.
+	relaunches int
+}
+
+// closeNode shuts node i down and records that it is gone, so that the teardown
+// leaves it alone.
+//
+// A test whose scenario is a node departing has to go through here rather than
+// calling Close directly: [NetworkDB.Close] is not idempotent, and the second
+// call reaches memberlist.Leave on an already shut-down memberlist, which
+// panics outright rather than returning an error.
+//
+// The node keeps its place in c.dbs. Callers index the cluster positionally and
+// a departed node is still the subject of the assertions that follow -- its
+// peers are expected to notice it left -- so removing it would renumber the
+// cluster out from under them.
+func (c *memCluster) closeNode(i int) {
+	db := c.dbs[i]
+	db.Close()
+	if c.closed == nil {
+		c.closed = make(map[*NetworkDB]struct{})
+	}
+	c.closed[db] = struct{}{}
+}
+
+// live is the subset of the cluster which is still running.
+func (c *memCluster) live() []*NetworkDB {
+	dbs := make([]*NetworkDB, 0, len(c.dbs))
+	for _, db := range c.dbs {
+		if _, done := c.closed[db]; !done {
+			dbs = append(dbs, db)
+		}
+	}
+	return dbs
 }
 
 // newMemCluster brings up num NetworkDB instances wired to a private in-memory
@@ -95,7 +152,7 @@ func newMemCluster(t TestingT, num int, namePrefix string, conf *Config) *memClu
 	c := &memCluster{mn: &memNetwork{}}
 
 	t.Cleanup(func() {
-		closeNetworkDBInstances(t, c.dbs)
+		closeNetworkDBInstances(t, c.live())
 		// [NetworkDB.Close] stops the cluster but does not join
 		// everything it stops: some goroutines are parked in a bounded
 		// wait -- a broadcast ack (5s), a probe RTT, a stream timeout
@@ -199,7 +256,7 @@ func newMemCluster(t TestingT, num int, namePrefix string, conf *Config) *memClu
 			// formationTimeout, so about 1 run in 171 timed out here.
 			seeds := make([]string, 0, i)
 			for _, prev := range c.dbs[:i] {
-				seeds = append(seeds, net.JoinHostPort(prev.config.AdvertiseAddr, strconv.Itoa(prev.config.BindPort)))
+				seeds = append(seeds, addrOf(prev))
 			}
 			assert.Check(t, db.Join(seeds))
 		}
@@ -228,6 +285,233 @@ func newMemCluster(t TestingT, num int, namePrefix string, conf *Config) *memClu
 		time.Sleep(formationStep)
 	}
 	return c
+}
+
+// runInCluster runs fn against a freshly formed cluster of num nodes inside a
+// [testing/synctest] bubble, skipping the test on toolchains where a bubble
+// would take the test binary with it.
+//
+// Every bubbled cluster test goes through here rather than opening its own
+// bubble, so that the skip cannot be forgotten and so that "which tests are
+// bubbled" is answerable by grep.
+func runInCluster(t *testing.T, num int, conf *Config, fn func(t *testing.T, c *memCluster)) {
+	t.Helper()
+	runBubbled(t, func(t *testing.T) {
+		fn(t, newMemCluster(t, num, "node", conf))
+	})
+}
+
+// runBubbled runs fn inside a [testing/synctest] bubble, skipping the test on
+// toolchains where a bubble would take the test binary with it. It is the entry
+// point for bubbled tests which drive a NetworkDB directly rather than through
+// a cluster.
+func runBubbled(t *testing.T, fn func(t *testing.T)) {
+	t.Helper()
+	requireSynctest(t)
+	synctest.Test(t, fn)
+}
+
+// relaunch brings node i back up at the address it was using before, with a
+// fresh node ID, and points c.dbs[i] at the new instance so that the teardown
+// closes the replacement rather than the corpse.
+//
+// The caller closes the old node first: going away is usually the point of the
+// scenario, and how it goes -- a clean leave or a silent failure -- decides
+// what its peers are expected to conclude.
+//
+// Reusing the address is the whole reason this exists. To its peers the
+// returned node is the endpoint they still hold in their member lists paired
+// with a NetworkDB identity they have never seen, which is what a restarted
+// daemon looks like from the outside.
+//
+// The returned node does no join and is given no bootstrap peers, so it cannot
+// reach out on its own: its peers have to find it.
+func (c *memCluster) relaunch(t TestingT, i int) *NetworkDB {
+	t.Helper()
+
+	conf := *c.dbs[i].config
+	// A new identity at the old address, derived rather than random for the
+	// reason newMemCluster gives: a replay should get the same node IDs. The
+	// counter distinguishes repeated relaunches of the same slot.
+	c.relaunches++
+	conf.NodeID = fmt.Sprintf("redo%08d", c.relaunches)
+	conf.BootstrapPeers = nil
+	conf.transport = c.mn.NewTransportAt(addrPortOf(t, c.dbs[i]))
+	c.dbs[i] = launchNode(t, conf)
+	return c.dbs[i]
+}
+
+// launch brings up one more node at an address the cluster has never seen,
+// and adds it to c.dbs so that the teardown closes it. It joins nothing;
+// everything else about it comes from conf.
+func (c *memCluster) launch(t TestingT, conf Config) *NetworkDB {
+	t.Helper()
+
+	tr := c.mn.NewTransport()
+	addr := tr.AddrPort()
+	conf.transport = tr
+	conf.BindAddr = addr.Addr().String()
+	conf.AdvertiseAddr = conf.BindAddr
+	conf.BindPort = int(addr.Port())
+	db := launchNode(t, conf)
+	c.dbs = append(c.dbs, db)
+	return db
+}
+
+// addrPortOf is [addrOf] in the form a memNetwork indexes its nodes by.
+func addrPortOf(t TestingT, db *NetworkDB) netip.AddrPort {
+	t.Helper()
+	ap, err := netip.ParseAddrPort(addrOf(db))
+	assert.NilError(t, err)
+	return ap
+}
+
+// waitFor polls cond until it holds, letting the bubble's clock run in between,
+// and reports whether it held within budget of virtual time.
+//
+// Every round begins with a [synctest.Wait], so cond never races the gossip it
+// is waiting on and always runs against a quiesced cluster. That is also why a
+// false return is trustworthy rather than merely impatient: the cluster had
+// nothing left to do at the moment of each check.
+func waitFor(budget time.Duration, cond func() bool) bool {
+	start := time.Now()
+	for {
+		synctest.Wait()
+		if cond() {
+			return true
+		}
+		if time.Since(start) >= budget {
+			return false
+		}
+		time.Sleep(propagationStep)
+	}
+}
+
+// verifyNodeExistence waits for nDB to agree that node is, or is not, a peer.
+func (nDB *NetworkDB) verifyNodeExistence(t *testing.T, node string, present bool) {
+	t.Helper()
+
+	if waitFor(propagationTimeout, func() bool {
+		nDB.RLock()
+		defer nDB.RUnlock()
+		_, ok := nDB.nodes[node]
+		return ok == present
+	}) {
+		return
+	}
+	t.Errorf("%v(%v): expected node %s existence in the cluster = %v, got %v",
+		nDB.config.Hostname, nDB.config.NodeID, node, present, !present)
+}
+
+// verifyNetworkExistence waits for nDB to agree that node is, or is not, a
+// member of network id. A node on its way out counts as a non-member.
+func (nDB *NetworkDB) verifyNetworkExistence(t *testing.T, node string, id string, present bool) {
+	t.Helper()
+
+	var ok, leaving bool
+	if waitFor(propagationTimeout, func() bool {
+		nDB.RLock()
+		defer nDB.RUnlock()
+		var vn *network
+		if node == nDB.config.NodeID {
+			if n, found := nDB.thisNodeNetworks[id]; found {
+				vn = &n.network
+			}
+		} else if nn, found := nDB.networks[node]; found {
+			vn = nn[id]
+		}
+		ok = vn != nil
+		leaving = ok && vn.leaving
+		return present == (ok && !leaving)
+	}) {
+		return
+	}
+
+	if present {
+		t.Errorf("%v(%v): want node %v to be a member of network %q, got that it is not a member (ok=%v, leaving=%v)",
+			nDB.config.Hostname, nDB.config.NodeID, node, id, ok, leaving)
+	} else {
+		t.Errorf("%v(%v): want node %v to not be a member of network %q, got that it is a member (ok=%v, leaving=%v)",
+			nDB.config.Hostname, nDB.config.NodeID, node, id, ok, leaving)
+	}
+}
+
+// verifyEntryExistence waits for nDB to hold the given value for an entry, or
+// to not hold the entry at all.
+func (nDB *NetworkDB) verifyEntryExistence(t *testing.T, tname, nid, key, value string, present bool) {
+	t.Helper()
+
+	var v []byte
+	var unexpected error
+	if waitFor(propagationTimeout, func() bool {
+		var err error
+		v, err = nDB.GetEntry(tname, nid, key)
+		if err != nil && !cerrdefs.IsNotFound(err) {
+			// Not something waiting will fix; remember it and stop
+			// spending the budget on it.
+			unexpected = err
+			return true
+		}
+		if present {
+			return err == nil && string(v) == value
+		}
+		return cerrdefs.IsNotFound(err)
+	}) && unexpected == nil {
+		return
+	}
+
+	if unexpected != nil {
+		t.Errorf("%v(%v): unexpected error while getting entry %v/%v in network %q: %v",
+			nDB.config.Hostname, nDB.config.NodeID, tname, key, nid, unexpected)
+		return
+	}
+	t.Errorf("%v(%v): want entry %v/%v in network %q to be (present=%v, value=%q), got (present=%v, value=%q)",
+		nDB.config.Hostname, nDB.config.NodeID, tname, key, nid, present, value, !present, string(v))
+}
+
+// testWatch waits for one watch event and checks it describes the expected
+// transition. The budget is virtual, so it is generous rather than tuned: the
+// clock only advances once every node has run out of work, which makes the
+// timeout an assertion that the event is never coming rather than a guess about
+// how long it ought to take.
+func testWatch(t *testing.T, ch chan events.Event, tname, nid, key, prev, value string) {
+	t.Helper()
+	select {
+	case rcvdEv := <-ch:
+		typ, ok := rcvdEv.(WatchEvent)
+		if assert.Check(t, ok, "expected WatchEvent, got %T", rcvdEv) {
+			assert.Check(t, is.Equal(tname, typ.Table))
+			assert.Check(t, is.Equal(nid, typ.NetworkID))
+			assert.Check(t, is.Equal(key, typ.Key))
+			if prev == "" {
+				assert.Check(t, is.Nil(typ.Prev))
+			} else {
+				assert.Check(t, is.Equal(prev, string(typ.Prev)))
+			}
+			if value == "" {
+				assert.Check(t, is.Nil(typ.Value))
+			} else {
+				assert.Check(t, is.Equal(value, string(typ.Value)))
+			}
+		}
+	case <-time.After(watchTimeout):
+		t.Errorf("no watch event for %s/%s/%s within %v of virtual time", tname, nid, key, watchTimeout)
+	}
+}
+
+// dumpNodeState renders what each node believes about its peers, for the
+// failure message of a wait which timed out on membership.
+func dumpNodeState(dbs []*NetworkDB) string {
+	var b strings.Builder
+	for _, db := range dbs {
+		db.RLock()
+		fmt.Fprintf(&b, "  %s (%s): %d active %v, %d failed %v\n",
+			db.config.Hostname, db.config.NodeID,
+			len(db.nodes), slices.Sorted(maps.Keys(db.nodes)),
+			len(db.failedNodes), slices.Sorted(maps.Keys(db.failedNodes)))
+		db.RUnlock()
+	}
+	return b.String()
 }
 
 // memNetwork is the in-memory stand-in for the UDP + TCP network that memberlist
@@ -274,9 +558,31 @@ func (mn *memNetwork) NewTransport() *memTransport {
 	if mn.next > 0xfffe {
 		panic("memnet: out of addresses")
 	}
+	return mn.bind(netip.AddrPortFrom(netip.AddrFrom4([4]byte{10, 0, byte(mn.next >> 8), byte(mn.next)}), memNetworkPort))
+}
+
+// NewTransportAt returns a transport bound to addr, which must not currently be
+// in use. It exists for the node which goes away and comes back at the address
+// it had before -- a different process, and to NetworkDB a different node ID,
+// but the same endpoint its peers still hold in their member lists. Allocating
+// a fresh address instead would make that a new node joining rather than an old
+// one reincarnating, which is the distinction under test.
+func (mn *memNetwork) NewTransportAt(addr netip.AddrPort) *memTransport {
+	mn.mu.Lock()
+	defer mn.mu.Unlock()
+
+	if _, taken := mn.nodes[addr]; taken {
+		panic("memnet: address already in use: " + addr.String())
+	}
+	return mn.bind(addr)
+}
+
+// bind creates a transport listening on addr and registers it. mn.mu must be
+// held.
+func (mn *memNetwork) bind(addr netip.AddrPort) *memTransport {
 	t := &memTransport{
 		mn:       mn,
-		addr:     netip.AddrPortFrom(netip.AddrFrom4([4]byte{10, 0, byte(mn.next >> 8), byte(mn.next)}), memNetworkPort),
+		addr:     addr,
 		packetCh: make(chan *memberlist.Packet, memPacketBuffer),
 		streamCh: make(chan net.Conn, memStreamBuffer),
 		shutdown: make(chan struct{}),
