@@ -1,0 +1,266 @@
+name: validate-pr-comment
+
+concurrency:
+  # One reporter per PR branch rather than per commit, so a reporter for an
+  # older commit can't overwrite the result for a newer one. Each reporter
+  # covers all validation workflows, so a newer one can replace an older one.
+  # Git ref names can't contain ':', so it separates the repository and branch
+  # unambiguously; '-' can appear in both.
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_repository.full_name }}:${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Account that posts the comments, matching the token used to post them.
+  BOT_LOGIN: github-actions[bot]
+
+# Runs from fork PRs get a read-only token, so they can't comment themselves.
+# This workflow runs in the base repository context after they complete and
+# reports their failures as a PR comment, hiding it once they pass.
+on:
+  workflow_run: # zizmor: ignore[dangerous-triggers] safe here, this workflow only reads run results through the API and never checks out or executes PR code
+    workflows: [validate-pr, validate-milestone]
+    types: [completed]
+
+jobs:
+  comment:
+    if: github.repository == 'moby/moby' && github.event.workflow_run.event == 'pull_request'
+    permissions:
+      actions: read
+      checks: read
+      pull-requests: write
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - name: Update PR comment
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const run = context.payload.workflow_run;
+
+            // Fork runs have no pull_requests association. Include closed PRs
+            // so closing one can't reassign its runs to the remaining open PR.
+            const headRepo = run.head_repository?.full_name;
+            if (!headRepo) {
+              core.info('Head repository is gone, skipping');
+              return;
+            }
+            const pulls = await github.paginate(github.rest.pulls.list, {
+              owner,
+              repo,
+              state: 'all',
+              head: `${run.head_repository.owner.login}:${run.head_branch}`,
+              per_page: 100,
+            });
+            const open = pulls.filter(p => p.state === 'open' && p.head.repo?.full_name === headRepo);
+            if (open.length !== 1) {
+              core.info(`Found ${open.length} open PRs for ${headRepo}:${run.head_branch}, skipping`);
+              return;
+            }
+            const [pr] = open;
+
+            // Act on the newest run of each validation workflow for the PR's
+            // current head rather than on the triggering run, so runs completing
+            // out of order or for outdated commits don't leave a stale comment.
+            // While any of them is still pending, leave the comment alone; that
+            // run reports once done. Keep in sync with on.workflow_run.workflows.
+            const workflows = ['validate-pr.yml', 'validate-milestone.yml'];
+            const latestRuns = [];
+            for (const workflow of workflows) {
+              const { data: { workflow_runs: runs } } = await github.rest.actions.listWorkflowRuns({
+                owner,
+                repo,
+                workflow_id: workflow,
+                head_sha: pr.head.sha,
+                event: 'pull_request',
+                per_page: 100,
+              });
+              const latest = runs.find(r =>
+                r.head_repository?.full_name === headRepo && r.head_branch === pr.head.ref &&
+                (!r.pull_requests?.length || r.pull_requests.some(p => p.number === pr.number))
+              );
+              if (!latest) {
+                continue;
+              }
+              if (!latest.pull_requests?.length) {
+                const candidates = pulls.filter(p =>
+                  p.created_at <= latest.created_at && (!p.closed_at || latest.created_at <= p.closed_at)
+                );
+                if (candidates.length !== 1 || candidates[0].number !== pr.number) {
+                  core.info(`Can't attribute ${workflow} run ${latest.id} to PR #${pr.number}, skipping`);
+                  continue;
+                }
+              }
+              if (latest.status !== 'completed') {
+                core.info(`Latest ${workflow} run for ${pr.head.sha} is ${latest.status}, waiting`);
+                return;
+              }
+              if (['success', 'failure'].includes(latest.conclusion)) {
+                latestRuns.push(latest);
+              }
+            }
+
+            // Explanations for the error messages of the validation jobs.
+            // Failures without a matching explanation are not commented on.
+            const explanations = [
+              {
+                job: 'validate-milestone',
+                match: /^PR must have a milestone set/,
+                text: [
+                  '**Milestone**: this PR has no milestone yet.',
+                  'A maintainer will set it, so there is nothing to do on your side.',
+                ],
+              },
+              {
+                job: 'validate-milestone',
+                match: /^This PR cannot be merged yet because milestone/,
+                text: [
+                  "**Milestone**: this PR's milestone isn't the next release, which blocks it from being merged before it's due.",
+                  'If the milestone is intentional, there is nothing to do.',
+                ],
+              },
+              {
+                job: 'check-labels',
+                match: /should also have an? '(area|kind)\/\*' label/,
+                text: [
+                  '**Labels**: this PR is marked for the release notes with an `impact/*` label, but is still missing an `area/*` or `kind/*` label.',
+                  'A maintainer will add them, so there is nothing to do on your side.',
+                ],
+              },
+              {
+                job: 'check-changelog',
+                match: /^Changelog section is empty/,
+                text: [
+                  '**Changelog**: this PR is marked for the release notes, but the `markdown changelog` block in the PR description is empty.',
+                  'Please add a short description of the change for users of Docker Engine there.',
+                ],
+              },
+              {
+                job: 'check-changelog',
+                match: /^Description looks too short/,
+                text: [
+                  '**Changelog**: the description in the `markdown changelog` block of the PR description is too short.',
+                  'Please describe the change for users of Docker Engine in a sentence or so.',
+                ],
+              },
+              {
+                job: 'check-changelog',
+                match: /^PR has a changelog description, but no changelog label/,
+                text: [
+                  '**Changelog**: the PR description has a changelog entry, but the PR has no `impact/*` label yet.',
+                  'A maintainer will add the label, or let you know if the change does not need a changelog entry.',
+                  'Please keep the entry in the meantime.',
+                ],
+              },
+              {
+                job: 'check-commit-references',
+                match: /^commit [0-9a-f]+ contains a GitHub issue or PR reference/,
+                text: [
+                  '**Commit messages**: remove GitHub issue and PR references from the flagged commit messages.',
+                  'Use a commit hash if a reference is needed, or put the issue or PR link in the PR description.',
+                ],
+              },
+              {
+                job: 'check-agent-coauthors',
+                match: /^Commit [0-9a-f]+ credits an AI agent as a co-author/,
+                text: [
+                  '**Commit authors**: remove AI agents from the `Co-Authored-By` trailers of the flagged commits.',
+                  'Credit the tool in the PR description instead.',
+                ],
+              },
+              {
+                job: 'check-pr-branch',
+                match: /but its title suggests otherwise/,
+                text: [
+                  "**Target branch**: the PR title doesn't match the branch the PR targets.",
+                  'PRs against a release branch must start the title with the branch name in square brackets, for example `[docker-29.x] Fix something`, or `[docker-29.x backport] Fix something` for backports.',
+                  'PRs against `master` need no prefix.',
+                  'Please fix the title, or change the base branch if the PR targets the wrong one.',
+                ],
+              },
+            ];
+
+            const sections = new Set();
+            for (const latest of latestRuns.filter(r => r.conclusion === 'failure')) {
+              const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+                owner,
+                repo,
+                run_id: latest.id,
+              });
+              for (const job of jobs.filter(j => j.conclusion === 'failure' && explanations.some(e => e.job === j.name))) {
+                const annotations = await github.paginate(github.rest.checks.listAnnotations, {
+                  owner,
+                  repo,
+                  check_run_id: job.id,
+                });
+                for (const a of annotations.filter(a => a.annotation_level === 'failure')) {
+                  const e = explanations.find(e => e.job === job.name && e.match.test(a.message));
+                  if (e) {
+                    sections.add(e.text.join('\n'));
+                  }
+                }
+              }
+            }
+
+            // Report confirmed failures even if the other validator was
+            // cancelled, but don't retire a comment on incomplete evidence.
+            if (sections.size === 0 && latestRuns.length !== workflows.length) {
+              return;
+            }
+
+            const marker = '<!-- validate-pr-comment -->';
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number: pr.number,
+            });
+            // Comments are hidden as outdated once fixed. A hidden comment is
+            // only reused while it's the last one on the PR, so new failures
+            // aren't buried above later discussion.
+            let existing = comments.findLast(c => c.user.login === process.env.BOT_LOGIN && c.body.includes(marker));
+            let hidden = false;
+            if (existing) {
+              const { node } = await github.graphql(
+                'query($id: ID!) { node(id: $id) { ... on IssueComment { isMinimized } } }',
+                { id: existing.node_id },
+              );
+              hidden = node.isMinimized;
+              if (hidden && existing.id !== comments.at(-1).id) {
+                existing = undefined;
+              }
+            }
+
+            if (sections.size === 0) {
+              if (existing && !hidden) {
+                await github.graphql(
+                  'mutation($id: ID!) { minimizeComment(input: { subjectId: $id, classifier: OUTDATED }) { clientMutationId } }',
+                  { id: existing.node_id },
+                );
+                core.info(`Hid comment on PR #${pr.number} as outdated`);
+              }
+              return;
+            }
+
+            const body = [
+              marker,
+              `Some [PR checks](${pr.html_url}/checks) failed:`,
+              '',
+              ...[...sections].flatMap(s => [s, '']),
+              'This comment is hidden once these are fixed.',
+            ].join('\n');
+
+            if (existing) {
+              if (hidden) {
+                await github.graphql(
+                  'mutation($id: ID!) { unminimizeComment(input: { subjectId: $id }) { clientMutationId } }',
+                  { id: existing.node_id },
+                );
+              }
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number: pr.number, body });
+            }
+            core.info(`Updated comment on PR #${pr.number}`);
