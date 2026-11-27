@@ -7,6 +7,7 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/mldsa"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -27,7 +28,7 @@ import (
 // authority certificates. The only requirement here is that the
 // certificate have a non-empty subject field.
 func validator(req *csr.CertificateRequest) error {
-	if req.CN != "" {
+	if req.CN != "" || len(req.RawSubject) != 0 {
 		return nil
 	}
 
@@ -47,6 +48,9 @@ func validator(req *csr.CertificateRequest) error {
 // New creates a new root certificate from the certificate request.
 func New(req *csr.CertificateRequest) (cert, csrPEM, key []byte, err error) {
 	policy := CAPolicy()
+	if policy != nil && policy.Default != nil && len(req.RawSubject) != 0 {
+		policy.Default.KeepCSRSubject = true
+	}
 	if req.CA != nil {
 		if req.CA.Expiry != "" {
 			policy.Default.ExpiryString = req.CA.Expiry
@@ -147,11 +151,27 @@ func RenewFromPEM(caFile, keyFile string) ([]byte, error) {
 
 // NewFromSigner creates a new root certificate from a crypto.Signer.
 func NewFromSigner(req *csr.CertificateRequest, priv crypto.Signer) (cert, csrPEM []byte, err error) {
+	return newFromSigner(req, priv, false)
+}
+
+// newFromSigner is NewFromSigner. If likeNew is set, req.CA.Backdate and
+// req.CRL are applied as New applies them.
+func newFromSigner(req *csr.CertificateRequest, priv crypto.Signer, likeNew bool) (cert, csrPEM []byte, err error) {
 	policy := CAPolicy()
+	if policy != nil && policy.Default != nil && len(req.RawSubject) != 0 {
+		policy.Default.KeepCSRSubject = true
+	}
 	if req.CA != nil {
 		if req.CA.Expiry != "" {
 			policy.Default.ExpiryString = req.CA.Expiry
 			policy.Default.Expiry, err = time.ParseDuration(req.CA.Expiry)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+
+		if likeNew && req.CA.Backdate != "" {
+			policy.Default.Backdate, err = time.ParseDuration(req.CA.Backdate)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -163,6 +183,10 @@ func NewFromSigner(req *csr.CertificateRequest, priv crypto.Signer) (cert, csrPE
 		} else {
 			policy.Default.CAConstraint.MaxPathLenZero = req.CA.PathLenZero
 		}
+	}
+
+	if likeNew && req.CRL != "" {
+		policy.Default.CRL = req.CRL
 	}
 
 	csrPEM, err = csr.Generate(priv, req)
@@ -185,8 +209,14 @@ func NewFromSigner(req *csr.CertificateRequest, priv crypto.Signer) (cert, csrPE
 // The resulting root certificate will have ca certificate
 // as the template and have the same expiry length. E.g. the existing CA
 // is valid for a year from Jan 01 2015 to Jan 01 2016, the renewed certificate
-// will be valid from now and expire in one year as well.
+// will be valid from now and expire in one year as well. An RFC 9925 unsigned
+// certificate is rejected, because renewal would produce a signed certificate.
 func RenewFromSigner(ca *x509.Certificate, priv crypto.Signer) ([]byte, error) {
+	if helpers.IsUnsigned(ca) {
+		return nil, cferr.Wrap(cferr.PolicyError, cferr.InvalidRequest,
+			errors.New("cannot renew an RFC 9925 unsigned certificate"))
+	}
+
 	if !ca.IsCA {
 		return nil, errors.New("input certificate is not a CA cert")
 	}
@@ -220,11 +250,24 @@ func RenewFromSigner(ca *x509.Certificate, priv crypto.Signer) ([]byte, error) {
 		if !(bytes.Equal(ca.PublicKey.(ed25519.PublicKey), ed25519PublicKey)) {
 			return nil, cferr.New(cferr.PrivateKeyError, cferr.KeyMismatch)
 		}
+	case ca.PublicKeyAlgorithm == x509.MLDSA:
+		var mldsaPublicKey *mldsa.PublicKey
+		var ok bool
+		if mldsaPublicKey, ok = priv.Public().(*mldsa.PublicKey); !ok {
+			return nil, cferr.New(cferr.PrivateKeyError, cferr.KeyMismatch)
+		}
+		if !ca.PublicKey.(*mldsa.PublicKey).Equal(mldsaPublicKey) {
+			return nil, cferr.New(cferr.PrivateKeyError, cferr.KeyMismatch)
+		}
 	default:
 		return nil, cferr.New(cferr.PrivateKeyError, cferr.NotRSAOrECCOrEd25519)
 	}
 
 	req := csr.ExtractCertificateRequest(ca)
+	// The subject is carried over as encoded so that attributes that
+	// ExtractCertificateRequest cannot represent are not dropped.
+	req.RawSubject = ca.RawSubject
+	req.CN, req.Names, req.SerialNumber = "", nil, ""
 	cert, _, err := NewFromSigner(req, priv)
 	return cert, err
 

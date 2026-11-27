@@ -23,7 +23,9 @@ import (
 	"net/mail"
 	"net/url"
 	"os"
+	"regexp"
 	"time"
+	"unicode/utf16"
 
 	"github.com/cloudflare/cfssl/certdb"
 	"github.com/cloudflare/cfssl/config"
@@ -35,6 +37,8 @@ import (
 	ct "github.com/google/certificate-transparency-go"
 	"github.com/google/certificate-transparency-go/client"
 	"github.com/google/certificate-transparency-go/jsonclient"
+	"golang.org/x/crypto/cryptobyte"
+	cbasn1 "golang.org/x/crypto/cryptobyte/asn1"
 
 	zx509 "github.com/zmap/zcrypto/x509"
 	"github.com/zmap/zlint/v3"
@@ -231,6 +235,64 @@ func replaceSliceIfEmpty(replaced, newContents *[]string) {
 	}
 }
 
+var oidCommonName = asn1.ObjectIdentifier{2, 5, 4, 3}
+
+// matchRawSubjectCommonNames checks that every common name attribute of the
+// DER Name raw is a string that matches whitelist. A common name whose value
+// is not a string cannot be matched and is rejected.
+func matchRawSubjectCommonNames(whitelist *regexp.Regexp, raw []byte) error {
+	reject := cferr.New(cferr.PolicyError, cferr.UnmatchedWhitelist)
+	input := cryptobyte.String(raw)
+	var rdnSequence cryptobyte.String
+	if !input.ReadASN1(&rdnSequence, cbasn1.SEQUENCE) {
+		return reject
+	}
+	for !rdnSequence.Empty() {
+		var rdn cryptobyte.String
+		if !rdnSequence.ReadASN1(&rdn, cbasn1.SET) {
+			return reject
+		}
+		for !rdn.Empty() {
+			var attribute cryptobyte.String
+			var attributeType asn1.ObjectIdentifier
+			if !rdn.ReadASN1(&attribute, cbasn1.SEQUENCE) || !attribute.ReadASN1ObjectIdentifier(&attributeType) {
+				return reject
+			}
+			if !attributeType.Equal(oidCommonName) {
+				continue
+			}
+			value, ok := readStringValue(attribute)
+			if !ok || whitelist.Find([]byte(value)) == nil {
+				return reject
+			}
+		}
+	}
+	return nil
+}
+
+// readStringValue returns the value of a directory string attribute value.
+func readStringValue(attribute cryptobyte.String) (string, bool) {
+	var value cryptobyte.String
+	var tag cbasn1.Tag
+	if !attribute.ReadAnyASN1(&value, &tag) || !attribute.Empty() {
+		return "", false
+	}
+	switch tag {
+	case cbasn1.UTF8String, cbasn1.PrintableString, cbasn1.IA5String, cbasn1.Tag(20):
+		return string(value), true
+	case cbasn1.Tag(30):
+		if len(value)%2 != 0 {
+			return "", false
+		}
+		units := make([]uint16, 0, len(value)/2)
+		for i := 0; i < len(value); i += 2 {
+			units = append(units, uint16(value[i])<<8|uint16(value[i+1]))
+		}
+		return string(utf16.Decode(units)), true
+	}
+	return "", false
+}
+
 // PopulateSubjectFromCSR has functionality similar to Name, except
 // it fills the fields of the resulting pkix.Name with req's if the
 // subject's corresponding fields are empty
@@ -314,6 +376,7 @@ func (s *Signer) Sign(req signer.SignRequest) (cert []byte, err error) {
 	} else {
 		if profile.CSRWhitelist.Subject {
 			safeTemplate.Subject = csrTemplate.Subject
+			safeTemplate.RawSubject = csrTemplate.RawSubject
 		}
 		if profile.CSRWhitelist.PublicKeyAlgorithm {
 			safeTemplate.PublicKeyAlgorithm = csrTemplate.PublicKeyAlgorithm
@@ -362,6 +425,11 @@ func (s *Signer) Sign(req signer.SignRequest) (cert []byte, err error) {
 	}
 
 	OverrideHosts(&safeTemplate, req.Hosts)
+	if req.Subject != nil {
+		// RawSubject takes precedence over Subject in x509.CreateCertificate,
+		// so it must not survive an explicit subject override.
+		safeTemplate.RawSubject = nil
+	}
 	safeTemplate.Subject = PopulateSubjectFromCSR(req.Subject, safeTemplate.Subject)
 
 	// If there is a whitelist, ensure that both the Common Name and SAN DNSNames match
@@ -369,6 +437,13 @@ func (s *Signer) Sign(req signer.SignRequest) (cert []byte, err error) {
 		if safeTemplate.Subject.CommonName != "" {
 			if profile.NameWhitelist.Find([]byte(safeTemplate.Subject.CommonName)) == nil {
 				return nil, cferr.New(cferr.PolicyError, cferr.UnmatchedWhitelist)
+			}
+		}
+		// The decoded subject keeps one common name, but a raw subject is
+		// copied into the certificate as given.
+		if safeTemplate.RawSubject != nil {
+			if err := matchRawSubjectCommonNames(profile.NameWhitelist, safeTemplate.RawSubject); err != nil {
+				return nil, err
 			}
 		}
 		for _, name := range safeTemplate.DNSNames {

@@ -128,6 +128,11 @@ type SigningProfile struct {
 	// ExcludeLints or ExcludeLintSources are set then this registry will be
 	// filtered in populate() to exclude the named lints and lint sources.
 	LintRegistry lint.Registry
+
+	// KeepCSRSubject makes the signer keep the subject bytes of a CSR as
+	// encoded. Otherwise they are kept only if the subject cannot be
+	// re-encoded from its decoded form. It can only be set in code.
+	KeepCSRSubject bool `json:"-"`
 }
 
 // UnmarshalJSON unmarshals a JSON string into an OID.
