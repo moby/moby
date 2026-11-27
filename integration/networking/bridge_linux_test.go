@@ -30,6 +30,7 @@ import (
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
 	"github.com/moby/moby/v2/internal/testutil/fakecontext"
+	"github.com/moby/moby/v2/pkg/parsers/kernel"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
@@ -688,6 +689,12 @@ func TestInterNetworkDirectRouting(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
+			// Running without the userland proxy requires br_netfilter, which
+			// is disabled in user namespaces since kernel 7.4.
+			// https://github.com/moby/moby/issues/54205
+			skip.If(t, !tc.userlandProxy && testEnv.IsRootless() && kernel.CheckKernelVersion(7, 4, 0),
+				"br_netfilter is not available in user namespaces since kernel 7.4")
+
 			d := daemon.New(t)
 			d.StartWithBusybox(ctx, t, "--ipv6", "--userland-proxy="+strconv.FormatBool(tc.userlandProxy))
 			defer d.Stop(t)

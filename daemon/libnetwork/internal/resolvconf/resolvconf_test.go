@@ -558,6 +558,34 @@ unrecognised thing
 	assert.Check(t, golden.String(string(content), t.Name()+".golden"))
 }
 
+// TestRCSearchRootDomain checks that the root domain ("."), which is
+// written by systemd-resolved when there are no search domains, is
+// dropped from the search list.
+func TestRCSearchRootDomain(t *testing.T) {
+	testcases := []struct {
+		name   string
+		input  string
+		expect []string
+	}{
+		{name: "only root", input: "search .\n"},
+		{name: "root and others", input: "search . example.com\n", expect: []string{"example.com"}},
+		{name: "domain", input: "domain .\n"},
+	}
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			rc, err := Parse(bytes.NewBufferString("nameserver 127.0.0.53\n"+tc.input), "/etc/resolv.conf")
+			assert.NilError(t, err)
+			assert.Check(t, is.DeepEqual(rc.Search(), tc.expect, cmpopts.EquateEmpty()))
+
+			content, err := rc.Generate(false)
+			assert.NilError(t, err)
+			if len(tc.expect) == 0 {
+				assert.Check(t, !strings.Contains(string(content), "search"))
+			}
+		})
+	}
+}
+
 // TestRCParseErrors tests that attempting to read a resolv.conf with a
 // very long line produces a useful error.
 // see https://github.com/moby/moby/issues/51679#issuecomment-3714403300

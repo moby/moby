@@ -166,14 +166,24 @@ func (rc *ResolvConf) Search() []string {
 
 // OverrideSearch replaces the current DNS search domains.
 func (rc *ResolvConf) OverrideSearch(search []string) {
+	rc.search = filterSearch(search)
+	rc.md.SearchOverride = true
+}
+
+// filterSearch removes the root domain (".") from a list of search domains.
+//
+// "search ." means "no search domains". systemd-resolved writes it to its
+// stub resolv.conf when no search domains are configured, and some
+// resolvers (e.g. uClibc in older BusyBox images) fail to resolve any
+// name when it's present.
+func filterSearch(search []string) []string {
 	var filtered []string
 	for _, s := range search {
 		if s != "." {
 			filtered = append(filtered, s)
 		}
 	}
-	rc.search = filtered
-	rc.md.SearchOverride = true
+	return filtered
 }
 
 // Options returns the current options.
@@ -497,7 +507,7 @@ func (rc *ResolvConf) processLine(line string) {
 			return
 		}
 		// Only the last 'search' directive is used.
-		rc.search = fields[1:]
+		rc.search = filterSearch(fields[1:])
 	case "options":
 		if len(fields) < 2 {
 			return
