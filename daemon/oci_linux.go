@@ -391,7 +391,7 @@ func specMapping(s []user.IDMap) []specs.LinuxIDMapping {
 // the owner of source as the container user for "match-user". The OCI
 // runtime performs the actual id-mapped mount setup from the returned spec
 // mappings, and rejects them if it, or the kernel, lacks support.
-func (daemon *Daemon) mountIDMappings(c *container.Container, s *specs.Spec, source string, idMapping *mounttypes.IDMapping) (uidMaps, gidMaps []specs.LinuxIDMapping, _ error) {
+func (daemon *Daemon) mountIDMappings(c *container.Container, s *specs.Spec, source, destination string, idMapping *mounttypes.IDMapping) (uidMaps, gidMaps []specs.LinuxIDMapping, _ error) {
 	if rootless.RunningWithRootlessKit() {
 		// Attaching an ID mapping to a mount requires privileges over the
 		// user namespace owning the backing filesystem's superblock, which
@@ -406,17 +406,19 @@ func (daemon *Daemon) mountIDMappings(c *container.Container, s *specs.Spec, sou
 		return nil, nil, fmt.Errorf("id-mapped bind mount with unknown Source %q", idMapping.Source)
 	}
 	privateUserns := c.HostConfig.UsernsMode.IsPrivate() && !daemon.idMapping.Empty()
-	return daemon.matchUserIDMappings(c, s, source, idMapping.User, privateUserns)
+	return daemon.matchUserIDMappings(c, s, source, destination, idMapping.User, privateUserns)
 }
 
 // matchUserIDMappings derives the single-ID mount mappings that present the
 // owner of the mount source as the container user: username when set, or
 // the container's running user (already resolved into s.Process.User)
-// otherwise. When the container runs in a private user namespace, the
-// mapping targets the host-side representation of the container user, so
-// the user namespace's own translation lands back on that user. Files with
-// other owners within the mount appear unmapped (as the overflow ID).
-func (daemon *Daemon) matchUserIDMappings(c *container.Container, s *specs.Spec, source, username string, privateUserns bool) (uidMaps, gidMaps []specs.LinuxIDMapping, _ error) {
+// otherwise, unless that user is root and destination exists in the
+// container's root filesystem owned by another user. When the container
+// runs in a private user namespace, the mapping targets the host-side
+// representation of the container user, so the user namespace's own
+// translation lands back on that user. Files with other owners within the
+// mount appear unmapped (as the overflow ID).
+func (daemon *Daemon) matchUserIDMappings(c *container.Container, s *specs.Spec, source, destination, username string, privateUserns bool) (uidMaps, gidMaps []specs.LinuxIDMapping, _ error) {
 	fi, err := os.Stat(source)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "id-mapped bind mount: cannot stat mount source")
@@ -427,10 +429,25 @@ func (daemon *Daemon) matchUserIDMappings(c *container.Container, s *specs.Spec,
 	}
 
 	usr := s.Process.User
-	if username != "" {
+	switch {
+	case username != "":
 		usr, err = getUser(c, username)
 		if err != nil {
 			return nil, nil, errors.Wrapf(err, "id-mapped bind mount: cannot resolve user %q", username)
+		}
+	case usr.UID == 0:
+		// Images that start as root and switch to a service user, as most
+		// official database images do, create the directory they hand to
+		// that user owned by it. Root keeps its capabilities over the mount
+		// as long as the source's owner is mapped, while the service user
+		// needs to own it. A named volume mounted there would take the same
+		// ownership.
+		uid, gid, err := daemon.rootfsOwner(c, destination)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return nil, nil, errors.Wrap(err, "id-mapped bind mount: cannot determine mount target ownership")
+		}
+		if err == nil && uid != 0 {
+			usr.UID, usr.GID = uint32(uid), uint32(gid)
 		}
 	}
 
@@ -448,6 +465,29 @@ func (daemon *Daemon) matchUserIDMappings(c *container.Container, s *specs.Spec,
 	uidMaps = []specs.LinuxIDMapping{{ContainerID: st.Uid, HostID: uint32(targetUID), Size: 1}}
 	gidMaps = []specs.LinuxIDMapping{{ContainerID: st.Gid, HostID: uint32(targetGID), Size: 1}}
 	return uidMaps, gidMaps, nil
+}
+
+// rootfsOwner returns the container IDs owning path in the container's root
+// filesystem.
+func (daemon *Daemon) rootfsOwner(c *container.Container, path string) (uid, gid int, _ error) {
+	p, err := c.GetResourcePath(path)
+	if err != nil {
+		return 0, 0, err
+	}
+	fi, err := os.Stat(p)
+	if err != nil {
+		return 0, 0, err
+	}
+	st, ok := fi.Sys().(*syscall.Stat_t)
+	if !ok {
+		return 0, 0, errors.New("cannot determine ownership")
+	}
+	if daemon.idMapping.Empty() {
+		return int(st.Uid), int(st.Gid), nil
+	}
+	// With userns-remap, the root filesystem is owned by host IDs whatever
+	// the container's user namespace mode.
+	return daemon.idMapping.ToContainer(int(st.Uid), int(st.Gid))
 }
 
 // Get the source mount point of directory passed in as argument. Also return
@@ -702,7 +742,7 @@ func withMounts(daemon *Daemon, daemonCfg *configStore, c *container.Container, 
 			}
 
 			if m.IDMapping != nil {
-				uidMaps, gidMaps, err := daemon.mountIDMappings(c, s, m.Source, m.IDMapping)
+				uidMaps, gidMaps, err := daemon.mountIDMappings(c, s, m.Source, m.Destination, m.IDMapping)
 				if err != nil {
 					return err
 				}

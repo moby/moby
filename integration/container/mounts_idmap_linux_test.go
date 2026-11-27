@@ -132,8 +132,9 @@ func TestContainerBindMountIDMapped(t *testing.T) {
 			//   postgres:17-alpine
 			//
 			// Like most official database images, postgres starts as root and
-			// switches to its service user. The plain option is expected to
-			// work without the user knowing that.
+			// switches to its service user, and creates its data directory
+			// owned by that user. The plain option is expected to work without
+			// the user knowing that.
 			name:   "postgres default user",
 			config: &containertypes.Config{Image: postgresImage, Env: []string{"POSTGRES_HOST_AUTH_METHOD=trust"}},
 			mount: mounttypes.Mount{

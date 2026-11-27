@@ -423,7 +423,7 @@ func TestMountIDMappings(t *testing.T) {
 	t.Run("match-user with the container user", func(t *testing.T) {
 		d := &Daemon{}
 		c := &container.Container{HostConfig: &containertypes.HostConfig{}}
-		uidMaps, gidMaps, err := d.mountIDMappings(c, newSpec(1001, 1002), src, &mounttypes.IDMapping{Source: mounttypes.IDMappingSourceMatchUser})
+		uidMaps, gidMaps, err := d.mountIDMappings(c, newSpec(1001, 1002), src, "/foo", &mounttypes.IDMapping{Source: mounttypes.IDMappingSourceMatchUser})
 		assert.NilError(t, err)
 		assert.Check(t, is.DeepEqual(uidMaps, []specs.LinuxIDMapping{{ContainerID: srcUID, HostID: 1001, Size: 1}}))
 		assert.Check(t, is.DeepEqual(gidMaps, []specs.LinuxIDMapping{{ContainerID: srcGID, HostID: 1002, Size: 1}}))
@@ -434,7 +434,7 @@ func TestMountIDMappings(t *testing.T) {
 		c := &container.Container{HostConfig: &containertypes.HostConfig{}}
 		c.Root = t.TempDir()
 		c.BaseFS = c.Root
-		uidMaps, gidMaps, err := d.mountIDMappings(c, newSpec(0, 0), src, &mounttypes.IDMapping{Source: mounttypes.IDMappingSourceMatchUser, User: "1234:5678"})
+		uidMaps, gidMaps, err := d.mountIDMappings(c, newSpec(0, 0), src, "/foo", &mounttypes.IDMapping{Source: mounttypes.IDMappingSourceMatchUser, User: "1234:5678"})
 		assert.NilError(t, err)
 		assert.Check(t, is.DeepEqual(uidMaps, []specs.LinuxIDMapping{{ContainerID: srcUID, HostID: 1234, Size: 1}}))
 		assert.Check(t, is.DeepEqual(gidMaps, []specs.LinuxIDMapping{{ContainerID: srcGID, HostID: 5678, Size: 1}}))
@@ -448,7 +448,7 @@ func TestMountIDMappings(t *testing.T) {
 			},
 		}
 		c := &container.Container{HostConfig: &containertypes.HostConfig{}}
-		uidMaps, gidMaps, err := d.mountIDMappings(c, newSpec(33, 33), src, &mounttypes.IDMapping{Source: mounttypes.IDMappingSourceMatchUser})
+		uidMaps, gidMaps, err := d.mountIDMappings(c, newSpec(33, 33), src, "/foo", &mounttypes.IDMapping{Source: mounttypes.IDMappingSourceMatchUser})
 		assert.NilError(t, err)
 		// The mount mapping targets the host-side representation of the
 		// container user, which the user namespace maps back to it.
@@ -459,7 +459,7 @@ func TestMountIDMappings(t *testing.T) {
 	t.Run("match-user with a missing source", func(t *testing.T) {
 		d := &Daemon{}
 		c := &container.Container{HostConfig: &containertypes.HostConfig{}}
-		_, _, err := d.mountIDMappings(c, newSpec(0, 0), filepath.Join(src, "missing"), &mounttypes.IDMapping{Source: mounttypes.IDMappingSourceMatchUser})
+		_, _, err := d.mountIDMappings(c, newSpec(0, 0), filepath.Join(src, "missing"), "/foo", &mounttypes.IDMapping{Source: mounttypes.IDMappingSourceMatchUser})
 		assert.ErrorContains(t, err, "cannot stat mount source")
 	})
 }

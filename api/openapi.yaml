@@ -482,6 +482,14 @@ components:
                       by that container user are owned by the source's owner
                       on the backing filesystem.
 
+                      When the running user is root and `User` is not set,
+                      the owner of the mount's target in the image is used
+                      instead, if the target exists and is owned by another
+                      user. Images that start as root and switch to a
+                      service user create the directories they hand to that
+                      user owned by it, like the data directory of most
+                      database images.
+
                       Only the source's owner (a single UID and a single GID)
                       is mapped: files owned by any other user or group
                       within the mount appear owned by the kernel overflow
@@ -494,7 +502,9 @@ components:
                     The container user (name, UID, or UID:GID, as accepted
                     for running a container) the mount source's owner is
                     presented as when `Source` is `match-user`. When empty,
-                    the container's running user is used.
+                    the container's running user is used, or the owner of
+                    the mount's target in the image when the container runs
+                    as root.
                   type: "string"
         VolumeOptions:
           description: "Optional configuration for the `volume` type."
