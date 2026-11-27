@@ -315,3 +315,5 @@ replace github.com/moby/moby/api => ./api
 replace github.com/moby/moby/client => ./client
 
 replace github.com/moby/moby/extpoints => ./extpoints
+
+replace github.com/moby/extensions => github.com/vvoland/extensions v0.0.0-20261127205457-cd18efba84d2

@@ -40,15 +40,17 @@ func (s *Server) ListenWithIO(ctx context.Context, stdin io.Reader, stdout io.Wr
 	s.initCtx = ctx
 
 	defer func() {
-		if s.callbackConn != nil {
-			_ = s.callbackConn.Close()
-		}
 		// Shutdown only what initialized, using a context detached from cancellation
 		// because Serve usually returns after the daemon signals the process.
 		if s.initialized && s.shutdown != nil {
 			if err := s.shutdown(context.WithoutCancel(ctx)); err != nil {
 				log.G(ctx).WithError(err).Warn("extension shutdown failed")
 			}
+		}
+		// Shutdown may still call dependencies, and the host keeps serving them
+		// until the process exits.
+		if s.callbackConn != nil {
+			_ = s.callbackConn.Close()
 		}
 	}()
 

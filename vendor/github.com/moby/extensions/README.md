@@ -98,13 +98,14 @@ Publishing a Point requires three things:
 
 * The extension offers it using `servicev0.Offer`.
 * Host policy permits it through `host.WithProviderPolicy`.
-* The generated server wiring is registered.
+* The embedder exposes it.
 
-For an in-process provider, supply the server wiring through `host.WithPointServers`.
+Permitted offers resolve through `servicev0.Point`, for in-process and out-of-process extensions alike.
+The embedder decides how to expose each offered Point, for example by serving an in-process provider with its generated server wiring, or by proxying a separate process with `grpcproxy`.
 A provider running in a separate process registers its `ServerPoint` with the SDK.
 
 An offer is only a request to publish a Point; it does not grant access or register the transport.
-If no provider policy is configured, external publication is disabled, while providers remain available to internal consumers.
+If no provider policy is configured, offers are dropped, while providers remain available to internal consumers.
 
 Published services are responsible for enforcing their own access control.
 
@@ -126,6 +127,11 @@ It may run inside the Host or in a separate process.
 
 The framework component embedded in a daemon or application.
 It registers extensions, resolves their dependencies, and manages their lifecycle.
+
+### Embedder
+
+The daemon or application that embeds the Host.
+It configures the Host and decides how to expose offered Points to external callers.
 
 ### Provider
 

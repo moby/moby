@@ -108,7 +108,8 @@ func (b *Broker) checkConflicts(ext extensions.Declaration) error {
 }
 
 // Init resolves dependencies and initializes all registered extensions in
-// order, delivering each its configuration from configs (keyed by extension id).
+// order, delivering each its configuration from configs, as selected by
+// [extensions.LookupConfig].
 func (b *Broker) Init(ctx context.Context, configs map[extensions.ExtensionID]extensions.Config) error {
 	b.mu.Lock()
 	resolved, err := b.resolveOrder()
@@ -131,7 +132,7 @@ func (b *Broker) Init(ctx context.Context, configs map[extensions.ExtensionID]ex
 		}
 		// Init may resolve providers, so do not hold the lock across the callback.
 		if initFn != nil {
-			if err := initFn(ctx, configs[id], b); err != nil {
+			if err := initFn(ctx, extensions.LookupConfig(configs, id), b); err != nil {
 				return fmt.Errorf("initialize extension %q: %w", id, err)
 			}
 		}

@@ -80,8 +80,8 @@ type PointID string
 
 // IsMetadataPoint reports whether point carries framework metadata rather than
 // a callable capability.
-// Host provider admission skips metadata points; the servicev0 marker controls
-// publication.
+// Host provider admission drops metadata points unless policy allows them; the
+// servicev0 marker lists offered points.
 // Currently the servicev0 offer marker is the only metadata point; its package
 // tests keep this ID in sync with the point definition.
 func IsMetadataPoint(point PointID) bool {
@@ -112,11 +112,59 @@ func ValidatePointID(id PointID) error {
 	return nil
 }
 
-// extensionIDPattern requires a lowercase reverse-DNS name with a mandatory vN
-// version. The version is a namespace element, not a semantic version: changing
-// com.foo.v1 to com.foo.v2 creates a new extension, binary, and configuration.
+// cutExtensionVersion splits id into its name and its mandatory ".vN" version.
+// The version is a namespace element, not a semantic version: changing
+// com.foo.v1 to com.foo.v2 creates a new extension and binary.
+func cutExtensionVersion(id ExtensionID) (name string, ok bool) {
+	i := strings.LastIndexByte(string(id), '.')
+	if i < 0 || !isExtensionVersion(string(id[i+1:])) {
+		return "", false
+	}
+
+	return string(id[:i]), true
+}
+
+// isExtensionVersion reports whether segment is a version such as v1.
+func isExtensionVersion(segment string) bool {
+	digits, ok := strings.CutPrefix(segment, "v")
+	if !ok || digits == "" {
+		return false
+	}
+
+	for _, r := range digits {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+
+	return true
+}
+
+// validExtensionName reports whether name is a lowercase reverse-DNS extension
+// name: an extension id without its version.
 // The restricted characters also make the id safe as a config key and filename.
-var extensionIDPattern = lazyRegexp(`^[a-z0-9]+(-[a-z0-9]+)*(\.[a-z0-9]+(-[a-z0-9]+)*)+\.v[0-9]+$`)
+// A name must not end in a version itself, so a configuration key is either an
+// extension id or an extension name, never both.
+func validExtensionName(name string) bool {
+	segments := strings.Split(name, ".")
+	if len(segments) < 2 || isExtensionVersion(segments[len(segments)-1]) {
+		return false
+	}
+
+	for _, segment := range segments {
+		if segment == "" || segment[0] == '-' || segment[len(segment)-1] == '-' || strings.Contains(segment, "--") {
+			return false
+		}
+
+		for _, r := range segment {
+			if (r < 'a' || r > 'z') && (r < '0' || r > '9') && r != '-' {
+				return false
+			}
+		}
+	}
+
+	return true
+}
 
 // ValidateExtensionID reports whether id is well-formed before it is used as a
 // configuration key or binary name.
@@ -124,8 +172,10 @@ func ValidateExtensionID(id ExtensionID) error {
 	if id == "" {
 		return errors.New("extension id is required")
 	}
-	if !extensionIDPattern().MatchString(string(id)) {
-		return fmt.Errorf("invalid extension id %q: want a versioned reverse-DNS name like org.example.myext.v1, lowercase, no path-hostile characters", id)
+
+	name, ok := cutExtensionVersion(id)
+	if !ok || !validExtensionName(name) {
+		return fmt.Errorf("invalid extension id %q: want a versioned reverse-DNS name like org.example.myext.v1, lowercase, no path-hostile characters, with a name that does not end in a version", id)
 	}
 	return nil
 }
@@ -305,10 +355,6 @@ func RegisterAll(registrar Registrar, exts ...Extension) error {
 	}
 	return nil
 }
-
-// Config is parsed per-extension configuration delivered by id to Init or the
-// out-of-process startup handshake.
-type Config = map[string]any
 
 // Extension is a host-managed extension declaration.
 type Extension interface {

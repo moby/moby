@@ -1275,7 +1275,7 @@ github.com/moby/buildkit/worker/label
 # github.com/moby/docker-image-spec v1.3.1
 ## explicit; go 1.18
 github.com/moby/docker-image-spec/specs-go/v1
-# github.com/moby/extensions v0.0.0-20261120190433-fb779cf107cd
+# github.com/moby/extensions v0.0.0-20261120190433-fb779cf107cd => github.com/vvoland/extensions v0.0.0-20261127205457-cd18efba84d2
 ## explicit; go 1.26.0
 github.com/moby/extensions
 github.com/moby/extensions/client
@@ -1293,7 +1293,6 @@ github.com/moby/extensions/sdk/internal/dependencyresolver
 github.com/moby/extensions/sdk/sdkapi
 github.com/moby/extensions/sdk/sdkapi/protogen
 github.com/moby/extensions/serverpoint
-github.com/moby/extensions/servicegrpc
 github.com/moby/extensions/stream
 # github.com/moby/go-archive v0.3.3
 ## explicit; go 1.25
@@ -2326,3 +2325,4 @@ tags.cncf.io/container-device-interface/specs-go
 # github.com/moby/moby/api => ./api
 # github.com/moby/moby/client => ./client
 # github.com/moby/moby/extpoints => ./extpoints
+# github.com/moby/extensions => github.com/vvoland/extensions v0.0.0-20261127205457-cd18efba84d2
