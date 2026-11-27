@@ -11,11 +11,12 @@ import (
 )
 
 // Creates an account-level data protection policy, subscription filter policy,
-// field index policy, transformer policy, or metric extraction policy that applies
-// to all log groups, a subset of log groups, or a data source name and type
-// combination in the account. Account-level policies are Region-specific: a policy
-// applies only to log groups in the Region where you create it. To apply a policy
-// across multiple Regions, create the policy separately in each Region.
+// field index policy, transformer policy, metric extraction policy, or retention
+// policy that applies to all log groups, a subset of log groups, or a data source
+// name and type combination in the account. Account-level policies are
+// Region-specific: a policy applies only to log groups in the Region where you
+// create it. To apply a policy across multiple Regions, create the policy
+// separately in each Region.
 //
 // PutAccountPolicy is an account-wide administrative operation intended for
 // CloudWatch Logs administrators. Because it affects all log groups (or a broad
@@ -49,6 +50,9 @@ import (
 //   - Metric extraction policies — Metric extraction policies are account-level
 //     only and have no log-group-level equivalent, so no conflict resolution applies.
 //
+//   - Retention policies — An account-level retention policy overrides the
+//     retention setting of the log group.
+//
 // For field index policies, you can configure indexed fields as facets to enable
 // interactive exploration of your logs. Facets provide value distributions and
 // counts for indexed fields in the CloudWatch Logs Insights console without
@@ -74,6 +78,10 @@ import (
 //
 //   - To create a metric extraction policy, you must have the
 //     logs:PutMetricExtractionPolicy and logs:PutAccountPolicy permissions.
+//
+//   - To create a retention policy, you must have the logs:PutRetentionPolicy and
+//     logs:PutAccountPolicy permissions. A dry run requires the same permissions as
+//     the operation that it previews, and no additional permissions.
 //
 // # Data protection policy
 //
@@ -367,12 +375,58 @@ import (
 //     IN policy for prefix "/aws" because the set of log groups matching "/aws" is
 //     not a subset of the log groups matching "/aws/lambda" .
 //
+// # Retention policy
+//
+// A retention policy sets the retention period for log groups in your account.
+// You can use an account-level retention policy to set a default retention period
+// for all log groups in the account, or for a subset of log groups that you
+// specify with the selectionCriteria parameter. CloudWatch Logs automatically
+// deletes log events that are older than the retention period.
+//
+// Each account can have up to 20 account-level retention policies in each Region.
+// To scope a retention policy to a subset of log groups, use LogGroupNamePrefix
+// in selectionCriteria . Retention policies support log group name prefixes only.
+// If you omit selectionCriteria , the policy applies to all log groups in the
+// account.
+//
+// Unlike other account-level policy types, retention policies can have
+// overlapping selection criteria. When more than one retention policy applies to a
+// log group, the policy with the longest retention period is used. A policy that
+// specifies NEVER_EXPIRE is treated as the longest retention period. This lets
+// you set a baseline retention period for the account, apply longer retention
+// periods to specific log groups, and exempt specific log groups from expiring at
+// all. If two policies that apply to the same log group specify the same retention
+// period, the policy that was created first is the one reported in
+// retentionPolicyName .
+//
+// Account-level retention policies require a minimum retention period of 30 days.
+//
+// A retention policy takes effect 24 hours after you create it. If you update a
+// policy, the new retention period takes effect 24 hours after the update, and the
+// previous retention period stays in effect until then. During this period,
+// DescribeLogGroups and log event expiration use the retention period that is
+// currently in effect, but a dry run reports the impact as if the policy were
+// already in effect.
+//
+// Before you create, update, or delete a retention policy, you can specify true
+// for dryRun to preview how many log groups would have a longer, shorter, or
+// unchanged retention period. For more information, see [DryRunResult].
+//
+// An account-level retention policy replaces the retention period set on a log
+// group, including when the log group's own retention period is longer. For
+// example, if a log group is set to retain log events for 10 years and you create
+// a retention policy that sets a 90-day retention period for that log group,
+// CloudWatch Logs deletes the log events in that log group that are older than 90
+// days. Specify true for dryRun to see which log groups would have a shorter
+// retention period before you create or update the policy.
+//
 // [PutDestination]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutDestination.html
 // [PutTransformer]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutTransformer.html
 // [GetLogFields]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_GetLogFields.html
 // [PutDataProtectionPolicy]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutDataProtectionPolicy.html
 // [FilterLogEvents]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_FilterLogEvents.html
 // [Processors that you can use]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-Processors
+// [DryRunResult]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_DryRunResult.html
 // [GetLogEvents]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_GetLogEvents.html
 // [field index quota]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatchLogs-Field-Indexing-Syntax
 // [PutIndexPolicy]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutIndexPolicy.html
@@ -494,6 +548,29 @@ type PutAccountPolicyInput struct {
 	// FIELD_INDEX and FACET . Field names within Fields and FieldsV2 must be mutually
 	// exclusive.
 	//
+	// Retention policy
+	//
+	// A retention policy must include the following attributes in a JSON block:
+	//
+	// retentionInDays The number of days to retain log events. Valid values are 30,
+	// 60, 90, 120, 150, 180, 365, 400, 545, 731, 1096, 1827, 2192, 2557, 2922, 3288,
+	// and 3653. To retain log events indefinitely, specify the string NEVER_EXPIRE .
+	//
+	// enforcementMode Specifies which log groups the policy applies to. Valid values
+	// are NEW_ONLY and RETROACTIVE .
+	//
+	// RETROACTIVE applies the policy to every log group that matches the selection
+	// criteria, including log groups that existed before you created the policy.
+	//
+	// NEW_ONLY applies the policy only to log groups that are created after you
+	// create the policy. Log groups that already existed when you created the policy
+	// keep their own retention period.
+	//
+	// The following is an example of a retention policy document.
+	//
+	//     "policyDocument": "{\"retentionInDays\": 90, \"enforcementMode\":
+	//     \"RETROACTIVE\"}"
+	//
 	// [PutDestination]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutDestination.html
 	// [Processors that you can use]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-Processors
 	// [Types of data that you can mask]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/mask-sensitive-log-data-types.html
@@ -530,8 +607,8 @@ type PutAccountPolicyInput struct {
 	// account or a data source name and type combination.
 	//
 	// Specifying selectionCriteria is valid only when you specify
-	// SUBSCRIPTION_FILTER_POLICY , FIELD_INDEX_POLICY or TRANSFORMER_POLICY for
-	// policyType .
+	// SUBSCRIPTION_FILTER_POLICY , FIELD_INDEX_POLICY , TRANSFORMER_POLICY , or
+	// RETENTION_POLICY for policyType .
 	//
 	//   - If policyType is SUBSCRIPTION_FILTER_POLICY , the only supported
 	//   selectionCriteria filter is LogGroupName NOT IN []
@@ -548,6 +625,10 @@ type PutAccountPolicyInput struct {
 	//
 	// When you specify selectionCriteria for a field index policy you can use either
 	//   LogGroupNamePrefix by itself or DataSourceName and DataSourceType together.
+	//
+	//   - If policyType is RETENTION_POLICY , the only supported selectionCriteria
+	//   filter is LogGroupNamePrefix . If you omit selectionCriteria , the retention
+	//   policy applies to all log groups in the account.
 	//
 	// The selectionCriteria string can be up to 25KB in length. The length is
 	// determined by using its UTF-8 bytes.

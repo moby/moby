@@ -275,11 +275,6 @@ func (s *httpSigner) Build() (signedRequest, error) {
 
 	s.setRequiredSigningFields(headers, query)
 
-	// Sort Each Query Key's Values
-	for key := range query {
-		sort.Strings(query[key])
-	}
-
 	v4Internal.SanitizeHostForHeader(req)
 
 	credentialScope := s.buildCredentialScope()
@@ -308,7 +303,7 @@ func (s *httpSigner) Build() (signedRequest, error) {
 		query.Set(amzSignedHeadersKey, signedHeadersStr)
 	}
 
-	rawQuery := strings.Replace(query.Encode(), "+", "%20", -1)
+	rawQuery := v4Internal.EncodeQuery(query)
 
 	canonicalURI := v4Internal.GetURIPath(req.URL)
 	if !s.DisableURIPathEscaping {

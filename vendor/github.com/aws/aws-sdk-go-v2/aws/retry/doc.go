@@ -20,7 +20,7 @@
 //   - Errors that implement a ConnectionError, Temporary, or Timeout method that return true.
 //   - Connection Reset Errors.
 //   - net.OpErr types that are dialing errors or are temporary.
-//   - HTTP Status Codes: 500, 502, 503, and 504.
+//   - HTTP Status Codes: 429 (unless the error is a modeled error type), 500, 502, 503, and 504.
 //   - API Error Codes
 //   - RequestTimeout, RequestTimeoutException
 //   - Throttling, ThrottlingException, ThrottledException, RequestThrottledException, TooManyRequestsException,

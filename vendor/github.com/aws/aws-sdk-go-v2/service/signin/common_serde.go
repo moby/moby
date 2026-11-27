@@ -7,6 +7,16 @@ import (
 	smithy "github.com/aws/smithy-go"
 )
 
+func serializeBatchRevokeSessionErrorList(s smithy.ShapeSerializer, schema *smithy.Schema, v []types.BatchRevokeSessionError) {
+	s.WriteList(schema)
+	for _, vv := range v {
+		s.WriteStruct(schema.ListMember())
+		vv.SerializeMembers(s)
+		s.CloseStruct()
+	}
+	s.CloseList()
+}
+
 func serializeConditionValues(s smithy.ShapeSerializer, schema *smithy.Schema, v []string) {
 	s.WriteList(schema)
 	for _, vv := range v {
@@ -41,6 +51,56 @@ func serializePolicyStatements(s smithy.ShapeSerializer, schema *smithy.Schema, 
 		s.CloseStruct()
 	}
 	s.CloseList()
+}
+
+func serializeRevokedSessionList(s smithy.ShapeSerializer, schema *smithy.Schema, v []types.RevokedSession) {
+	s.WriteList(schema)
+	for _, vv := range v {
+		s.WriteStruct(schema.ListMember())
+		vv.SerializeMembers(s)
+		s.CloseStruct()
+	}
+	s.CloseList()
+}
+
+func serializeSessionArnList(s smithy.ShapeSerializer, schema *smithy.Schema, v []string) {
+	s.WriteList(schema)
+	for _, vv := range v {
+		s.WriteString(schema.ListMember(), string(vv))
+	}
+	s.CloseList()
+}
+
+func serializeSessionSummaryList(s smithy.ShapeSerializer, schema *smithy.Schema, v []types.Session) {
+	s.WriteList(schema)
+	for _, vv := range v {
+		s.WriteStruct(schema.ListMember())
+		vv.SerializeMembers(s)
+		s.CloseStruct()
+	}
+	s.CloseList()
+}
+
+func deserializeBatchRevokeSessionErrorList(d smithy.ShapeDeserializer, s *smithy.Schema, v *[]types.BatchRevokeSessionError) error {
+	*v = make([]types.BatchRevokeSessionError, 0)
+	var vv types.BatchRevokeSessionError
+	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero types.BatchRevokeSessionError
+			*v = append(*v, zero)
+			return nil
+		}
+
+		vv = types.BatchRevokeSessionError{}
+		if err := vv.Deserialize(d); err != nil {
+			return err
+		}
+
+		*v = append(*v, vv)
+		return nil
+	})
 }
 
 func deserializeConditionValues(d smithy.ShapeDeserializer, s *smithy.Schema, v *[]string) error {
@@ -120,6 +180,71 @@ func deserializePolicyStatements(d smithy.ShapeDeserializer, s *smithy.Schema, v
 		}
 
 		vv = types.PolicyStatement{}
+		if err := vv.Deserialize(d); err != nil {
+			return err
+		}
+
+		*v = append(*v, vv)
+		return nil
+	})
+}
+
+func deserializeRevokedSessionList(d smithy.ShapeDeserializer, s *smithy.Schema, v *[]types.RevokedSession) error {
+	*v = make([]types.RevokedSession, 0)
+	var vv types.RevokedSession
+	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero types.RevokedSession
+			*v = append(*v, zero)
+			return nil
+		}
+
+		vv = types.RevokedSession{}
+		if err := vv.Deserialize(d); err != nil {
+			return err
+		}
+
+		*v = append(*v, vv)
+		return nil
+	})
+}
+
+func deserializeSessionArnList(d smithy.ShapeDeserializer, s *smithy.Schema, v *[]string) error {
+	*v = make([]string, 0)
+	var vv string
+	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero string
+			*v = append(*v, zero)
+			return nil
+		}
+
+		if err := d.ReadString(s.ListMember(), &vv); err != nil {
+			return err
+		}
+
+		*v = append(*v, vv)
+		return nil
+	})
+}
+
+func deserializeSessionSummaryList(d smithy.ShapeDeserializer, s *smithy.Schema, v *[]types.Session) error {
+	*v = make([]types.Session, 0)
+	var vv types.Session
+	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero types.Session
+			*v = append(*v, zero)
+			return nil
+		}
+
+		vv = types.Session{}
 		if err := vv.Deserialize(d); err != nil {
 			return err
 		}

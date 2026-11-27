@@ -247,11 +247,9 @@ func (r *Attempt) handleAttempt(
 			"failed to release retry token after request error, %w", err)
 	}
 	// Release the attempt token based on the state of the attempt's error (if any).
-	if !newRetries2026() || attemptNum == 1 {
-		if releaseError := releaseAttemptToken(err); releaseError != nil && err != nil {
-			return out, attemptResult, nopRelease, fmt.Errorf(
-				"failed to release initial token after request error, %w", err)
-		}
+	if releaseError := releaseAttemptToken(err); releaseError != nil && err != nil {
+		return out, attemptResult, nopRelease, fmt.Errorf(
+			"failed to release initial token after request error, %w", err)
 	}
 	// If there was no error making the attempt, nothing further to do. There
 	// will be nothing to retry.
@@ -296,8 +294,8 @@ func (r *Attempt) handleAttempt(
 	releaseRetryToken, retryTokenErr := r.retryer.GetRetryToken(ctx, err)
 	if retryTokenErr != nil {
 		// Long-polling operations must still back off when quota is exceeded.
-		if newRetries2026() && internalcontext.GetIsLongPolling(ctx) {
-			if retryDelay, delayErr := r.retryer.RetryDelay(attemptNum-1, err); delayErr == nil {
+		if internalcontext.GetIsLongPolling(ctx) {
+			if retryDelay, delayErr := r.retryer.RetryDelay(attemptNum, err); delayErr == nil {
 				retryDelay = adjustForRetryAfterHeader(retryDelay, err, logger, r.LogAttempts)
 				_ = sdk.SleepWithContext(ctx, retryDelay)
 			}
@@ -311,17 +309,11 @@ func (r *Attempt) handleAttempt(
 	// Get the retry delay before another attempt can be made, and sleep for
 	// that time. Potentially early exist if the sleep is canceled via the
 	// context.
-	attempt := attemptNum
-	if newRetries2026() {
-		attempt = attemptNum - 1
-	}
-	retryDelay, reqErr := r.retryer.RetryDelay(attempt, err)
+	retryDelay, reqErr := r.retryer.RetryDelay(attemptNum, err)
 	if reqErr != nil {
 		return out, attemptResult, releaseRetryToken, reqErr
 	}
-	if newRetries2026() {
-		retryDelay = adjustForRetryAfterHeader(retryDelay, err, logger, r.LogAttempts)
-	}
+	retryDelay = adjustForRetryAfterHeader(retryDelay, err, logger, r.LogAttempts)
 	if reqErr = sdk.SleepWithContext(ctx, retryDelay); reqErr != nil {
 		err = &aws.RequestCanceledError{Err: reqErr}
 		return out, attemptResult, releaseRetryToken, err

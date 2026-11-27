@@ -5,6 +5,8 @@ package sts
 import (
 	"context"
 	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	"github.com/aws/aws-sdk-go-v2/service/sts/schemas"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -37,6 +39,15 @@ type GetCallerIdentityInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *GetCallerIdentityInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.GetCallerIdentityRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *GetCallerIdentityInput) SerializeMembers(s smithy.ShapeSerializer) {
+}
+
 // Contains the response to a successful GetCallerIdentity request, including information about the
 // entity making the request.
 type GetCallerIdentityOutput struct {
@@ -62,13 +73,44 @@ type GetCallerIdentityOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *GetCallerIdentityOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.GetCallerIdentityResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *GetCallerIdentityOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Account != nil {
+		s.WriteString(schemas.GetCallerIdentityResponse_Account, *v.Account)
+	}
+	if v.Arn != nil {
+		s.WriteString(schemas.GetCallerIdentityResponse_Arn, *v.Arn)
+	}
+	if v.UserId != nil {
+		s.WriteString(schemas.GetCallerIdentityResponse_UserId, *v.UserId)
+	}
+}
+func (v *GetCallerIdentityOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.GetCallerIdentityResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.GetCallerIdentityResponse_Account:
+			v.Account = new(string)
+			return d.ReadString(schemas.GetCallerIdentityResponse_Account, v.Account)
+		case schemas.GetCallerIdentityResponse_Arn:
+			v.Arn = new(string)
+			return d.ReadString(schemas.GetCallerIdentityResponse_Arn, v.Arn)
+		case schemas.GetCallerIdentityResponse_UserId:
+			v.UserId = new(string)
+			return d.ReadString(schemas.GetCallerIdentityResponse_UserId, v.UserId)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationGetCallerIdentityMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsquery_serializeOpGetCallerIdentity{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.GetCallerIdentity, schemas.GetCallerIdentityRequest, schemas.GetCallerIdentityResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsquery_deserializeOpGetCallerIdentity{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.GetCallerIdentity, schemas.GetCallerIdentityRequest, schemas.GetCallerIdentityResponse), output: &GetCallerIdentityOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

@@ -497,6 +497,7 @@ const (
 	LogGroupClassStandard         LogGroupClass = "STANDARD"
 	LogGroupClassInfrequentAccess LogGroupClass = "INFREQUENT_ACCESS"
 	LogGroupClassDelivery         LogGroupClass = "DELIVERY"
+	LogGroupClassEssentials       LogGroupClass = "ESSENTIALS"
 )
 
 // Values returns all known values for LogGroupClass. Note that this can be
@@ -508,6 +509,7 @@ func (LogGroupClass) Values() []LogGroupClass {
 		"STANDARD",
 		"INFREQUENT_ACCESS",
 		"DELIVERY",
+		"ESSENTIALS",
 	}
 }
 

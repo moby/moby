@@ -30,20 +30,38 @@ func (c *Client) CreateOAuth2TokenWithTokenExchange(ctx context.Context, params 
 // Input structure for CreateOAuth2TokenWithTokenExchange operation
 type CreateOAuth2TokenWithTokenExchangeInput struct {
 
-	// The OAuth 2.0 grant type. Currently only supports
-	// "urn:ietf:params:oauth:grant-type:token-exchange".
+	// The OAuth 2.0 grant type. Currently supports
+	// "urn:ietf:params:oauth:grant-type:token-exchange" and
+	// "urn:ietf:params:oauth:grant-type:jwt-bearer".
 	//
 	// This member is required.
 	GrantType *string
 
-	// The OAuth resource for which the access token is requested. Required when
-	// "grant_type=urn:ietf:params:oauth:grant-type:token-exchange". Example:
-	// "glue.amazonaws.com".
+	// The JWT authorization grant, as defined in RFC 7523. Required when
+	// "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer".
+	Assertion *string
+
+	// The OAuth 2.0 client identifier. If provided with
+	// "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer", must match the
+	// assertion's "client_id" claim.
+	ClientId *string
+
+	// The OAuth resource for which the access token is requested:
+	//
+	//   - "grant_type=urn:ietf:params:oauth:grant-type:token-exchange": Required.
+	//   Must be a service principal. Example: "glue.amazonaws.com".
+	//   - "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer": Required when the
+	//   assertion has no "resource" claim, otherwise must match it. Must be a URI.
+	//   Example: "https://aws-mcp.us-east-1.api.aws/mcp".
 	Resource *string
 
-	// IAM managed policy Amazon Resource Names (ARNs) to apply as session policies
-	// that further scope down the permissions of the issued access token, provided as
-	// a space-delimited list. Example: "arn:aws:iam::444455556666:policy/MyPolicy".
+	// The IAM managed policy Amazon Resource Names (ARNs) to apply as session
+	// policies that further scope down the permissions of the issued access token,
+	// provided as a space-delimited list. Example:
+	// "arn:aws:iam::444455556666:policy/MyPolicy".
+	//
+	// If provided with "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer", must
+	// match the assertion's "scope" claim.
 	Scope *string
 
 	// The subject token that represents the identity of the party on whose behalf the
@@ -66,6 +84,12 @@ func (v *CreateOAuth2TokenWithTokenExchangeInput) Serialize(s smithy.ShapeSerial
 }
 
 func (v *CreateOAuth2TokenWithTokenExchangeInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Assertion != nil {
+		s.WriteString(schemas.CreateOAuth2TokenWithTokenExchangeRequest_assertion, *v.Assertion)
+	}
+	if v.ClientId != nil {
+		s.WriteString(schemas.CreateOAuth2TokenWithTokenExchangeRequest_clientId, *v.ClientId)
+	}
 	if v.GrantType != nil {
 		s.WriteString(schemas.CreateOAuth2TokenWithTokenExchangeRequest_grantType, *v.GrantType)
 	}
@@ -89,18 +113,18 @@ func (in *CreateOAuth2TokenWithTokenExchangeInput) bindEndpointParams(p *Endpoin
 
 // Output structure for CreateOAuth2TokenWithTokenExchange operation.
 //
-// Contains the access token, issued token type, token type, and expiration as
-// defined in RFC 6749 §5.1 and RFC 8693 §2.2.1.
+// Contains the access token, token type, and expiration as defined in RFC 6749
+// §5.1, plus fields specific to the grant type.
 type CreateOAuth2TokenWithTokenExchangeOutput struct {
 
-	// Access token containing principal identity, resource scope, and session
+	// The access token containing principal identity, resource scope, and session
 	// metadata.
 	//
 	// This member is required.
 	AccessToken *string
 
-	// Token lifetime in seconds. Value is the minimum of the subject token's validity
-	// and 1 hour (3600 seconds).
+	// The token lifetime in seconds. Value is the minimum of the provided token's
+	// validity and 1 hour (3600 seconds).
 	//
 	// This member is required.
 	ExpiresIn *int32
@@ -110,9 +134,19 @@ type CreateOAuth2TokenWithTokenExchangeOutput struct {
 	// This member is required.
 	TokenType *string
 
-	// The token type of the issued token. Always
+	// The token type of the issued token. Returned when
+	// "grant_type=urn:ietf:params:oauth:grant-type:token-exchange". Value is
 	// "urn:ietf:params:oauth:token-type:access_token" as defined in RFC 8693 §2.2.1.
 	IssuedTokenType *string
+
+	// The resource the access token is scoped to. Returned when
+	// "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer".
+	Resource *string
+
+	// The IAM managed policy ARNs applied as session policies, as a space-delimited
+	// list. Returned when "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer" and
+	// the assertion has a scope.
+	Scope *string
 
 	// Metadata pertaining to the operation's result.
 	ResultMetadata middleware.Metadata
@@ -136,6 +170,12 @@ func (v *CreateOAuth2TokenWithTokenExchangeOutput) SerializeMembers(s smithy.Sha
 	if v.IssuedTokenType != nil {
 		s.WriteString(schemas.CreateOAuth2TokenWithTokenExchangeResponse_issuedTokenType, *v.IssuedTokenType)
 	}
+	if v.Resource != nil {
+		s.WriteString(schemas.CreateOAuth2TokenWithTokenExchangeResponse_resource, *v.Resource)
+	}
+	if v.Scope != nil {
+		s.WriteString(schemas.CreateOAuth2TokenWithTokenExchangeResponse_scope, *v.Scope)
+	}
 	if v.TokenType != nil {
 		s.WriteString(schemas.CreateOAuth2TokenWithTokenExchangeResponse_tokenType, *v.TokenType)
 	}
@@ -152,6 +192,12 @@ func (v *CreateOAuth2TokenWithTokenExchangeOutput) Deserialize(d smithy.ShapeDes
 		case schemas.CreateOAuth2TokenWithTokenExchangeResponse_issuedTokenType:
 			v.IssuedTokenType = new(string)
 			return d.ReadString(schemas.CreateOAuth2TokenWithTokenExchangeResponse_issuedTokenType, v.IssuedTokenType)
+		case schemas.CreateOAuth2TokenWithTokenExchangeResponse_resource:
+			v.Resource = new(string)
+			return d.ReadString(schemas.CreateOAuth2TokenWithTokenExchangeResponse_resource, v.Resource)
+		case schemas.CreateOAuth2TokenWithTokenExchangeResponse_scope:
+			v.Scope = new(string)
+			return d.ReadString(schemas.CreateOAuth2TokenWithTokenExchangeResponse_scope, v.Scope)
 		case schemas.CreateOAuth2TokenWithTokenExchangeResponse_tokenType:
 			v.TokenType = new(string)
 			return d.ReadString(schemas.CreateOAuth2TokenWithTokenExchangeResponse_tokenType, v.TokenType)

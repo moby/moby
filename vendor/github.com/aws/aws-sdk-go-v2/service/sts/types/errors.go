@@ -4,6 +4,7 @@ package types
 
 import (
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/service/sts/schemas"
 	smithy "github.com/aws/smithy-go"
 )
 
@@ -33,6 +34,27 @@ func (e *ExpiredTokenException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *ExpiredTokenException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *ExpiredTokenException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ExpiredTokenException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ExpiredTokenException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Message != nil {
+		s.WriteString(schemas.ExpiredTokenException_message, *v.Message)
+	}
+}
+func (v *ExpiredTokenException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.ExpiredTokenException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.ExpiredTokenException_message:
+			v.Message = new(string)
+			return d.ReadString(schemas.ExpiredTokenException_message, v.Message)
+		}
+		return nil
+	})
+}
 
 // The trade-in token provided in the request has expired and can no longer be
 // exchanged for credentials. Request a new token and retry the operation.
@@ -60,6 +82,27 @@ func (e *ExpiredTradeInTokenException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *ExpiredTradeInTokenException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *ExpiredTradeInTokenException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ExpiredTradeInTokenException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ExpiredTradeInTokenException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Message != nil {
+		s.WriteString(schemas.ExpiredTradeInTokenException_message, *v.Message)
+	}
+}
+func (v *ExpiredTradeInTokenException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.ExpiredTradeInTokenException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.ExpiredTradeInTokenException_message:
+			v.Message = new(string)
+			return d.ReadString(schemas.ExpiredTradeInTokenException_message, v.Message)
+		}
+		return nil
+	})
+}
 
 // The request could not be fulfilled because the identity provider (IDP) that was
 // asked to verify the incoming identity token could not be reached. This is often
@@ -90,6 +133,27 @@ func (e *IDPCommunicationErrorException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *IDPCommunicationErrorException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *IDPCommunicationErrorException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.IDPCommunicationErrorException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *IDPCommunicationErrorException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Message != nil {
+		s.WriteString(schemas.IDPCommunicationErrorException_message, *v.Message)
+	}
+}
+func (v *IDPCommunicationErrorException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.IDPCommunicationErrorException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.IDPCommunicationErrorException_message:
+			v.Message = new(string)
+			return d.ReadString(schemas.IDPCommunicationErrorException_message, v.Message)
+		}
+		return nil
+	})
+}
 
 // The identity provider (IdP) reported that authentication failed. This might be
 // because the claim is invalid.
@@ -120,6 +184,80 @@ func (e *IDPRejectedClaimException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *IDPRejectedClaimException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *IDPRejectedClaimException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.IDPRejectedClaimException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *IDPRejectedClaimException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Message != nil {
+		s.WriteString(schemas.IDPRejectedClaimException_message, *v.Message)
+	}
+}
+func (v *IDPRejectedClaimException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.IDPRejectedClaimException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.IDPRejectedClaimException_message:
+			v.Message = new(string)
+			return d.ReadString(schemas.IDPRejectedClaimException_message, v.Message)
+		}
+		return nil
+	})
+}
+
+// The request was rejected because the requested DurationSeconds is greater than
+// the remaining lifetime of the calling session. GetScopedCredentials cannot
+// extend a session beyond its original expiration. Request a duration that is less
+// than or equal to the calling session's remaining lifetime, or omit
+// DurationSeconds to inherit it.
+type InsufficientSessionLifetimeException struct {
+	Message *string
+
+	ErrorCodeOverride *string
+
+	noSmithyDocumentSerde
+}
+
+func (e *InsufficientSessionLifetimeException) Error() string {
+	return fmt.Sprintf("%s: %s", e.ErrorCode(), e.ErrorMessage())
+}
+func (e *InsufficientSessionLifetimeException) ErrorMessage() string {
+	if e.Message == nil {
+		return ""
+	}
+	return *e.Message
+}
+func (e *InsufficientSessionLifetimeException) ErrorCode() string {
+	if e == nil || e.ErrorCodeOverride == nil {
+		return "InsufficientSessionLifetime"
+	}
+	return *e.ErrorCodeOverride
+}
+func (e *InsufficientSessionLifetimeException) ErrorFault() smithy.ErrorFault {
+	return smithy.FaultClient
+}
+func (v *InsufficientSessionLifetimeException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.InsufficientSessionLifetimeException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *InsufficientSessionLifetimeException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Message != nil {
+		s.WriteString(schemas.InsufficientSessionLifetimeException_message, *v.Message)
+	}
+}
+func (v *InsufficientSessionLifetimeException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.InsufficientSessionLifetimeException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.InsufficientSessionLifetimeException_message:
+			v.Message = new(string)
+			return d.ReadString(schemas.InsufficientSessionLifetimeException_message, v.Message)
+		}
+		return nil
+	})
+}
 
 // The error returned if the message passed to DecodeAuthorizationMessage was
 // invalid. This can happen if the token contains invalid characters, such as line
@@ -150,6 +288,77 @@ func (e *InvalidAuthorizationMessageException) ErrorCode() string {
 func (e *InvalidAuthorizationMessageException) ErrorFault() smithy.ErrorFault {
 	return smithy.FaultClient
 }
+func (v *InvalidAuthorizationMessageException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.InvalidAuthorizationMessageException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *InvalidAuthorizationMessageException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Message != nil {
+		s.WriteString(schemas.InvalidAuthorizationMessageException_message, *v.Message)
+	}
+}
+func (v *InvalidAuthorizationMessageException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.InvalidAuthorizationMessageException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.InvalidAuthorizationMessageException_message:
+			v.Message = new(string)
+			return d.ReadString(schemas.InvalidAuthorizationMessageException_message, v.Message)
+		}
+		return nil
+	})
+}
+
+// The request was rejected because the context assertion that was provided is
+// invalid. This can happen if the context assertion supplied in the
+// ProvidedContexts parameter is malformed, has expired, or does not match a
+// trusted context provider.
+type InvalidContextAssertionException struct {
+	Message *string
+
+	ErrorCodeOverride *string
+
+	noSmithyDocumentSerde
+}
+
+func (e *InvalidContextAssertionException) Error() string {
+	return fmt.Sprintf("%s: %s", e.ErrorCode(), e.ErrorMessage())
+}
+func (e *InvalidContextAssertionException) ErrorMessage() string {
+	if e.Message == nil {
+		return ""
+	}
+	return *e.Message
+}
+func (e *InvalidContextAssertionException) ErrorCode() string {
+	if e == nil || e.ErrorCodeOverride == nil {
+		return "InvalidContextAssertion"
+	}
+	return *e.ErrorCodeOverride
+}
+func (e *InvalidContextAssertionException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *InvalidContextAssertionException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.InvalidContextAssertionException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *InvalidContextAssertionException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Message != nil {
+		s.WriteString(schemas.InvalidContextAssertionException_message, *v.Message)
+	}
+}
+func (v *InvalidContextAssertionException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.InvalidContextAssertionException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.InvalidContextAssertionException_message:
+			v.Message = new(string)
+			return d.ReadString(schemas.InvalidContextAssertionException_message, v.Message)
+		}
+		return nil
+	})
+}
 
 // The web identity token that was passed could not be validated by Amazon Web
 // Services. Get a new identity token from the identity provider and then retry the
@@ -178,6 +387,78 @@ func (e *InvalidIdentityTokenException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *InvalidIdentityTokenException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *InvalidIdentityTokenException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.InvalidIdentityTokenException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *InvalidIdentityTokenException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Message != nil {
+		s.WriteString(schemas.InvalidIdentityTokenException_message, *v.Message)
+	}
+}
+func (v *InvalidIdentityTokenException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.InvalidIdentityTokenException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.InvalidIdentityTokenException_message:
+			v.Message = new(string)
+			return d.ReadString(schemas.InvalidIdentityTokenException_message, v.Message)
+		}
+		return nil
+	})
+}
+
+// The request was rejected because the session used to call GetScopedCredentials
+// is not a valid session. The calling session's credentials could not be validated
+// or resolved.
+type InvalidSubjectCredentialsException struct {
+	Message *string
+
+	ErrorCodeOverride *string
+
+	noSmithyDocumentSerde
+}
+
+func (e *InvalidSubjectCredentialsException) Error() string {
+	return fmt.Sprintf("%s: %s", e.ErrorCode(), e.ErrorMessage())
+}
+func (e *InvalidSubjectCredentialsException) ErrorMessage() string {
+	if e.Message == nil {
+		return ""
+	}
+	return *e.Message
+}
+func (e *InvalidSubjectCredentialsException) ErrorCode() string {
+	if e == nil || e.ErrorCodeOverride == nil {
+		return "InvalidSubjectCredentials"
+	}
+	return *e.ErrorCodeOverride
+}
+func (e *InvalidSubjectCredentialsException) ErrorFault() smithy.ErrorFault {
+	return smithy.FaultClient
+}
+func (v *InvalidSubjectCredentialsException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.InvalidSubjectCredentialsException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *InvalidSubjectCredentialsException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Message != nil {
+		s.WriteString(schemas.InvalidSubjectCredentialsException_message, *v.Message)
+	}
+}
+func (v *InvalidSubjectCredentialsException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.InvalidSubjectCredentialsException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.InvalidSubjectCredentialsException_message:
+			v.Message = new(string)
+			return d.ReadString(schemas.InvalidSubjectCredentialsException_message, v.Message)
+		}
+		return nil
+	})
+}
 
 // The requested token payload size exceeds the maximum allowed size. Reduce the
 // number of request tags included in the GetWebIdentityToken API call to reduce
@@ -206,6 +487,27 @@ func (e *JWTPayloadSizeExceededException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *JWTPayloadSizeExceededException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *JWTPayloadSizeExceededException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.JWTPayloadSizeExceededException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *JWTPayloadSizeExceededException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Message != nil {
+		s.WriteString(schemas.JWTPayloadSizeExceededException_message, *v.Message)
+	}
+}
+func (v *JWTPayloadSizeExceededException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.JWTPayloadSizeExceededException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.JWTPayloadSizeExceededException_message:
+			v.Message = new(string)
+			return d.ReadString(schemas.JWTPayloadSizeExceededException_message, v.Message)
+		}
+		return nil
+	})
+}
 
 // The request was rejected because the policy document was malformed. The error
 // message describes the specific error.
@@ -233,6 +535,27 @@ func (e *MalformedPolicyDocumentException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *MalformedPolicyDocumentException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *MalformedPolicyDocumentException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.MalformedPolicyDocumentException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *MalformedPolicyDocumentException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Message != nil {
+		s.WriteString(schemas.MalformedPolicyDocumentException_message, *v.Message)
+	}
+}
+func (v *MalformedPolicyDocumentException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.MalformedPolicyDocumentException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.MalformedPolicyDocumentException_message:
+			v.Message = new(string)
+			return d.ReadString(schemas.MalformedPolicyDocumentException_message, v.Message)
+		}
+		return nil
+	})
+}
 
 // The outbound web identity federation feature is not enabled for this account.
 // To use this feature, you must first enable it through the Amazon Web Services
@@ -263,16 +586,37 @@ func (e *OutboundWebIdentityFederationDisabledException) ErrorCode() string {
 func (e *OutboundWebIdentityFederationDisabledException) ErrorFault() smithy.ErrorFault {
 	return smithy.FaultClient
 }
+func (v *OutboundWebIdentityFederationDisabledException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.OutboundWebIdentityFederationDisabledException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
 
-// The request was rejected because the total packed size of the session policies
-// and session tags combined was too large. An Amazon Web Services conversion
-// compresses the session policy document, session policy ARNs, and session tags
-// into a packed binary format that has a separate limit. The error message
-// indicates by percentage how close the policies and tags are to the upper size
-// limit. For more information, see [Passing Session Tags in STS]in the IAM User Guide.
+func (v *OutboundWebIdentityFederationDisabledException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Message != nil {
+		s.WriteString(schemas.OutboundWebIdentityFederationDisabledException_message, *v.Message)
+	}
+}
+func (v *OutboundWebIdentityFederationDisabledException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.OutboundWebIdentityFederationDisabledException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.OutboundWebIdentityFederationDisabledException_message:
+			v.Message = new(string)
+			return d.ReadString(schemas.OutboundWebIdentityFederationDisabledException_message, v.Message)
+		}
+		return nil
+	})
+}
+
+// The request was rejected because the session token exceeded the maximum allowed
+// size. The error message reports the session token size and the maximum allowed
+// size, both in bytes. Session policies and session tags add to the session token
+// size. For more information, see [Passing Session Tags in STS]in the IAM User Guide.
 //
-// You could receive this error even though you meet other defined session policy
-// and session tag limits. For more information, see [IAM and STS Entity Character Limits]in the IAM User Guide.
+// You might receive this error even though you meet the individual session policy
+// and session tag limits. Monitor SessionTokenUtilization to track how close the
+// session token is to the maximum allowed size. For more information, see [IAM and STS Entity Character Limits]in the
+// IAM User Guide.
 //
 // [Passing Session Tags in STS]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_session-tags.html
 // [IAM and STS Entity Character Limits]: https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_iam-quotas.html#reference_iam-limits-entity-length
@@ -300,6 +644,27 @@ func (e *PackedPolicyTooLargeException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *PackedPolicyTooLargeException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *PackedPolicyTooLargeException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PackedPolicyTooLargeException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PackedPolicyTooLargeException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Message != nil {
+		s.WriteString(schemas.PackedPolicyTooLargeException_message, *v.Message)
+	}
+}
+func (v *PackedPolicyTooLargeException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.PackedPolicyTooLargeException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.PackedPolicyTooLargeException_message:
+			v.Message = new(string)
+			return d.ReadString(schemas.PackedPolicyTooLargeException_message, v.Message)
+		}
+		return nil
+	})
+}
 
 // STS is not activated in the requested region for the account that is being
 // asked to generate credentials. The account administrator must use the IAM
@@ -331,6 +696,27 @@ func (e *RegionDisabledException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *RegionDisabledException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *RegionDisabledException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.RegionDisabledException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *RegionDisabledException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Message != nil {
+		s.WriteString(schemas.RegionDisabledException_message, *v.Message)
+	}
+}
+func (v *RegionDisabledException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.RegionDisabledException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.RegionDisabledException_message:
+			v.Message = new(string)
+			return d.ReadString(schemas.RegionDisabledException_message, v.Message)
+		}
+		return nil
+	})
+}
 
 // The requested token duration would extend the session beyond its original
 // expiration time. You cannot use this operation to extend the lifetime of a
@@ -360,4 +746,25 @@ func (e *SessionDurationEscalationException) ErrorCode() string {
 }
 func (e *SessionDurationEscalationException) ErrorFault() smithy.ErrorFault {
 	return smithy.FaultClient
+}
+func (v *SessionDurationEscalationException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.SessionDurationEscalationException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *SessionDurationEscalationException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Message != nil {
+		s.WriteString(schemas.SessionDurationEscalationException_message, *v.Message)
+	}
+}
+func (v *SessionDurationEscalationException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.SessionDurationEscalationException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.SessionDurationEscalationException_message:
+			v.Message = new(string)
+			return d.ReadString(schemas.SessionDurationEscalationException_message, v.Message)
+		}
+		return nil
+	})
 }

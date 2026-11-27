@@ -4,16 +4,25 @@ package sts
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/sts/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/sts/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 	"time"
 )
 
 // Returns a signed JSON Web Token (JWT) that represents the calling Amazon Web
-// Services identity. The returned JWT can be used to authenticate with external
-// services that support OIDC discovery. The token is signed by Amazon Web Services
-// STS and can be publicly verified using the verification keys published at the
-// issuer's JWKS endpoint.
+// Services identity or, if you set SubjectMode to OriginIdentity , the human user
+// or workload on whose behalf the calling session acts. The returned JWT can be
+// used to authenticate with external services that support OIDC discovery. The
+// token is signed by Amazon Web Services STS and can be publicly verified using
+// the verification keys published at the issuer's JWKS endpoint.
+//
+// The sub (subject) claim contains the identity that SubjectMode selects.
+// Whichever subject mode you use, the principal_id claim under the
+// https://sts.amazonaws.com/ namespace contains the ARN of the principal that
+// requested the token, when that principal has an ARN. For a role session, this is
+// the ARN of the role.
 //
 // The GetWebIdentityToken API is not available on the STS Global endpoint.
 func (c *Client) GetWebIdentityToken(ctx context.Context, params *GetWebIdentityTokenInput, optFns ...func(*Options)) (*GetWebIdentityTokenOutput, error) {
@@ -55,12 +64,89 @@ type GetWebIdentityTokenInput struct {
 	// exchanged for credentials or short-lived tokens in the external service.
 	DurationSeconds *int32
 
+	// One or more OAuth 2.0 scope values to include in the JSON Web Token (JWT).
+	// Amazon Web Services STS copies the value exactly as you send it into the
+	// top-level scope claim of the token. If you don't specify Scope , the token
+	// doesn't include a scope claim.
+	//
+	// Separate multiple values with a single space, as defined in [RFC 6749, section 3.3] on the IETF
+	// website. Don't begin or end Scope with a space. Each scope value can contain
+	// printable ASCII characters except spaces, double quotation marks ( " ), commas (
+	// , ), and backslashes ( \ ).
+	//
+	// You can't repeat a scope value. Scope values are case sensitive. This means
+	// that read and READ are separate values.
+	//
+	// You can specify Scope only when SubjectMode is OriginIdentity and you request
+	// exactly one audience. To specify Scope , the calling principal must have
+	// permission for the sts:SetWebIdentityTokenScope action in addition to
+	// sts:GetWebIdentityToken . You can use the multivalued sts:IdentityTokenScope
+	// condition key in a policy to control which scope values a principal can request.
+	//
+	// [RFC 6749, section 3.3]: https://www.rfc-editor.org/rfc/rfc6749#section-3.3
+	Scope *string
+
+	// Specifies which identity STS puts in the sub (subject) claim of the JSON Web
+	// Token (JWT). Valid values are AWSIdentity and OriginIdentity . If you don't
+	// specify a value, Amazon Web Services STS uses AWSIdentity .
+	//
+	//   - AWSIdentity – The sub claim contains the ARN of the calling Amazon Web
+	//   Services principal.
+	//
+	//   - OriginIdentity – The sub claim contains the value of the
+	//   aws:OriginIdentity/Subject key in the trusted identity propagation context of
+	//   the calling session. For example, this can identify the human user or workload
+	//   on whose behalf the calling session acts. Amazon Web Services STS also adds a
+	//   subject_mode claim to the token.
+	//
+	// To use OriginIdentity , the trusted identity propagation context of the calling
+	//   session must contain the aws:OriginIdentity/Subject key and either the
+	//   aws:OriginIdentity/Issuer key or the aws:OriginIdentity/FederatedProviderArn
+	//   key. If it doesn't, or if the subject is blank, Amazon Web Services STS rejects
+	//   the request with a validation error.
+	//
+	// Amazon Web Services STS denies the request if the subject begins with the text
+	//   arn: , in any combination of uppercase and lowercase letters. Amazon Web
+	//   Services STS also denies the request if the subject begins or ends with a space,
+	//   or contains a control, format, or separator character other than a space.
+	//
+	// You can use the sts:SubjectMode condition key in a policy to control which
+	// subject modes a principal can request.
+	SubjectMode types.WebIdentityTokenSubjectModeType
+
 	// An optional list of tags to include in the JSON Web Token (JWT). These tags are
 	// added as custom claims to the JWT and can be used by the downstream service for
 	// authorization decisions.
 	Tags []types.Tag
 
 	noSmithyDocumentSerde
+}
+
+func (v *GetWebIdentityTokenInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.GetWebIdentityTokenRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *GetWebIdentityTokenInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Audience != nil {
+		serializewebIdentityTokenAudienceListType(s, schemas.GetWebIdentityTokenRequest_Audience, v.Audience)
+	}
+	if v.DurationSeconds != nil {
+		s.WriteInt32(schemas.GetWebIdentityTokenRequest_DurationSeconds, *v.DurationSeconds)
+	}
+	if v.Scope != nil {
+		s.WriteString(schemas.GetWebIdentityTokenRequest_Scope, *v.Scope)
+	}
+	if v.SigningAlgorithm != nil {
+		s.WriteString(schemas.GetWebIdentityTokenRequest_SigningAlgorithm, *v.SigningAlgorithm)
+	}
+	if v.SubjectMode != "" {
+		s.WriteString(schemas.GetWebIdentityTokenRequest_SubjectMode, string(v.SubjectMode))
+	}
+	if v.Tags != nil {
+		serializetagListType(s, schemas.GetWebIdentityTokenRequest_Tags, v.Tags)
+	}
 }
 
 type GetWebIdentityTokenOutput struct {
@@ -71,12 +157,15 @@ type GetWebIdentityTokenOutput struct {
 	Expiration *time.Time
 
 	// A signed JSON Web Token (JWT) that represents the caller's Amazon Web Services
-	// identity. The token contains standard JWT claims such as subject, audience,
-	// expiration time, and additional identity attributes added by STS as custom
-	// claims. You can also add your own custom claims to the token by passing tags as
-	// request parameters to the GetWebIdentityToken API. The token is signed using
-	// the specified signing algorithm and can be verified using the verification keys
-	// available at the issuer's JWKS endpoint.
+	// identity or, if you set SubjectMode to OriginIdentity , the human user or
+	// workload on whose behalf the calling session acts. The token contains standard
+	// JWT claims such as subject, audience, expiration time, and additional identity
+	// attributes added by STS as custom claims. These can include the principal_id
+	// claim, which contains the ARN of the principal that requested the token,
+	// whichever subject mode you use. You can also add your own custom claims to the
+	// token by passing tags as request parameters to the GetWebIdentityToken API. The
+	// token is signed using the specified signing algorithm and can be verified using
+	// the verification keys available at the issuer's JWKS endpoint.
 	WebIdentityToken *string
 
 	// Metadata pertaining to the operation's result.
@@ -85,13 +174,38 @@ type GetWebIdentityTokenOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *GetWebIdentityTokenOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.GetWebIdentityTokenResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *GetWebIdentityTokenOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Expiration != nil {
+		s.WriteTime(schemas.GetWebIdentityTokenResponse_Expiration, *v.Expiration)
+	}
+	if v.WebIdentityToken != nil {
+		s.WriteString(schemas.GetWebIdentityTokenResponse_WebIdentityToken, *v.WebIdentityToken)
+	}
+}
+func (v *GetWebIdentityTokenOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.GetWebIdentityTokenResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.GetWebIdentityTokenResponse_Expiration:
+			v.Expiration = new(time.Time)
+			return d.ReadTime(schemas.GetWebIdentityTokenResponse_Expiration, v.Expiration)
+		case schemas.GetWebIdentityTokenResponse_WebIdentityToken:
+			v.WebIdentityToken = new(string)
+			return d.ReadString(schemas.GetWebIdentityTokenResponse_WebIdentityToken, v.WebIdentityToken)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationGetWebIdentityTokenMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsquery_serializeOpGetWebIdentityToken{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.GetWebIdentityToken, schemas.GetWebIdentityTokenRequest, schemas.GetWebIdentityTokenResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsquery_deserializeOpGetWebIdentityToken{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.GetWebIdentityToken, schemas.GetWebIdentityTokenRequest, schemas.GetWebIdentityTokenResponse), output: &GetWebIdentityTokenOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

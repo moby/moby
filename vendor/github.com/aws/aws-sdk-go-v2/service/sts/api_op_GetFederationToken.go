@@ -4,7 +4,9 @@ package sts
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/sts/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/sts/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -46,7 +48,8 @@ import (
 //   - You cannot call any IAM operations using the CLI or the Amazon Web Services
 //     API. This limitation does not apply to console sessions.
 //
-//   - You cannot call any STS operations except GetCallerIdentity .
+//   - You cannot call any STS operations except GetCallerIdentity ,
+//     GetScopedCredentials , or GetDelegatedAccessToken .
 //
 // You can use temporary credentials for single sign-on (SSO) to the console.
 //
@@ -177,13 +180,6 @@ type GetFederationTokenInput struct {
 	// \u00FF). It can also include the tab (\u0009), linefeed (\u000A), and carriage
 	// return (\u000D) characters.
 	//
-	// An Amazon Web Services conversion compresses the passed inline session policy,
-	// managed policy ARNs, and session tags into a packed binary format that has a
-	// separate limit. Your request can fail for this limit even if your plaintext
-	// meets the other requirements. The PackedPolicySize response element indicates
-	// by percentage how close the policies and tags for your request are to the upper
-	// size limit.
-	//
 	// [session policy]: https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html#policies_session
 	// [Session Policies]: https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html#policies_session
 	Policy *string
@@ -216,13 +212,6 @@ type GetFederationTokenInput struct {
 	// allowed by the policy. These permissions are granted in addition to the
 	// permissions that are granted by the session policies.
 	//
-	// An Amazon Web Services conversion compresses the passed inline session policy,
-	// managed policy ARNs, and session tags into a packed binary format that has a
-	// separate limit. Your request can fail for this limit even if your plaintext
-	// meets the other requirements. The PackedPolicySize response element indicates
-	// by percentage how close the policies and tags for your request are to the upper
-	// size limit.
-	//
 	// [session policy]: https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html#policies_session
 	// [Session Policies]: https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html#policies_session
 	// [Amazon Resource Names (ARNs) and Amazon Web Services Service Namespaces]: https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html
@@ -235,13 +224,6 @@ type GetFederationTokenInput struct {
 	// This parameter is optional. You can pass up to 50 session tags. The plaintext
 	// session tag keys can’t exceed 128 characters and the values can’t exceed 256
 	// characters. For these and additional limits, see [IAM and STS Character Limits]in the IAM User Guide.
-	//
-	// An Amazon Web Services conversion compresses the passed inline session policy,
-	// managed policy ARNs, and session tags into a packed binary format that has a
-	// separate limit. Your request can fail for this limit even if your plaintext
-	// meets the other requirements. The PackedPolicySize response element indicates
-	// by percentage how close the policies and tags for your request are to the upper
-	// size limit.
 	//
 	// You can pass a session tag with the same key as a tag that is already attached
 	// to the user you are federating. When you do, session tags override a user tag
@@ -261,6 +243,33 @@ type GetFederationTokenInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *GetFederationTokenInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.GetFederationTokenRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *GetFederationTokenInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.DurationSeconds != nil {
+		s.WriteInt32(schemas.GetFederationTokenRequest_DurationSeconds, *v.DurationSeconds)
+	}
+	if v.MinimumSessionTokenSize != nil {
+		s.WriteInt32(schemas.GetFederationTokenRequest_MinimumSessionTokenSize, *v.MinimumSessionTokenSize)
+	}
+	if v.Name != nil {
+		s.WriteString(schemas.GetFederationTokenRequest_Name, *v.Name)
+	}
+	if v.Policy != nil {
+		s.WriteString(schemas.GetFederationTokenRequest_Policy, *v.Policy)
+	}
+	if v.PolicyArns != nil {
+		serializepolicyDescriptorListType(s, schemas.GetFederationTokenRequest_PolicyArns, v.PolicyArns)
+	}
+	if v.Tags != nil {
+		serializetagListType(s, schemas.GetFederationTokenRequest_Tags, v.Tags)
+	}
+}
+
 // Contains the response to a successful GetFederationToken request, including temporary Amazon Web
 // Services credentials that can be used to make Amazon Web Services requests.
 type GetFederationTokenOutput struct {
@@ -278,10 +287,10 @@ type GetFederationTokenOutput struct {
 	// bucket policy.
 	FederatedUser *types.FederatedUser
 
-	// A percentage value that indicates the packed size of the session policies and
-	// session tags combined passed in the request. The request fails if the packed
-	// size is greater than 100 percent, which means the policies and tags exceeded the
-	// allowed space.
+	// The percentage (0-100) of the maximum allowed session token size that the
+	// returned session token consumes.
+	//
+	// This field is deprecated. Use SessionTokenUtilization instead.
 	//
 	// Deprecated: Deprecated. Replaced by SessionTokenUtilization.
 	PackedPolicySize *int32
@@ -300,13 +309,60 @@ type GetFederationTokenOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *GetFederationTokenOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.GetFederationTokenResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *GetFederationTokenOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Credentials != nil {
+		s.WriteStruct(schemas.GetFederationTokenResponse_Credentials)
+		v.Credentials.SerializeMembers(s)
+		s.CloseStruct()
+	}
+	if v.FederatedUser != nil {
+		s.WriteStruct(schemas.GetFederationTokenResponse_FederatedUser)
+		v.FederatedUser.SerializeMembers(s)
+		s.CloseStruct()
+	}
+	if v.PackedPolicySize != nil {
+		s.WriteInt32(schemas.GetFederationTokenResponse_PackedPolicySize, *v.PackedPolicySize)
+	}
+	if v.SessionTokenSize != nil {
+		s.WriteInt32(schemas.GetFederationTokenResponse_SessionTokenSize, *v.SessionTokenSize)
+	}
+	if v.SessionTokenUtilization != nil {
+		s.WriteInt32(schemas.GetFederationTokenResponse_SessionTokenUtilization, *v.SessionTokenUtilization)
+	}
+}
+func (v *GetFederationTokenOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.GetFederationTokenResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.GetFederationTokenResponse_Credentials:
+			v.Credentials = &types.Credentials{}
+			return v.Credentials.Deserialize(d)
+		case schemas.GetFederationTokenResponse_FederatedUser:
+			v.FederatedUser = &types.FederatedUser{}
+			return v.FederatedUser.Deserialize(d)
+		case schemas.GetFederationTokenResponse_PackedPolicySize:
+			v.PackedPolicySize = new(int32)
+			return d.ReadInt32(schemas.GetFederationTokenResponse_PackedPolicySize, v.PackedPolicySize)
+		case schemas.GetFederationTokenResponse_SessionTokenSize:
+			v.SessionTokenSize = new(int32)
+			return d.ReadInt32(schemas.GetFederationTokenResponse_SessionTokenSize, v.SessionTokenSize)
+		case schemas.GetFederationTokenResponse_SessionTokenUtilization:
+			v.SessionTokenUtilization = new(int32)
+			return d.ReadInt32(schemas.GetFederationTokenResponse_SessionTokenUtilization, v.SessionTokenUtilization)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationGetFederationTokenMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsquery_serializeOpGetFederationToken{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.GetFederationToken, schemas.GetFederationTokenRequest, schemas.GetFederationTokenResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsquery_deserializeOpGetFederationToken{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.GetFederationToken, schemas.GetFederationTokenRequest, schemas.GetFederationTokenResponse), output: &GetFederationTokenOutput{}}, middleware.After); err != nil {
 		return err
 	}
 
