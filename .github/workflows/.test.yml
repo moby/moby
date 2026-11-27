@@ -220,6 +220,12 @@ jobs:
           if [[ "$MODE" == *"embedded"* ]]; then
             echo "TEST_INTEGRATION_CONTAINERD_EMBEDDED=1" >> $GITHUB_ENV
           fi
+          if [[ "$MODE" == *"no-brnf"* ]]; then
+            # br_netfilter is disabled, so the bridge driver routes traffic between
+            # containers via the host. Only the networking tests are affected.
+            echo "DOCKER_TEST_NO_BR_NETFILTER=1" >> $GITHUB_ENV
+            echo "TEST_INTEGRATION_DIR=./integration/networking ./integration/network/bridge" >> $GITHUB_ENV
+          fi
           echo "CACHE_DEV_SCOPE=${CACHE_DEV_SCOPE}" >> $GITHUB_ENV
       -
         name: Set up AppArmor for RootlessKit

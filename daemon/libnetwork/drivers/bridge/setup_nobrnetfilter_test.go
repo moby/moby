@@ -1,0 +1,240 @@
+//go:build linux
+
+package bridge
+
+import (
+	"errors"
+	"fmt"
+	"net"
+	"net/netip"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/moby/moby/v2/daemon/internal/netiputil"
+	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge/internal/firewaller"
+	"github.com/moby/moby/v2/daemon/libnetwork/drvregistry"
+	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
+	"github.com/moby/moby/v2/daemon/libnetwork/ns"
+	"github.com/moby/moby/v2/internal/testutil/netnsutils"
+	"github.com/moby/moby/v2/internal/testutil/storeutils"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+)
+
+func TestNoBrNetfilter(t *testing.T) {
+	testcases := []struct {
+		name         string
+		icc          bool
+		proxy        bool
+		noForwarding bool
+		auxDefaultGw bool
+		expIsolated  bool
+		expPrefixGws bool
+	}{
+		{
+			name:         "icc=false",
+			proxy:        true,
+			expIsolated:  true,
+			expPrefixGws: true,
+		},
+		{
+			name:         "icc=true, no proxy",
+			icc:          true,
+			expPrefixGws: true,
+		},
+		{
+			name:  "icc=true, proxy",
+			icc:   true,
+			proxy: true,
+		},
+		{
+			name:         "icc=false, aux default gateway",
+			proxy:        true,
+			auxDefaultGw: true,
+			expIsolated:  true,
+			expPrefixGws: true,
+		},
+		{
+			name:         "icc=true, no proxy, aux default gateway",
+			icc:          true,
+			auxDefaultGw: true,
+			expPrefixGws: true,
+		},
+		{
+			name:         "icc=false, no forwarding",
+			proxy:        true,
+			noForwarding: true,
+			expIsolated:  true,
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer netnsutils.SetupTestOSContext(t)()
+			useStubFirewaller(t)
+
+			fwd := "1"
+			if tc.noForwarding {
+				fwd = "0"
+			}
+			// Set "all" before creating the bridge, so the bridge inherits it for IPv6.
+			for _, f := range []string{"/proc/sys/net/ipv4/ip_forward", "/proc/sys/net/ipv6/conf/all/forwarding"} {
+				assert.NilError(t, os.WriteFile(f, []byte(fwd), 0o644))
+			}
+
+			d, err := newDriver(storeutils.NewTempStore(t), Configuration{
+				EnableIPTables:  true,
+				EnableIP6Tables: true,
+				EnableProxy:     tc.proxy,
+				ProxyPath:       "/dummy/path/to/proxy",
+				NoBrNetfilter:   true,
+			}, &drvregistry.PortMappers{})
+			assert.NilError(t, err)
+
+			const brName = "br-nobrnf"
+			ipd4, ipd6 := getIPv4Data(t), getIPv6Data(t)
+			// A default gateway that isn't the bridge's address, as set by
+			// "--aux-address DefaultGatewayIPv4=..." or the daemon's --default-gateway.
+			var auxGw4, auxGw6 netip.Addr
+			if tc.auxDefaultGw {
+				pool4, _ := netiputil.ToPrefix(ipd4[0].Pool)
+				pool6, _ := netiputil.ToPrefix(ipd6[0].Pool)
+				auxGw4 = netiputil.LastAddr(pool4).Prev()
+				auxGw6 = netiputil.LastAddr(pool6).Prev()
+				ipd4[0].AuxAddresses = map[string]*net.IPNet{
+					DefaultGatewayV4AuxKey: {IP: auxGw4.AsSlice(), Mask: ipd4[0].Pool.Mask},
+				}
+				ipd6[0].AuxAddresses = map[string]*net.IPNet{
+					DefaultGatewayV6AuxKey: {IP: auxGw6.AsSlice(), Mask: ipd6[0].Pool.Mask},
+				}
+			}
+			err = d.CreateNetwork(t.Context(), "net1", map[string]any{
+				netlabel.GenericData: &networkConfiguration{
+					BridgeName: brName,
+					EnableIPv4: true,
+					EnableIPv6: true,
+					EnableICC:  tc.icc,
+				},
+			}, nil, ipd4, ipd6)
+			assert.NilError(t, err)
+
+			te := newTestEndpoint46(ipd4[0].Pool, ipd6[0].Pool, 11)
+			err = d.CreateEndpoint(t.Context(), "net1", "ep1", te.Interface(), nil)
+			assert.NilError(t, err)
+
+			if tc.expPrefixGws {
+				gw4, _ := netiputil.ToPrefix(ipd4[0].Gateway)
+				gw6, _ := netiputil.ToPrefix(ipd6[0].Gateway)
+				assert.Check(t, is.Equal(te.iface.prefixGw4, gw4.Addr()))
+				assert.Check(t, is.Equal(te.iface.prefixGw6, gw6.Addr()))
+				if tc.auxDefaultGw {
+					assert.Check(t, is.DeepEqual(te.iface.onLinkHosts, []netip.Addr{auxGw4, auxGw6}, cmpopts.EquateComparable(netip.Addr{})))
+				} else {
+					assert.Check(t, is.Len(te.iface.onLinkHosts, 0))
+				}
+			} else {
+				assert.Check(t, is.Equal(te.iface.prefixGw4, netip.Addr{}))
+				assert.Check(t, is.Equal(te.iface.prefixGw6, netip.Addr{}))
+			}
+
+			// Find the endpoint's port on the bridge, and check whether it's isolated.
+			nlh := ns.NlHandle()
+			br, err := nlh.LinkByName(brName)
+			assert.NilError(t, err)
+			links, err := nlh.LinkList()
+			assert.NilError(t, err)
+			var nPorts int
+			for _, l := range links {
+				if l.Attrs().MasterIndex != br.Attrs().Index {
+					continue
+				}
+				nPorts++
+				pi, err := nlh.LinkGetProtinfo(l)
+				assert.NilError(t, err)
+				assert.Check(t, is.Equal(pi.Isolated, tc.expIsolated), "port %s", l.Attrs().Name)
+			}
+			assert.Check(t, is.Equal(nPorts, 1))
+
+			// ICMP redirects must be dropped if traffic is routed via the host.
+			fw := d.firewaller.(*firewaller.StubFirewaller)
+			fwn := fw.Networks[brName]
+			assert.Assert(t, fwn != nil)
+			assert.Check(t, is.Equal(fwn.Config4.DropRedirects, tc.expPrefixGws))
+			assert.Check(t, is.Equal(fwn.Config6.DropRedirects, tc.expPrefixGws))
+			// Conntrack sees packets within the network if they're routed via the host.
+			assert.Check(t, is.Equal(fwn.Config4.ConntrackIntraNetwork, tc.expPrefixGws))
+			assert.Check(t, is.Equal(fwn.Config6.ConntrackIntraNetwork, tc.expPrefixGws))
+		})
+	}
+}
+
+func TestBrNetfilterMode(t *testing.T) {
+	testcases := []struct {
+		icc, proxy, noBrNf bool
+		probeErr           error
+		expBrNf, expNoBrNf bool
+		expProbe           bool
+	}{
+		{icc: true, proxy: true},
+		{icc: false, proxy: true, expBrNf: true, expProbe: true},
+		{icc: true, proxy: false, expBrNf: true, expProbe: true},
+		{icc: false, proxy: false, expBrNf: true, expProbe: true},
+		{icc: true, proxy: true, noBrNf: true},
+		{icc: false, proxy: true, noBrNf: true, expNoBrNf: true},
+		{icc: true, proxy: false, noBrNf: true, expNoBrNf: true},
+		{icc: false, proxy: false, noBrNf: true, expNoBrNf: true},
+		// br_netfilter is not usable, traffic must be routed via the host.
+		{icc: true, proxy: true, probeErr: errors.New("no br_netfilter")},
+		{icc: false, proxy: true, probeErr: errors.New("no br_netfilter"), expNoBrNf: true, expProbe: true},
+		{icc: true, proxy: false, probeErr: errors.New("no br_netfilter"), expNoBrNf: true, expProbe: true},
+	}
+	for _, tc := range testcases {
+		name := fmt.Sprintf("icc=%v/proxy=%v/noBrNf=%v/probeErr=%v", tc.icc, tc.proxy, tc.noBrNf, tc.probeErr)
+		t.Run(name, func(t *testing.T) {
+			var probed int
+			origProbe := brNetfilterProbe
+			brNetfilterProbe = func(bool, bool) error { probed++; return tc.probeErr }
+			defer func() { brNetfilterProbe = origProbe }()
+
+			n := &bridgeNetwork{
+				config: &networkConfiguration{EnableICC: tc.icc},
+				driver: &driver{config: Configuration{EnableProxy: tc.proxy, NoBrNetfilter: tc.noBrNf}},
+			}
+			brNf, noBrNf := n.brNetfilterMode()
+			assert.Check(t, is.Equal(brNf, tc.expBrNf))
+			assert.Check(t, is.Equal(noBrNf, tc.expNoBrNf))
+			// The result is cached.
+			brNf, noBrNf = n.brNetfilterMode()
+			assert.Check(t, is.Equal(brNf, tc.expBrNf))
+			assert.Check(t, is.Equal(noBrNf, tc.expNoBrNf))
+			if tc.expProbe {
+				assert.Check(t, is.Equal(probed, 1))
+			} else {
+				assert.Check(t, is.Equal(probed, 0))
+			}
+		})
+	}
+}
+
+func TestBrNetfilterUsable(t *testing.T) {
+	dir := t.TempDir()
+	param := func(name, val string) string {
+		p := filepath.Join(dir, name)
+		assert.NilError(t, os.WriteFile(p, []byte(val), 0o644))
+		return p
+	}
+	enabled4 := param("enabled4", "1\n")
+	enabled6 := param("enabled6", "1\n")
+	disabled6 := param("disabled6", "0\n")
+	missing := filepath.Join(dir, "missing")
+
+	assert.Check(t, brNetfilterUsableAt(missing, missing, false, false))
+	assert.Check(t, brNetfilterUsableAt(enabled4, enabled6, true, true))
+	assert.Check(t, brNetfilterUsableAt(enabled4, missing, true, false))
+	// Disabled, but writable.
+	assert.Check(t, brNetfilterUsableAt(enabled4, disabled6, true, true))
+	// The sysctl doesn't exist (for example, in a user namespace from kernel 7.4).
+	assert.Check(t, is.ErrorContains(brNetfilterUsableAt(enabled4, missing, true, true), "missing"))
+}

@@ -20,6 +20,7 @@ const (
 	postroutingChain      = "nat-POSTROUTING"
 	preroutingChain       = "nat-PREROUTING"
 	outputChain           = "nat-OUTPUT"
+	filterOutputChain     = "filter-OUTPUT"
 	natChain              = "nat-prerouting-and-output"
 	rawPreroutingChain    = "raw-PREROUTING"
 	filtFwdInVMap         = "filter-forward-in-jumps"
@@ -134,6 +135,15 @@ func (nft *Nftabler) init(ctx context.Context, family nftables.Family) (*nftable
 		Chain: forwardChain,
 		Group: initialRuleGroup,
 		Rule:  []string{"iifname vmap @", filtFwdOutVMap},
+	})
+
+	// Set up the filter output base chain. It only has per-network rules, to drop
+	// ICMP redirects for networks that need it.
+	tm.Create(nftables.BaseChain{
+		Name:      filterOutputChain,
+		ChainType: nftables.BaseChainTypeFilter,
+		Hook:      nftables.BaseChainHookOutput,
+		Priority:  nftables.BaseChainPriorityFilter,
 	})
 
 	// Set up the NAT postrouting base chain.

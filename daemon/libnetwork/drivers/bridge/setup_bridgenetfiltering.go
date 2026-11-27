@@ -11,6 +11,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/modprobe"
+	"golang.org/x/sys/unix"
 )
 
 // setupIPv4BridgeNetFiltering checks whether IPv4 forwarding is enabled and, if
@@ -41,6 +42,46 @@ func setupIPv6BridgeNetFiltering(config *networkConfiguration, _ *bridgeInterfac
 		return nil
 	} else if enabled {
 		return enableBridgeNetFiltering("/proc/sys/net/bridge/bridge-nf-call-ip6tables")
+	}
+	return nil
+}
+
+// brNetfilterUsable returns nil if br_netfilter can be used for the IP versions
+// that need it. That's if the module is loaded (or can be loaded), and the
+// bridge-nf-call-ip[6]tables sysctls exist and are either already enabled, or
+// can be written.
+//
+// br_netfilter is deprecated, and it's disabled in user namespaces from kernel
+// 7.4. Then, the sysctls don't exist.
+func brNetfilterUsable(ipv4, ipv6 bool) error {
+	return brNetfilterUsableAt("/proc/sys/net/bridge/bridge-nf-call-iptables",
+		"/proc/sys/net/bridge/bridge-nf-call-ip6tables", ipv4, ipv6)
+}
+
+func brNetfilterUsableAt(param4, param6 string, ipv4, ipv6 bool) error {
+	if !ipv4 && !ipv6 {
+		return nil
+	}
+	if err := loadBridgeNetFilterModule(param4); err != nil {
+		return fmt.Errorf("loading br_netfilter: %w", err)
+	}
+	for _, p := range []struct {
+		need bool
+		path string
+	}{{ipv4, param4}, {ipv6, param6}} {
+		if !p.need {
+			continue
+		}
+		enabled, err := getKernelBoolParam(p.path)
+		if err != nil {
+			return err
+		}
+		if enabled {
+			continue
+		}
+		if err := unix.Access(p.path, unix.W_OK); err != nil {
+			return fmt.Errorf("%s is not enabled, and cannot be written: %w", p.path, err)
+		}
 	}
 	return nil
 }

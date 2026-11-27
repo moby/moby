@@ -47,6 +47,10 @@ Most rules are the same as the network with the [proxy enabled][0]:
     		iifname vmap @filter-forward-out-jumps
     	}
     
+    	chain filter-OUTPUT {
+    		type filter hook output priority filter; policy accept;
+    	}
+    
     	chain nat-OUTPUT {
     		type nat hook output priority dstnat; policy accept;
     		fib daddr type local counter jump nat-prerouting-and-output

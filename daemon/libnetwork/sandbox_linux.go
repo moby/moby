@@ -278,6 +278,8 @@ func (sb *Sandbox) restoreOslSandbox(ctx context.Context) error {
 		ifaceOptions := []osl.IfaceOption{
 			osl.WithIPv4Address(i.addr),
 			osl.WithRoutes(i.routes),
+			osl.WithPrefixGateways(i.prefixGw4, i.prefixGw6),
+			osl.WithOnLinkHosts(i.onLinkHosts...),
 		}
 		if i.addrv6 != nil && i.addrv6.IP.To16() != nil {
 			ifaceOptions = append(ifaceOptions, osl.WithIPv6Address(i.addrv6))
@@ -373,7 +375,12 @@ func (sb *Sandbox) populateNetworkResourcesOS(ctx context.Context, ep *Endpoint)
 	if i != nil && i.srcName != "" {
 		var ifaceOptions []osl.IfaceOption
 
-		ifaceOptions = append(ifaceOptions, osl.WithIPv4Address(i.addr), osl.WithRoutes(i.routes))
+		ifaceOptions = append(ifaceOptions,
+			osl.WithIPv4Address(i.addr),
+			osl.WithRoutes(i.routes),
+			osl.WithPrefixGateways(i.prefixGw4, i.prefixGw6),
+			osl.WithOnLinkHosts(i.onLinkHosts...),
+		)
 		if i.addrv6 != nil && i.addrv6.IP.To16() != nil {
 			ifaceOptions = append(ifaceOptions, osl.WithIPv6Address(i.addrv6))
 		}

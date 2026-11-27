@@ -5,12 +5,14 @@ import (
 	"encoding/hex"
 	"io"
 	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"testing"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/nftables"
 	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 	"github.com/moby/moby/v2/daemon/libnetwork/ns"
@@ -19,6 +21,9 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
+	"golang.org/x/sys/unix"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 const (
@@ -562,4 +567,163 @@ func TestAddRemoveInterface(t *testing.T) {
 	}
 
 	verifyCleanup(t, s)
+}
+
+func TestPrefixGateways(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+
+	key, err := newKey(t)
+	assert.NilError(t, err)
+	s, err := NewSandbox(key, true, false)
+	assert.NilError(t, err)
+	defer destroyTest(t, s)
+
+	hnd := ns.NlHandle()
+	assert.NilError(t, hnd.LinkAdd(&netlink.Veth{
+		LinkAttrs: netlink.LinkAttrs{Name: vethName1},
+		PeerName:  vethName2,
+	}))
+
+	addr4, _ := types.ParseCIDR("192.168.1.100/24")
+	addr6, _ := types.ParseCIDR("fdac:97b4:dbcc::2/64")
+	gw4 := netip.MustParseAddr("192.168.1.1")
+	gw6 := netip.MustParseAddr("fdac:97b4:dbcc::1")
+	err = s.AddInterface(t.Context(), vethName2, sboxIfacePrefix, "",
+		WithIPv4Address(addr4),
+		WithIPv6Address(addr6),
+		WithPrefixGateways(gw4, gw6),
+		WithAdvertiseAddrNMsgs(0), // Made-up IP addresses, can't sent ARP/NA messages.
+	)
+	assert.NilError(t, err)
+	assert.NilError(t, s.SetGateway(gw4.AsSlice()))
+	assert.NilError(t, s.SetGatewayIPv6(gw6.AsSlice()))
+
+	link, err := s.nlHandle.LinkByName(sboxIfacePrefix + "0")
+	assert.NilError(t, err)
+
+	// Both addresses must be configured without an on-link prefix route.
+	for _, fam := range []int{netlink.FAMILY_V4, netlink.FAMILY_V6} {
+		addrs, err := s.nlHandle.AddrList(link, fam)
+		assert.NilError(t, err)
+		var found bool
+		for _, a := range addrs {
+			if a.IP.Equal(addr4.IP) || a.IP.Equal(addr6.IP) {
+				found = true
+				assert.Check(t, a.Flags&unix.IFA_F_NOPREFIXROUTE != 0, "address %s flags 0x%x", a.IPNet, a.Flags)
+			}
+		}
+		assert.Check(t, found, "address not found for family %d", fam)
+	}
+
+	// Collect main-table routes for the interface, ignoring IPv6 link-local and multicast.
+	var got []string
+	for _, fam := range []int{netlink.FAMILY_V4, netlink.FAMILY_V6} {
+		routes, err := s.nlHandle.RouteList(link, fam)
+		assert.NilError(t, err)
+		for _, r := range routes {
+			if r.Dst.IP.IsLinkLocalUnicast() || r.Dst.IP.IsMulticast() {
+				continue
+			}
+			dst := r.Dst.String()
+			if r.Gw != nil {
+				dst += " via " + r.Gw.String()
+			}
+			got = append(got, dst)
+		}
+	}
+	assert.Check(t, is.DeepEqual(got, []string{
+		"0.0.0.0/0 via 192.168.1.1",
+		"192.168.1.0/24 via 192.168.1.1",
+		"192.168.1.1/32",
+		"::/0 via fdac:97b4:dbcc::1",
+		"fdac:97b4:dbcc::/64 via fdac:97b4:dbcc::1",
+		"fdac:97b4:dbcc::1/128",
+	}, cmpopts.SortSlices(func(a, b string) bool { return a < b })))
+}
+
+func TestPrefixGatewaysOnLinkHosts(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+
+	key, err := newKey(t)
+	assert.NilError(t, err)
+	s, err := NewSandbox(key, true, false)
+	assert.NilError(t, err)
+	defer destroyTest(t, s)
+
+	hnd := ns.NlHandle()
+	assert.NilError(t, hnd.LinkAdd(&netlink.Veth{
+		LinkAttrs: netlink.LinkAttrs{Name: vethName1},
+		PeerName:  vethName2,
+	}))
+
+	addr4, _ := types.ParseCIDR("192.168.1.100/24")
+	addr6, _ := types.ParseCIDR("fdac:97b4:dbcc::2/64")
+	// The prefix is routed via the host's address (prefix gateway), but the
+	// default gateway is some other address in the prefix.
+	prefixGw4 := netip.MustParseAddr("192.168.1.1")
+	prefixGw6 := netip.MustParseAddr("fdac:97b4:dbcc::1")
+	defGw4 := netip.MustParseAddr("192.168.1.254")
+	defGw6 := netip.MustParseAddr("fdac:97b4:dbcc::fe")
+	err = s.AddInterface(t.Context(), vethName2, sboxIfacePrefix, "",
+		WithIPv4Address(addr4),
+		WithIPv6Address(addr6),
+		WithPrefixGateways(prefixGw4, prefixGw6),
+		WithOnLinkHosts(defGw4, defGw6),
+		WithAdvertiseAddrNMsgs(0), // Made-up IP addresses, can't sent ARP/NA messages.
+	)
+	assert.NilError(t, err)
+	// Setting the default gateway needs a direct route to it.
+	assert.NilError(t, s.SetGateway(defGw4.AsSlice()))
+	assert.NilError(t, s.SetGatewayIPv6(defGw6.AsSlice()))
+
+	link, err := s.nlHandle.LinkByName(sboxIfacePrefix + "0")
+	assert.NilError(t, err)
+	var got []string
+	for _, fam := range []int{netlink.FAMILY_V4, netlink.FAMILY_V6} {
+		routes, err := s.nlHandle.RouteList(link, fam)
+		assert.NilError(t, err)
+		for _, r := range routes {
+			if r.Dst.IP.IsLinkLocalUnicast() || r.Dst.IP.IsMulticast() {
+				continue
+			}
+			dst := r.Dst.String()
+			if r.Gw != nil {
+				dst += " via " + r.Gw.String()
+			}
+			got = append(got, dst)
+		}
+	}
+	assert.Check(t, is.DeepEqual(got, []string{
+		"0.0.0.0/0 via 192.168.1.254",
+		"192.168.1.0/24 via 192.168.1.1",
+		"192.168.1.1/32",
+		"192.168.1.254/32",
+		"::/0 via fdac:97b4:dbcc::fe",
+		"fdac:97b4:dbcc::/64 via fdac:97b4:dbcc::1",
+		"fdac:97b4:dbcc::1/128",
+		"fdac:97b4:dbcc::fe/128",
+	}, cmpopts.SortSlices(func(a, b string) bool { return a < b })))
+}
+
+func TestOnLinkHostNotInPrefix(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+
+	key, err := newKey(t)
+	assert.NilError(t, err)
+	s, err := NewSandbox(key, true, false)
+	assert.NilError(t, err)
+	defer destroyTest(t, s)
+
+	assert.NilError(t, ns.NlHandle().LinkAdd(&netlink.Veth{
+		LinkAttrs: netlink.LinkAttrs{Name: vethName1},
+		PeerName:  vethName2,
+	}))
+	addr4, _ := types.ParseCIDR("192.168.1.100/24")
+	err = s.AddInterface(t.Context(), vethName2, sboxIfacePrefix, "",
+		WithIPv4Address(addr4),
+		WithPrefixGateways(netip.MustParseAddr("192.168.1.1"), netip.Addr{}),
+		WithOnLinkHosts(netip.MustParseAddr("192.168.2.1")),
+		WithAdvertiseAddrNMsgs(0),
+	)
+	assert.Check(t, is.ErrorContains(err, "on-link host 192.168.2.1 is not in prefix 192.168.1.0/24"))
 }

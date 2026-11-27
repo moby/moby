@@ -3,6 +3,7 @@ package driverapi
 import (
 	"context"
 	"net"
+	"net/netip"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/options"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
@@ -187,6 +188,21 @@ type InterfaceInfo interface {
 	// created the network interface in the container's network namespace (so,
 	// it doesn't need to be moved there).
 	SetCreatedInContainer(bool)
+
+	// SetPrefixGateways can be called by the driver to say that, for an address
+	// family with a valid gateway address, the interface's address must be
+	// configured without an on-link route to its prefix. Instead, there will be
+	// a host route to the gateway, and a route to the prefix via the gateway. So,
+	// unicast traffic to other addresses in the prefix is sent to the gateway,
+	// rather than directly to the destination.
+	SetPrefixGateways(gw4, gw6 netip.Addr)
+
+	// SetOnLinkHosts can be called by the driver, along with SetPrefixGateways, to
+	// say that the given addresses must still be reached directly (on-link)
+	// rather than via the prefix gateway. For example, a default gateway that
+	// isn't the prefix gateway. Each address must be in the prefix of the
+	// interface's address in the same family.
+	SetOnLinkHosts(hosts ...netip.Addr)
 }
 
 // InterfaceNameInfo provides a go interface for the drivers to assign names

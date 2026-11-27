@@ -52,6 +52,14 @@ type EndpointInterface struct {
 	v6PoolID           string
 	netnsPath          string
 	createdInContainer bool
+	// prefixGw4 and prefixGw6 are set by the driver if the interface's address
+	// must be configured without an on-link prefix route, see
+	// [driverapi.InterfaceInfo.SetPrefixGateways].
+	prefixGw4 netip.Addr
+	prefixGw6 netip.Addr
+	// onLinkHosts are set by the driver, along with prefix gateways, see
+	// [driverapi.InterfaceInfo.SetOnLinkHosts].
+	onLinkHosts []netip.Addr
 }
 
 // endpointInterface is an intermediate struct used to marshal/unmarshal
@@ -70,6 +78,9 @@ type endpointInterface struct {
 	V4PoolID           string         `json:"v4PoolID"`
 	V6PoolID           string         `json:"v6PoolID"`
 	CreatedInContainer bool           `json:"createdInContainer"`
+	PrefixGw4          netip.Addr     `json:"prefixGw4,omitzero"`
+	PrefixGw6          netip.Addr     `json:"prefixGw6,omitzero"`
+	OnLinkHosts        []netip.Addr   `json:"onLinkHosts,omitempty"`
 }
 
 func (epi *EndpointInterface) MarshalJSON() ([]byte, error) {
@@ -90,6 +101,9 @@ func (epi *EndpointInterface) MarshalJSON() ([]byte, error) {
 		V4PoolID:           epi.v4PoolID,
 		V6PoolID:           epi.v6PoolID,
 		CreatedInContainer: epi.createdInContainer,
+		PrefixGw4:          epi.prefixGw4,
+		PrefixGw6:          epi.prefixGw6,
+		OnLinkHosts:        epi.onLinkHosts,
 	})
 }
 
@@ -120,6 +134,9 @@ func (epi *EndpointInterface) UnmarshalJSON(b []byte) error {
 		v4PoolID:           epiTmp.V4PoolID,
 		v6PoolID:           epiTmp.V6PoolID,
 		createdInContainer: epiTmp.CreatedInContainer,
+		prefixGw4:          epiTmp.PrefixGw4,
+		prefixGw6:          epiTmp.PrefixGw6,
+		onLinkHosts:        epiTmp.OnLinkHosts,
 	}
 
 	return nil
@@ -150,6 +167,9 @@ func (epi *EndpointInterface) Copy() *EndpointInterface {
 		v6PoolID:           epi.v6PoolID,
 		netnsPath:          epi.netnsPath,
 		createdInContainer: epi.createdInContainer,
+		prefixGw4:          epi.prefixGw4,
+		prefixGw6:          epi.prefixGw6,
+		onLinkHosts:        slices.Clone(epi.onLinkHosts),
 	}
 }
 
@@ -291,6 +311,17 @@ func (epi *EndpointInterface) NetnsPath() string {
 // it doesn't need to be moved there).
 func (epi *EndpointInterface) SetCreatedInContainer(cic bool) {
 	epi.createdInContainer = cic
+}
+
+// SetPrefixGateways implements [driverapi.InterfaceInfo].
+func (epi *EndpointInterface) SetPrefixGateways(gw4, gw6 netip.Addr) {
+	epi.prefixGw4 = gw4
+	epi.prefixGw6 = gw6
+}
+
+// SetOnLinkHosts implements [driverapi.InterfaceInfo].
+func (epi *EndpointInterface) SetOnLinkHosts(hosts ...netip.Addr) {
+	epi.onLinkHosts = slices.Clone(hosts)
 }
 
 func (ep *Endpoint) InterfaceName() driverapi.InterfaceNameInfo {

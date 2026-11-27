@@ -3,6 +3,7 @@ package osl
 import (
 	"fmt"
 	"net"
+	"net/netip"
 	"time"
 )
 
@@ -126,6 +127,42 @@ func WithAdvertiseAddrInterval(interval time.Duration) IfaceOption {
 func WithCreatedInContainer(cic bool) IfaceOption {
 	return func(i *Interface) error {
 		i.createdInContainer = cic
+		return nil
+	}
+}
+
+// WithPrefixGateways can be used to say that, for an address family with a valid
+// gateway address, the interface's address must be configured without an on-link
+// route to its prefix. Instead, there will be a host route to the gateway, and a
+// route to the prefix via the gateway.
+func WithPrefixGateways(gw4, gw6 netip.Addr) IfaceOption {
+	return func(i *Interface) error {
+		if gw4.IsValid() && !gw4.Unmap().Is4() {
+			return fmt.Errorf("invalid IPv4 prefix gateway %s", gw4)
+		}
+		if gw6.IsValid() && !gw6.Is6() {
+			return fmt.Errorf("invalid IPv6 prefix gateway %s", gw6)
+		}
+		i.prefixGw4 = gw4.Unmap()
+		i.prefixGw6 = gw6
+		return nil
+	}
+}
+
+// WithOnLinkHosts can be used, along with [WithPrefixGateways], to say that the
+// given addresses must still be reached directly (on-link) rather than via the
+// prefix gateway. For example, a default gateway that isn't the prefix gateway.
+// Each address must be in the prefix of the interface's address in the same
+// family. Addresses in a family with no prefix gateway are ignored.
+func WithOnLinkHosts(hosts ...netip.Addr) IfaceOption {
+	return func(i *Interface) error {
+		i.onLinkHosts = i.onLinkHosts[:0]
+		for _, h := range hosts {
+			if !h.IsValid() {
+				return fmt.Errorf("invalid on-link host %s", h)
+			}
+			i.onLinkHosts = append(i.onLinkHosts, h.Unmap())
+		}
 		return nil
 	}
 }

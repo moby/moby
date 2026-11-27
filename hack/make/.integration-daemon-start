@@ -77,6 +77,23 @@ if [ "$DOCKER_FIREWALL_BACKEND" = "nftables" ]; then
 	sysctl -w net.ipv6.conf.all.forwarding=1 > /dev/null
 fi
 
+# example usage: DOCKER_TEST_NO_BR_NETFILTER=1
+# Simulate br_netfilter being unusable, as it is in a user namespace from kernel
+# 7.4 (and everywhere, once it's removed). Disable bridge-nf-call-ip[6]tables, and
+# make them read-only so the daemon can't re-enable them. Then, the bridge driver
+# must route traffic between containers via the host instead.
+if [ -n "$DOCKER_TEST_NO_BR_NETFILTER" ]; then
+	if [ -n "$DOCKER_ROOTLESS" ]; then
+		echo >&2 '# DOCKER_TEST_NO_BR_NETFILTER is not supported with DOCKER_ROOTLESS'
+		exit 1
+	fi
+	if [ -d /proc/sys/net/bridge ]; then
+		echo >&2 '# DOCKER_TEST_NO_BR_NETFILTER is set: disabling br_netfilter'
+		sysctl -w net.bridge.bridge-nf-call-iptables=0 net.bridge.bridge-nf-call-ip6tables=0 > /dev/null
+		mount -o bind,ro /proc/sys/net/bridge /proc/sys/net/bridge
+	fi
+fi
+
 if [ -n "$DOCKER_ROOTLESS" ]; then
 	if [ -z "$TEST_SKIP_INTEGRATION_CLI" ]; then
 		echo >&2 '# DOCKER_ROOTLESS requires TEST_SKIP_INTEGRATION_CLI to be set'

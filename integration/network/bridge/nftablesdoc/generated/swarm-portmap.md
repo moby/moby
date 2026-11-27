@@ -39,6 +39,10 @@ The `ip docker-bridges` table is:
     		iifname vmap @filter-forward-out-jumps
     	}
     
+    	chain filter-OUTPUT {
+    		type filter hook output priority filter; policy accept;
+    	}
+    
     	chain nat-OUTPUT {
     		type nat hook output priority dstnat; policy accept;
     		ip daddr != 127.0.0.0/8 fib daddr type local counter jump nat-prerouting-and-output

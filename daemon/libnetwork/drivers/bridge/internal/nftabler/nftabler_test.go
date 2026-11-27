@@ -251,18 +251,21 @@ func TestDNATFromOwnBridge(t *testing.T) {
 	defer nftables.Disable()
 
 	testcases := []struct {
-		hairpin, icc, noSelfConnect bool
-		expProxySkip                bool
+		hairpin, icc, ctIntraNet, noSelfConnect bool
+		expProxySkip                            bool
 	}{
 		{hairpin: true, icc: true},
-		{hairpin: true, icc: false, noSelfConnect: true},
+		{hairpin: true, icc: false, ctIntraNet: true, noSelfConnect: true},
 		{icc: true, expProxySkip: true},
 		{icc: true, noSelfConnect: true, expProxySkip: true},
-		{icc: false, expProxySkip: true},
-		{icc: false, noSelfConnect: true},
+		{icc: false, ctIntraNet: true, expProxySkip: true},
+		{icc: false, ctIntraNet: true, noSelfConnect: true},
+		// ICC disabled, but conntrack doesn't see packets within the network (no
+		// br_netfilter, and not routed via the host). Leave them for the proxy.
+		{icc: false, noSelfConnect: true, expProxySkip: true},
 	}
 	for _, tc := range testcases {
-		t.Run(fmt.Sprintf("hairpin=%v/icc=%v/noSelfConnect=%v", tc.hairpin, tc.icc, tc.noSelfConnect), func(t *testing.T) {
+		t.Run(fmt.Sprintf("hairpin=%v/icc=%v/ctIntraNet=%v/noSelfConnect=%v", tc.hairpin, tc.icc, tc.ctIntraNet, tc.noSelfConnect), func(t *testing.T) {
 			defer netnsutils.SetupTestOSContext(t, netnsutils.WithSetNsHandles(false))()
 
 			fw, err := NewNftabler(t.Context(), firewaller.Config{IPv4: true, Hairpin: tc.hairpin})
@@ -272,7 +275,10 @@ func TestDNATFromOwnBridge(t *testing.T) {
 				IfName:     "br-dummy",
 				ICC:        tc.icc,
 				Masquerade: true,
-				Config4:    firewaller.NetworkConfigFam{Prefix: netip.MustParsePrefix("192.168.0.0/24")},
+				Config4: firewaller.NetworkConfigFam{
+					Prefix:                netip.MustParsePrefix("192.168.0.0/24"),
+					ConntrackIntraNetwork: tc.ctIntraNet,
+				},
 			})
 			assert.NilError(t, err)
 			pb := types.PortBinding{
@@ -307,4 +313,41 @@ func TestDNATFromOwnBridge(t *testing.T) {
 			assert.Check(t, is.Len(dnatRules(), 0))
 		})
 	}
+}
+
+func TestNftablerDropRedirects(t *testing.T) {
+	nftables.Enable()
+	defer nftables.Disable()
+	defer netnsutils.SetupTestOSContext(t, netnsutils.WithSetNsHandles(false))()
+
+	checkResults := func(family, name string) {
+		t.Helper()
+		res := icmd.RunCommand("nft", "list", "table", family, dockerTable)
+		out := strings.ReplaceAll(res.Combined(), "type nat hook output priority -100", "type nat hook output priority dstnat")
+		assert.Assert(t, res.Error, out)
+		golden.Assert(t, out, name+"__"+family+".golden")
+	}
+
+	fw, err := NewNftabler(t.Context(), firewaller.Config{IPv4: true, IPv6: true})
+	assert.NilError(t, err)
+	defer fw.Close()
+
+	nw, err := fw.NewNetwork(t.Context(), firewaller.NetworkConfig{
+		IfName: "br-dummy",
+		Config4: firewaller.NetworkConfigFam{
+			Prefix:        netip.MustParsePrefix("192.168.0.0/24"),
+			DropRedirects: true,
+		},
+		Config6: firewaller.NetworkConfigFam{
+			Prefix:        netip.MustParsePrefix("fd49:efd7:54aa::/64"),
+			DropRedirects: true,
+		},
+	})
+	assert.NilError(t, err)
+	checkResults("ip", t.Name())
+	checkResults("ip6", t.Name())
+
+	assert.NilError(t, nw.DelNetworkLevelRules(t.Context()))
+	checkResults("ip", "TestNftabler/cleaned,hairpin=false")
+	checkResults("ip6", "TestNftabler/cleaned,hairpin=false")
 }

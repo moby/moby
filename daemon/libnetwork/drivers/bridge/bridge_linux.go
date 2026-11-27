@@ -75,6 +75,12 @@ type Configuration struct {
 	ProxyPath          string
 	AllowDirectRouting bool
 	AcceptFwMark       string
+	// NoBrNetfilter means networks that would otherwise need br_netfilter (to
+	// implement icc=false, or DNAT between containers on the same network when the
+	// userland proxy is disabled) must instead route traffic between containers
+	// through the host. See [bridgeNetwork.setupNoBrNetfilter]. If it's false,
+	// traffic is still routed through the host if br_netfilter isn't usable.
+	NoBrNetfilter bool
 }
 
 // networkConfiguration for network specific configuration
@@ -164,6 +170,9 @@ type bridgeNetwork struct {
 	endpoints         map[string]*bridgeEndpoint // key: endpoint id
 	driver            *driver                    // The network's driver
 	firewallerNetwork firewaller.Network
+	// noBrNf is the configuration for routing traffic between containers through
+	// the host, rather than using br_netfilter. It's set during network creation.
+	noBrNf noBrNfConfig
 	sync.Mutex
 }
 
@@ -177,6 +186,10 @@ type driver struct {
 	portmappers   *drvregistry.PortMappers
 	// mu is used to protect accesses to config and networks. Do not hold this lock while locking configNetwork.
 	mu sync.Mutex
+	// brNfOnce is used to check whether br_netfilter is usable, the first time
+	// a network needs it. The result is brNfErr.
+	brNfOnce sync.Once
+	brNfErr  error
 }
 
 // Assert that the driver is a driverapi.IPv6Releaser.
@@ -203,6 +216,10 @@ func newDriver(store *datastore.Store, config Configuration, pms *drvregistry.Po
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	if os.Getenv("DOCKER_BRIDGE_NO_BR_NETFILTER") == "1" {
+		config.NoBrNetfilter = true
 	}
 
 	d := &driver{
@@ -462,6 +479,17 @@ func (n *bridgeNetwork) newFirewallerNetwork(ctx context.Context) (_ firewaller.
 	if err != nil {
 		return nil, err
 	}
+
+	// When traffic between containers is routed via the host, the host mustn't
+	// send ICMP redirects telling them to send directly instead.
+	config4.DropRedirects = n.noBrNf.gw4.IsValid()
+	config6.DropRedirects = n.noBrNf.gw6.IsValid()
+
+	// Tell the firewaller whether conntrack sees packets between containers on the
+	// network, so it knows whether DNATed packets from the network can be un-DNATed.
+	useBrNf, _ := n.brNetfilterMode()
+	config4.ConntrackIntraNetwork = (useBrNf && n.driver.config.EnableIPTables) || n.noBrNf.gw4.IsValid()
+	config6.ConntrackIntraNetwork = (useBrNf && n.driver.config.EnableIP6Tables) || n.noBrNf.gw6.IsValid()
 
 	// A firewalld zone applies to an interface, not to an address family. So
 	// the bridge goes in the docker zone if the daemon manages either family's
@@ -854,9 +882,9 @@ func (d *driver) createNetwork(ctx context.Context, config *networkConfiguration
 		bridgeSetup.queueStep("setupMTU", setupMTU)
 	}
 
-	// Module br_netfilter needs to be loaded with net.bridge.bridge-nf-call-ip[6]tables
-	// enabled to implement icc=false, or DNAT when the userland-proxy is disabled.
-	enableBrNfCallIptables := !config.EnableICC || !d.config.EnableProxy
+	// Work out whether the network needs br_netfilter, or routes traffic between its
+	// containers via the host instead.
+	enableBrNfCallIptables, useNoBrNf := network.brNetfilterMode()
 
 	// Conditionally queue setup steps depending on configuration values.
 	for _, step := range []struct {
@@ -919,6 +947,7 @@ func (d *driver) createNetwork(ctx context.Context, config *networkConfiguration
 		// Configure bridge networking filtering if needed and IP tables are enabled
 		{enableBrNfCallIptables && d.config.EnableIPTables, "setupIPv4BridgeNetFiltering", setupIPv4BridgeNetFiltering},
 		{enableBrNfCallIptables && d.config.EnableIP6Tables, "setupIPv6BridgeNetFiltering", setupIPv6BridgeNetFiltering},
+		{useNoBrNf && (d.config.EnableIPTables || d.config.EnableIP6Tables), "setupNoBrNetfilter", network.setupNoBrNetfilter},
 	} {
 		if step.Condition {
 			bridgeSetup.queueStep(step.StepName, step.StepFn)
@@ -1197,6 +1226,10 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 		if err != nil {
 			return err
 		}
+	}
+
+	if err = n.setupEndpointNoBrNetfilter(d.nlh, host, ifInfo); err != nil {
+		return err
 	}
 
 	// Store the sandbox side pipe interface parameters

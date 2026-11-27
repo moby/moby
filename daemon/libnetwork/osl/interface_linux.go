@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"slices"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/v2/daemon/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/l2disco"
 	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 	"github.com/moby/moby/v2/daemon/libnetwork/ns"
@@ -118,7 +120,15 @@ type Interface struct {
 	// advertise the interface's addresses.
 	advertiseAddrInterval time.Duration
 	createdInContainer    bool
-	ns                    *Namespace
+	// prefixGw4 and prefixGw6, if valid, mean the IPv4/IPv6 address must be
+	// configured without an on-link route to its prefix. Instead, there's a
+	// host route to the gateway, and a route to the prefix via the gateway.
+	prefixGw4 netip.Addr
+	prefixGw6 netip.Addr
+	// onLinkHosts are addresses in the prefix of an address with a prefix gateway
+	// that must still be reached directly, rather than via the prefix gateway.
+	onLinkHosts []netip.Addr
+	ns          *Namespace
 }
 
 // SrcName returns the name of the interface in the origin network namespace.
@@ -299,6 +309,9 @@ func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix, dstNam
 	// Set the routes on the interface. This can only be done when the interface is up.
 	if err := setInterfaceRoutes(ctx, n.nlHandle, iface, i); err != nil {
 		return fmt.Errorf("error setting interface %q routes to %q: %v", iface.Attrs().Name, i.Routes(), err)
+	}
+	if err := setInterfacePrefixRoutes(ctx, n.nlHandle, iface, i); err != nil {
+		return fmt.Errorf("error setting interface %q prefix routes: %v", iface.Attrs().Name, err)
 	}
 
 	// Wait for the interface to be up and running (or a timeout).
@@ -975,6 +988,9 @@ func setInterfaceIP(ctx context.Context, nlh nlwrap.Handle, iface netlink.Link, 
 		return err
 	}
 	ipAddr := &netlink.Addr{IPNet: i.Address(), Label: ""}
+	if i.prefixGw4.IsValid() {
+		ipAddr.Flags |= unix.IFA_F_NOPREFIXROUTE
+	}
 	return nlh.AddrAdd(iface, ipAddr)
 }
 
@@ -1002,6 +1018,9 @@ func setInterfaceIPv6(ctx context.Context, nlh nlwrap.Handle, iface netlink.Link
 		return err
 	}
 	nlAddr := &netlink.Addr{IPNet: addr, Label: "", Flags: syscall.IFA_F_NODAD}
+	if i.prefixGw6.IsValid() {
+		nlAddr.Flags |= unix.IFA_F_NOPREFIXROUTE
+	}
 	return nlh.AddrAdd(iface, nlAddr)
 }
 
@@ -1086,6 +1105,72 @@ func setInterfaceRoutes(ctx context.Context, nlh nlwrap.Handle, iface netlink.Li
 			Dst:       route,
 		}); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// setInterfacePrefixRoutes adds routes for addresses configured with a prefix
+// gateway, in place of the on-link prefix routes that were not created for
+// them. That's a host route to the gateway, and a route to the address's prefix
+// via the gateway. Plus a host route to each of the interface's onLinkHosts in
+// that prefix.
+func setInterfacePrefixRoutes(ctx context.Context, nlh nlwrap.Handle, iface netlink.Link, i *Interface) error {
+	if !i.prefixGw4.IsValid() && !i.prefixGw6.IsValid() {
+		return nil
+	}
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.osl.setInterfacePrefixRoutes", trace.WithAttributes(
+		attribute.String("i.SrcName", i.SrcName()),
+		attribute.String("i.DstName", i.DstName())))
+	defer span.End()
+
+	addHostRoute := func(addr netip.Addr) error {
+		return nlh.RouteAdd(&netlink.Route{
+			Scope:     netlink.SCOPE_LINK,
+			LinkIndex: iface.Attrs().Index,
+			Dst:       &net.IPNet{IP: addr.AsSlice(), Mask: net.CIDRMask(addr.BitLen(), addr.BitLen())},
+		})
+	}
+
+	for _, fam := range []struct {
+		addr *net.IPNet
+		gw   netip.Addr
+	}{
+		{addr: i.address, gw: i.prefixGw4},
+		// If the IPv6 address was removed by a sysctl, i.addressIPv6 will be nil.
+		{addr: i.addressIPv6, gw: i.prefixGw6},
+	} {
+		if fam.addr == nil || !fam.gw.IsValid() {
+			continue
+		}
+		if err := addHostRoute(fam.gw); err != nil {
+			return fmt.Errorf("adding route to gateway %s: %w", fam.gw, err)
+		}
+		netipPrefix, ok := netiputil.ToPrefix(fam.addr)
+		if !ok {
+			return fmt.Errorf("invalid address %s", fam.addr)
+		}
+		netipPrefix = netipPrefix.Masked()
+		for _, h := range i.onLinkHosts {
+			if h.Is4() != fam.gw.Is4() || h == fam.gw {
+				continue
+			}
+			if !netipPrefix.Contains(h) {
+				return fmt.Errorf("on-link host %s is not in prefix %s", h, netipPrefix)
+			}
+			if err := addHostRoute(h); err != nil {
+				return fmt.Errorf("adding route to on-link host %s: %w", h, err)
+			}
+		}
+		gw := fam.gw.AsSlice()
+		prefix := &net.IPNet{IP: fam.addr.IP.Mask(fam.addr.Mask), Mask: fam.addr.Mask}
+		if err := nlh.RouteAdd(&netlink.Route{
+			Scope:     netlink.SCOPE_UNIVERSE,
+			LinkIndex: iface.Attrs().Index,
+			Dst:       prefix,
+			Gw:        gw,
+		}); err != nil {
+			return fmt.Errorf("adding route to %s via %s: %w", prefix, fam.gw, err)
 		}
 	}
 	return nil

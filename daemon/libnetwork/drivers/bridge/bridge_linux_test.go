@@ -631,6 +631,9 @@ type testInterface struct {
 	dstName            string
 	createdInContainer bool
 	netnsPath          string
+	prefixGw4          netip.Addr
+	prefixGw6          netip.Addr
+	onLinkHosts        []netip.Addr
 }
 
 type testEndpoint struct {
@@ -711,6 +714,15 @@ func (i *testInterface) NetnsPath() string {
 
 func (i *testInterface) SetCreatedInContainer(cic bool) {
 	i.createdInContainer = cic
+}
+
+func (i *testInterface) SetPrefixGateways(gw4, gw6 netip.Addr) {
+	i.prefixGw4 = gw4
+	i.prefixGw6 = gw6
+}
+
+func (i *testInterface) SetOnLinkHosts(hosts ...netip.Addr) {
+	i.onLinkHosts = hosts
 }
 
 func (i *testInterface) SetNames(srcName, dstPrefix, dstName string) error {

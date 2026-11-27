@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -184,6 +185,10 @@ func (test *testEndpoint) SetGatewayIPv6(ipv6 net.IP) error {
 func (test *testEndpoint) NetnsPath() string { return "" }
 
 func (test *testEndpoint) SetCreatedInContainer(bool) {}
+
+func (test *testEndpoint) SetPrefixGateways(netip.Addr, netip.Addr) {}
+
+func (test *testEndpoint) SetOnLinkHosts(...netip.Addr) {}
 
 func (test *testEndpoint) SetNames(srcName, dstPrefix, dstName string) error {
 	assert.Equal(test.t, test.srcName, srcName)
@@ -643,6 +648,10 @@ func (r *rollbackEndpoint) SetIPAddress(ip *net.IPNet) error {
 func (r *rollbackEndpoint) NetnsPath() string { return "" }
 
 func (r *rollbackEndpoint) SetCreatedInContainer(bool) {}
+
+func (r *rollbackEndpoint) SetPrefixGateways(netip.Addr, netip.Addr) {}
+
+func (r *rollbackEndpoint) SetOnLinkHosts(...netip.Addr) {}
 
 func TestRollback(t *testing.T) {
 	plugin := "test-net-driver-rollback"

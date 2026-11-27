@@ -20,7 +20,9 @@ The tables are re-created each time Docker starts.
 
 The filter-INPUT hook is not used by Docker. Packets arriving from the host's
 physical network or the host itself hit the filter-FORWARD chain, as they are
-routed into the bridge network. Similarly, filter-OUTPUT is not used.
+routed into the bridge network. The filter-OUTPUT chain is only used to drop
+ICMP redirects sent by the host to bridge networks that route traffic between
+their containers via the host, instead of using br_netfilter.
 
 Scenarios:
 
