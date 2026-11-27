@@ -3,6 +3,8 @@
 package types
 
 import (
+	"github.com/aws/aws-sdk-go-v2/service/sts/schemas"
+	smithy "github.com/aws/smithy-go"
 	smithydocument "github.com/aws/smithy-go/document"
 	"time"
 )
@@ -28,6 +30,34 @@ type AssumedRoleUser struct {
 	AssumedRoleId *string
 
 	noSmithyDocumentSerde
+}
+
+func (v *AssumedRoleUser) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.AssumedRoleUser)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *AssumedRoleUser) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Arn != nil {
+		s.WriteString(schemas.AssumedRoleUser_Arn, *v.Arn)
+	}
+	if v.AssumedRoleId != nil {
+		s.WriteString(schemas.AssumedRoleUser_AssumedRoleId, *v.AssumedRoleId)
+	}
+}
+func (v *AssumedRoleUser) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.AssumedRoleUser, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.AssumedRoleUser_Arn:
+			v.Arn = new(string)
+			return d.ReadString(schemas.AssumedRoleUser_Arn, v.Arn)
+		case schemas.AssumedRoleUser_AssumedRoleId:
+			v.AssumedRoleId = new(string)
+			return d.ReadString(schemas.AssumedRoleUser_AssumedRoleId, v.AssumedRoleId)
+		}
+		return nil
+	})
 }
 
 // Amazon Web Services credentials for API authentication.
@@ -57,6 +87,46 @@ type Credentials struct {
 	noSmithyDocumentSerde
 }
 
+func (v *Credentials) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.Credentials)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *Credentials) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.AccessKeyId != nil {
+		s.WriteString(schemas.Credentials_AccessKeyId, *v.AccessKeyId)
+	}
+	if v.Expiration != nil {
+		s.WriteTime(schemas.Credentials_Expiration, *v.Expiration)
+	}
+	if v.SecretAccessKey != nil {
+		s.WriteString(schemas.Credentials_SecretAccessKey, *v.SecretAccessKey)
+	}
+	if v.SessionToken != nil {
+		s.WriteString(schemas.Credentials_SessionToken, *v.SessionToken)
+	}
+}
+func (v *Credentials) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.Credentials, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.Credentials_AccessKeyId:
+			v.AccessKeyId = new(string)
+			return d.ReadString(schemas.Credentials_AccessKeyId, v.AccessKeyId)
+		case schemas.Credentials_Expiration:
+			v.Expiration = new(time.Time)
+			return d.ReadTime(schemas.Credentials_Expiration, v.Expiration)
+		case schemas.Credentials_SecretAccessKey:
+			v.SecretAccessKey = new(string)
+			return d.ReadString(schemas.Credentials_SecretAccessKey, v.SecretAccessKey)
+		case schemas.Credentials_SessionToken:
+			v.SessionToken = new(string)
+			return d.ReadString(schemas.Credentials_SessionToken, v.SessionToken)
+		}
+		return nil
+	})
+}
+
 // Identifiers for the federated user that is associated with the credentials.
 type FederatedUser struct {
 
@@ -78,6 +148,101 @@ type FederatedUser struct {
 	noSmithyDocumentSerde
 }
 
+func (v *FederatedUser) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.FederatedUser)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *FederatedUser) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Arn != nil {
+		s.WriteString(schemas.FederatedUser_Arn, *v.Arn)
+	}
+	if v.FederatedUserId != nil {
+		s.WriteString(schemas.FederatedUser_FederatedUserId, *v.FederatedUserId)
+	}
+}
+func (v *FederatedUser) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.FederatedUser, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.FederatedUser_Arn:
+			v.Arn = new(string)
+			return d.ReadString(schemas.FederatedUser_Arn, v.Arn)
+		case schemas.FederatedUser_FederatedUserId:
+			v.FederatedUserId = new(string)
+			return d.ReadString(schemas.FederatedUser_FederatedUserId, v.FederatedUserId)
+		}
+		return nil
+	})
+}
+
+// The session's aws:OriginIdentity/Subject , aws:OriginIdentity/SubjectType ,
+// aws:OriginIdentity/Issuer and aws:OriginIdentity/FederatedProviderArn keys. A
+// member is absent when the session does not have the key.
+type OriginIdentity struct {
+
+	// The value of the aws:OriginIdentity/FederatedProviderArn key: the ARN of the
+	// IAM identity provider that the request federated through.
+	FederatedProviderArn *string
+
+	// The value of the aws:OriginIdentity/Issuer key. For AssumeRoleWithWebIdentity ,
+	// this is the iss claim of the token without the https:// prefix. For
+	// AssumeRoleWithSAML , this is a hash of the key that signed the SAML assertion,
+	// not the Issuer element of the assertion.
+	Issuer *string
+
+	// The value of the aws:OriginIdentity/Subject key: the end user's identifier,
+	// taken from the token claim that the context provider maps as the subject.
+	Subject *string
+
+	// The value of the aws:OriginIdentity/SubjectType key, which indicates whether
+	// the end user is a person ( user ) or a non-human caller such as an application
+	// or service ( workload ).
+	SubjectType *string
+
+	noSmithyDocumentSerde
+}
+
+func (v *OriginIdentity) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.OriginIdentity)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *OriginIdentity) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.FederatedProviderArn != nil {
+		s.WriteString(schemas.OriginIdentity_FederatedProviderArn, *v.FederatedProviderArn)
+	}
+	if v.Issuer != nil {
+		s.WriteString(schemas.OriginIdentity_Issuer, *v.Issuer)
+	}
+	if v.Subject != nil {
+		s.WriteString(schemas.OriginIdentity_Subject, *v.Subject)
+	}
+	if v.SubjectType != nil {
+		s.WriteString(schemas.OriginIdentity_SubjectType, *v.SubjectType)
+	}
+}
+func (v *OriginIdentity) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.OriginIdentity, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.OriginIdentity_FederatedProviderArn:
+			v.FederatedProviderArn = new(string)
+			return d.ReadString(schemas.OriginIdentity_FederatedProviderArn, v.FederatedProviderArn)
+		case schemas.OriginIdentity_Issuer:
+			v.Issuer = new(string)
+			return d.ReadString(schemas.OriginIdentity_Issuer, v.Issuer)
+		case schemas.OriginIdentity_Subject:
+			v.Subject = new(string)
+			return d.ReadString(schemas.OriginIdentity_Subject, v.Subject)
+		case schemas.OriginIdentity_SubjectType:
+			v.SubjectType = new(string)
+			return d.ReadString(schemas.OriginIdentity_SubjectType, v.SubjectType)
+		}
+		return nil
+	})
+}
+
 // A reference to the IAM managed policy that is passed as a session policy for a
 // role session or a federated user session.
 type PolicyDescriptorType struct {
@@ -90,6 +255,28 @@ type PolicyDescriptorType struct {
 	Arn *string
 
 	noSmithyDocumentSerde
+}
+
+func (v *PolicyDescriptorType) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PolicyDescriptorType)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PolicyDescriptorType) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Arn != nil {
+		s.WriteString(schemas.PolicyDescriptorType_arn, *v.Arn)
+	}
+}
+func (v *PolicyDescriptorType) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.PolicyDescriptorType, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.PolicyDescriptorType_arn:
+			v.Arn = new(string)
+			return d.ReadString(schemas.PolicyDescriptorType_arn, v.Arn)
+		}
+		return nil
+	})
 }
 
 // Contains information about the provided context. This includes the signed and
@@ -106,6 +293,83 @@ type ProvidedContext struct {
 	ProviderArn *string
 
 	noSmithyDocumentSerde
+}
+
+func (v *ProvidedContext) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ProvidedContext)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ProvidedContext) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.ContextAssertion != nil {
+		s.WriteString(schemas.ProvidedContext_ContextAssertion, *v.ContextAssertion)
+	}
+	if v.ProviderArn != nil {
+		s.WriteString(schemas.ProvidedContext_ProviderArn, *v.ProviderArn)
+	}
+}
+func (v *ProvidedContext) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.ProvidedContext, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.ProvidedContext_ContextAssertion:
+			v.ContextAssertion = new(string)
+			return d.ReadString(schemas.ProvidedContext_ContextAssertion, v.ContextAssertion)
+		case schemas.ProvidedContext_ProviderArn:
+			v.ProviderArn = new(string)
+			return d.ReadString(schemas.ProvidedContext_ProviderArn, v.ProviderArn)
+		}
+		return nil
+	})
+}
+
+// Identifiers for the scoped session that GetScopedCredentials returns. The
+// underlying identity and session name do not change from the caller principal.
+type ScopedSession struct {
+
+	// The ARN of the scoped session. For more information about ARNs and how to use
+	// them in policies, see [IAM Identifiers]in the IAM User Guide.
+	//
+	// [IAM Identifiers]: https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_identifiers.html
+	//
+	// This member is required.
+	Arn *string
+
+	// A unique identifier for the scoped session. Because the identity is preserved,
+	// this identifies the same principal as the calling session.
+	//
+	// This member is required.
+	ScopedSessionId *string
+
+	noSmithyDocumentSerde
+}
+
+func (v *ScopedSession) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ScopedSession)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ScopedSession) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Arn != nil {
+		s.WriteString(schemas.ScopedSession_Arn, *v.Arn)
+	}
+	if v.ScopedSessionId != nil {
+		s.WriteString(schemas.ScopedSession_ScopedSessionId, *v.ScopedSessionId)
+	}
+}
+func (v *ScopedSession) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.ScopedSession, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.ScopedSession_Arn:
+			v.Arn = new(string)
+			return d.ReadString(schemas.ScopedSession_Arn, v.Arn)
+		case schemas.ScopedSession_ScopedSessionId:
+			v.ScopedSessionId = new(string)
+			return d.ReadString(schemas.ScopedSession_ScopedSessionId, v.ScopedSessionId)
+		}
+		return nil
+	})
 }
 
 // You can pass custom key-value pair attributes when you assume a role or
@@ -139,6 +403,117 @@ type Tag struct {
 	Value *string
 
 	noSmithyDocumentSerde
+}
+
+func (v *Tag) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.Tag)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *Tag) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Key != nil {
+		s.WriteString(schemas.Tag_Key, *v.Key)
+	}
+	if v.Value != nil {
+		s.WriteString(schemas.Tag_Value, *v.Value)
+	}
+}
+func (v *Tag) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.Tag, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.Tag_Key:
+			v.Key = new(string)
+			return d.ReadString(schemas.Tag_Key, v.Key)
+		case schemas.Tag_Value:
+			v.Value = new(string)
+			return d.ReadString(schemas.Tag_Value, v.Value)
+		}
+		return nil
+	})
+}
+
+// The session's aws:TransactionContext/IdentityProvider/* keys.
+type TransactionContext struct {
+
+	// The session's aws:TransactionContext/IdentityProvider/* keys, keyed by the part
+	// of the key name after aws:TransactionContext/IdentityProvider/ . Each value is
+	// up to 128 characters.
+	//
+	// The number of entries is bounded twice. IAM limits how many keys a context
+	// provider maps when you configure it on the identity provider, and Amazon Web
+	// Services STS rejects a session whose session token exceeds the maximum size with
+	// PackedPolicyTooLarge .
+	IdentityProvider map[string]string
+
+	noSmithyDocumentSerde
+}
+
+func (v *TransactionContext) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.TransactionContext)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *TransactionContext) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.IdentityProvider != nil {
+		serializetransactionContextIdentityProviderMapType(s, schemas.TransactionContext_IdentityProvider, v.IdentityProvider)
+	}
+}
+func (v *TransactionContext) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.TransactionContext, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.TransactionContext_IdentityProvider:
+			return deserializetransactionContextIdentityProviderMapType(d, schemas.TransactionContext_IdentityProvider, &v.IdentityProvider)
+		}
+		return nil
+	})
+}
+
+// The trusted identity propagation context that Amazon Web Services STS set in a
+// session from the identity provider's token. A member is absent when the session
+// has none of its keys.
+type TrustedIdentityPropagationContext struct {
+
+	// The identity of the end user on whose behalf the session acts.
+	OriginIdentity *OriginIdentity
+
+	// Additional claims about the request that the identity provider asserted.
+	TransactionContext *TransactionContext
+
+	noSmithyDocumentSerde
+}
+
+func (v *TrustedIdentityPropagationContext) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.TrustedIdentityPropagationContext)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *TrustedIdentityPropagationContext) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.OriginIdentity != nil {
+		s.WriteStruct(schemas.TrustedIdentityPropagationContext_OriginIdentity)
+		v.OriginIdentity.SerializeMembers(s)
+		s.CloseStruct()
+	}
+	if v.TransactionContext != nil {
+		s.WriteStruct(schemas.TrustedIdentityPropagationContext_TransactionContext)
+		v.TransactionContext.SerializeMembers(s)
+		s.CloseStruct()
+	}
+}
+func (v *TrustedIdentityPropagationContext) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.TrustedIdentityPropagationContext, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.TrustedIdentityPropagationContext_OriginIdentity:
+			v.OriginIdentity = &OriginIdentity{}
+			return v.OriginIdentity.Deserialize(d)
+		case schemas.TrustedIdentityPropagationContext_TransactionContext:
+			v.TransactionContext = &TransactionContext{}
+			return v.TransactionContext.Deserialize(d)
+		}
+		return nil
+	})
 }
 
 type noSmithyDocumentSerde = smithydocument.NoSerde

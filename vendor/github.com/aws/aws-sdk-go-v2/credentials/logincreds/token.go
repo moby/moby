@@ -48,6 +48,7 @@ type loginToken struct {
 	IdentityToken string                 `json:"identityToken"`
 	ClientID      string                 `json:"clientId"`
 	DPOPKey       string                 `json:"dpopKey"`
+	SignInRegion  string                 `json:"signInRegion,omitempty"`
 }
 
 type loginTokenAccessToken struct {

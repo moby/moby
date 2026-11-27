@@ -4,6 +4,8 @@ package sts
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/sts/schemas"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -66,6 +68,18 @@ type DecodeAuthorizationMessageInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DecodeAuthorizationMessageInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DecodeAuthorizationMessageRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DecodeAuthorizationMessageInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.EncodedMessage != nil {
+		s.WriteString(schemas.DecodeAuthorizationMessageRequest_EncodedMessage, *v.EncodedMessage)
+	}
+}
+
 // A document that contains additional information about the authorization status
 // of a request from an encoded message that is returned in response to an Amazon
 // Web Services request.
@@ -80,13 +94,32 @@ type DecodeAuthorizationMessageOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DecodeAuthorizationMessageOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DecodeAuthorizationMessageResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DecodeAuthorizationMessageOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.DecodedMessage != nil {
+		s.WriteString(schemas.DecodeAuthorizationMessageResponse_DecodedMessage, *v.DecodedMessage)
+	}
+}
+func (v *DecodeAuthorizationMessageOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.DecodeAuthorizationMessageResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.DecodeAuthorizationMessageResponse_DecodedMessage:
+			v.DecodedMessage = new(string)
+			return d.ReadString(schemas.DecodeAuthorizationMessageResponse_DecodedMessage, v.DecodedMessage)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationDecodeAuthorizationMessageMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsquery_serializeOpDecodeAuthorizationMessage{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DecodeAuthorizationMessage, schemas.DecodeAuthorizationMessageRequest, schemas.DecodeAuthorizationMessageResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsquery_deserializeOpDecodeAuthorizationMessage{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DecodeAuthorizationMessage, schemas.DecodeAuthorizationMessageRequest, schemas.DecodeAuthorizationMessageResponse), output: &DecodeAuthorizationMessageOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

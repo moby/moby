@@ -61,6 +61,9 @@ func (a RecordResponseTiming) HandleDeserialize(ctx context.Context, in middlewa
 ) {
 	requestAt := sdk.NowTime()
 	out, metadata, err = next.HandleDeserialize(ctx, in)
+	// The response time is when next returned. In the generated stacks that
+	// is right after the HTTP client's Do returned with the headers, and the
+	// deserializer reads the body after this middleware returns.
 	responseAt := sdk.NowTime()
 	setResponseAt(&metadata, responseAt)
 
@@ -105,7 +108,7 @@ const maxTrustedRequestDuration = 15 * time.Minute
 // was absent/unparseable (serverTime zero), the round trip exceeded the maximum
 // trusted request duration, or the response was served from a cache (Age
 // header present). Otherwise the skew is the difference between the server's
-// Date and the midpoint of the request round trip.
+// Date and the client time the response was received at.
 func computeClockSkew(serverTime, requestAt, responseAt time.Time, hasAgeHeader bool) (time.Duration, bool) {
 	if serverTime.IsZero() {
 		return 0, false
@@ -120,8 +123,7 @@ func computeClockSkew(serverTime, requestAt, responseAt time.Time, hasAgeHeader 
 		return 0, false
 	}
 
-	midpoint := requestAt.Add(elapsed / 2)
-	return serverTime.Sub(midpoint), true
+	return serverTime.Sub(responseAt), true
 }
 
 type responseAtKey struct{}

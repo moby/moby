@@ -13,6 +13,12 @@ import (
 //
 // Log events do not expire if they belong to log groups without a retention
 // policy.
+//
+// If an account-level retention policy applies to this log group, the log group
+// uses the retention period from that policy. For more information about
+// account-level retention policies, see [PutAccountPolicy].
+//
+// [PutAccountPolicy]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutAccountPolicy.html
 func (c *Client) DeleteRetentionPolicy(ctx context.Context, params *DeleteRetentionPolicyInput, optFns ...func(*Options)) (*DeleteRetentionPolicyOutput, error) {
 	if params == nil {
 		params = &DeleteRetentionPolicyInput{}

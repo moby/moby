@@ -69,13 +69,13 @@ func (in *CreateOAuth2TokenWithIAMInput) bindEndpointParams(p *EndpointParameter
 // §5.1.
 type CreateOAuth2TokenWithIAMOutput struct {
 
-	// Access token containing principal identity, resource scope, and session
+	// The access token containing principal identity, resource scope, and session
 	// metadata.
 	//
 	// This member is required.
 	AccessToken *string
 
-	// Token lifetime in seconds. Value is the minimum of the caller's session
+	// The token lifetime in seconds. Value is the minimum of the caller's session
 	// validity and 1 hour (3600 seconds).
 	//
 	// This member is required.

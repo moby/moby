@@ -64,6 +64,61 @@ func (v *AccessToken) Deserialize(d smithy.ShapeDeserializer) error {
 	})
 }
 
+// A session that could not be revoked
+type BatchRevokeSessionError struct {
+
+	// The error code
+	//
+	// This member is required.
+	Code *string
+
+	// The error message
+	//
+	// This member is required.
+	Message *string
+
+	// The session ARN
+	//
+	// This member is required.
+	SessionArn *string
+
+	noSmithyDocumentSerde
+}
+
+func (v *BatchRevokeSessionError) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.BatchRevokeSessionError)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *BatchRevokeSessionError) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Code != nil {
+		s.WriteString(schemas.BatchRevokeSessionError_code, *v.Code)
+	}
+	if v.Message != nil {
+		s.WriteString(schemas.BatchRevokeSessionError_message, *v.Message)
+	}
+	if v.SessionArn != nil {
+		s.WriteString(schemas.BatchRevokeSessionError_sessionArn, *v.SessionArn)
+	}
+}
+func (v *BatchRevokeSessionError) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.BatchRevokeSessionError, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.BatchRevokeSessionError_code:
+			v.Code = new(string)
+			return d.ReadString(schemas.BatchRevokeSessionError_code, v.Code)
+		case schemas.BatchRevokeSessionError_message:
+			v.Message = new(string)
+			return d.ReadString(schemas.BatchRevokeSessionError_message, v.Message)
+		case schemas.BatchRevokeSessionError_sessionArn:
+			v.SessionArn = new(string)
+			return d.ReadString(schemas.BatchRevokeSessionError_sessionArn, v.SessionArn)
+		}
+		return nil
+	})
+}
+
 // The request body for creating an OAuth 2.0 token. Supports both the
 // authorization code and refresh token flows, selected by the "grant_type"
 // parameter.
@@ -338,6 +393,158 @@ func (v *PolicyStatement) Deserialize(d smithy.ShapeDeserializer) error {
 		case schemas.PolicyStatement_resource:
 			v.Resource = new(string)
 			return d.ReadString(schemas.PolicyStatement_resource, v.Resource)
+		}
+		return nil
+	})
+}
+
+// A session that was revoked
+type RevokedSession struct {
+
+	// The revoked session ARN
+	//
+	// This member is required.
+	SessionArn *string
+
+	noSmithyDocumentSerde
+}
+
+func (v *RevokedSession) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.RevokedSession)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *RevokedSession) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.SessionArn != nil {
+		s.WriteString(schemas.RevokedSession_sessionArn, *v.SessionArn)
+	}
+}
+func (v *RevokedSession) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.RevokedSession, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.RevokedSession_sessionArn:
+			v.SessionArn = new(string)
+			return d.ReadString(schemas.RevokedSession_sessionArn, v.SessionArn)
+		}
+		return nil
+	})
+}
+
+// Summary of a sign-in session
+type Session struct {
+
+	// The time the session expires, in Unix epoch seconds
+	//
+	// This member is required.
+	ExpiresAt *int64
+
+	// The time the session was created, in Unix epoch seconds
+	//
+	// This member is required.
+	IssuedAt *int64
+
+	// The IAM identity that owns the session
+	//
+	// This member is required.
+	PrincipalArn *string
+
+	// The session ARN
+	//
+	// This member is required.
+	SessionArn *string
+
+	// The OAuth client that created the session
+	ClientId *string
+
+	// The type of OAuth client that created the session
+	ClientType ClientType
+
+	// The resource that the session's tokens are bound to
+	Resource *string
+
+	// The IAM role for the session, when the owner is a role
+	Role *string
+
+	// The session status
+	Status SessionStatus
+
+	noSmithyDocumentSerde
+}
+
+func (v *Session) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.Session)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *Session) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.ClientId != nil {
+		s.WriteString(schemas.Session_clientId, *v.ClientId)
+	}
+	if v.ClientType != "" {
+		s.WriteString(schemas.Session_clientType, string(v.ClientType))
+	}
+	if v.ExpiresAt != nil {
+		s.WriteInt64(schemas.Session_expiresAt, *v.ExpiresAt)
+	}
+	if v.IssuedAt != nil {
+		s.WriteInt64(schemas.Session_issuedAt, *v.IssuedAt)
+	}
+	if v.PrincipalArn != nil {
+		s.WriteString(schemas.Session_principalArn, *v.PrincipalArn)
+	}
+	if v.Resource != nil {
+		s.WriteString(schemas.Session_resource, *v.Resource)
+	}
+	if v.Role != nil {
+		s.WriteString(schemas.Session_role, *v.Role)
+	}
+	if v.SessionArn != nil {
+		s.WriteString(schemas.Session_sessionArn, *v.SessionArn)
+	}
+	if v.Status != "" {
+		s.WriteString(schemas.Session_status, string(v.Status))
+	}
+}
+func (v *Session) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.Session, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.Session_clientId:
+			v.ClientId = new(string)
+			return d.ReadString(schemas.Session_clientId, v.ClientId)
+		case schemas.Session_clientType:
+			var ev string
+			if err := d.ReadString(schemas.Session_clientType, &ev); err != nil {
+				return err
+			}
+			v.ClientType = ClientType(ev)
+			return nil
+		case schemas.Session_expiresAt:
+			v.ExpiresAt = new(int64)
+			return d.ReadInt64(schemas.Session_expiresAt, v.ExpiresAt)
+		case schemas.Session_issuedAt:
+			v.IssuedAt = new(int64)
+			return d.ReadInt64(schemas.Session_issuedAt, v.IssuedAt)
+		case schemas.Session_principalArn:
+			v.PrincipalArn = new(string)
+			return d.ReadString(schemas.Session_principalArn, v.PrincipalArn)
+		case schemas.Session_resource:
+			v.Resource = new(string)
+			return d.ReadString(schemas.Session_resource, v.Resource)
+		case schemas.Session_role:
+			v.Role = new(string)
+			return d.ReadString(schemas.Session_role, v.Role)
+		case schemas.Session_sessionArn:
+			v.SessionArn = new(string)
+			return d.ReadString(schemas.Session_sessionArn, v.SessionArn)
+		case schemas.Session_status:
+			var ev string
+			if err := d.ReadString(schemas.Session_status, &ev); err != nil {
+				return err
+			}
+			v.Status = SessionStatus(ev)
+			return nil
 		}
 		return nil
 	})

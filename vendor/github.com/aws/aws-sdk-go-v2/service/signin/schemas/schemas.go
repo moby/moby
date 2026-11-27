@@ -8,6 +8,20 @@ import (
 	smithytraits "github.com/aws/smithy-go/traits"
 )
 
+var BatchRevokeSessions = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "BatchRevokeSessions",
+}, smithy.ShapeTypeOperation, 0, &smithytraits.HTTP{Method: "POST",
+	URI:  "/batch-revoke-sessions",
+	Code: 200})
+
+var CreateBearerToken = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "CreateBearerToken",
+}, smithy.ShapeTypeOperation, 0, &smithytraits.HTTP{Method: "POST",
+	URI:  "/v1/token?x-amz-token-request-type=bearer",
+	Code: 200})
+
 var CreateOAuth2Token = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.signin",
 	Name:      "CreateOAuth2Token",
@@ -57,6 +71,13 @@ var GetResourcePolicy = smithy.NewSchema(smithy.ShapeID{
 	URI:  "/get-resource-policy",
 	Code: 200})
 
+var GetSession = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "GetSession",
+}, smithy.ShapeTypeOperation, 0, &smithytraits.HTTP{Method: "POST",
+	URI:  "/get-session",
+	Code: 200})
+
 var IntrospectOAuth2TokenWithIAM = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.signin",
 	Name:      "IntrospectOAuth2TokenWithIAM",
@@ -69,6 +90,13 @@ var ListResourcePermissionStatements = smithy.NewSchema(smithy.ShapeID{
 	Name:      "ListResourcePermissionStatements",
 }, smithy.ShapeTypeOperation, 0, &smithytraits.HTTP{Method: "POST",
 	URI:  "/list-resource-permission-statements",
+	Code: 200})
+
+var ListSessions = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "ListSessions",
+}, smithy.ShapeTypeOperation, 0, &smithytraits.HTTP{Method: "POST",
+	URI:  "/list-sessions",
 	Code: 200})
 
 var PutConsoleAuthorizationConfiguration = smithy.NewSchema(smithy.ShapeID{
@@ -122,10 +150,36 @@ var _AccountId = smithy.NewSchema(smithy.ShapeID{
 	Name:      "AccountId",
 }, smithy.ShapeTypeString, 0)
 
+var _Assertion = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "Assertion",
+}, smithy.ShapeTypeString, 0, &smithytraits.Sensitive{})
+
 var _AuthorizationCode = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.signin",
 	Name:      "AuthorizationCode",
 }, smithy.ShapeTypeString, 0)
+
+var BatchRevokeSessionError = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "BatchRevokeSessionError",
+}, smithy.ShapeTypeStructure, 3)
+var BatchRevokeSessionError_sessionArn *smithy.Schema
+
+var BatchRevokeSessionError_code *smithy.Schema
+
+var BatchRevokeSessionError_message *smithy.Schema
+
+var _BatchRevokeSessionErrorList = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "BatchRevokeSessionErrorList",
+}, smithy.ShapeTypeList, 1)
+var _BatchRevokeSessionErrorList_member *smithy.Schema
+
+var _BearerTokenExpiresIn = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "BearerTokenExpiresIn",
+}, smithy.ShapeTypeInteger, 0)
 
 var _BearerTokenType = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.signin",
@@ -146,6 +200,14 @@ var _ClientToken = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.signin",
 	Name:      "ClientToken",
 }, smithy.ShapeTypeString, 0)
+
+var ClientType = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "ClientType",
+}, smithy.ShapeTypeEnum, 2)
+var ClientType_CLI *smithy.Schema
+
+var ClientType_MCP *smithy.Schema
 
 var _CodeVerifier = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.signin",
@@ -285,6 +347,11 @@ var _IssuedOAuthAccessTokenType = smithy.NewSchema(smithy.ShapeID{
 	Name:      "IssuedOAuthAccessTokenType",
 }, smithy.ShapeTypeString, 0)
 
+var _JwtBearerClientId = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "JwtBearerClientId",
+}, smithy.ShapeTypeString, 0)
+
 var _NextToken = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.signin",
 	Name:      "NextToken",
@@ -293,7 +360,7 @@ var _NextToken = smithy.NewSchema(smithy.ShapeID{
 var OAuth2ErrorCode = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.signin",
 	Name:      "OAuth2ErrorCode",
-}, smithy.ShapeTypeEnum, 16)
+}, smithy.ShapeTypeEnum, 17)
 var OAuth2ErrorCode_TOKEN_EXPIRED *smithy.Schema
 
 var OAuth2ErrorCode_USER_CREDENTIALS_CHANGED *smithy.Schema
@@ -321,6 +388,8 @@ var OAuth2ErrorCode_OAUTH_INVALID_GRANT *smithy.Schema
 var OAuth2ErrorCode_OAUTH_INVALID_SCOPE *smithy.Schema
 
 var OAuth2ErrorCode_OAUTH_INVALID_TARGET *smithy.Schema
+
+var OAuth2ErrorCode_OAUTH_INVALID_CLIENT *smithy.Schema
 
 var OAuth2ErrorCode_OAUTH_RATE_EXCEEDED *smithy.Schema
 
@@ -379,6 +448,16 @@ var _Principal_key *smithy.Schema
 
 var _Principal_value *smithy.Schema
 
+var _PrincipalArn = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "PrincipalArn",
+}, smithy.ShapeTypeString, 0)
+
+var _PrincipalArnFilter = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "PrincipalArnFilter",
+}, smithy.ShapeTypeString, 0)
+
 var _RedirectUri = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.signin",
 	Name:      "RedirectUri",
@@ -408,10 +487,27 @@ var ResourceNotFoundException_error *smithy.Schema
 
 var ResourceNotFoundException_message *smithy.Schema
 
+var _RevocationReason = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "RevocationReason",
+}, smithy.ShapeTypeString, 0)
+
 var _RevocationToken = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.signin",
 	Name:      "RevocationToken",
 }, smithy.ShapeTypeString, 0, &smithytraits.Sensitive{})
+
+var RevokedSession = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "RevokedSession",
+}, smithy.ShapeTypeStructure, 1)
+var RevokedSession_sessionArn *smithy.Schema
+
+var _RevokedSessionList = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "RevokedSessionList",
+}, smithy.ShapeTypeList, 1)
+var _RevokedSessionList_member *smithy.Schema
 
 var _Scope = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.signin",
@@ -435,6 +531,58 @@ var ServiceUnavailableException = smithy.NewSchema(smithy.ShapeID{
 var ServiceUnavailableException_error *smithy.Schema
 
 var ServiceUnavailableException_message *smithy.Schema
+
+var Session = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "Session",
+}, smithy.ShapeTypeStructure, 9)
+var Session_sessionArn *smithy.Schema
+
+var Session_principalArn *smithy.Schema
+
+var Session_role *smithy.Schema
+
+var Session_status *smithy.Schema
+
+var Session_issuedAt *smithy.Schema
+
+var Session_expiresAt *smithy.Schema
+
+var Session_clientId *smithy.Schema
+
+var Session_clientType *smithy.Schema
+
+var Session_resource *smithy.Schema
+
+var _SessionArn = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "SessionArn",
+}, smithy.ShapeTypeString, 0)
+
+var _SessionArnList = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "SessionArnList",
+}, smithy.ShapeTypeList, 1)
+var _SessionArnList_member *smithy.Schema
+
+var _SessionsMaxResults = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "SessionsMaxResults",
+}, smithy.ShapeTypeInteger, 0)
+
+var SessionStatus = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "SessionStatus",
+}, smithy.ShapeTypeEnum, 2)
+var SessionStatus_ACTIVE *smithy.Schema
+
+var SessionStatus_REVOKED *smithy.Schema
+
+var _SessionSummaryList = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "SessionSummaryList",
+}, smithy.ShapeTypeList, 1)
+var _SessionSummaryList_member *smithy.Schema
 
 var SigninResourceBasedPolicy = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.signin",
@@ -479,6 +627,11 @@ var _TargetId = smithy.NewSchema(smithy.ShapeID{
 	Name:      "TargetId",
 }, smithy.ShapeTypeString, 0)
 
+var _TokenDuration = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "TokenDuration",
+}, smithy.ShapeTypeInteger, 0)
+
 var _TokenExchangeGrantType = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.signin",
 	Name:      "TokenExchangeGrantType",
@@ -522,6 +675,44 @@ var _VpcSourceIp = smithy.NewSchema(smithy.ShapeID{
 	Name:      "VpcSourceIp",
 }, smithy.ShapeTypeString, 0)
 
+var BatchRevokeSessionsInput = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "BatchRevokeSessionsInput",
+}, smithy.ShapeTypeStructure, 3)
+var BatchRevokeSessionsInput_principalArn *smithy.Schema
+
+var BatchRevokeSessionsInput_sessionArns *smithy.Schema
+
+var BatchRevokeSessionsInput_reason *smithy.Schema
+
+var BatchRevokeSessionsOutput = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "BatchRevokeSessionsOutput",
+}, smithy.ShapeTypeStructure, 2)
+var BatchRevokeSessionsOutput_revokedSessions *smithy.Schema
+
+var BatchRevokeSessionsOutput_errors *smithy.Schema
+
+var CreateBearerTokenRequest = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "CreateBearerTokenRequest",
+}, smithy.ShapeTypeStructure, 3)
+var CreateBearerTokenRequest_grantType *smithy.Schema
+
+var CreateBearerTokenRequest_resource *smithy.Schema
+
+var CreateBearerTokenRequest_durationSeconds *smithy.Schema
+
+var CreateBearerTokenResponse = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "CreateBearerTokenResponse",
+}, smithy.ShapeTypeStructure, 3)
+var CreateBearerTokenResponse_accessToken *smithy.Schema
+
+var CreateBearerTokenResponse_tokenType *smithy.Schema
+
+var CreateBearerTokenResponse_expiresIn *smithy.Schema
+
 var CreateOAuth2TokenRequest = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.signin",
 	Name:      "CreateOAuth2TokenRequest",
@@ -555,12 +746,16 @@ var CreateOAuth2TokenWithIAMResponse_expiresIn *smithy.Schema
 var CreateOAuth2TokenWithTokenExchangeRequest = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.signin",
 	Name:      "CreateOAuth2TokenWithTokenExchangeRequest",
-}, smithy.ShapeTypeStructure, 5)
+}, smithy.ShapeTypeStructure, 7)
 var CreateOAuth2TokenWithTokenExchangeRequest_grantType *smithy.Schema
 
 var CreateOAuth2TokenWithTokenExchangeRequest_subjectToken *smithy.Schema
 
 var CreateOAuth2TokenWithTokenExchangeRequest_subjectTokenType *smithy.Schema
+
+var CreateOAuth2TokenWithTokenExchangeRequest_assertion *smithy.Schema
+
+var CreateOAuth2TokenWithTokenExchangeRequest_clientId *smithy.Schema
 
 var CreateOAuth2TokenWithTokenExchangeRequest_resource *smithy.Schema
 
@@ -569,7 +764,7 @@ var CreateOAuth2TokenWithTokenExchangeRequest_scope *smithy.Schema
 var CreateOAuth2TokenWithTokenExchangeResponse = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.signin",
 	Name:      "CreateOAuth2TokenWithTokenExchangeResponse",
-}, smithy.ShapeTypeStructure, 4)
+}, smithy.ShapeTypeStructure, 6)
 var CreateOAuth2TokenWithTokenExchangeResponse_accessToken *smithy.Schema
 
 var CreateOAuth2TokenWithTokenExchangeResponse_issuedTokenType *smithy.Schema
@@ -577,6 +772,10 @@ var CreateOAuth2TokenWithTokenExchangeResponse_issuedTokenType *smithy.Schema
 var CreateOAuth2TokenWithTokenExchangeResponse_tokenType *smithy.Schema
 
 var CreateOAuth2TokenWithTokenExchangeResponse_expiresIn *smithy.Schema
+
+var CreateOAuth2TokenWithTokenExchangeResponse_resource *smithy.Schema
+
+var CreateOAuth2TokenWithTokenExchangeResponse_scope *smithy.Schema
 
 var DeleteConsoleAuthorizationConfigurationInput = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.signin",
@@ -634,6 +833,44 @@ var GetResourcePolicyOutput = smithy.NewSchema(smithy.ShapeID{
 }, smithy.ShapeTypeStructure, 1)
 var GetResourcePolicyOutput_signinResourceBasedPolicy *smithy.Schema
 
+var GetSessionInput = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "GetSessionInput",
+}, smithy.ShapeTypeStructure, 2)
+var GetSessionInput_sessionArn *smithy.Schema
+
+var GetSessionInput_principalArn *smithy.Schema
+
+var GetSessionOutput = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "GetSessionOutput",
+}, smithy.ShapeTypeStructure, 13)
+var GetSessionOutput_sessionArn *smithy.Schema
+
+var GetSessionOutput_principalArn *smithy.Schema
+
+var GetSessionOutput_role *smithy.Schema
+
+var GetSessionOutput_status *smithy.Schema
+
+var GetSessionOutput_clientId *smithy.Schema
+
+var GetSessionOutput_clientType *smithy.Schema
+
+var GetSessionOutput_resource *smithy.Schema
+
+var GetSessionOutput_issuedAt *smithy.Schema
+
+var GetSessionOutput_expiresAt *smithy.Schema
+
+var GetSessionOutput_lastUsedAt *smithy.Schema
+
+var GetSessionOutput_issuedInRegion *smithy.Schema
+
+var GetSessionOutput_originSessionArn *smithy.Schema
+
+var GetSessionOutput_userAgent *smithy.Schema
+
 var IntrospectOAuth2TokenWithIAMRequest = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.signin",
 	Name:      "IntrospectOAuth2TokenWithIAMRequest",
@@ -689,6 +926,32 @@ var ListResourcePermissionStatementsOutput = smithy.NewSchema(smithy.ShapeID{
 var ListResourcePermissionStatementsOutput_permissionStatements *smithy.Schema
 
 var ListResourcePermissionStatementsOutput_nextToken *smithy.Schema
+
+var ListSessionsInput = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "ListSessionsInput",
+}, smithy.ShapeTypeStructure, 7)
+var ListSessionsInput_principalArn *smithy.Schema
+
+var ListSessionsInput_maxResults *smithy.Schema
+
+var ListSessionsInput_nextToken *smithy.Schema
+
+var ListSessionsInput_status *smithy.Schema
+
+var ListSessionsInput_clientId *smithy.Schema
+
+var ListSessionsInput_issuedAfter *smithy.Schema
+
+var ListSessionsInput_issuedBefore *smithy.Schema
+
+var ListSessionsOutput = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.signin",
+	Name:      "ListSessionsOutput",
+}, smithy.ShapeTypeStructure, 2)
+var ListSessionsOutput_items *smithy.Schema
+
+var ListSessionsOutput_nextToken *smithy.Schema
 
 var PutConsoleAuthorizationConfigurationInput = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.signin",
@@ -774,6 +1037,8 @@ func init() {
 
 	OAuth2ErrorCode_OAUTH_INVALID_TARGET = OAuth2ErrorCode.AddMember("OAUTH_INVALID_TARGET", smithyprelude.Unit)
 
+	OAuth2ErrorCode_OAUTH_INVALID_CLIENT = OAuth2ErrorCode.AddMember("OAUTH_INVALID_CLIENT", smithyprelude.Unit)
+
 	OAuth2ErrorCode_OAUTH_RATE_EXCEEDED = OAuth2ErrorCode.AddMember("OAUTH_RATE_EXCEEDED", smithyprelude.Unit)
 
 	OAuth2ErrorCode_OAUTH_SERVICE_UNAVAILABLE = OAuth2ErrorCode.AddMember("OAUTH_SERVICE_UNAVAILABLE", smithyprelude.Unit)
@@ -787,6 +1052,18 @@ func init() {
 	AccessToken_secretAccessKey = AccessToken.AddMember("secretAccessKey", smithyprelude.String, &smithytraits.JSONName{Name: "secretAccessKey"})
 
 	AccessToken_sessionToken = AccessToken.AddMember("sessionToken", smithyprelude.String, &smithytraits.JSONName{Name: "sessionToken"})
+
+	BatchRevokeSessionError_sessionArn = BatchRevokeSessionError.AddMember("sessionArn", _SessionArn)
+
+	BatchRevokeSessionError_code = BatchRevokeSessionError.AddMember("code", smithyprelude.String)
+
+	BatchRevokeSessionError_message = BatchRevokeSessionError.AddMember("message", smithyprelude.String)
+
+	_BatchRevokeSessionErrorList_member = _BatchRevokeSessionErrorList.AddMember("member", BatchRevokeSessionError)
+
+	ClientType_CLI = ClientType.AddMember("CLI", smithyprelude.Unit)
+
+	ClientType_MCP = ClientType.AddMember("MCP", smithyprelude.Unit)
 
 	_ConditionValues_member = _ConditionValues.AddMember("member", smithyprelude.String)
 
@@ -864,6 +1141,10 @@ func init() {
 
 	ResourceNotFoundException_message = ResourceNotFoundException.AddMember("message", smithyprelude.String)
 
+	RevokedSession_sessionArn = RevokedSession.AddMember("sessionArn", _SessionArn)
+
+	_RevokedSessionList_member = _RevokedSessionList.AddMember("member", RevokedSession)
+
 	ServiceQuotaExceededException_error = ServiceQuotaExceededException.AddMember("error", OAuth2ErrorCode)
 
 	ServiceQuotaExceededException_message = ServiceQuotaExceededException.AddMember("message", smithyprelude.String)
@@ -871,6 +1152,32 @@ func init() {
 	ServiceUnavailableException_error = ServiceUnavailableException.AddMember("error", OAuth2ErrorCode)
 
 	ServiceUnavailableException_message = ServiceUnavailableException.AddMember("message", smithyprelude.String)
+
+	SessionStatus_ACTIVE = SessionStatus.AddMember("ACTIVE", smithyprelude.Unit)
+
+	SessionStatus_REVOKED = SessionStatus.AddMember("REVOKED", smithyprelude.Unit)
+
+	Session_sessionArn = Session.AddMember("sessionArn", _SessionArn)
+
+	Session_principalArn = Session.AddMember("principalArn", _PrincipalArn)
+
+	Session_role = Session.AddMember("role", _PrincipalArn)
+
+	Session_status = Session.AddMember("status", SessionStatus)
+
+	Session_issuedAt = Session.AddMember("issuedAt", smithyprelude.Long)
+
+	Session_expiresAt = Session.AddMember("expiresAt", smithyprelude.Long)
+
+	Session_clientId = Session.AddMember("clientId", smithyprelude.String)
+
+	Session_clientType = Session.AddMember("clientType", ClientType)
+
+	Session_resource = Session.AddMember("resource", smithyprelude.String)
+
+	_SessionArnList_member = _SessionArnList.AddMember("member", _SessionArn)
+
+	_SessionSummaryList_member = _SessionSummaryList.AddMember("member", Session)
 
 	SigninResourceBasedPolicy_version = SigninResourceBasedPolicy.AddMember("version", smithyprelude.String, &smithytraits.JSONName{Name: "Version"})
 
@@ -883,6 +1190,28 @@ func init() {
 	ValidationException_error = ValidationException.AddMember("error", OAuth2ErrorCode)
 
 	ValidationException_message = ValidationException.AddMember("message", smithyprelude.String)
+
+	BatchRevokeSessionsInput_principalArn = BatchRevokeSessionsInput.AddMember("principalArn", _PrincipalArnFilter)
+
+	BatchRevokeSessionsInput_sessionArns = BatchRevokeSessionsInput.AddMember("sessionArns", _SessionArnList)
+
+	BatchRevokeSessionsInput_reason = BatchRevokeSessionsInput.AddMember("reason", _RevocationReason)
+
+	BatchRevokeSessionsOutput_revokedSessions = BatchRevokeSessionsOutput.AddMember("revokedSessions", _RevokedSessionList)
+
+	BatchRevokeSessionsOutput_errors = BatchRevokeSessionsOutput.AddMember("errors", _BatchRevokeSessionErrorList)
+
+	CreateBearerTokenRequest_grantType = CreateBearerTokenRequest.AddMember("grantType", _ClientCredentialsGrantType, &smithytraits.JSONName{Name: "grant_type"})
+
+	CreateBearerTokenRequest_resource = CreateBearerTokenRequest.AddMember("resource", _Resource)
+
+	CreateBearerTokenRequest_durationSeconds = CreateBearerTokenRequest.AddMember("durationSeconds", _TokenDuration, &smithytraits.JSONName{Name: "duration"})
+
+	CreateBearerTokenResponse_accessToken = CreateBearerTokenResponse.AddMember("accessToken", _OAuthAccessToken, &smithytraits.JSONName{Name: "access_token"})
+
+	CreateBearerTokenResponse_tokenType = CreateBearerTokenResponse.AddMember("tokenType", _BearerTokenType, &smithytraits.JSONName{Name: "token_type"})
+
+	CreateBearerTokenResponse_expiresIn = CreateBearerTokenResponse.AddMember("expiresIn", _BearerTokenExpiresIn, &smithytraits.JSONName{Name: "expires_in"})
 
 	CreateOAuth2TokenRequest_tokenInput = CreateOAuth2TokenRequest.AddMember("tokenInput", CreateOAuth2TokenRequestBody, &smithytraits.HTTPPayload{})
 
@@ -904,6 +1233,10 @@ func init() {
 
 	CreateOAuth2TokenWithTokenExchangeRequest_subjectTokenType = CreateOAuth2TokenWithTokenExchangeRequest.AddMember("subjectTokenType", _SubjectTokenType, &smithytraits.JSONName{Name: "subject_token_type"})
 
+	CreateOAuth2TokenWithTokenExchangeRequest_assertion = CreateOAuth2TokenWithTokenExchangeRequest.AddMember("assertion", _Assertion)
+
+	CreateOAuth2TokenWithTokenExchangeRequest_clientId = CreateOAuth2TokenWithTokenExchangeRequest.AddMember("clientId", _JwtBearerClientId, &smithytraits.JSONName{Name: "client_id"})
+
 	CreateOAuth2TokenWithTokenExchangeRequest_resource = CreateOAuth2TokenWithTokenExchangeRequest.AddMember("resource", _Resource)
 
 	CreateOAuth2TokenWithTokenExchangeRequest_scope = CreateOAuth2TokenWithTokenExchangeRequest.AddMember("scope", _Scope)
@@ -915,6 +1248,10 @@ func init() {
 	CreateOAuth2TokenWithTokenExchangeResponse_tokenType = CreateOAuth2TokenWithTokenExchangeResponse.AddMember("tokenType", _BearerTokenType, &smithytraits.JSONName{Name: "token_type"})
 
 	CreateOAuth2TokenWithTokenExchangeResponse_expiresIn = CreateOAuth2TokenWithTokenExchangeResponse.AddMember("expiresIn", _TokenExpiresIn, &smithytraits.JSONName{Name: "expires_in"})
+
+	CreateOAuth2TokenWithTokenExchangeResponse_resource = CreateOAuth2TokenWithTokenExchangeResponse.AddMember("resource", _Resource)
+
+	CreateOAuth2TokenWithTokenExchangeResponse_scope = CreateOAuth2TokenWithTokenExchangeResponse.AddMember("scope", _Scope)
 
 	DeleteConsoleAuthorizationConfigurationInput_targetId = DeleteConsoleAuthorizationConfigurationInput.AddMember("targetId", _TargetId)
 
@@ -937,6 +1274,36 @@ func init() {
 	GetConsoleAuthorizationConfigurationOutput_consoleAuthorizationEnabled = GetConsoleAuthorizationConfigurationOutput.AddMember("consoleAuthorizationEnabled", smithyprelude.Boolean)
 
 	GetResourcePolicyOutput_signinResourceBasedPolicy = GetResourcePolicyOutput.AddMember("signinResourceBasedPolicy", SigninResourceBasedPolicy)
+
+	GetSessionInput_sessionArn = GetSessionInput.AddMember("sessionArn", _SessionArn)
+
+	GetSessionInput_principalArn = GetSessionInput.AddMember("principalArn", _PrincipalArnFilter)
+
+	GetSessionOutput_sessionArn = GetSessionOutput.AddMember("sessionArn", _SessionArn)
+
+	GetSessionOutput_principalArn = GetSessionOutput.AddMember("principalArn", _PrincipalArn)
+
+	GetSessionOutput_role = GetSessionOutput.AddMember("role", _PrincipalArn)
+
+	GetSessionOutput_status = GetSessionOutput.AddMember("status", SessionStatus)
+
+	GetSessionOutput_clientId = GetSessionOutput.AddMember("clientId", smithyprelude.String)
+
+	GetSessionOutput_clientType = GetSessionOutput.AddMember("clientType", ClientType)
+
+	GetSessionOutput_resource = GetSessionOutput.AddMember("resource", smithyprelude.String)
+
+	GetSessionOutput_issuedAt = GetSessionOutput.AddMember("issuedAt", smithyprelude.Long)
+
+	GetSessionOutput_expiresAt = GetSessionOutput.AddMember("expiresAt", smithyprelude.Long)
+
+	GetSessionOutput_lastUsedAt = GetSessionOutput.AddMember("lastUsedAt", smithyprelude.Long)
+
+	GetSessionOutput_issuedInRegion = GetSessionOutput.AddMember("issuedInRegion", smithyprelude.String)
+
+	GetSessionOutput_originSessionArn = GetSessionOutput.AddMember("originSessionArn", _SessionArn)
+
+	GetSessionOutput_userAgent = GetSessionOutput.AddMember("userAgent", smithyprelude.String)
 
 	IntrospectOAuth2TokenWithIAMRequest_token = IntrospectOAuth2TokenWithIAMRequest.AddMember("token", _IntrospectionToken, &smithytraits.JSONName{Name: "token"})
 
@@ -977,6 +1344,24 @@ func init() {
 	ListResourcePermissionStatementsOutput_permissionStatements = ListResourcePermissionStatementsOutput.AddMember("permissionStatements", _PermissionStatementSummaries)
 
 	ListResourcePermissionStatementsOutput_nextToken = ListResourcePermissionStatementsOutput.AddMember("nextToken", _NextToken)
+
+	ListSessionsInput_principalArn = ListSessionsInput.AddMember("principalArn", _PrincipalArnFilter)
+
+	ListSessionsInput_maxResults = ListSessionsInput.AddMember("maxResults", _SessionsMaxResults)
+
+	ListSessionsInput_nextToken = ListSessionsInput.AddMember("nextToken", _NextToken)
+
+	ListSessionsInput_status = ListSessionsInput.AddMember("status", SessionStatus)
+
+	ListSessionsInput_clientId = ListSessionsInput.AddMember("clientId", smithyprelude.String)
+
+	ListSessionsInput_issuedAfter = ListSessionsInput.AddMember("issuedAfter", smithyprelude.Long)
+
+	ListSessionsInput_issuedBefore = ListSessionsInput.AddMember("issuedBefore", smithyprelude.Long)
+
+	ListSessionsOutput_items = ListSessionsOutput.AddMember("items", _SessionSummaryList)
+
+	ListSessionsOutput_nextToken = ListSessionsOutput.AddMember("nextToken", _NextToken)
 
 	PutConsoleAuthorizationConfigurationInput_targetId = PutConsoleAuthorizationConfigurationInput.AddMember("targetId", _TargetId)
 

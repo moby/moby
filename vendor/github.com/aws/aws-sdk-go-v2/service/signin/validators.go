@@ -10,6 +10,46 @@ import (
 	"github.com/aws/smithy-go/middleware"
 )
 
+type validateOpBatchRevokeSessions struct {
+}
+
+func (*validateOpBatchRevokeSessions) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpBatchRevokeSessions) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*BatchRevokeSessionsInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpBatchRevokeSessionsInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
+type validateOpCreateBearerToken struct {
+}
+
+func (*validateOpCreateBearerToken) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpCreateBearerToken) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*CreateBearerTokenInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpCreateBearerTokenInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
 type validateOpCreateOAuth2Token struct {
 }
 
@@ -90,6 +130,26 @@ func (m *validateOpDeleteResourcePermissionStatement) HandleInitialize(ctx conte
 	return next.HandleInitialize(ctx, in)
 }
 
+type validateOpGetSession struct {
+}
+
+func (*validateOpGetSession) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpGetSession) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*GetSessionInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpGetSessionInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
 type validateOpIntrospectOAuth2TokenWithIAM struct {
 }
 
@@ -130,6 +190,14 @@ func (m *validateOpRevokeOAuth2TokenWithIAM) HandleInitialize(ctx context.Contex
 	return next.HandleInitialize(ctx, in)
 }
 
+func addOpBatchRevokeSessionsValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpBatchRevokeSessions{}, middleware.After)
+}
+
+func addOpCreateBearerTokenValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpCreateBearerToken{}, middleware.After)
+}
+
 func addOpCreateOAuth2TokenValidationMiddleware(stack *middleware.Stack) error {
 	return stack.Initialize.Add(&validateOpCreateOAuth2Token{}, middleware.After)
 }
@@ -144,6 +212,10 @@ func addOpCreateOAuth2TokenWithTokenExchangeValidationMiddleware(stack *middlewa
 
 func addOpDeleteResourcePermissionStatementValidationMiddleware(stack *middleware.Stack) error {
 	return stack.Initialize.Add(&validateOpDeleteResourcePermissionStatement{}, middleware.After)
+}
+
+func addOpGetSessionValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpGetSession{}, middleware.After)
 }
 
 func addOpIntrospectOAuth2TokenWithIAMValidationMiddleware(stack *middleware.Stack) error {
@@ -164,6 +236,39 @@ func validateCreateOAuth2TokenRequestBody(v *types.CreateOAuth2TokenRequestBody)
 	}
 	if v.GrantType == nil {
 		invalidParams.Add(smithy.NewErrParamRequired("GrantType"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateOpBatchRevokeSessionsInput(v *BatchRevokeSessionsInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "BatchRevokeSessionsInput"}
+	if v.SessionArns == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("SessionArns"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateOpCreateBearerTokenInput(v *CreateBearerTokenInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "CreateBearerTokenInput"}
+	if v.GrantType == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("GrantType"))
+	}
+	if v.Resource == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("Resource"))
 	}
 	if invalidParams.Len() > 0 {
 		return invalidParams
@@ -231,6 +336,21 @@ func validateOpDeleteResourcePermissionStatementInput(v *DeleteResourcePermissio
 	invalidParams := smithy.InvalidParamsError{Context: "DeleteResourcePermissionStatementInput"}
 	if v.StatementId == nil {
 		invalidParams.Add(smithy.NewErrParamRequired("StatementId"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateOpGetSessionInput(v *GetSessionInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "GetSessionInput"}
+	if v.SessionArn == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("SessionArn"))
 	}
 	if invalidParams.Len() > 0 {
 		return invalidParams

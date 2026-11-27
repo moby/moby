@@ -23,8 +23,8 @@ type ExponentialJitterBackoff struct {
 	// delay is 1s regardless of the configured baseDelay.
 	throttle IsErrorThrottle
 
-	// When true, applies MAX_BACKOFF before jitter and uses throttle-aware
-	// base delay.
+	// When true, uses the Retry Behavior 2.1 formula: applies MAX_BACKOFF
+	// before jitter and uses throttle-aware base delay.
 	retries2026 bool
 
 	randFloat64 func() (float64, error)
@@ -101,8 +101,15 @@ func (j *ExponentialJitterBackoff) backoffDelayLegacy(attempt int, err error) (t
 }
 
 // backoffDelay2026 uses throttle-aware base delay and applies MAX_BACKOFF
-// before jitter: t_i = b * min(x * 2^i, MAX_BACKOFF).
+// before jitter: t_i = b * min(x * 2^i, MAX_BACKOFF), where i is the 0-based
+// retry index. The attempt passed in is the 1-based number of the attempt that
+// failed, so the first retry uses i = 0.
 func (j *ExponentialJitterBackoff) backoffDelay2026(attempt int, err error) (time.Duration, error) {
+	i := attempt - 1
+	if i < 0 {
+		i = 0
+	}
+
 	x := j.baseDelay
 	if j.throttle != nil && j.throttle.IsErrorThrottle(err) == aws.TrueTernary {
 		x = time.Second
@@ -113,7 +120,7 @@ func (j *ExponentialJitterBackoff) backoffDelay2026(attempt int, err error) (tim
 		return 0, randErr
 	}
 
-	ri := math.Pow(2, float64(attempt))
+	ri := math.Pow(2, float64(i))
 	delaySeconds := float64(x) / float64(time.Second) * ri
 	maxBackoffSeconds := float64(j.maxBackoff) / float64(time.Second)
 	if delaySeconds > maxBackoffSeconds {
