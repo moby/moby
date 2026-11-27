@@ -356,7 +356,7 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 	gs := newGRPCServer(ctx)
 	b.backend.RegisterGRPC(gs)
 	// Publish extension gRPC services on the API socket.
-	extProxy, err := d.ExposeExtensionServices(gs)
+	extProxy, err := d.ExposeExtensionServices(ctx, gs)
 	if err != nil {
 		return err
 	}

@@ -1,72 +1,31 @@
 package servicegrpcv0
 
 import (
-	"errors"
-	"slices"
+	"strings"
 	"testing"
 
 	"github.com/moby/extensions"
+	servicev0 "github.com/moby/extensions/extpoints/service/v0"
+	"github.com/moby/extensions/sdk"
 	"google.golang.org/grpc"
 )
 
-type staticResolver struct {
-	point     extensions.PointID
-	providers []extensions.ResolvedProvider
-}
+type emptyProvider struct{}
 
-func (staticResolver) Provider(extensions.PointID, extensions.ExtensionID) (any, error) {
-	return nil, errors.New("not implemented")
-}
+func (emptyProvider) RegisterServices(grpc.ServiceRegistrar) {}
 
-func (r staticResolver) Providers(point extensions.PointID) []extensions.ResolvedProvider {
-	if point != r.point {
-		return nil
-	}
-	return r.providers
-}
+func TestRejectEmptyOffer(t *testing.T) {
+	t.Parallel()
 
-type svcProvider struct{ name string }
-
-func (p svcProvider) RegisterServices(r grpc.ServiceRegistrar) {
-	r.RegisterService(&grpc.ServiceDesc{ServiceName: p.name}, nil)
-}
-
-type noopProvider struct{}
-
-func (noopProvider) RegisterServices(grpc.ServiceRegistrar) {}
-
-type recordRegistrar struct{ names []string }
-
-func (r *recordRegistrar) RegisterService(desc *grpc.ServiceDesc, _ any) {
-	r.names = append(r.names, desc.ServiceName)
-}
-
-func TestCollect(t *testing.T) {
-	r := staticResolver{
-		point: Point.ID(),
-		providers: []extensions.ResolvedProvider{
-			{Impl: svcProvider{name: "a.v1.Svc"}},
-			{Impl: noopProvider{}},
+	ext := extensions.New(extensions.Declaration{
+		ID: "org.example.empty.v1",
+		Providers: []extensions.Provider{
+			Point.Provide(emptyProvider{}),
+			servicev0.Offer(Point),
 		},
-	}
-	services, err := Collect(r)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(services) != 1 || services[0].Name != "a.v1.Svc" {
-		t.Fatalf("got services %+v, want only a.v1.Svc", services)
-	}
-}
-
-func TestRegistrarRecordsAndForwards(t *testing.T) {
-	target := &recordRegistrar{}
-	rec := &Registrar{Target: target}
-	svcProvider{name: "x.v1.S"}.RegisterServices(rec)
-	want := []string{"x.v1.S"}
-	if !slices.Equal(rec.Names, want) {
-		t.Errorf("recorded names %q, want %q", rec.Names, want)
-	}
-	if !slices.Equal(target.names, want) {
-		t.Errorf("forwarded names %q, want %q", target.names, want)
+	})
+	err := sdk.NewServer().Register(ext, ServerPoint)
+	if err == nil || !strings.Contains(err.Error(), "registered no gRPC service") {
+		t.Fatalf("Register error = %v, want it to contain %q", err, "registered no gRPC service")
 	}
 }
