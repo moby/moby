@@ -39,13 +39,6 @@ func linuxValidateAbsolute(p string) error {
 }
 
 func (p *linuxParser) ValidateMountConfig(mnt *mount.Mount) error {
-	// there was something looking like a bug in existing codebase:
-	// - validateMountConfig on linux was called with options skipping bind source existence when calling ParseMountRaw
-	// - but not when calling ParseMountSpec directly... nor when the unit test called it directly
-	return p.validateMountConfigImpl(mnt, true)
-}
-
-func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSourceExists bool) error {
 	if err := validateExclusiveOptions(mnt); err != nil {
 		return &errMountConfig{mount: mnt, err: err}
 	}
@@ -80,14 +73,13 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 			return &errMountConfig{mnt, err}
 		}
 
-		if validateBindSourceExists {
+		// A source that is created when missing needs not exist, and is not looked at.
+		if createMountpoint := mnt.BindOptions != nil && mnt.BindOptions.CreateMountpoint; !createMountpoint {
 			exists, _, err := p.fi.fileInfo(mnt.Source)
 			if err != nil {
 				return &errMountConfig{mnt, err}
 			}
-
-			createMountpoint := mnt.BindOptions != nil && mnt.BindOptions.CreateMountpoint
-			if !exists && !createMountpoint {
+			if !exists {
 				return &errMountConfig{mnt, errBindSourceDoesNotExist(mnt.Source)}
 			}
 		}
@@ -301,8 +293,17 @@ func (p *linuxParser) ParseMountRaw(raw, volumeDriver string) (*MountPoint, erro
 			Propagation: linuxGetPropagation(mode),
 		}
 	}
+	if spec.Type == mount.TypeBind {
+		// A bind string creates its source when it is missing: the Mount that is
+		// equivalent to it says so.
+		if spec.BindOptions == nil {
+			spec.BindOptions = &mount.BindOptions{}
+		}
+		spec.BindOptions.CreateMountpoint = true
+	}
 
-	mp, err := p.parseMountSpec(spec, false)
+	// From here on, the bind string is the Mount it says: the same parser takes both.
+	mp, err := p.ParseMountSpec(spec)
 	if mp != nil {
 		mp.Mode = mode
 	}
@@ -313,11 +314,7 @@ func (p *linuxParser) ParseMountRaw(raw, volumeDriver string) (*MountPoint, erro
 }
 
 func (p *linuxParser) ParseMountSpec(cfg mount.Mount) (*MountPoint, error) {
-	return p.parseMountSpec(cfg, true)
-}
-
-func (p *linuxParser) parseMountSpec(cfg mount.Mount, validateBindSourceExists bool) (*MountPoint, error) {
-	if err := p.validateMountConfigImpl(&cfg, validateBindSourceExists); err != nil {
+	if err := p.ValidateMountConfig(&cfg); err != nil {
 		return nil, err
 	}
 	mp := &MountPoint{
