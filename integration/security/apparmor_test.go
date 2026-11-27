@@ -41,13 +41,15 @@ func TestAppArmorTraceSelf(t *testing.T) {
 	ctx := setupTest(t)
 
 	// Run readlink as a child process (not pid 1) to exercise the AppArmor
-	// peer ptrace rule. The default profile allows processes in the same
-	// container to trace each other, so a child reading pid 1's namespace
-	// should succeed. This verifies the ptrace permission is actually granted,
-	// unlike running readlink directly as pid 1 which only tests procfs access.
+	// peer ptrace rule. BusyBox ash execs a trailing external command, so fork
+	// readlink explicitly and wait for it: that keeps the shell as pid 1 and
+	// makes readlink a child reading pid 1's namespace. The default profile
+	// allows processes in the same container to trace each other, so the child
+	// should succeed. This verifies ptrace is actually granted, unlike running
+	// readlink directly as pid 1 which only tests procfs access.
 	res := runContainer(ctx, t,
 		container.WithImage("busybox"),
-		container.WithCmd("sh", "-c", "readlink /proc/1/ns/net"),
+		container.WithCmd("sh", "-c", "readlink /proc/1/ns/net & wait $!"),
 	)
 	assert.Check(t, is.Equal(res.ExitCode, 0), "ptrace of self failed: %s", combined(res))
 	assert.Check(t, is.Contains(combined(res), "net:["), "ptrace of self failed to show namespace: %s", combined(res))
