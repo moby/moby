@@ -19,6 +19,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/middleware"
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials/endpointcreds"
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
@@ -49,6 +50,7 @@ const (
 	credentialsEndpointKey = "awslogs-credentials-endpoint" // #nosec G101 -- Potential hardcoded credentials
 	forceFlushIntervalKey  = "awslogs-force-flush-interval-seconds"
 	maxBufferedEventsKey   = "awslogs-max-buffered-events"
+	requestTimeoutKey      = "awslogs-request-timeout-seconds"
 	logFormatKey           = "awslogs-format"
 	entityServiceNameKey   = "awslogs-entity-service-name"
 	entityEnvironmentKey   = "awslogs-entity-environment"
@@ -454,8 +456,9 @@ var newSDKEndpoint = credentialsEndpoint
 
 // newAWSLogsClient creates the service client for Amazon CloudWatch Logs.
 // Customizations to the default client from the SDK include a Docker-specific
-// User-Agent string and automatic region detection using the EC2 Instance
-// Metadata Service when region is otherwise unspecified.
+// User-Agent string, automatic region detection using the EC2 Instance
+// Metadata Service when region is otherwise unspecified, and an optional
+// per-request timeout (awslogs-request-timeout-seconds).
 func newAWSLogsClient(info logger.Info, configOpts ...func(*config.LoadOptions) error) (*cloudwatchlogs.Client, error) {
 	ctx := context.TODO()
 	var region, endpoint *string
@@ -485,6 +488,18 @@ func newAWSLogsClient(info logger.Info, configOpts ...func(*config.LoadOptions) 
 	}
 
 	configOpts = append(configOpts, config.WithRegion(*region))
+	if info.Config[requestTimeoutKey] != "" {
+		seconds, err := strconv.Atoi(info.Config[requestTimeoutKey])
+		if err != nil {
+			return nil, fmt.Errorf("invalid value for log opt '%s': %w", requestTimeoutKey, err)
+		}
+		// http.Client.Timeout bounds one attempt, including writing the
+		// request body. A hung attempt therefore fails after this long and
+		// the SDK retryer re-sends the batch on a new connection, instead
+		// of waiting for the kernel to abandon the connection.
+		httpClient := awshttp.NewBuildableClient().WithTimeout(time.Duration(seconds) * time.Second)
+		configOpts = append(configOpts, config.WithHTTPClient(httpClient))
+	}
 
 	if uri, ok := info.Config[credentialsEndpointKey]; ok {
 		log.G(ctx).Debugf("Trying to get credentials from awslogs-credentials-endpoint")
@@ -864,8 +879,8 @@ func (l *logStream) putLogEvents(events []types.InputLogEvent, sequenceToken *st
 
 // ValidateLogOpt looks for awslogs-specific log options awslogs-region, awslogs-endpoint
 // awslogs-group, awslogs-stream, awslogs-create-group, awslogs-create-stream, awslogs-datetime-format,
-// awslogs-multiline-pattern, awslogs-entity-service-name, awslogs-entity-environment and
-// awslogs-entity-attributes
+// awslogs-multiline-pattern, awslogs-request-timeout-seconds, awslogs-entity-service-name,
+// awslogs-entity-environment and awslogs-entity-attributes
 func ValidateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
 		switch key {
@@ -882,6 +897,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case credentialsEndpointKey:
 		case forceFlushIntervalKey:
 		case maxBufferedEventsKey:
+		case requestTimeoutKey:
 		case logFormatKey:
 		case entityServiceNameKey:
 		case entityEnvironmentKey:
@@ -911,6 +927,11 @@ func ValidateLogOpt(cfg map[string]string) error {
 	if cfg[maxBufferedEventsKey] != "" {
 		if value, err := strconv.Atoi(cfg[maxBufferedEventsKey]); err != nil || value <= 0 {
 			return fmt.Errorf("must specify a positive integer for log opt '%s': %v", maxBufferedEventsKey, cfg[maxBufferedEventsKey])
+		}
+	}
+	if cfg[requestTimeoutKey] != "" {
+		if value, err := strconv.Atoi(cfg[requestTimeoutKey]); err != nil || value <= 0 {
+			return fmt.Errorf("must specify a positive integer for log opt '%s': %v", requestTimeoutKey, cfg[requestTimeoutKey])
 		}
 	}
 	_, datetimeFormatKeyExists := cfg[datetimeFormatKey]

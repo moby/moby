@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
@@ -1569,6 +1571,139 @@ func TestValidateLogOptionsMaxBufferedEvents(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestValidateLogOptionsRequestTimeoutSeconds(t *testing.T) {
+	tests := []struct {
+		input     string
+		shouldErr bool
+	}{
+		{"0", true},
+		{"-1", true},
+		{"a", true},
+		{"30", false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.input, func(t *testing.T) {
+			cfg := map[string]string{
+				requestTimeoutKey: tc.input,
+				logGroupKey:       groupName,
+			}
+			err := ValidateLogOpt(cfg)
+			if tc.shouldErr {
+				expectedErr := "must specify a positive integer for log opt 'awslogs-request-timeout-seconds': " + tc.input
+				assert.Error(t, err, expectedErr)
+			} else {
+				assert.NilError(t, err)
+			}
+		})
+	}
+}
+
+func TestNewAWSLogsClientRequestTimeout(t *testing.T) {
+	for _, tc := range []struct {
+		value     string
+		shouldErr bool
+	}{
+		{"30", false},
+		{"x", true},
+	} {
+		t.Run(tc.value, func(t *testing.T) {
+			info := logger.Info{
+				Config: map[string]string{
+					regionKey:         "us-east-1",
+					requestTimeoutKey: tc.value,
+				},
+			}
+			client, err := newAWSLogsClient(info)
+			if tc.shouldErr {
+				assert.ErrorContains(t, err, "invalid value for log opt 'awslogs-request-timeout-seconds'")
+				return
+			}
+			assert.NilError(t, err)
+			assert.Check(t, client != nil)
+		})
+	}
+}
+
+// blackholeEndpoint returns the URL of a listener that accepts connections and
+// reads requests but never answers, like a connection whose peer has stopped
+// acknowledging.
+func blackholeEndpoint(t *testing.T) string {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	assert.NilError(t, err)
+	t.Cleanup(func() { ln.Close() })
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			go func() {
+				defer conn.Close()
+				_, _ = io.Copy(io.Discard, conn)
+			}()
+		}
+	}()
+	return "http://" + ln.Addr().String()
+}
+
+// putLogEventsAsync starts one PutLogEvents against a client built from cfg
+// and returns a channel that receives the result when the call returns.
+func putLogEventsAsync(t *testing.T, cfg map[string]string) <-chan error {
+	t.Helper()
+	client, err := newAWSLogsClient(
+		logger.Info{Config: cfg},
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("id", "secret", "")),
+		// One attempt keeps the test fast; the SDK's retry behaviour is not under test here.
+		config.WithRetryer(func() aws.Retryer { return retry.AddWithMaxAttempts(retry.NewStandard(), 1) }),
+	)
+	assert.NilError(t, err)
+	done := make(chan error, 1)
+	go func() {
+		_, err := client.PutLogEvents(context.Background(), &cloudwatchlogs.PutLogEventsInput{
+			LogGroupName:  aws.String(groupName),
+			LogStreamName: aws.String(streamName),
+			LogEvents: []types.InputLogEvent{{
+				Message:   aws.String(logline),
+				Timestamp: aws.Int64(time.Now().UnixMilli()),
+			}},
+		})
+		done <- err
+	}()
+	return done
+}
+
+func TestRequestTimeoutBoundsUnansweredRequest(t *testing.T) {
+	endpoint := blackholeEndpoint(t)
+
+	t.Run("with timeout the call returns", func(t *testing.T) {
+		done := putLogEventsAsync(t, map[string]string{
+			regionKey:         "us-east-1",
+			endpointKey:       endpoint,
+			requestTimeoutKey: "1",
+		})
+		select {
+		case err := <-done:
+			assert.ErrorContains(t, err, "Client.Timeout exceeded")
+		case <-time.After(10 * time.Second):
+			t.Fatal("PutLogEvents did not return within 10s despite awslogs-request-timeout-seconds=1")
+		}
+	})
+
+	t.Run("without timeout the call keeps waiting", func(t *testing.T) {
+		done := putLogEventsAsync(t, map[string]string{
+			regionKey:   "us-east-1",
+			endpointKey: endpoint,
+		})
+		select {
+		case err := <-done:
+			t.Fatalf("PutLogEvents returned without a request timeout: %v", err)
+		case <-time.After(2 * time.Second):
+			// still waiting on the unanswered connection, as expected
+		}
+	})
 }
 
 func TestValidateLogOptionsFormat(t *testing.T) {
