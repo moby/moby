@@ -1,0 +1,8 @@
+.. list-table::
+    :header-rows: 1
+
+    - - Setting
+      - Holds when
+{% for k, v in network_when|items %}    - - ``{{ k }}``
+      - {{ v }}
+{% endfor %}

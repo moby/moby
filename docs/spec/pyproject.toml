@@ -1,0 +1,15 @@
+# Configuration of docstrfmt, the formatter of the behavior specs. The spec
+# Makefile passes this file explicitly: docstrfmt only finds a pyproject.toml
+# by itself at the repository root.
+[tool.docstrfmt]
+line-length = 100
+custom_directives = [
+  { name = "expectation", raw = false, has_content = true, optional_arguments = 1, final_argument_whitespace = true },
+  { name = "principle", raw = false, has_content = true, optional_arguments = 1, final_argument_whitespace = true },
+  { name = "rationale", raw = false, has_content = true, optional_arguments = 1, final_argument_whitespace = true },
+  { name = "hostreq", raw = false, has_content = true, optional_arguments = 1, final_argument_whitespace = true },
+  { name = "ceiling", raw = false, has_content = true, optional_arguments = 1, final_argument_whitespace = true },
+  { name = "req", raw = false, has_content = true, optional_arguments = 1, final_argument_whitespace = true },
+  { name = "needreport", raw = false, has_content = false, optional_arguments = 0, final_argument_whitespace = false },
+]
+custom_roles = ["need", "need_part", "np", "file", "program", "api-op", "api-field", "api-query", "api-value", "api-event", "api-error", "cli", "cli-flag", "dockerd-flag", "daemon-json", "env", "log", "driver", "network", "drvopt", "kconfig", "sysctl", "errno", "signal", "cap", "netdev", "link-kind", "ipt-table", "ipt-chain", "ipt-target", "nft-table", "nft-chain", "fwd-zone", "fwd-policy", "dns-name", "rr-type", "rcode", "resolv-opt", "repo-path"]

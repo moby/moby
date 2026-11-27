@@ -1,0 +1,2 @@
+# The IDs of merged items that were removed, one per line. A retired ID is never used again.
+# conf.py fails the build for an item whose ID is listed here.

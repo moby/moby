@@ -1,0 +1,6 @@
+sphinx==9.2.0
+sphinx-needs==9.2.0
+sphinx-markdown-builder==0.6.11
+PyYAML==6.0.3
+# custom_directives support is not in a release yet (merged after 2.2.1).
+docstrfmt @ git+https://github.com/LilSpazJoekp/docstrfmt@e69029365db6bb4b3d2a0b9de22211387f9d80ad

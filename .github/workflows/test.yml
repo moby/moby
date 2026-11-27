@@ -227,6 +227,58 @@ jobs:
           make validate-swagger
           make validate-swagger-gen
 
+  validate-specs:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15 # guardrails timeout for the whole job
+    defaults:
+      run:
+        working-directory: docs/spec
+    needs:
+      - validate-dco
+    name: validate (specs)
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      -
+        name: Test the spec tooling
+        run: |
+          make test
+      -
+        name: Validate behavior specs
+        if: ${{ !cancelled() }}
+        run: |
+          make validate
+      -
+        name: Report changed spec items
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          make -s diff BASE_BRANCH="origin/${BASE_REF}" DIFF_FLAGS="--summary --html _build/spec-changes.html" > _build/spec-changes.md
+      -
+        name: Upload the spec changes report
+        id: spec-changes
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: docs/spec/_build/spec-changes.html
+          archive: false
+      -
+        name: Summarize the spec changes
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          REPORT_URL: ${{ steps.spec-changes.outputs.artifact-url }}
+        run: |
+          {
+            cat _build/spec-changes.md
+            echo
+            echo "[Full report with each change](${REPORT_URL})"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
   smoke-prepare:
     runs-on: ubuntu-26.04
     timeout-minutes: 10 # guardrails timeout for the whole job
