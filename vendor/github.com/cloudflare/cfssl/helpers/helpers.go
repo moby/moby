@@ -8,6 +8,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
+	"crypto/mldsa"
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
@@ -28,6 +29,8 @@ import (
 	ct "github.com/google/certificate-transparency-go"
 	cttls "github.com/google/certificate-transparency-go/tls"
 	ctx509 "github.com/google/certificate-transparency-go/x509"
+	"golang.org/x/crypto/cryptobyte"
+	cbasn1 "golang.org/x/crypto/cryptobyte/asn1"
 	"golang.org/x/crypto/ocsp"
 	"golang.org/x/crypto/pkcs12"
 )
@@ -73,6 +76,8 @@ func KeyLength(key interface{}) int {
 		return rsaKey.N.BitLen()
 	} else if _, ok := key.(ed25519.PublicKey); ok {
 		return ed25519.PublicKeySize
+	} else if mldsaKey, ok := key.(*mldsa.PublicKey); ok {
+		return mldsaKey.Parameters().PublicKeySize()
 	}
 
 	return 0
@@ -156,6 +161,12 @@ func SignatureString(alg x509.SignatureAlgorithm) string {
 		return "ECDSAWithSHA512"
 	case x509.PureEd25519:
 		return "Ed25519"
+	case x509.MLDSA44:
+		return "MLDSA44"
+	case x509.MLDSA65:
+		return "MLDSA65"
+	case x509.MLDSA87:
+		return "MLDSA87"
 	default:
 		return "Unknown Signature"
 	}
@@ -191,19 +202,29 @@ func HashAlgoString(alg x509.SignatureAlgorithm) string {
 		return "SHA512"
 	case x509.PureEd25519:
 		return "Ed25519"
+	case x509.MLDSA44:
+		return "MLDSA44"
+	case x509.MLDSA65:
+		return "MLDSA65"
+	case x509.MLDSA87:
+		return "MLDSA87"
 	default:
 		return "Unknown Hash Algorithm"
 	}
 }
 
 // StringTLSVersion returns underlying enum values from human names for TLS
-// versions, defaults to current golang default of TLS 1.0
+// versions ("1.0" through "1.3"). Unrecognised values return TLS 1.0.
 func StringTLSVersion(version string) uint16 {
 	switch version {
+	case "1.3":
+		return tls.VersionTLS13
 	case "1.2":
 		return tls.VersionTLS12
 	case "1.1":
 		return tls.VersionTLS11
+	case "1.0":
+		return tls.VersionTLS10
 	default:
 		return tls.VersionTLS10
 	}
@@ -253,8 +274,15 @@ func ParseCertificatesPEM(certsPEM []byte) ([]*x509.Certificate, error) {
 
 // ParseCertificatesDER parses a DER encoding of a certificate object and possibly private key,
 // either PKCS #7, PKCS #12, or raw x509.
+//
+// Whitespace after the outermost DER element is ignored. Surrounding bytes are
+// not trimmed blindly, because the last byte of the encoding can equal a
+// whitespace character.
 func ParseCertificatesDER(certsDER []byte, password string) (certs []*x509.Certificate, key crypto.Signer, err error) {
-	certsDER = bytes.TrimSpace(certsDER)
+	return parseCertificatesDER(trimAfterDER(certsDER), password)
+}
+
+func parseCertificatesDER(certsDER []byte, password string) (certs []*x509.Certificate, key crypto.Signer, err error) {
 	pkcs7data, err := pkcs7.ParsePKCS7(certsDER)
 	if err != nil {
 		var pkcs12data interface{}
@@ -291,6 +319,25 @@ func ParseSelfSignedCertificatePEM(certPEM []byte) (*x509.Certificate, error) {
 		return nil, cferr.Wrap(cferr.CertificateError, cferr.VerifyFailed, err)
 	}
 	return cert, nil
+}
+
+// idAlgUnsigned is id-alg-unsigned, the signature algorithm of an unsigned
+// certificate (RFC 9925, Section 3.1).
+var idAlgUnsigned = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 6, 36}
+
+// IsUnsigned reports whether cert has the id-alg-unsigned signature algorithm
+// of an RFC 9925 unsigned certificate. It returns false for nil and for a
+// certificate that was not parsed from DER.
+func IsUnsigned(cert *x509.Certificate) bool {
+	if cert == nil {
+		return false
+	}
+	input := cryptobyte.String(cert.RawSignatureAlgorithm)
+	var algorithm cryptobyte.String
+	var oid asn1.ObjectIdentifier
+	return input.ReadASN1(&algorithm, cbasn1.SEQUENCE) &&
+		algorithm.ReadASN1ObjectIdentifier(&oid) &&
+		oid.Equal(idAlgUnsigned)
 }
 
 // ParseCertificatePEM parses and returns a PEM-encoded certificate,
@@ -414,10 +461,35 @@ func GetKeyDERFromPEM(in []byte, password []byte) ([]byte, error) {
 	return nil, cferr.New(cferr.PrivateKeyError, cferr.DecodeFailed)
 }
 
+// trimAfterDER returns in without leading whitespace and without trailing
+// whitespace that follows a sequence of complete DER elements. Trailing
+// whitespace is not trimmed blindly, because the last byte of a DER encoding
+// can equal a whitespace character. If the input is not a sequence of DER
+// elements, it is trimmed on both sides.
+func trimAfterDER(in []byte) []byte {
+	in = bytes.TrimLeft(in, asciiSpace)
+	input := cryptobyte.String(in)
+	for !input.Empty() {
+		var element cryptobyte.String
+		if !input.ReadAnyASN1Element(&element, new(cbasn1.Tag)) {
+			if len(bytes.TrimLeft(input, asciiSpace)) == 0 {
+				return in[:len(in)-len(input)]
+			}
+			return bytes.TrimRight(in, asciiSpace)
+		}
+	}
+	return in
+}
+
+const asciiSpace = " \t\n\v\f\r"
+
 // ParseCSR parses a PEM- or DER-encoded PKCS #10 certificate signing request.
+//
+// Surrounding whitespace is ignored. For DER input, whitespace is removed only
+// after the outermost DER element, because the last byte of the encoding can
+// equal a whitespace character.
 func ParseCSR(in []byte) (csr *x509.CertificateRequest, rest []byte, err error) {
-	in = bytes.TrimSpace(in)
-	p, rest := pem.Decode(in)
+	p, rest := pem.Decode(bytes.TrimSpace(in))
 	if p != nil {
 		if p.Type != "NEW CERTIFICATE REQUEST" && p.Type != "CERTIFICATE REQUEST" {
 			return nil, rest, cferr.New(cferr.CSRError, cferr.BadRequest)
@@ -425,7 +497,7 @@ func ParseCSR(in []byte) (csr *x509.CertificateRequest, rest []byte, err error) 
 
 		csr, err = x509.ParseCertificateRequest(p.Bytes)
 	} else {
-		csr, err = x509.ParseCertificateRequest(in)
+		csr, err = x509.ParseCertificateRequest(trimAfterDER(in))
 	}
 
 	if err != nil {
@@ -502,6 +574,17 @@ func SignerAlgo(priv crypto.Signer) x509.SignatureAlgorithm {
 		}
 	case ed25519.PublicKey:
 		return x509.PureEd25519
+	case *mldsa.PublicKey:
+		switch {
+		case pub.Parameters() == mldsa.MLDSA44():
+			return x509.MLDSA44
+		case pub.Parameters() == mldsa.MLDSA65():
+			return x509.MLDSA65
+		case pub.Parameters() == mldsa.MLDSA87():
+			return x509.MLDSA87
+		default:
+			return x509.UnknownSignatureAlgorithm
+		}
 	default:
 		return x509.UnknownSignatureAlgorithm
 	}

@@ -6,6 +6,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
+	"crypto/mldsa"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -25,6 +26,8 @@ import (
 	"github.com/cloudflare/cfssl/helpers"
 	"github.com/cloudflare/cfssl/helpers/derhelpers"
 	"github.com/cloudflare/cfssl/log"
+	"golang.org/x/crypto/cryptobyte"
+	cbasn1 "golang.org/x/crypto/cryptobyte/asn1"
 )
 
 const (
@@ -67,7 +70,7 @@ func (kr *KeyRequest) Size() int {
 }
 
 // Generate generates a key as specified in the request. Currently,
-// only ECDSA, RSA and ed25519 algorithms are supported.
+// ECDSA, RSA, Ed25519, and ML-DSA (mldsa44, mldsa65, mldsa87) algorithms are supported.
 func (kr *KeyRequest) Generate() (crypto.PrivateKey, error) {
 	log.Debugf("generate key from request: algo=%s, size=%d", kr.Algo(), kr.Size())
 	switch kr.Algo() {
@@ -98,6 +101,12 @@ func (kr *KeyRequest) Generate() (crypto.PrivateKey, error) {
 			return nil, err
 		}
 		return ed25519.NewKeyFromSeed(seed), nil
+	case "mldsa44":
+		return mldsa.GenerateKey(mldsa.MLDSA44())
+	case "mldsa65":
+		return mldsa.GenerateKey(mldsa.MLDSA65())
+	case "mldsa87":
+		return mldsa.GenerateKey(mldsa.MLDSA87())
 	default:
 		return nil, errors.New("invalid algorithm")
 	}
@@ -131,6 +140,12 @@ func (kr *KeyRequest) SigAlgo() x509.SignatureAlgorithm {
 		}
 	case "ed25519":
 		return x509.PureEd25519
+	case "mldsa44":
+		return x509.MLDSA44
+	case "mldsa65":
+		return x509.MLDSA65
+	case "mldsa87":
+		return x509.MLDSA87
 	default:
 		return x509.UnknownSignatureAlgorithm
 	}
@@ -156,6 +171,12 @@ type CertificateRequest struct {
 	DelegationEnabled bool             `json:"delegation_enabled,omitempty" yaml:"delegation_enabled,omitempty"`
 	Extensions        []pkix.Extension `json:"extensions,omitempty" yaml:"extensions,omitempty"`
 	CRL               string           `json:"crl_url,omitempty" yaml:"crl_url,omitempty"`
+
+	// RawSubject is a DER-encoded X.501 Name used verbatim as the CSR
+	// subject. It cannot be combined with CN, Names or SerialNumber. It can
+	// only be set in code, so that request input decoded from JSON or YAML
+	// cannot supply it.
+	RawSubject []byte `json:"-" yaml:"-"`
 }
 
 // New returns a new, empty CertificateRequest with a
@@ -271,8 +292,21 @@ func ParseRequest(req *CertificateRequest) (csr, key []byte, err error) {
 			Bytes: key,
 		}
 		key = pem.EncodeToMemory(&block)
+	case *mldsa.PrivateKey:
+		key, err = x509.MarshalPKCS8PrivateKey(priv)
+		if err != nil {
+			err = cferr.Wrap(cferr.PrivateKeyError, cferr.Unknown, err)
+			return
+		}
+		block := pem.Block{
+			Type:  "PRIVATE KEY",
+			Bytes: key,
+		}
+		key = pem.EncodeToMemory(&block)
 	default:
-		panic("Generate should have failed to produce a valid key.")
+		err = cferr.Wrap(cferr.PrivateKeyError, cferr.Unknown,
+			fmt.Errorf("unsupported generated private key type %T", priv))
+		return
 	}
 
 	csr, err = Generate(priv.(crypto.Signer), req)
@@ -408,6 +442,47 @@ func Regenerate(priv crypto.Signer, csr []byte) ([]byte, error) {
 	return x509.CreateCertificateRequest(rand.Reader, req, priv)
 }
 
+// ValidateRawName checks that raw is a DER X.501 Name (RFC 5280, Section
+// 4.1.2.4): a non-empty SEQUENCE of non-empty SETs, each holding SEQUENCEs of
+// an OBJECT IDENTIFIER and exactly one value, with definite minimal lengths
+// and no trailing data. The DER order of SET elements and the encoding of
+// values are not checked.
+func ValidateRawName(raw []byte) error {
+	input := cryptobyte.String(raw)
+	var rdnSequence cryptobyte.String
+	if !input.ReadASN1(&rdnSequence, cbasn1.SEQUENCE) || !input.Empty() {
+		return errors.New("raw subject is not a single DER SEQUENCE")
+	}
+	if rdnSequence.Empty() {
+		return errors.New("raw subject is empty")
+	}
+	for !rdnSequence.Empty() {
+		var rdn cryptobyte.String
+		if !rdnSequence.ReadASN1(&rdn, cbasn1.SET) {
+			return errors.New("raw subject RelativeDistinguishedName is not a SET")
+		}
+		if rdn.Empty() {
+			return errors.New("raw subject has an empty RelativeDistinguishedName")
+		}
+		for !rdn.Empty() {
+			var atv cryptobyte.String
+			if !rdn.ReadASN1(&atv, cbasn1.SEQUENCE) {
+				return errors.New("raw subject AttributeTypeAndValue is not a SEQUENCE")
+			}
+			var attributeType asn1.ObjectIdentifier
+			if !atv.ReadASN1ObjectIdentifier(&attributeType) {
+				return errors.New("raw subject attribute type is not an OBJECT IDENTIFIER")
+			}
+			var value cryptobyte.String
+			var valueTag cbasn1.Tag
+			if !atv.ReadAnyASN1Element(&value, &valueTag) || !atv.Empty() {
+				return fmt.Errorf("raw subject attribute %s does not have exactly one value", attributeType)
+			}
+		}
+	}
+	return nil
+}
+
 // GenerateDER creates a new CSR(ASN1 DER encoded) from a CertificateRequest structure and
 // an existing key. The KeyRequest field is ignored.
 func GenerateDER(priv crypto.Signer, req *CertificateRequest) (csr []byte, err error) {
@@ -416,14 +491,21 @@ func GenerateDER(priv crypto.Signer, req *CertificateRequest) (csr []byte, err e
 		return nil, cferr.New(cferr.PrivateKeyError, cferr.Unavailable)
 	}
 
-	subj, err := req.Name()
-	if err != nil {
-		return nil, err
-	}
-
-	var tpl = x509.CertificateRequest{
-		Subject:            subj,
-		SignatureAlgorithm: sigAlgo,
+	var tpl = x509.CertificateRequest{SignatureAlgorithm: sigAlgo}
+	if len(req.RawSubject) != 0 {
+		if req.CN != "" || len(req.Names) != 0 || req.SerialNumber != "" {
+			return nil, errors.New("raw subject cannot be combined with CN, names or serial number")
+		}
+		if err := ValidateRawName(req.RawSubject); err != nil {
+			return nil, err
+		}
+		tpl.RawSubject = req.RawSubject
+	} else {
+		subj, err := req.Name()
+		if err != nil {
+			return nil, err
+		}
+		tpl.Subject = subj
 	}
 
 	for i := range req.Hosts {
