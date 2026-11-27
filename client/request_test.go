@@ -7,6 +7,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -332,5 +333,79 @@ func TestPrepareJSONRequest(t *testing.T) {
 			assert.Check(t, is.DeepEqual(hdr, tc.expHeaders))
 			assert.Check(t, is.Equal(tc.headers.Get("Content-Type"), ""), "Should not have mutated original headers")
 		})
+	}
+}
+
+type closeTracker struct {
+	io.Reader
+	closed bool
+}
+
+func (c *closeTracker) Close() error {
+	c.closed = true
+	return nil
+}
+
+// TestErrorResponseBodyClosed checks that the response body of an API error
+// is closed, also for methods that return as soon as the request fails.
+func TestErrorResponseBodyClosed(t *testing.T) {
+	calls := map[string]func(*Client) error{
+		"CopyFromContainer": func(c *Client) error {
+			_, err := c.CopyFromContainer(t.Context(), "container_id", CopyFromContainerOptions{SourcePath: "/foo"})
+			return err
+		},
+		"ContainerInspect": func(c *Client) error {
+			_, err := c.ContainerInspect(t.Context(), "container_id", ContainerInspectOptions{})
+			return err
+		},
+		"ContainerLogs": func(c *Client) error {
+			_, err := c.ContainerLogs(t.Context(), "container_id", ContainerLogsOptions{})
+			return err
+		},
+		"ContainerExport": func(c *Client) error {
+			_, err := c.ContainerExport(t.Context(), "container_id", ContainerExportOptions{})
+			return err
+		},
+		"ImageSave": func(c *Client) error {
+			_, err := c.ImageSave(t.Context(), []string{"image_id"})
+			return err
+		},
+		"ServiceInspect": func(c *Client) error {
+			_, err := c.ServiceInspect(t.Context(), "service_id", ServiceInspectOptions{})
+			return err
+		},
+	}
+	// checkResponseErr reads at most 1 MiB, so a larger body is never read to
+	// EOF, and the connection stays open unless the body is closed.
+	bodies := []struct {
+		name   string
+		body   string
+		errMsg string
+	}{
+		{name: "small", body: `{"message":"error"}`, errMsg: "error"},
+		{name: "large", body: strings.Repeat("x", 2*1024*1024), errMsg: "with a message (> 1048576 bytes)"},
+	}
+	for _, statusCode := range []int{http.StatusNotFound, http.StatusInternalServerError} {
+		for _, tc := range bodies {
+			for name, call := range calls {
+				t.Run(fmt.Sprintf("%s/%d/%s", name, statusCode, tc.name), func(t *testing.T) {
+					var body *closeTracker
+					client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
+						body = &closeTracker{Reader: strings.NewReader(tc.body)}
+						return &http.Response{
+							StatusCode: statusCode,
+							Header:     http.Header{"Content-Type": []string{"application/json"}},
+							Body:       body,
+						}, nil
+					}))
+					assert.NilError(t, err)
+
+					err = call(client)
+					assert.Check(t, is.ErrorContains(err, tc.errMsg))
+					assert.Assert(t, body != nil)
+					assert.Check(t, body.closed, "response body was not closed")
+				})
+			}
+		}
 	}
 }
