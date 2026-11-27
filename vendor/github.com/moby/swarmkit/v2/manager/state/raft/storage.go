@@ -125,7 +125,7 @@ func (n *Node) loadAndStart(ctx context.Context, forceNewCluster bool) error {
 		}
 
 		// force append the configuration change entries
-		toAppEnts := createConfigChangeEnts(getIDs(snapshot, ents), n.Config.ID, st.Term, st.Commit)
+		toAppEnts := createConfigChangeEnts(getIDs(snapshot, ents), raftNode, st.Term, st.Commit)
 
 		// All members that are being removed as part of the
 		// force-new-cluster process must be added to the

@@ -979,6 +979,28 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 			}
 		}
 		err := store.CreateCluster(tx, clusterObj)
+		if err != nil && m.config.ForceNewCluster {
+			// Force-new-cluster recovery reuses the cluster store. Preserve its
+			// configuration, applying only network settings explicitly supplied
+			// for this initialization.
+			clusterObj = store.GetCluster(tx, clusterID)
+			if clusterObj == nil {
+				return fmt.Errorf("cluster %s not found during force-new-cluster recovery", clusterID)
+			}
+			if m.config.NetworkConfig != nil {
+				if m.config.NetworkConfig.DefaultAddrPool != nil {
+					clusterObj.DefaultAddressPool = m.config.NetworkConfig.DefaultAddrPool
+					clusterObj.SubnetSize = m.config.NetworkConfig.SubnetSize
+				}
+				if m.config.NetworkConfig.VXLANUDPPort != 0 {
+					clusterObj.VXLANUDPPort = m.config.NetworkConfig.VXLANUDPPort
+				}
+			}
+			if err := store.UpdateCluster(tx, clusterObj); err != nil {
+				return err
+			}
+			err = nil
+		}
 
 		if err != nil && (err != store.ErrExist || err != store.ErrNameConflict) {
 			log.G(ctx).WithError(err).Errorf("error creating cluster object")
@@ -986,7 +1008,18 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 
 		// Add Node entry for ourself, if one
 		// doesn't exist already.
-		freshCluster := nil == store.CreateNode(tx, managerNode(nodeID, m.config.Availability, clusterObj.VXLANUDPPort))
+		err = store.CreateNode(tx, managerNode(nodeID, m.config.Availability, clusterObj.VXLANUDPPort))
+		freshCluster := err == nil
+		if err != nil && m.config.ForceNewCluster {
+			node := store.GetNode(tx, nodeID)
+			if node == nil {
+				return fmt.Errorf("manager node %s not found during force-new-cluster recovery", nodeID)
+			}
+			node.VXLANUDPPort = clusterObj.VXLANUDPPort
+			if err := store.UpdateNode(tx, node); err != nil {
+				return err
+			}
+		}
 
 		if freshCluster {
 			// This is a fresh swarm cluster. Add to store now any initial
