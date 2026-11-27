@@ -1,6 +1,7 @@
 package osl
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -368,13 +369,21 @@ func (n *Namespace) Destroy() error {
 // RestoreInterfaces restores the network namespace's interfaces and sends
 // unsolicited ARP/NA messages to update neighbor caches.
 func (n *Namespace) RestoreInterfaces(ctx context.Context, interfaces map[Iface][]IfaceOption) error {
-	// restore interfaces
+	restored := make([]*Interface, 0, len(interfaces))
+	macUsers := make(map[string]int)
 	for iface, opts := range interfaces {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
 		i, err := newInterface(n, iface.SrcName, iface.DstPrefix, iface.DstName, opts...)
 		if err != nil {
+			return err
+		}
+		restored = append(restored, i)
+		if len(i.mac) > 0 {
+			macUsers[i.mac.String()]++
+		}
+	}
+	// restore interfaces
+	for _, i := range restored {
+		if err := ctx.Err(); err != nil {
 			return err
 		}
 		if n.isDefault {
@@ -386,10 +395,11 @@ func (n *Namespace) RestoreInterfaces(ctx context.Context, interfaces map[Iface]
 			}
 			// due to the docker network connect/disconnect, so the dstName should
 			// restore from the namespace
+			var matched bool
 			for _, link := range links {
 				ifaceName := link.Attrs().Name
 				if i.dstPrefix == "vxlan" && strings.HasPrefix(ifaceName, "vxlan") {
-					i.dstName = ifaceName
+					i.dstName, matched = ifaceName, true
 					break
 				}
 				// find the interface name by ip
@@ -407,7 +417,7 @@ func (n *Namespace) RestoreInterfaces(ctx context.Context, interfaces map[Iface]
 						return err
 					}
 					if name, found := findIfname(i.address, addresses); found {
-						i.dstName = name
+						i.dstName, matched = name, true
 						break
 					}
 				}
@@ -416,14 +426,31 @@ func (n *Namespace) RestoreInterfaces(ctx context.Context, interfaces map[Iface]
 					if err != nil {
 						return err
 					}
-					if name, found := findIfname(i.address, addresses); found {
-						i.dstName = name
+					if name, found := findIfname(i.addressIPv6, addresses); found {
+						i.dstName, matched = name, true
 						break
 					}
 				}
 				// This is to find the interface name of the pair in overlay sandbox
 				if i.master != "" && i.dstPrefix == "veth" && strings.HasPrefix(ifaceName, "veth") {
-					i.dstName = ifaceName
+					i.dstName, matched = ifaceName, true
+				}
+			}
+			// A runtime that takes over the interface, such as gVisor's runsc, removes its
+			// addresses; a MAC address that only this endpoint and only one link have still identifies it.
+			if !matched && len(i.mac) > 0 && macUsers[i.mac.String()] > 1 {
+				log.G(ctx).WithField("mac", i.mac.String()).Warn("Not restoring interface: its MAC address belongs to more than one endpoint")
+			} else if !matched && len(i.mac) > 0 {
+				var names []string
+				for _, link := range links {
+					if bytes.Equal(link.Attrs().HardwareAddr, i.mac) {
+						names = append(names, link.Attrs().Name)
+					}
+				}
+				if len(names) == 1 {
+					i.dstName = names[0]
+				} else if len(names) > 1 {
+					log.G(ctx).WithFields(log.Fields{"mac": i.mac.String(), "interfaces": names}).Warn("Not restoring interface: its MAC address is not unique in the sandbox")
 				}
 			}
 

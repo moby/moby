@@ -288,6 +288,14 @@ func (sb *Sandbox) restoreOslSandbox(ctx context.Context) error {
 		if len(i.llAddrs) != 0 {
 			ifaceOptions = append(ifaceOptions, osl.WithLinkLocalAddresses(i.llAddrs))
 		}
+		if n := ep.getNetwork(); n != nil {
+			if nMsgs, ok := n.advertiseAddrNMsgs(); ok {
+				ifaceOptions = append(ifaceOptions, osl.WithAdvertiseAddrNMsgs(nMsgs))
+			}
+			if interval, ok := n.advertiseAddrInterval(); ok {
+				ifaceOptions = append(ifaceOptions, osl.WithAdvertiseAddrInterval(interval))
+			}
+		}
 		iface := osl.Iface{SrcName: i.srcName, DstPrefix: i.dstPrefix, DstName: i.dstName}
 		interfaces[iface] = ifaceOptions
 		if joinInfo != nil {

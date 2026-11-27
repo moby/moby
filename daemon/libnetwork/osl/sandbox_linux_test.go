@@ -19,6 +19,8 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 const (
@@ -398,6 +400,202 @@ func TestLiveRestore(t *testing.T) {
 	}
 	if err := setInterfaceIP(t.Context(), nlh, linkA, iface); err == nil {
 		t.Fatalf("Expected route conflict error, but succeeded for IPV4 ")
+	}
+}
+
+func TestRestoreInterfacesMatchesMACWhenAddressIsGone(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+
+	key, err := newKey(t)
+	assert.NilError(t, err)
+	n, err := NewSandbox(key, true, false)
+	assert.NilError(t, err)
+	defer destroyTest(t, n)
+
+	assert.NilError(t, ns.NlHandle().LinkAdd(&netlink.Veth{
+		LinkAttrs: netlink.LinkAttrs{Name: vethName1},
+		PeerName:  vethName2,
+	}))
+	addr, err := types.ParseCIDR("192.168.1.100/24")
+	assert.NilError(t, err)
+	mac, err := net.ParseMAC("02:42:c0:a8:01:64")
+	assert.NilError(t, err)
+	opts := []IfaceOption{WithIPv4Address(addr), WithMACAddress(mac), WithAdvertiseAddrNMsgs(0)}
+	assert.NilError(t, n.AddInterface(t.Context(), vethName2, sboxIfacePrefix, "", opts...))
+	dstName := n.Interfaces()[0].DstName()
+
+	// A runtime such as gVisor takes over the interface and removes its address.
+	link, err := n.nlHandle.LinkByName(dstName)
+	assert.NilError(t, err)
+	assert.NilError(t, n.nlHandle.AddrDel(link, &netlink.Addr{IPNet: addr}))
+
+	restored, err := NewSandbox(key, true, true)
+	assert.NilError(t, err)
+	defer destroyTest(t, restored)
+	assert.NilError(t, restored.RestoreInterfaces(t.Context(), map[Iface][]IfaceOption{
+		{SrcName: vethName2, DstPrefix: sboxIfacePrefix}: opts,
+	}))
+
+	ifaces := restored.Interfaces()
+	assert.Assert(t, is.Len(ifaces, 1))
+	assert.Check(t, is.Equal(ifaces[0].DstName(), dstName))
+	_, err = ifaces[0].Statistics()
+	assert.Check(t, err)
+}
+
+func TestRestoreInterfacesReplacesStaleNameByMACWhenAddressIsGone(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+
+	key, err := newKey(t)
+	assert.NilError(t, err)
+	n, err := NewSandbox(key, true, false)
+	assert.NilError(t, err)
+	defer destroyTest(t, n)
+
+	assert.NilError(t, ns.NlHandle().LinkAdd(&netlink.Veth{
+		LinkAttrs: netlink.LinkAttrs{Name: vethName1},
+		PeerName:  vethName2,
+	}))
+	addr, err := types.ParseCIDR("192.168.1.100/24")
+	assert.NilError(t, err)
+	mac, err := net.ParseMAC("02:42:c0:a8:01:64")
+	assert.NilError(t, err)
+	opts := []IfaceOption{WithIPv4Address(addr), WithMACAddress(mac), WithAdvertiseAddrNMsgs(0)}
+	assert.NilError(t, n.AddInterface(t.Context(), vethName2, sboxIfacePrefix, "", opts...))
+	dstName := n.Interfaces()[0].DstName()
+	link, err := n.nlHandle.LinkByName(dstName)
+	assert.NilError(t, err)
+	assert.NilError(t, n.nlHandle.AddrDel(link, &netlink.Addr{IPNet: addr}))
+
+	restored, err := NewSandbox(key, true, true)
+	assert.NilError(t, err)
+	defer destroyTest(t, restored)
+	assert.NilError(t, restored.RestoreInterfaces(t.Context(), map[Iface][]IfaceOption{
+		{SrcName: vethName2, DstPrefix: sboxIfacePrefix, DstName: "stale0"}: opts,
+	}))
+
+	ifaces := restored.Interfaces()
+	assert.Assert(t, is.Len(ifaces, 1))
+	assert.Check(t, is.Equal(ifaces[0].DstName(), dstName))
+}
+
+func TestRestoreInterfacesSkipsSharedMACWhenAddressIsGone(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+
+	key, err := newKey(t)
+	assert.NilError(t, err)
+	n, err := NewSandbox(key, true, false)
+	assert.NilError(t, err)
+	defer destroyTest(t, n)
+
+	mac, err := net.ParseMAC("02:42:c0:a8:01:64")
+	assert.NilError(t, err)
+	restore := map[Iface][]IfaceOption{}
+	for _, veth := range []struct{ host, sbox, cidr string }{
+		{vethName1, vethName2, "192.168.1.100/24"},
+		{vethName3, vethName4, "192.168.2.100/24"},
+	} {
+		assert.NilError(t, ns.NlHandle().LinkAdd(&netlink.Veth{
+			LinkAttrs: netlink.LinkAttrs{Name: veth.host},
+			PeerName:  veth.sbox,
+		}))
+		addr, err := types.ParseCIDR(veth.cidr)
+		assert.NilError(t, err)
+		opts := []IfaceOption{WithIPv4Address(addr), WithMACAddress(mac), WithAdvertiseAddrNMsgs(0)}
+		assert.NilError(t, n.AddInterface(t.Context(), veth.sbox, sboxIfacePrefix, "", opts...))
+		restore[Iface{SrcName: veth.sbox, DstPrefix: sboxIfacePrefix}] = opts
+	}
+	for _, i := range n.Interfaces() {
+		link, err := n.nlHandle.LinkByName(i.DstName())
+		assert.NilError(t, err)
+		assert.NilError(t, n.nlHandle.AddrDel(link, &netlink.Addr{IPNet: i.Address()}))
+	}
+
+	restored, err := NewSandbox(key, true, true)
+	assert.NilError(t, err)
+	defer destroyTest(t, restored)
+	assert.NilError(t, restored.RestoreInterfaces(t.Context(), restore))
+
+	ifaces := restored.Interfaces()
+	assert.Assert(t, is.Len(ifaces, 2))
+	for _, i := range ifaces {
+		assert.Check(t, is.Equal(i.DstName(), ""), "interface %s", i.SrcName())
+	}
+}
+
+func TestRestoreInterfacesMatchesIPv6OnlyEndpointByAddress(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+
+	key, err := newKey(t)
+	assert.NilError(t, err)
+	n, err := NewSandbox(key, true, false)
+	assert.NilError(t, err)
+	defer destroyTest(t, n)
+
+	assert.NilError(t, ns.NlHandle().LinkAdd(&netlink.Veth{
+		LinkAttrs: netlink.LinkAttrs{Name: vethName1},
+		PeerName:  vethName2,
+	}))
+	addr, err := types.ParseCIDR("2001:db8::44/64")
+	assert.NilError(t, err)
+	opts := []IfaceOption{WithIPv6Address(addr), WithAdvertiseAddrNMsgs(0)}
+	assert.NilError(t, n.AddInterface(t.Context(), vethName2, sboxIfacePrefix, "", opts...))
+	dstName := n.Interfaces()[0].DstName()
+
+	restored, err := NewSandbox(key, true, true)
+	assert.NilError(t, err)
+	defer destroyTest(t, restored)
+	assert.NilError(t, restored.RestoreInterfaces(t.Context(), map[Iface][]IfaceOption{
+		{SrcName: vethName2, DstPrefix: sboxIfacePrefix}: opts,
+	}))
+
+	ifaces := restored.Interfaces()
+	assert.Assert(t, is.Len(ifaces, 1))
+	assert.Check(t, is.Equal(ifaces[0].DstName(), dstName))
+}
+
+func TestRestoreInterfacesSkipsMACSharedWithAnotherEndpoint(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+
+	key, err := newKey(t)
+	assert.NilError(t, err)
+	n, err := NewSandbox(key, true, false)
+	assert.NilError(t, err)
+	defer destroyTest(t, n)
+
+	assert.NilError(t, ns.NlHandle().LinkAdd(&netlink.Veth{
+		LinkAttrs: netlink.LinkAttrs{Name: vethName1},
+		PeerName:  vethName2,
+	}))
+	mac, err := net.ParseMAC("02:42:c0:a8:01:64")
+	assert.NilError(t, err)
+	addr, err := types.ParseCIDR("192.168.1.100/24")
+	assert.NilError(t, err)
+	opts := []IfaceOption{WithIPv4Address(addr), WithMACAddress(mac), WithAdvertiseAddrNMsgs(0)}
+	assert.NilError(t, n.AddInterface(t.Context(), vethName2, sboxIfacePrefix, "", opts...))
+	dstName := n.Interfaces()[0].DstName()
+
+	// A second endpoint saved with the same MAC address whose link is gone.
+	goneAddr, err := types.ParseCIDR("192.168.2.100/24")
+	assert.NilError(t, err)
+	goneOpts := []IfaceOption{WithIPv4Address(goneAddr), WithMACAddress(mac), WithAdvertiseAddrNMsgs(0)}
+
+	restored, err := NewSandbox(key, true, true)
+	assert.NilError(t, err)
+	defer destroyTest(t, restored)
+	assert.NilError(t, restored.RestoreInterfaces(t.Context(), map[Iface][]IfaceOption{
+		{SrcName: vethName2, DstPrefix: sboxIfacePrefix}: opts,
+		{SrcName: vethName4, DstPrefix: sboxIfacePrefix}: goneOpts,
+	}))
+
+	ifaces := restored.Interfaces()
+	assert.Assert(t, is.Len(ifaces, 2))
+	for _, i := range ifaces {
+		want := ""
+		if i.SrcName() == vethName2 {
+			want = dstName
+		}
+		assert.Check(t, is.Equal(i.DstName(), want), "interface %s", i.SrcName())
 	}
 }
 
