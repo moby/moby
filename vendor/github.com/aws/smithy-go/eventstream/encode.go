@@ -61,6 +61,10 @@ func (e *Encoder) Encode(w io.Writer, msg Message) (err error) {
 		return err
 	}
 
+	if err = validateMessageLen(uint64(e.headersBuf.Len()), uint64(len(msg.Payload))); err != nil {
+		return err
+	}
+
 	crc := crc32.New(crc32IEEETable)
 	hashWriter := io.MultiWriter(writer, crc)
 
@@ -109,6 +113,23 @@ func logMessageEncode(logger logging.Logger, msgBuf *bytes.Buffer, msg Message, 
 	}
 
 	fmt.Fprintf(w, "Raw message:\n%s\n", hex.Dump(msgBuf.Bytes()))
+}
+
+// validateMessageLen returns an error if a message with the given headers and
+// payload lengths would be longer than maxMsgLen. The sum is computed in 64
+// bits so it cannot wrap the way the prelude's 32-bit length field would.
+func validateMessageLen(headersLen, payloadLen uint64) error {
+	if total := minMsgLen + headersLen + payloadLen; total > maxMsgLen {
+		// Convert through a variable: int(maxMsgLen) would fail to compile on
+		// 32-bit systems, where the constant overflows int.
+		maxLen := uint64(maxMsgLen)
+		return LengthError{
+			Part: "message",
+			Want: int(maxLen),
+			Have: int(total),
+		}
+	}
+	return nil
 }
 
 func encodePrelude(w io.Writer, crc hash.Hash32, headersLen, payloadLen uint32) error {

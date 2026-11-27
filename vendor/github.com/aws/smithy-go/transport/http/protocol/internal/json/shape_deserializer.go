@@ -355,12 +355,18 @@ func (d *ShapeDeserializer) ReadBlob(s *smithy.Schema, v *[]byte) error {
 		return fmt.Errorf("expected string, got %s", tok)
 	}
 
-	sv, err := unquote(tok)
-	if err != nil {
-		return err
+	encoded := tok[1 : len(tok)-1]
+	// The parser already checked for escapes. Unescaped base64 can be
+	// decoded without another scan or a temporary string copy.
+	if d.p.escaped {
+		var ok bool
+		encoded, ok = stdlib.UnquoteBytes(tok)
+		if !ok {
+			return fmt.Errorf("cannot unquote %s", tok)
+		}
 	}
 
-	b, err := base64.StdEncoding.DecodeString(sv)
+	b, err := base64.StdEncoding.AppendDecode([]byte{}, encoded)
 	if err != nil {
 		return fmt.Errorf("decode base64 blob: %w", err)
 	}
