@@ -32,8 +32,9 @@ type Launcher struct {
 	RuntimeDir      string
 	ReadyTimeout    time.Duration
 	ShutdownTimeout time.Duration
-	// ExtensionConfig holds configuration keyed by extension id. The selected
-	// entry is delivered over the startup handshake.
+	// ExtensionConfig holds configuration keyed by extension id, or by an id
+	// without its version. The entry selected by [extensions.LookupConfig] is
+	// delivered over the startup handshake.
 	ExtensionConfig map[extensions.ExtensionID]extensions.Config
 	// CallbackEndpoint is the socket where the host serves dependencies.
 	CallbackEndpoint string
@@ -129,7 +130,7 @@ func (l Launcher) Launch(ctx context.Context, bin string) (*Launched, error) {
 	startup := sdk.StartupConfig{
 		Endpoint:         endpoint,
 		ProtocolVersion:  sdk.ProtocolVersion,
-		Config:           l.ExtensionConfig[extensions.ExtensionID(name)],
+		Config:           extensions.LookupConfig(l.ExtensionConfig, extensions.ExtensionID(name)),
 		CallbackEndpoint: l.CallbackEndpoint,
 	}
 	launchCtx, cancel := context.WithTimeout(ctx, readyTimeout)

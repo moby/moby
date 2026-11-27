@@ -47,44 +47,113 @@ func (passthroughCodec) Unmarshal(data mem.BufferSlice, v any) error {
 	return nil
 }
 
-// Proxy forwards calls for a set of gRPC service names.
+// Proxy forwards calls for a set of gRPC service names and proto packages.
 type Proxy struct {
-	routes map[string]grpc.ClientConnInterface
+	routes Routes
 	server *grpc.Server
 }
 
 // Backend identifies a gRPC backend and the services it serves.
+// Packages route every service in each proto package to the backend.
 type Backend struct {
 	ID       string
 	Conn     grpc.ClientConnInterface
 	Services []string
+	Packages []string
 }
 
-// BuildRoutes assembles a service-name to connection map, rejecting conflicts.
+// Routes maps gRPC service names and proto packages to backend connections.
+// An exact service route takes precedence over its package.
+type Routes struct {
+	Services map[string]grpc.ClientConnInterface
+	Packages map[string]grpc.ClientConnInterface
+}
+
+// Len reports the number of routes.
+func (r Routes) Len() int {
+	return len(r.Services) + len(r.Packages)
+}
+
+func (r Routes) lookup(service string) (grpc.ClientConnInterface, bool) {
+	if conn, ok := r.Services[service]; ok {
+		return conn, true
+	}
+
+	conn, ok := r.Packages[packageName(service)]
+
+	return conn, ok
+}
+
+// BuildRoutes assembles service and package routes, rejecting conflicts.
+// A package conflicts with reserved services and with services of other
+// backends inside it.
+// No route may reach the SDK runtime package, which every SDK extension serves
+// on its connection.
 // Backends are processed in ID order for deterministic conflict errors.
-func BuildRoutes(backends []Backend, reserved map[string]struct{}) (map[string]grpc.ClientConnInterface, error) {
+func BuildRoutes(backends []Backend, reserved map[string]struct{}) (Routes, error) {
 	sorted := append([]Backend(nil), backends...)
 	slices.SortFunc(sorted, func(a, b Backend) int { return strings.Compare(a.ID, b.ID) })
 
-	routes := map[string]grpc.ClientConnInterface{}
-	owner := map[string]string{}
+	routes := Routes{Services: map[string]grpc.ClientConnInterface{}, Packages: map[string]grpc.ClientConnInterface{}}
+	serviceOwner := map[string]string{}
+	packageOwner := map[string]string{}
+
 	for _, be := range sorted {
 		for _, svc := range be.Services {
+			if packageName(svc) == runtimePackage {
+				return Routes{}, fmt.Errorf("grpcproxy: backend %q cannot expose gRPC service %q: package %q is the SDK runtime", be.ID, svc, runtimePackage)
+			}
+
 			if _, taken := reserved[svc]; taken {
-				return nil, fmt.Errorf("grpcproxy: backend %q cannot expose gRPC service %q: that name is reserved by an already-served service", be.ID, svc)
+				return Routes{}, fmt.Errorf("grpcproxy: backend %q cannot expose gRPC service %q: that name is reserved by an already-served service", be.ID, svc)
 			}
-			if other, taken := owner[svc]; taken {
-				return nil, fmt.Errorf("grpcproxy: backends %q and %q both expose gRPC service %q", other, be.ID, svc)
+
+			if other, taken := serviceOwner[svc]; taken {
+				return Routes{}, fmt.Errorf("grpcproxy: backends %q and %q both expose gRPC service %q", other, be.ID, svc)
 			}
-			owner[svc] = be.ID
-			routes[svc] = be.Conn
+
+			if other, taken := packageOwner[packageName(svc)]; taken && other != be.ID {
+				return Routes{}, fmt.Errorf("grpcproxy: backend %q cannot expose gRPC service %q: backend %q exposes its package", be.ID, svc, other)
+			}
+
+			serviceOwner[svc] = be.ID
+			routes.Services[svc] = be.Conn
+		}
+
+		for _, pkg := range be.Packages {
+			if pkg == "" {
+				return Routes{}, fmt.Errorf("grpcproxy: backend %q cannot expose an empty package", be.ID)
+			}
+
+			if pkg == runtimePackage {
+				return Routes{}, fmt.Errorf("grpcproxy: backend %q cannot expose package %q: it is the SDK runtime", be.ID, pkg)
+			}
+
+			for svc := range reserved {
+				if packageName(svc) == pkg {
+					return Routes{}, fmt.Errorf("grpcproxy: backend %q cannot expose package %q: it contains already-served service %q", be.ID, pkg, svc)
+				}
+			}
+
+			if other, taken := packageOwner[pkg]; taken {
+				return Routes{}, fmt.Errorf("grpcproxy: backends %q and %q both expose package %q", other, be.ID, pkg)
+			}
+
+			for svc, other := range serviceOwner {
+				if other != be.ID && packageName(svc) == pkg {
+					return Routes{}, fmt.Errorf("grpcproxy: backend %q cannot expose package %q: backend %q exposes its service %q", be.ID, pkg, other, svc)
+				}
+			}
+
+			packageOwner[pkg] = be.ID
+			routes.Packages[pkg] = be.Conn
 		}
 	}
 	return routes, nil
 }
 
-// New builds a proxy that forwards each service in routes to its connection.
-func New(routes map[string]grpc.ClientConnInterface) *Proxy {
+// New builds a proxy that forwards each route to its connection.
+func New(routes Routes) *Proxy {
 	p := &Proxy{routes: routes}
 	p.server = grpc.NewServer(
 		grpc.ForceServerCodecV2(passthroughCodec{}),
@@ -95,7 +164,7 @@ func New(routes map[string]grpc.ClientConnInterface) *Proxy {
 
 // Handles reports whether the proxy forwards the gRPC service.
 func (p *Proxy) Handles(service string) bool {
-	_, ok := p.routes[service]
+	_, ok := p.routes.lookup(service)
 	return ok
 }
 
@@ -119,7 +188,8 @@ func (p *Proxy) forward(_ any, serverStream grpc.ServerStream) error {
 	if !ok {
 		return status.Error(codes.Internal, "grpcproxy: no method in stream")
 	}
-	conn, ok := p.routes[serviceName(fullMethod)]
+
+	conn, ok := p.routes.lookup(serviceName(fullMethod))
 	if !ok {
 		return status.Errorf(codes.Unimplemented, "grpcproxy: no backend for %s", fullMethod)
 	}
@@ -222,4 +292,18 @@ func serviceName(fullMethod string) string {
 		return s[:i]
 	}
 	return s
+}
+
+// runtimePackage is the proto package of the SDK runtime service
+// (sdk/sdkapi), which serves the Host's lifecycle calls on every extension
+// connection.
+const runtimePackage = "moby.extension.runtime.v1"
+
+// packageName extracts the proto package from a "pkg.Service" name.
+func packageName(service string) string {
+	if i := strings.LastIndex(service, "."); i >= 0 {
+		return service[:i]
+	}
+
+	return ""
 }
