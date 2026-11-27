@@ -4,12 +4,18 @@ import (
 	"bytes"
 	"encoding/binary"
 	"hash/crc32"
+	"math"
 )
 
 const preludeLen = 8
 const preludeCRCLen = 4
 const msgCRCLen = 4
 const minMsgLen = preludeLen + preludeCRCLen + msgCRCLen
+
+// maxMsgLen is the largest total message length that the prelude's 32-bit
+// length field can hold. It is a limit of the wire format, not a size policy;
+// headers and payload together can be at most maxMsgLen-minMsgLen bytes.
+const maxMsgLen = math.MaxUint32
 
 var crc32IEEETable = crc32.MakeTable(crc32.IEEE)
 
@@ -78,12 +84,23 @@ func (p messagePrelude) PayloadLen() uint32 {
 	return p.Length - p.HeadersLen - minMsgLen
 }
 
+// ValidateLens checks that the prelude's total and headers lengths are
+// consistent before they are used to read the rest of the message. Without
+// these checks PayloadLen would underflow for a total length below
+// HeadersLen+minMsgLen.
 func (p messagePrelude) ValidateLens() error {
-	if p.Length == 0 {
+	if p.Length < minMsgLen {
 		return LengthError{
 			Part: "message prelude",
 			Want: minMsgLen,
 			Have: int(p.Length),
+		}
+	}
+	if p.HeadersLen > p.Length-minMsgLen {
+		return LengthError{
+			Part: "message headers",
+			Want: int(p.Length - minMsgLen),
+			Have: int(p.HeadersLen),
 		}
 	}
 	return nil
