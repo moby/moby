@@ -1,38 +1,55 @@
 Swarm networking surface area
 =============================
 
-Scope: the Docker overlay network driver and the Swarm service mesh (VIP load balancing,
-ingress routing mesh, service discovery), as observable from outside the daemon.
+Scope: the Docker overlay network driver and the Swarm service mesh
+(VIP load balancing, ingress routing mesh, service discovery),
+as observable from outside the daemon.
 
-This document is a test-surface specification. For how the parts work, see
+This document is a test-surface specification.
+For how the parts work, see
 [design.md](../design.md), [network.md](../network.md) and [networkdb.md](../networkdb.md).
 
-This spec uses the conventions in [README.md](README.md) for tiers, vantage points and dependencies.
-The other specs in this directory use the same conventions. Unless a row says otherwise, a `ctr` in
-this document is a standalone container attached to an `attachable` overlay.
+This spec uses the conventions in [README.md](README.md)
+for tiers, vantage points and dependencies.
+The other specs in this directory use the same conventions.
+Unless a row says otherwise,
+a `ctr` in this document is a standalone container
+attached to an `attachable` overlay.
 
-In this spec, an overlay network is an overlay network other than the ingress network, unless a row
-includes the ingress network. A node has a local attachment to a network while a task, a standalone
-container or the node's load-balancer endpoint on that network is on the node. A network is
-programmed on a node while the node has a local attachment to it. A node creates its load-balancer
-endpoint on a network with the network, and deletes it with the network. Except on the ingress
-network, the node deletes the network once no task or standalone container of the node is on it, so
-the load-balancer endpoint does not outlast them.
+In this spec,
+an overlay network is an overlay network other than the ingress network,
+unless a row includes the ingress network.
+A node has a local attachment to a network
+while a task, a standalone container or the node's load-balancer endpoint
+on that network is on the node.
+A network is programmed on a node while the node has a local attachment to it.
+A node creates its load-balancer endpoint on a network with the network,
+and deletes it with the network.
+Except on the ingress network,
+the node deletes the network
+once no task or standalone container of the node is on it,
+so the load-balancer endpoint does not outlast them.
 
-A row that involves the ingress network holds for an ingress network that is not `internal` and does
-not have the option `dsr`. A row that involves a node's gateway network holds for one that the
-daemon created, or that the operator created with no options other than a subnet and a gateway
-([§8.1](#81-gateway-network)). On an overlay network with more than one subnet, a row about traffic
-to a VIP holds for the VIP and a backend task only when both are in the subnet of the load-balancer
-endpoint of the client's node on that network ([§13](#13-known-divergences--non-goals)). On Linux
-nodes, a row about a `mode=host` published port holds for a service that is attached to at least one
-network that is not `internal`.
+A row that involves the ingress network holds for an ingress network
+that is not `internal` and does not have the option `dsr`.
+A row that involves a node's gateway network holds for one
+that the daemon created,
+or that the operator created with no options other than a subnet and a gateway
+([§8.1](#81-gateway-network)).
+On an overlay network with more than one subnet,
+a row about traffic to a VIP holds for the VIP and a backend task
+only when both are in the subnet of the load-balancer endpoint
+of the client's node on that network
+([§13](#13-known-divergences--non-goals)).
+On Linux nodes,
+a row about a `mode=host` published port holds for a service
+that is attached to at least one network that is not `internal`.
 
 ## Host requirements
 
-The conventions for this section are in [README.md](README.md#host-requirements). The kernel
-facilities and programs are requirements of each Linux node. The Windows facilities are
-requirements of each Windows node.
+The conventions for this section are in [README.md](README.md#host-requirements).
+The kernel facilities and programs are requirements of each Linux node.
+The Windows facilities are requirements of each Windows node.
 
 ### Kernel facilities
 
@@ -54,7 +71,8 @@ requirements of each Windows node.
 | `iptables`, accepting the filter, mangle and nat tables, the `MARK`, `DNAT`, `SNAT` and `REDIRECT` targets, and the `ipvs`, `conntrack`, `sctp`, `bpf`, `policy`, `owner` and `mark` matches | Always | VIP load balancing and the routing mesh ([§6](#6-load-balancing-east-west-vip), [§7.2](#72-modeingress)), `encrypted` overlay networks ([§9](#9-encryption)) | The [bridge-networking.md](bridge-networking.md#14-firewall-backend-and-firewalld) row about a host without the `iptables` command |
 | `ip6tables`, accepting the filter and mangle tables, the `MARK` target, and the `bpf`, `policy`, `owner` and `mark` matches | The iptables backend, and an `encrypted` overlay network on a node with an IPv6 data-path address | `encrypted` overlay networks over an IPv6 underlay ([§9](#9-encryption)) | Not pinned |
 
-The daemon does not depend on which implementation of `iptables` and `ip6tables` the host has.
+The daemon does not depend on
+which implementation of `iptables` and `ip6tables` the host has.
 The kernel options that the programs need depend on that implementation:
 
 | Program | Implementation | Kernel options |
@@ -83,15 +101,18 @@ These are requirements of each node, and of the physical network between nodes.
 
 ## Interop premise
 
-Wire and protocol compatibility is a hard requirement. Users upgrade a Swarm node by node. During a
-rollout, the cluster is heterogeneous. Nodes with different engine versions must share an overlay
-network and an ingress network. Everything in [§10 Wire format](#10-wire-format--interop) is
-contract.
+Wire and protocol compatibility is a hard requirement.
+Users upgrade a Swarm node by node.
+During a rollout, the cluster is heterogeneous.
+Nodes with different engine versions
+must share an overlay network and an ingress network.
+Everything in [§10 Wire format](#10-wire-format--interop) is contract.
 
 ## 1. Cluster & node configuration
 
-These rows cover cluster configuration. The accepted range of the data-path port is 1024 to
-49151. The reference for `docker swarm init --data-path-port` documents this range.
+These rows cover cluster configuration.
+The accepted range of the data-path port is 1024 to 49151.
+The reference for `docker swarm init --data-path-port` documents this range.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -131,18 +152,26 @@ These rows cover cluster configuration. The accepted range of the data-path port
 
 ## 2. Network lifecycle & API surface
 
-A Swarm-scoped network is a network that the Swarm managers keep. Its driver is a multi-host
-driver, such as `overlay`, or a node-local driver, such as `bridge`. A network of a node-local
-driver is Swarm-scoped when it is created with `Scope` set to `swarm` (`--scope swarm`).
+A Swarm-scoped network is a network that the Swarm managers keep.
+Its driver is a multi-host driver, such as `overlay`,
+or a node-local driver, such as `bridge`.
+A network of a node-local driver is Swarm-scoped
+when it is created with `Scope` set to `swarm` (`--scope swarm`).
 
-A Swarm-scoped network is allocated after the network is created, and asynchronously. In this spec,
-a network is allocated once `GET /networks/{id}` on a manager reports the network's `Driver`.
+A Swarm-scoped network is allocated after the network is created,
+and asynchronously.
+In this spec,
+a network is allocated
+once `GET /networks/{id}` on a manager reports the network's `Driver`.
 
 ### 2.1 Overlay driver options
 
-A row in this table that refers to another section covers only whether the daemon accepts and honors
-the option. The Depends on column of that row also covers only that. The section that the row refers
-to specifies the behavior that the option selects, and what that behavior depends on.
+A row in this table that refers to another section
+covers only whether the daemon accepts and honors the option.
+The Depends on column of that row also covers only that.
+The section that the row refers to
+specifies the behavior that the option selects,
+and what that behavior depends on.
 
 | Key | Expectation | Tier | Depends on |
 | --- | --- | --- | --- |
@@ -154,7 +183,8 @@ to specifies the behavior that the option selects, and what that behavior depend
 
 ### 2.2 Swarm-scoped networks
 
-The rows in this subsection hold for any Swarm-scoped network, whatever its driver.
+The rows in this subsection hold for any Swarm-scoped network,
+whatever its driver.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -245,10 +275,13 @@ The rows in this subsection hold for any Swarm-scoped network, whatever its driv
 
 ### 2.3 Overlay networks
 
-The rows in this subsection depend on the addresses that are allocated for a network: its subnets,
-task addresses and VIPs. These addresses are allocated only for an overlay network. Where a row says
-that `GET /services/{id}` then reports a VIP, it reports it within the allocation ceiling
-([§11.2](#112-convergence)) after the request responds.
+The rows in this subsection depend on the addresses
+that are allocated for a network:
+its subnets, task addresses and VIPs.
+These addresses are allocated only for an overlay network.
+Where a row says that `GET /services/{id}` then reports a VIP,
+it reports it within the allocation ceiling ([§11.2](#112-convergence))
+after the request responds.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -291,24 +324,32 @@ that `GET /services/{id}` then reports a VIP, it reports it within the allocatio
 | | At API versions before 1.52, `GET /networks/{id}` does not include `Status`. | B | `api:mgr`, `api:wkr` | `none` |
 | A worker with a local attachment to an overlay network | At API version 1.52 or later, the `Status.IPAM` of `GET /networks/{id}` on that worker reflects only the worker's own endpoints. It does not change when a task attaches on another node. | C | `api:wkr` | `none` |
 
-A regression revealed the failed-allocation row. In that regression, one unallocated network made
-listing and inspection fail for every Swarm-scoped network.
+A regression revealed the failed-allocation row.
+In that regression, one unallocated network
+made listing and inspection fail for every Swarm-scoped network.
 [moby/moby#53325](https://github.com/moby/moby/pull/53325) fixed the regression.
 
-The lower bound of the range of auto-allocated VNIs avoids the 802.1Q VLAN range for Windows.
+The lower bound of the range of auto-allocated VNIs
+avoids the 802.1Q VLAN range for Windows.
 
 ### 2.4 The ingress network
 
-A Swarm-scoped network created with `Ingress` set is an ingress network. An overlay network named
-`ingress` and created with the label `com.docker.swarm.internal` is also an ingress network, whatever
-the label's value. Older daemons created the ingress network in this second form, without `Ingress`.
+A Swarm-scoped network created with `Ingress` set is an ingress network.
+An overlay network named `ingress`
+and created with the label `com.docker.swarm.internal`
+is also an ingress network, whatever the label's value.
+Older daemons created the ingress network in this second form,
+without `Ingress`.
 `GET /networks` reports `Ingress` as true for both forms.
 
-An ingress network exists while `GET /networks` on a manager lists a network whose `Ingress` is
-true. That network is the ingress network. `swarm init` creates it with `Ingress` set and names it
-`ingress`. It can be removed, and an ingress network can then be created with another name. A copy
-that a node keeps after the network is deleted ([§13](#13-known-divergences--non-goals)) does not
-count.
+An ingress network exists
+while `GET /networks` on a manager lists a network whose `Ingress` is true.
+That network is the ingress network.
+`swarm init` creates it with `Ingress` set and names it `ingress`.
+It can be removed,
+and an ingress network can then be created with another name.
+A copy that a node keeps after the network is deleted
+([§13](#13-known-divergences--non-goals)) does not count.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -354,16 +395,22 @@ count.
 
 ## 3. Observable state inside a container
 
-[network-common.md §2](network-common.md#2-endpoint-interfaces) covers the name and MAC address of
-an endpoint's interface and a static address, for every network driver.
-[network-common.md §3](network-common.md#3-default-gateway) covers the default route. Their rows
-hold for overlay endpoints. An overlay endpoint does not give the container a gateway or default
-route, whatever its `GwPriority`.
+[network-common.md §2](network-common.md#2-endpoint-interfaces) covers
+the name and MAC address of an endpoint's interface and a static address,
+for every network driver.
+[network-common.md §3](network-common.md#3-default-gateway)
+covers the default route.
+Their rows hold for overlay endpoints.
+An overlay endpoint does not give the container a gateway or default route,
+whatever its `GwPriority`.
 
-In this section, the inner MTU is the MTU of a container's interface on an overlay network. `base`
-is the value of the network's `com.docker.network.driver.mtu` option, or 1500 when the option is 0
-or not set. Each row about the inner MTU holds for each of a container's interfaces on overlay
-networks, whatever other overlay networks the container is attached to.
+In this section,
+the inner MTU is the MTU of a container's interface on an overlay network.
+`base` is the value of the network's `com.docker.network.driver.mtu` option,
+or 1500 when the option is 0 or not set.
+Each row about the inner MTU
+holds for each of a container's interfaces on overlay networks,
+whatever other overlay networks the container is attached to.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -383,20 +430,26 @@ networks, whatever other overlay networks the container is attached to.
 | | A container on a non-internal overlay has a default route. | B | `task`, `ctr` | `os` |
 | Linux nodes | A container on a multi-subnet overlay has a static route to each subnet of the overlay other than its own subnet. | C | `task` | `os` |
 
-The row about different inner MTUs on two nodes documents a failure mode that is hard to diagnose
-and common in the field. It occurs especially where the overlay runs inside further encapsulation.
-In this failure mode, large TCP transfers work, because each side keeps its segments within the MSS
-that the other side advertises. But large UDP datagrams and don't-fragment pings disappear without
-an error.
+The row about different inner MTUs on two nodes
+documents a failure mode that is hard to diagnose and common in the field.
+It occurs especially where the overlay runs inside further encapsulation.
+In this failure mode, large TCP transfers work,
+because each side keeps its segments
+within the MSS that the other side advertises.
+But large UDP datagrams and don't-fragment pings disappear without an error.
 
 ## 4. East-west reachability
 
-Unless a row says otherwise, every expectation below holds whether the sender and receiver are on
-the same node or on different nodes. It also holds in all four combinations in which each end is
-either a service task or a standalone container on an `attachable` overlay. Any one of these cases
-can fail on its own. One reason is that the two placements, same node and different nodes, take
-different paths through the overlay. The other reason is that tasks and standalone containers attach
-to the overlay differently.
+Unless a row says otherwise,
+every expectation below holds
+whether the sender and receiver are on the same node or on different nodes.
+It also holds in all four combinations in which each end is either
+a service task or a standalone container on an `attachable` overlay.
+Any one of these cases can fail on its own.
+One reason is that the two placements, same node and different nodes,
+take different paths through the overlay.
+The other reason is that tasks and standalone containers
+attach to the overlay differently.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -409,41 +462,61 @@ to the overlay differently.
 | Two containers that do not have an overlay network in common | Neither container can reach an address that the other container has on an overlay network. | B | `task`, `ctr` | `os` |
 | Linux nodes | Two containers on one node cannot reach each other's addresses on a gateway network ([§8.1](#81-gateway-network)) that the operator did not create. | B | `task`, `ctr` | `os` |
 
-The row about the gateway network is an isolation property. Containers on unrelated overlays on a
-node all have addresses on the node's gateway network. If they could reach each other at those
-addresses, the overlays would not isolate them.
+The row about the gateway network is an isolation property.
+Containers on unrelated overlays on a node
+all have addresses on the node's gateway network.
+If they could reach each other at those addresses,
+the overlays would not isolate them.
 
 ## 5. Service discovery
 
-Service discovery in a Swarm is DNS. A container on a user-defined network sends its DNS queries to
-the embedded DNS resolver, which is a DNS server that the daemon runs for the container. In this
-section, a name resolves to an address when the embedded DNS resolver answers a DNS query for the
-name's A record with that address. A name stops resolving when the embedded DNS resolver no longer
-answers with an address for the name.
+Service discovery in a Swarm is DNS.
+A container on a user-defined network sends its DNS queries
+to the embedded DNS resolver,
+which is a DNS server that the daemon runs for the container.
+In this section,
+a name resolves to an address
+when the embedded DNS resolver answers a DNS query for the name's A record
+with that address.
+A name stops resolving
+when the embedded DNS resolver no longer answers with an address for the name.
 
-A row in this section names `none` when the embedded DNS resolver answers the query from its own
-records. It does this the same way on every platform. Every row holds for a query
-from a service task and for a query from a standalone container. This holds whatever kind of
-workload the resolved name belongs to.
+A row in this section names `none`
+when the embedded DNS resolver answers the query from its own records.
+It does this the same way on every platform.
+Every row holds for a query from a service task
+and for a query from a standalone container.
+This holds whatever kind of workload the resolved name belongs to.
 
-[container-dns.md](container-dns.md) specifies how a container resolves names, whatever its
-network's driver. It specifies the `resolv.conf` that the container gets, how answers are built, and
-what is forwarded upstream. Its expectations hold inside service tasks. They also hold for the names
-and addresses of the endpoints in this section, including endpoints on other nodes. Each
-expectation keeps the tier and dependencies that it has in container-dns.md. This section covers
-the names that Swarm adds, on overlay networks unless a row says otherwise. For the rows in
-container-dns.md that depend on a container's DNS options, a service task is created with those
-options in the service's DNS config.
+[container-dns.md](container-dns.md) specifies how a container resolves names,
+whatever its network's driver.
+It specifies the `resolv.conf` that the container gets,
+how answers are built, and what is forwarded upstream.
+Its expectations hold inside service tasks.
+They also hold for the names and addresses of the endpoints in this section,
+including endpoints on other nodes.
+Each expectation keeps the tier and dependencies
+that it has in container-dns.md.
+This section covers the names that Swarm adds,
+on overlay networks unless a row says otherwise.
+For the rows in container-dns.md that depend on a container's DNS options,
+a service task is created with those options in the service's DNS config.
 
-In this section, a service's running tasks are the tasks that `GET /tasks` reports with
-`Status.State` and `DesiredState` both `running`. If a task has a healthcheck, it is a running task
-only once its container has reported healthy. This excludes a task whose container has reported
-unhealthy at any time, even if a later health check passed. `<service>` is the name of a service,
+In this section,
+a service's running tasks are the tasks that `GET /tasks` reports
+with `Status.State` and `DesiredState` both `running`.
+If a task has a healthcheck,
+it is a running task only once its container has reported healthy.
+This excludes a task whose container has reported unhealthy at any time,
+even if a later health check passed.
+`<service>` is the name of a service,
 and `<alias>` is one of the service's network aliases.
 
-Where a row says that a name resolves to the addresses of tasks, these are the tasks' addresses on
-one of the overlay networks, other than the ingress network, that the querier shares with the
-service. The answer holds the addresses on one such network only.
+Where a row says that a name resolves to the addresses of tasks,
+these are the tasks' addresses on one of the overlay networks,
+other than the ingress network,
+that the querier shares with the service.
+The answer holds the addresses on one such network only.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -473,10 +546,13 @@ service. The answer holds the addresses on one such network only.
 
 ## 6. Load balancing (east-west VIP)
 
-The client that sends to a VIP can be a service task or a standalone container on an `attachable`
-overlay. Every row in this section holds for either client. The backends behind a VIP are always
-service tasks. A row observed at the receiving end is observed from `task`. A VIP load-balances
-across a set of tasks when flows to the VIP reach every task in the set.
+The client that sends to a VIP
+can be a service task or a standalone container on an `attachable` overlay.
+Every row in this section holds for either client.
+The backends behind a VIP are always service tasks.
+A row observed at the receiving end is observed from `task`.
+A VIP load-balances across a set of tasks
+when flows to the VIP reach every task in the set.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -498,19 +574,26 @@ across a set of tasks when flows to the VIP reach every task in the set.
 
 ### 6.1 Distribution
 
-The distribution property allows round-robin, equal-weight random, and 5-tuple hashing. It excludes
-least-connections and other schedulers that depend on backend state. Clause (1), a limit, cannot
-exclude them on its own because least-connections also converges to 1/*k* with identical backends.
-Clause (2), invariance, tells them apart. There are defensible reasons to switch to a scheduler that
-depends on backend state. For that reason, the property is tier C. Such a switch is a deliberate
-change. The property does not fix a number of flows or a tolerance on *fᵢ(n)/n*. A difference in
-connection holding time is one of the properties in clause (2), and tells least-connections apart
-from round-robin.
+The distribution property allows
+round-robin, equal-weight random, and 5-tuple hashing.
+It excludes least-connections and other schedulers
+that depend on backend state.
+Clause (1), a limit, cannot exclude them on its own
+because least-connections also converges to 1/*k* with identical backends.
+Clause (2), invariance, tells them apart.
+There are defensible reasons
+to switch to a scheduler that depends on backend state.
+For that reason, the property is tier C.
+Such a switch is a deliberate change.
+The property does not fix a number of flows or a tolerance on *fᵢ(n)/n*.
+A difference in connection holding time is one of the properties in clause (2),
+and tells least-connections apart from round-robin.
 
-> Let *H* be the set of healthy tasks, |*H*| = *k*, held constant. For *n* client flows let *fᵢ(n)*
-> be the number of them that reach task *i*. Then (1) lim *fᵢ(n)/n* = 1/*k* for every *i* ∈ *H*,
-> and (2) that limit is invariant to any observable property of the tasks: connection holding time,
-> in-flight concurrency, latency, byte volume, or load.
+> Let *H* be the set of healthy tasks, |*H*| = *k*, held constant.
+> For *n* client flows let *fᵢ(n)* be the number of them that reach task *i*.
+> Then (1) lim *fᵢ(n)/n* = 1/*k* for every *i* ∈ *H*,
+> and (2) that limit is invariant to any observable property of the tasks:
+> connection holding time, in-flight concurrency, latency, byte volume, or load.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -519,15 +602,21 @@ from round-robin.
 
 ### 6.2 Health and drain
 
-Every row in this subsection holds for flows through the service's VIP and for flows that enter
-through an ingress-mode published port. A task shuts down gracefully when the orchestrator shuts it
-down, for example after a scale-down, an update that replaces the task, the removal of its service
-or a drain of its node. `POST /containers/{id}/stop` for the task's container is not a graceful
-shutdown in these rows. A flow starts on a node when its client is on that node, or when it enters
-through a published port on that node. In DSR mode, the rows do not apply to flows from a task to
-the VIP of its own service ([§13](#13-known-divergences--non-goals)). In these rows, a task's
-process ignores its stop signal and keeps accepting connections until it is killed at the end of the
-stop grace period.
+Every row in this subsection holds for flows through the service's VIP
+and for flows that enter through an ingress-mode published port.
+A task shuts down gracefully when the orchestrator shuts it down,
+for example after a scale-down, an update that replaces the task,
+the removal of its service or a drain of its node.
+`POST /containers/{id}/stop` for the task's container
+is not a graceful shutdown in these rows.
+A flow starts on a node when its client is on that node,
+or when it enters through a published port on that node.
+In DSR mode,
+the rows do not apply to flows from a task to the VIP of its own service
+([§13](#13-known-divergences--non-goals)).
+In these rows,
+a task's process ignores its stop signal and keeps accepting connections
+until it is killed at the end of the stop grace period.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -540,23 +629,30 @@ stop grace period.
 
 ## 7. Published ports
 
-A published port is a port number and a protocol, as the `PublishedPort` and `Protocol` of an
-entry in a service's `EndpointSpec.Ports` give them. An entry without `Protocol` has the protocol
-`tcp`. Thus `53/tcp` and `53/udp` are two different published ports. A published port is chosen
+A published port is a port number and a protocol,
+as the `PublishedPort` and `Protocol` of an entry
+in a service's `EndpointSpec.Ports` give them.
+An entry without `Protocol` has the protocol `tcp`.
+Thus `53/tcp` and `53/udp` are two different published ports.
+A published port is chosen
 when the request that creates or updates the service sets its `PublishedPort`
 ([§7.2.1](#721-port-allocation)).
 
 A service publishes a port in one of two modes:
 
-- `mode=ingress`, the default, publishes the port through the routing mesh on every node.
+- `mode=ingress`, the default,
+  publishes the port through the routing mesh on every node.
 - `mode=host` publishes the port directly on the node that runs each task.
 
-The expectations in this section hold for both modes. [§7.1](#71-hairpin) covers hairpin paths.
-[§7.2](#72-modeingress) covers what is specific to the routing mesh. [§7.3](#73-modehost) covers
-what is specific to `mode=host`.
+The expectations in this section hold for both modes.
+[§7.1](#71-hairpin) covers hairpin paths.
+[§7.2](#72-modeingress) covers what is specific to the routing mesh.
+[§7.3](#73-modehost) covers what is specific to `mode=host`.
 
-Every expectation in this section and its subsections holds whether or not the `dsr` option is set
-on the overlay networks that a service is attached to, other than the ingress network.
+Every expectation in this section and its subsections holds
+whether or not the `dsr` option is set
+on the overlay networks that a service is attached to,
+other than the ingress network.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -582,25 +678,39 @@ on the overlay networks that a service is attached to, other than the ingress ne
 | | When a node accepts an IPv6 TCP connection to a published port, a task of the service receives the connection. | B | `client`, `node` | `os` |
 | A daemon with `userland-proxy` false, and a port published in ingress mode, or in `mode=host` by a task whose gateway network is `docker_gwbridge` | A client cannot reach a task of the service through that port over IPv6, at any IPv6 address of the node. This holds for TCP and UDP. | C | `client`, `node` | `os` |
 
-These IPv6 rows do not mean that the service mesh supports IPv6. The service mesh is IPv4-only
-([§13](#13-known-divergences--non-goals)). The ingress network and the gateway network do not give a
-task an IPv6 address. The proxy accepts traffic on `[::]` and forwards it to the task over IPv4, as
-it does for any IPv4-only container. Thus the task sees the connection come from the proxy. For this
-reason, the real-source row in [§7.3](#73-modehost) does not hold for IPv6 clients.
+These IPv6 rows do not mean that the service mesh supports IPv6.
+The service mesh is IPv4-only ([§13](#13-known-divergences--non-goals)).
+The ingress network and the gateway network
+do not give a task an IPv6 address.
+The proxy accepts traffic on `[::]` and forwards it to the task over IPv4,
+as it does for any IPv4-only container.
+Thus the task sees the connection come from the proxy.
+For this reason,
+the real-source row in [§7.3](#73-modehost) does not hold for IPv6 clients.
 
-A bug revealed the row about traffic left unserved. In that bug, IPv6 connections to a published
-port were accepted and never served ([moby/moby#53091](https://github.com/moby/moby/issues/53091)).
-The userland proxy is necessary for a published port to be reachable over IPv6. Without the proxy,
-the port is not reachable over IPv6, and this prevents that failure. The row about that is tier C
-because a change that makes IPv6 reachable without the proxy would be legitimate. Such a change also
-calls for a change to this spec and to the documentation.
+A bug revealed the row about traffic left unserved.
+In that bug,
+IPv6 connections to a published port were accepted and never served
+([moby/moby#53091](https://github.com/moby/moby/issues/53091)).
+The userland proxy is necessary for a published port to be reachable over IPv6.
+Without the proxy,
+the port is not reachable over IPv6,
+and this prevents that failure.
+The row about that is tier C
+because a change that makes IPv6 reachable
+without the proxy would be legitimate.
+Such a change also calls for a change to this spec and to the documentation.
 
 ### 7.1 Hairpin
 
-The six paths below are independent and can fail separately. The first five hold for both publish
-modes. For `mode=host`, they hold on the nodes that run a task. In this subsection, the node's
-address is one of its non-loopback IPv4 addresses. In this subsection, each task or container that
-connects to the node's address must be attached to at least one network that is not `internal`.
+The six paths below are independent and can fail separately.
+The first five hold for both publish modes.
+For `mode=host`, they hold on the nodes that run a task.
+In this subsection,
+the node's address is one of its non-loopback IPv4 addresses.
+In this subsection,
+each task or container that connects to the node's address
+must be attached to at least one network that is not `internal`.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -612,25 +722,38 @@ connects to the node's address must be attached to at least one network that is 
 | A service that publishes a port in `mode=host` | A task of the service reaches its own published port via its node's address. | B | `task` | `os` |
 | | Each other row of the table in §7.1 holds with `userland-proxy` true and with `userland-proxy` false. | B | `node`, `ctr`, `task` | `os` |
 
-On Linux nodes, the two overlay rows and the `mode=host` self-hairpin row are the paths whose
-traffic leaves a bridge and then enters the same bridge again. An overlay container reaches the
-node's address through `docker_gwbridge`. The connection then reaches the ingress load balancer, or
-the task that serves the port, through `docker_gwbridge` again. Only those paths are subject to the
-bridge's inter-container communication setting. A gateway network that the daemon creates has
-inter-container communication disabled ([§8.1](#81-gateway-network)). A published port is an
-explicit export to anything that can route to the node. Thus that setting must not block it.
+On Linux nodes,
+the two overlay rows and the `mode=host` self-hairpin row
+are the paths whose traffic leaves a bridge
+and then enters the same bridge again.
+An overlay container reaches the node's address through `docker_gwbridge`.
+The connection then reaches the ingress load balancer,
+or the task that serves the port,
+through `docker_gwbridge` again.
+Only those paths are subject to
+the bridge's inter-container communication setting.
+A gateway network that the daemon creates
+has inter-container communication disabled ([§8.1](#81-gateway-network)).
+A published port is an explicit export to anything that can route to the node.
+Thus that setting must not block it.
 
-The userland-proxy row exists because the proxy hides these paths. With the proxy, the connection
-ends in the host's network namespace and does not enter the bridge again. Without the proxy, the
-traffic is DNATed back across the bridge. Access control should not depend on whether the userland
-proxy is enabled. Access to a published port from an overlay regressed in 29.8.0 and 29.8.1. Nobody
-noticed the regression because it broke access only with `userland-proxy` false
+The userland-proxy row exists because the proxy hides these paths.
+With the proxy,
+the connection ends in the host's network namespace
+and does not enter the bridge again.
+Without the proxy, the traffic is DNATed back across the bridge.
+Access control should not depend on whether the userland proxy is enabled.
+Access to a published port from an overlay regressed in 29.8.0 and 29.8.1.
+Nobody noticed the regression
+because it broke access only with `userland-proxy` false
 ([moby/moby#53713](https://github.com/moby/moby/issues/53713)).
 
 ### 7.2 `mode=ingress`
 
-The routing mesh publishes an ingress-mode port on every node, whichever nodes run the service's
-tasks. The rows in this subsection hold with `userland-proxy` true and with `userland-proxy` false,
+The routing mesh publishes an ingress-mode port on every node,
+whichever nodes run the service's tasks.
+The rows in this subsection hold with `userland-proxy` true
+and with `userland-proxy` false,
 unless a row names a value.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
@@ -646,13 +769,19 @@ unless a row names a value.
 
 #### 7.2.1 Port allocation
 
-An ingress-mode port is auto-assigned when the request that creates or updates the service does not
-set its `PublishedPort`. `GET /services/{id}` then reports a published port for it in
-`Endpoint.Ports`. The auto-assignment range is the set of published ports that an auto-assigned
-port can get. A port of either publish mode is chosen when the request sets its `PublishedPort`.
-A service's ports are allocated after the request responds. Where a row in this subsection says that
-`GET /services/{id}` then reports a port, it reports it within the allocation ceiling
-([§11.2](#112-convergence)) after the request responds.
+An ingress-mode port is auto-assigned
+when the request that creates or updates the service
+does not set its `PublishedPort`.
+`GET /services/{id}` then reports a published port for it in `Endpoint.Ports`.
+The auto-assignment range is the set of published ports
+that an auto-assigned port can get.
+A port of either publish mode is chosen
+when the request sets its `PublishedPort`.
+A service's ports are allocated after the request responds.
+Where a row in this subsection says
+that `GET /services/{id}` then reports a port,
+it reports it within the allocation ceiling ([§11.2](#112-convergence))
+after the request responds.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -683,7 +812,8 @@ A service's ports are allocated after the request responds. Where a row in this 
 
 ### 7.3 `mode=host`
 
-The rows in this subsection hold with `userland-proxy` true and with `userland-proxy` false,
+The rows in this subsection hold with `userland-proxy` true
+and with `userland-proxy` false,
 unless a row names a value.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
@@ -714,8 +844,10 @@ unless a row names a value.
 
 ### 8.1 Gateway network
 
-Each node has a gateway bridge network. Containers on the node's non-internal overlays reach the
-physical network through it. This subsection holds on Linux nodes.
+Each node has a gateway bridge network.
+Containers on the node's non-internal overlays
+reach the physical network through it.
+This subsection holds on Linux nodes.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -734,10 +866,12 @@ physical network through it. This subsection holds on Linux nodes.
 ## 9. Encryption
 
 Encrypted overlay networks are implemented on Linux nodes only
-([§13](#13-known-divergences--non-goals)). This section holds on Linux nodes, except where a row
-names Windows. The rows about the traffic that an underlay host observes name `os` because they
-observe the data path. The missing-XFRM rows name `none` because the daemon alone decides their
-verdict once XFRM is missing.
+([§13](#13-known-divergences--non-goals)).
+This section holds on Linux nodes, except where a row names Windows.
+The rows about the traffic that an underlay host observes name `os`
+because they observe the data path.
+The missing-XFRM rows name `none`
+because the daemon alone decides their verdict once XFRM is missing.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -766,11 +900,14 @@ verdict once XFRM is missing.
 
 ## 10. Wire format & interop
 
-Everything here is hard contract. See [Interop premise](#interop-premise).
+Everything here is hard contract.
+See [Interop premise](#interop-premise).
 
-This section groups the rows by the kind of overlay network that they apply to. Some rows are about
-what an underlay host sees without the network's keys. Those rows apply only to cleartext networks.
-The reason is that the VXLAN datagram of an encrypted network is not visible on the wire.
+This section groups the rows by the kind of overlay network that they apply to.
+Some rows are about what an underlay host sees without the network's keys.
+Those rows apply only to cleartext networks.
+The reason is that the VXLAN datagram of an encrypted network
+is not visible on the wire.
 
 ### 10.1 All overlay networks
 
@@ -782,8 +919,8 @@ The reason is that the VXLAN datagram of an encrypted network is not visible on 
 
 ### 10.2 Cleartext overlay networks
 
-[§1](#1-cluster--node-configuration) pins the default data-path port. [§2.3](#23-overlay-networks)
-pins the range of auto-allocated VNIs.
+[§1](#1-cluster--node-configuration) pins the default data-path port.
+[§2.3](#23-overlay-networks) pins the range of auto-allocated VNIs.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -793,10 +930,13 @@ pins the range of auto-allocated VNIs.
 
 ### 10.3 Encrypted overlay networks
 
-Encrypted traffic between hosts is IPsec ESP. [§9](#9-encryption) covers the encryption and the rest
-of what an encrypted network promises. The rows below are about the decrypted payload. The
-decrypted payload is the same whatever the encryption is. To see the payload, an underlay host must
-decrypt it with a node's keys. This subsection holds on Linux nodes, as [§9](#9-encryption) does.
+Encrypted traffic between hosts is IPsec ESP.
+[§9](#9-encryption) covers the encryption
+and the rest of what an encrypted network promises.
+The rows below are about the decrypted payload.
+The decrypted payload is the same whatever the encryption is.
+To see the payload, an underlay host must decrypt it with a node's keys.
+This subsection holds on Linux nodes, as [§9](#9-encryption) does.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -827,12 +967,15 @@ decrypt it with a node's keys. This subsection holds on Linux nodes, as [§9](#9
 
 ### 11.2 Convergence
 
-There are five convergence classes, each with a different dominant term. One bound cannot serve all
-of them.
+There are five convergence classes, each with a different dominant term.
+One bound cannot serve all of them.
 
-Each class has a B ceiling. The ceiling is chosen by judgment to encode "a human would call this
-broken". It is never re-baselined. This keeps the ceiling free of flakes. The ceiling still catches
-the regression that matters: convergence that goes from seconds to minutes, or to never.
+Each class has a B ceiling.
+The ceiling is chosen by judgment to encode "a human would call this broken".
+It is never re-baselined.
+This keeps the ceiling free of flakes.
+The ceiling still catches the regression that matters:
+convergence that goes from seconds to minutes, or to never.
 
 | Class | Dominant term | B ceiling |
 | --- | --- | --- |
@@ -842,37 +985,62 @@ the regression that matters: convergence that goes from seconds to minutes, or t
 | Allocation: a Swarm-scoped network that can be allocated, or the endpoint (VIPs and published ports) of a service whose networks are allocated. Also the leader's failed attempt to allocate a network or a service's endpoint, and what follows from it | the allocator of the leader manager | 30 s |
 | Failure detection: the nodes on one side of a partition declare the nodes on the other side failed | gossip probes and suspicion timeouts | 120 s |
 
-Each ceiling starts when the change is complete. The change is complete when the new endpoint or
-task is running, when the partition is removed, or when the rejoined node's task is running. For a
-rejoined node that runs no task, the change is complete when `POST /swarm/join` responds. For
-allocation, the change is complete when `POST /networks/create`, `POST /services/create` or `POST
-/services/{id}/update` responds. For any other effect of `POST /services/{id}/update`, the change is
-complete when `GET /services/{id}` reports `UpdateStatus.State` as `completed` for that update. An
-update of a service's endpoint mode, networks, published ports or aliases replaces its tasks and
-sets `UpdateStatus`. An update that does not replace a task is complete when the request responds.
-For failure detection, the change is complete when the partition starts. For a removal, the change
-is complete when the request that removes the object responds. For a restart of a node's daemon, the
-change is complete when the daemon's API answers again and `GET /info` on the node reports
-`Swarm.LocalNodeState` as `active`. For a change in a task's health, or the exit of its container,
-the change is complete when the task's node emits the container's `health_status` or `die` event.
-For a change of a task's desired state away from `running`, the change is complete when `GET /tasks`
-first reports the new `DesiredState`. For a change of leader, the change is complete when `GET
-/nodes` on a manager reports `ManagerStatus.Leader` as true for the new leader. For a row about what
-holds once no container of a service is running, the change is complete when the last of those
-containers emits its `die` event. For a row about a removal that reaches a node late, the ceiling
-starts when the removal can reach the node.
+Each ceiling starts when the change is complete.
+The change is complete when the new endpoint or task is running,
+when the partition is removed,
+or when the rejoined node's task is running.
+For a rejoined node that runs no task,
+the change is complete when `POST /swarm/join` responds.
+For allocation, the change is complete when
+`POST /networks/create`, `POST /services/create` or `POST /services/{id}/update`
+responds.
+For any other effect of `POST /services/{id}/update`,
+the change is complete
+when `GET /services/{id}` reports `UpdateStatus.State` as `completed`
+for that update.
+An update of a service's endpoint mode, networks, published ports or aliases
+replaces its tasks and sets `UpdateStatus`.
+An update that does not replace a task is complete when the request responds.
+For failure detection, the change is complete when the partition starts.
+For a removal,
+the change is complete when the request that removes the object responds.
+For a restart of a node's daemon,
+the change is complete when the daemon's API answers again
+and `GET /info` on the node reports `Swarm.LocalNodeState` as `active`.
+For a change in a task's health, or the exit of its container,
+the change is complete
+when the task's node emits the container's `health_status` or `die` event.
+For a change of a task's desired state away from `running`,
+the change is complete when `GET /tasks` first reports the new `DesiredState`.
+For a change of leader,
+the change is complete
+when `GET /nodes` on a manager reports `ManagerStatus.Leader` as true
+for the new leader.
+For a row about what holds once no container of a service is running,
+the change is complete when the last of those containers emits its `die` event.
+For a row about a removal that reaches a node late,
+the ceiling starts when the removal can reach the node.
 
-A node partition divides the nodes of a Swarm into two sides, and blocks all traffic between the
-nodes of one side and the nodes of the other, in both directions. The managers that hold a quorum
-are on one side. During a node partition, consider each network to which nodes of both sides have a
-local attachment. A side has declared the other side's nodes failed once, for each such network, no
-node of the side lists a node of the other side in `Peers` in `GET /networks/{id}`.
+A node partition divides the nodes of a Swarm into two sides,
+and blocks all traffic
+between the nodes of one side and the nodes of the other,
+in both directions.
+The managers that hold a quorum are on one side.
+During a node partition,
+consider each network to which nodes of both sides have a local attachment.
+A side has declared the other side's nodes failed
+once, for each such network,
+no node of the side lists a node of the other side
+in `Peers` in `GET /networks/{id}`.
 
-Unless a row says otherwise, each end of the traffic in the rows below can be a service task or a
-standalone container on an `attachable` overlay. This applies in all four combinations. Each row
-states the node placements it covers. In the rows about a node partition, an end on the side without
-the managers' quorum is a standalone container, because the orchestrator replaces the tasks on that
-side.
+Unless a row says otherwise,
+each end of the traffic in the rows below can be a service task
+or a standalone container on an `attachable` overlay.
+This applies in all four combinations.
+Each row states the node placements it covers.
+In the rows about a node partition,
+an end on the side without the managers' quorum is a standalone container,
+because the orchestrator replaces the tasks on that side.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -893,20 +1061,31 @@ side.
 | A service with a running task on each of two or more nodes | One of those nodes leaves the Swarm with `POST /swarm/leave`. Within the leave-and-rejoin ceiling after the leave, every new flow to the service's VIP from a node still in the Swarm reaches a running task on a node still in the Swarm. So does every new flow to the service's published port on such a node. | B | `task`, `ctr`, `client` | `os` |
 | Linux nodes | Within the leave-and-rejoin ceiling after `POST /swarm/leave` responds 200 on a node, the other nodes do not hold overlay neighbor or FDB entries for its endpoints. | C | `node` | `os` |
 
-In the rows of this subsection, a node's overlay neighbor and FDB entries are the permanent entries
-that the daemon programs. Entries that the kernel learns from traffic are not included. The B
-persistence row holds whether or not containers send traffic as the partition heals. A bug revealed
-the persistence row. In that bug, reachability after a heal depended on an entry that the kernel
-learned from the peer's traffic. Reachability broke when that entry expired. The fix is in
-[moby/moby#53663](https://github.com/moby/moby/pull/53663). The row names `os` because how learned
-and permanent FDB entries interact is behavior of the kernel's VXLAN driver.
+In the rows of this subsection,
+a node's overlay neighbor and FDB entries
+are the permanent entries that the daemon programs.
+Entries that the kernel learns from traffic are not included.
+The B persistence row holds
+whether or not containers send traffic as the partition heals.
+A bug revealed the persistence row.
+In that bug,
+reachability after a heal depended on an entry
+that the kernel learned from the peer's traffic.
+Reachability broke when that entry expired.
+The fix is in [moby/moby#53663](https://github.com/moby/moby/pull/53663).
+The row names `os`
+because how learned and permanent FDB entries interact
+is behavior of the kernel's VXLAN driver.
 
 ### 11.3 Churn
 
-This paragraph applies to every row below in which a client reaches or resolves a service. Each such
-row holds whether the client is a service task or a standalone container on an `attachable`
-overlay. It holds for a client on the same node as one of the service's tasks. It also holds for a
-client on a node that runs none of the service's tasks. The service's own end is always its tasks.
+This paragraph applies to every row below
+in which a client reaches or resolves a service.
+Each such row holds whether the client is a service task
+or a standalone container on an `attachable` overlay.
+It holds for a client on the same node as one of the service's tasks.
+It also holds for a client on a node that runs none of the service's tasks.
+The service's own end is always its tasks.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -951,16 +1130,20 @@ client on a node that runs none of the service's tasks. The service's own end is
 
 ### 11.5 Firewall-backend transition
 
-This subsection is empty until moby/moby#53125. A switch of a node in a Swarm to or from the
-nftables backend is not asserted ([§13](#13-known-divergences--non-goals)).
+This subsection is empty until moby/moby#53125.
+A switch of a node in a Swarm to or from the nftables backend is not asserted
+([§13](#13-known-divergences--non-goals)).
 
 ### 11.6 Failure reporting
 
-When a node cannot program cluster-scoped configuration, no API surface reports it. Examples of
-such configuration are encryption parameters for a peer, a load-balancer backend, a firewall rule
-and an FDB entry. The affected service continues to look healthy from `api:mgr` while that node's
-data plane is wrong. The daemon log is the only channel that reports the failure. This makes the
-daemon log part of the observable contract.
+When a node cannot program cluster-scoped configuration,
+no API surface reports it.
+Examples of such configuration are encryption parameters for a peer,
+a load-balancer backend, a firewall rule and an FDB entry.
+The affected service continues to look healthy from `api:mgr`
+while that node's data plane is wrong.
+The daemon log is the only channel that reports the failure.
+This makes the daemon log part of the observable contract.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -981,8 +1164,8 @@ daemon log part of the observable contract.
 | | `docker service ps --no-trunc` for a service lists the service's tasks, with their states and errors. | B | `api:mgr` | `cli` |
 | A node that cannot program cluster-scoped configuration for a service | `docker service ls` prints the service's replicas as all running. | C | `api:mgr` | `cli` |
 
-[§13](#13-known-divergences--non-goals) lists four gaps in this reporting and recovery as known
-divergences:
+[§13](#13-known-divergences--non-goals) lists four gaps
+in this reporting and recovery as known divergences:
 
 - An unchanged condition is not reported again.
 - Recovery is not reported at all.
@@ -991,24 +1174,31 @@ divergences:
 
 ## 12. Firewall anchors & host integration
 
-The content of Moby's firewall rules is not an interface. A backend change replaces exactly that
-content. [bridge-networking.md §1.5](bridge-networking.md#15-rule-content) pins the bridge driver's
-rules at tier C only, the rules for Swarm ingress ports included. This section covers the overlay
-driver's own firewall state. It also covers how Swarm traffic meets the bridge driver's firewall
-anchors. [bridge-networking.md](bridge-networking.md) specifies those anchors, `DOCKER-USER` among
-them. This section holds on Linux nodes.
+The content of Moby's firewall rules is not an interface.
+A backend change replaces exactly that content.
+[bridge-networking.md §1.5](bridge-networking.md#15-rule-content)
+pins the bridge driver's rules at tier C only,
+the rules for Swarm ingress ports included.
+This section covers the overlay driver's own firewall state.
+It also covers how Swarm traffic meets the bridge driver's firewall anchors.
+[bridge-networking.md](bridge-networking.md) specifies those anchors,
+`DOCKER-USER` among them.
+This section holds on Linux nodes.
 
 ### 12.1 nftables
 
-This subsection is empty until moby/moby#53125. The overlay driver's nftables table on a node in a
-Swarm is not asserted ([§13](#13-known-divergences--non-goals)).
+This subsection is empty until moby/moby#53125.
+The overlay driver's nftables table on a node in a Swarm is not asserted
+([§13](#13-known-divergences--non-goals)).
 
 ### 12.2 iptables
 
 The rows in this subsection hold under the iptables backend.
-[bridge-networking.md](bridge-networking.md#12-docker-user) specifies the `DOCKER-USER` chain
-itself. Swarm ingress ports do not have a chain of their own. The bridge driver's anchors also cover
-them because the bridge driver publishes them like any other published port.
+[bridge-networking.md](bridge-networking.md#12-docker-user)
+specifies the `DOCKER-USER` chain itself.
+Swarm ingress ports do not have a chain of their own.
+The bridge driver's anchors also cover them
+because the bridge driver publishes them like any other published port.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -1017,13 +1207,16 @@ them because the bridge driver publishes them like any other published port.
 
 ### 12.3 Cross-generation cleanup
 
-This subsection covers the upgrade path that a packager exercises. A node that runs release *N−1* is
-upgraded to *N*, possibly with a different firewall backend. A generation is the firewall state that
-one release creates under one firewall backend. A previous generation is such state that a daemon
-left on the node before the current start of the daemon.
-[bridge-networking.md](bridge-networking.md#13-cross-generation-cleanup) gives the daemon-wide
-expectations and the reason why cleanup depends on names. The rows here cover state that belongs to
-Swarm and the overlay driver.
+This subsection covers the upgrade path that a packager exercises.
+A node that runs release *N−1* is upgraded to *N*,
+possibly with a different firewall backend.
+A generation is the firewall state
+that one release creates under one firewall backend.
+A previous generation is such state
+that a daemon left on the node before the current start of the daemon.
+[bridge-networking.md](bridge-networking.md#13-cross-generation-cleanup)
+gives the daemon-wide expectations and the reason why cleanup depends on names.
+The rows here cover state that belongs to Swarm and the overlay driver.
 
 | Applies to | Expectation | Tier | Observed from | Depends on |
 | --- | --- | --- | --- | --- |
@@ -1034,8 +1227,10 @@ Swarm and the overlay driver.
 
 ## 13. Known divergences & non-goals
 
-Each row gives one of two things: a current behavior that differs from what a user might expect, or
-a capability that Moby does not provide. A change to the behavior in any row is a behavior change.
+Each row gives one of two things:
+a current behavior that differs from what a user might expect,
+or a capability that Moby does not provide.
+A change to the behavior in any row is a behavior change.
 Make such a change only on purpose.
 
 | Topic | Current behavior | Depends on |
@@ -1103,35 +1298,50 @@ Make such a change only on purpose.
 
 ## Deliberately not asserted
 
-These items are incidental to the implementation. A change to any of them does not break any row.
+These items are incidental to the implementation.
+A change to any of them does not break any row.
 
 - The counters of Moby's own rules.
-- Precedence over an operator's rule that the operator inserts at the top of the filter table's
-  `INPUT` chain after an `encrypted` network is programmed. Such a rule can accept cleartext VXLAN
-  for the network's VNI ([§12.2](#122-iptables)).
-- The content of Moby's own chains and tables, and their names other than `DOCKER-USER`, except
-  where [§12.3](#123-cross-generation-cleanup) pins them for cleanup and [bridge-networking.md
-  §1.5](bridge-networking.md#15-rule-content) pins the bridge driver's rules. The content includes
-  individual match/target lines and their order in a chain. A backend change replaces exactly
-  these rules. A B row asserts their effect on packets, and never the content.
-- Which packet-filtering technology is in use, except where
-  [§12](#12-firewall-anchors--host-integration) pins a backend-specific anchor.
-- The existence, name or topology of internal sandboxes (per-network load-balancer sandbox, ingress
-  sandbox), network-namespace paths, and generated `veth` / bridge / VXLAN interface names. One
-  exception is the name `ingress-sbox` in `Containers` of `GET /networks/docker_gwbridge`, which
-  [network-common.md §1](network-common.md#1-network-api) pins. The other exception is a node's
-  load-balancer endpoint on a network. `GET /networks/{id}` on that node lists this endpoint.
-  [§2.3](#23-overlay-networks) asserts where its address falls, and
-  [§6](#6-load-balancing-east-west-vip) asserts that a task observes it as the source address in
-  NAT mode. The key and the name of this endpoint are not asserted.
-- The load-balancer implementation and its scheduler, beyond the distribution property in
-  [§6.1](#61-distribution).
-- Internal refcounting, gossip timers, and reap and rejoin intervals. The surface for these is the
-  convergence bounds in [§11.2](#112-convergence).
-- The order in which the daemon allocates subnets from an address pool, addresses within a subnet,
-  published ports from the auto-assignment range, and VNIs to networks created without
-  `vxlanid_list`.
-- The value of `LocalLBIndex`. `docker network inspect --verbose` shows this value, but the value is an
-  internal firewall mark.
+- Precedence over an operator's rule
+  that the operator inserts at the top of the filter table's `INPUT` chain
+  after an `encrypted` network is programmed.
+  Such a rule can accept cleartext VXLAN for the network's VNI
+  ([§12.2](#122-iptables)).
+- The content of Moby's own chains and tables,
+  and their names other than `DOCKER-USER`,
+  except where [§12.3](#123-cross-generation-cleanup) pins them for cleanup
+  and [bridge-networking.md §1.5](bridge-networking.md#15-rule-content)
+  pins the bridge driver's rules.
+  The content includes individual match/target lines and their order in a chain.
+  A backend change replaces exactly these rules.
+  A B row asserts their effect on packets, and never the content.
+- Which packet-filtering technology is in use,
+  except where [§12](#12-firewall-anchors--host-integration)
+  pins a backend-specific anchor.
+- The existence, name or topology of internal sandboxes
+  (per-network load-balancer sandbox, ingress sandbox),
+  network-namespace paths,
+  and generated `veth` / bridge / VXLAN interface names.
+  One exception is the name `ingress-sbox`
+  in `Containers` of `GET /networks/docker_gwbridge`,
+  which [network-common.md §1](network-common.md#1-network-api) pins.
+  The other exception is a node's load-balancer endpoint on a network.
+  `GET /networks/{id}` on that node lists this endpoint.
+  [§2.3](#23-overlay-networks) asserts where its address falls,
+  and [§6](#6-load-balancing-east-west-vip) asserts
+  that a task observes it as the source address in NAT mode.
+  The key and the name of this endpoint are not asserted.
+- The load-balancer implementation and its scheduler,
+  beyond the distribution property in [§6.1](#61-distribution).
+- Internal refcounting, gossip timers, and reap and rejoin intervals.
+  The surface for these is the convergence bounds
+  in [§11.2](#112-convergence).
+- The order in which the daemon allocates subnets from an address pool,
+  addresses within a subnet,
+  published ports from the auto-assignment range,
+  and VNIs to networks created without `vxlanid_list`.
+- The value of `LocalLBIndex`.
+  `docker network inspect --verbose` shows this value,
+  but the value is an internal firewall mark.
 - The host-port reservation mechanics behind [§7.2.1](#721-port-allocation).
 - Whether Windows nodes can use a VNI below 4096.
