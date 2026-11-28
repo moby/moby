@@ -33,6 +33,9 @@ dockerd - Enable daemon mode
 [**--exec-opt**[=*[]*]]
 [**--exec-root**[=*/var/run/docker*]]
 [**--experimental**[=**false**]]
+[**--extension-dir**[=*[]*]]
+[**--extension-disable**[=*[]*]]
+[**--extension-enable**[=*[]*]]
 [**--feature**[=*NAME*[=**true**|**false**]]
 [**--firewall-backend**[=*BACKEND*]]
 [**--fixed-cidr**[=*FIXED-CIDR*]]
@@ -279,6 +282,21 @@ Bridge networks will accept packets with this firewall mark/mask.
 
 **--experimental**=""
   Enable the daemon experimental features.
+
+**--extension-dir**=[]
+  Directory to load extension binaries from. Can be specified multiple times.
+  This option corresponds with "extensions.dirs" in the daemon.json
+  configuration file. See EXTENSIONS for the default directory.
+
+**--extension-disable**=[]
+  Disable a built-in extension that is enabled by default, by extension ID.
+  Can be specified multiple times. This option corresponds with
+  "extensions.disable" in the daemon.json configuration file. See EXTENSIONS.
+
+**--extension-enable**=[]
+  Enable an optional built-in extension, by extension ID. Can be specified
+  multiple times. This option corresponds with "extensions.enable" in the
+  daemon.json configuration file. See EXTENSIONS.
 
 **--feature**=*NAME*[=**true**|**false**]
   Enable or disable a feature in the daemon. This option corresponds
@@ -588,6 +606,88 @@ $ sudo dockerd --exec-opt native.cgroupdriver=systemd
 ```
 
 Setting this option applies to all containers the daemon launches.
+
+# EXTENSIONS
+
+Extensions add or replace daemon functionality.
+Each extension has an ID: a lowercase, versioned reverse-DNS name such as `org.example.myext.v1`.
+
+Extensions are configured with the `extensions` field in the `daemon.json` configuration file.
+
+This example assumes that `org.example.namesgenerator.animals.v1` is installed in `/opt/moby-extensions` and provides container and service names.
+It enables the built-in jobs extension, configures the example name generator, and disables the built-in name generator.
+
+```json
+{
+  "extensions": {
+    "enable": ["org.mobyproject.jobs.v0"],
+    "disable": ["org.mobyproject.namesgenerator.legacy.v1"],
+    "dirs": ["/opt/moby-extensions"],
+    "configs": {
+      "org.example.namesgenerator.animals.v1": {
+        "prefix": "container"
+      }
+    }
+  }
+}
+```
+
+Extension settings take effect only at daemon startup, not when you reload the configuration.
+
+Use the nested `extensions` object in `daemon.json`.
+Keys such as `extension-enable` or `extensions.enable` are rejected.
+You can specify each of `--extension-dir`, `--extension-enable`, and `--extension-disable` multiple times.
+Setting an option both as a command-line flag and in `daemon.json` produces an error.
+
+#### Enable and disable built-in extensions
+
+Built-in extensions are compiled into the daemon.
+Some are enabled by default, such as `org.mobyproject.namesgenerator.legacy.v1`, which generates random container and service names.
+Others are optional, such as `org.mobyproject.jobs.v0`.
+
+The `enable` field, or the `--extension-enable` flag, enables optional built-in extensions.
+The `disable` field, or the `--extension-disable` flag, disables built-in extensions that are enabled by default.
+Both accept built-in extension IDs only, and don't apply to extension binaries.
+The daemon fails to start if an ID is listed in both, or if an ID isn't a built-in extension.
+For a valid but unknown ID, the error lists the available built-in IDs.
+
+```console
+$ dockerd --extension-enable org.mobyproject.jobs.v0
+```
+
+#### Load extension binaries
+
+The daemon loads extension binaries from `/usr/libexec/docker/moby-extensions`.
+When running rootless, the default is `~/.local/libexec/docker/moby-extensions`.
+The `dirs` field, or the `--extension-dir` flag, replaces the default with one or more directories.
+A directory that doesn't exist is ignored.
+
+The daemon runs every executable file directly in these directories whose name is a valid extension ID.
+The extension ID is the filename without a trailing `.exe`, if present.
+On Windows, only `.exe` files are considered executable.
+Other files and subdirectories are skipped.
+
+Extension binaries run with the daemon's privileges.
+On Linux, the daemon refuses to start if one of these directories or binaries is world-writable or owned by a user other than root or the daemon user.
+It also refuses to start if a binary isn't a regular file, such as a symbolic link.
+
+Some extension points, such as container and service name generation, use a single provider at a time.
+For these points, an executable provider takes precedence over a built-in provider.
+For name generation, the daemon falls back to the built-in provider if the executable provider fails.
+To remove that fallback, disable the built-in name generator:
+
+```console
+$ dockerd --extension-disable org.mobyproject.namesgenerator.legacy.v1
+```
+
+#### Configure extensions
+
+The `configs` field holds per-extension settings, keyed by extension ID.
+It has no command-line equivalent.
+Each extension defines its own settings; refer to the extension's documentation.
+Configuring an extension doesn't enable it.
+
+The daemon omits these settings when it logs the reloaded configuration.
 
 # HISTORY
 Sept 2015, Originally compiled by Shishir Mahajan <shishir.mahajan@redhat.com>
