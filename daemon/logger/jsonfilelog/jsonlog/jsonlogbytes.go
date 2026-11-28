@@ -50,13 +50,14 @@ func (mj *JSONLogs) MarshalJSONBuf(buf *bytes.Buffer) error {
 		buf.WriteString(`,`)
 	}
 
-	created, err := fastTimeMarshalJSON(mj.Created)
+	n := buf.Len()
+	buf.WriteString(`"time":`)
+	created, err := appendTimeJSON(buf.AvailableBuffer(), mj.Created)
 	if err != nil {
+		buf.Truncate(n)
 		return err
 	}
-
-	buf.WriteString(`"time":`)
-	buf.WriteString(created)
+	buf.Write(created)
 	buf.WriteString(`}`)
 	return nil
 }
