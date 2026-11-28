@@ -385,8 +385,8 @@ func TestManagerValidation(t *testing.T) {
 		{doc: "restart unless-stopped", name: "j", spec: &jobsv0.JobSpec{ContainerSpec: []byte(`{"Image":"busybox","HostConfig":{"RestartPolicy":{"Name":"unless-stopped"}}}`)}},
 		{doc: "reserved job label", name: "j", spec: &jobsv0.JobSpec{ContainerSpec: []byte(`{"Image":"busybox"}`), Labels: map[string]string{"com.docker.job.id": "x"}}},
 		{doc: "reserved container label", name: "j", spec: &jobsv0.JobSpec{ContainerSpec: []byte(`{"Image":"busybox","Labels":{"com.docker.job.run-id":"x"}}`)}},
-		{doc: "negative timeout", name: "j", spec: &jobsv0.JobSpec{ContainerSpec: []byte(`{"Image":"busybox"}`), TimeoutSeconds: -1}},
-		{doc: "timeout overflowing a duration", name: "j", spec: &jobsv0.JobSpec{ContainerSpec: []byte(`{"Image":"busybox"}`), TimeoutSeconds: math.MaxInt64/int64(time.Second) + 1}},
+		{doc: "negative timeout", name: "j", spec: &jobsv0.JobSpec{ContainerSpec: []byte(`{"Image":"busybox"}`), TimeoutMilliseconds: -1}},
+		{doc: "timeout overflowing a duration", name: "j", spec: &jobsv0.JobSpec{ContainerSpec: []byte(`{"Image":"busybox"}`), TimeoutMilliseconds: math.MaxInt64/int64(time.Millisecond) + 1}},
 		{doc: "infinite stop timeout", name: "j", spec: &jobsv0.JobSpec{ContainerSpec: []byte(`{"Image":"busybox","StopTimeout":-1}`)}},
 		{doc: "oversized container spec", name: "j", spec: &jobsv0.JobSpec{ContainerSpec: append([]byte(`{"Image":"busybox","Env":["`), append(bytes.Repeat([]byte{'x'}, maxContainerSpecSize), []byte(`"]}`)...)...)}},
 		{doc: "empty trigger declares no kind", name: "j", spec: &jobsv0.JobSpec{ContainerSpec: []byte(`{"Image":"busybox"}`), Trigger: &jobsv0.Trigger{}}},
@@ -514,7 +514,7 @@ func TestManagerRunStartRecordFailure(t *testing.T) {
 
 			m, fake := newTestManager(t)
 			spec := manualSpec()
-			spec.TimeoutSeconds = 3600
+			spec.TimeoutMilliseconds = 3_600_000
 			job, _, err := m.Create(t.Context(), "backup", spec)
 			assert.NilError(t, err)
 
@@ -630,7 +630,7 @@ func TestManagerCancel(t *testing.T) {
 func TestManagerTimeout(t *testing.T) {
 	m, fake := newTestManager(t)
 	spec := manualSpec()
-	spec.TimeoutSeconds = 1
+	spec.TimeoutMilliseconds = 1000
 	_, _, err := m.Create(t.Context(), "slow", spec)
 	assert.NilError(t, err)
 
@@ -1298,7 +1298,7 @@ func TestManagerTimeoutStopsAfterFailedCancel(t *testing.T) {
 	t.Cleanup(func() { assert.Check(t, m.Shutdown(context.WithoutCancel(t.Context()))) })
 
 	spec := manualSpec()
-	spec.TimeoutSeconds = 1
+	spec.TimeoutMilliseconds = 1000
 	job, _, err := m.Create(t.Context(), "slow", spec)
 	assert.NilError(t, err)
 	run, err := m.Run(t.Context(), job.ID, false)

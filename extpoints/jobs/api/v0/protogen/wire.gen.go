@@ -947,7 +947,7 @@ func jobSpecToProto(in *mobyextcontract.JobSpec) *JobSpec {
 	out.ContainerSpec = in.ContainerSpec
 	out.Trigger = triggerToProto(in.Trigger)
 	out.Labels = in.Labels
-	out.TimeoutSeconds = in.TimeoutSeconds
+	out.TimeoutMilliseconds = in.TimeoutMilliseconds
 	out.RemoveOnSuccess = in.RemoveOnSuccess
 	out.RemoveOnFailure = in.RemoveOnFailure
 	out.RunHistoryLimit = in.RunHistoryLimit
@@ -962,7 +962,7 @@ func jobSpecFromProto(in *JobSpec) *mobyextcontract.JobSpec {
 	out.ContainerSpec = in.GetContainerSpec()
 	out.Trigger = triggerFromProto(in.GetTrigger())
 	out.Labels = in.GetLabels()
-	out.TimeoutSeconds = in.GetTimeoutSeconds()
+	out.TimeoutMilliseconds = in.GetTimeoutMilliseconds()
 	out.RemoveOnSuccess = in.GetRemoveOnSuccess()
 	out.RemoveOnFailure = in.GetRemoveOnFailure()
 	out.RunHistoryLimit = in.GetRunHistoryLimit()

@@ -138,7 +138,7 @@ message JobSpec {
   bytes container_spec = 1;
   Trigger trigger = 2;
   map<string, string> labels = 3;
-  int64 timeout_seconds = 4;
+  int64 timeout_milliseconds = 4;
   bool remove_on_success = 5;
   bool remove_on_failure = 6;
   uint32 run_history_limit = 7;

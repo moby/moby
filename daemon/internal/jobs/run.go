@@ -219,8 +219,8 @@ func (m *Manager) watch(ctx context.Context, job *jobsv0.Job, run *jobsv0.Run) {
 	}
 
 	// A run whose start was never recorded has no deadline to enforce.
-	if job.Spec.TimeoutSeconds > 0 && run.StartedAtNano != 0 {
-		deadline := time.Unix(0, run.StartedAtNano).Add(time.Duration(job.Spec.TimeoutSeconds) * time.Second)
+	if job.Spec.TimeoutMilliseconds > 0 && run.StartedAtNano != 0 {
+		deadline := time.Unix(0, run.StartedAtNano).Add(time.Duration(job.Spec.TimeoutMilliseconds) * time.Millisecond)
 		m.armTimeout(run.ID, run.ContainerID, time.Until(deadline))
 	}
 
