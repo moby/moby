@@ -3,6 +3,7 @@ package logger
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"sync"
 
 	"github.com/docker/go-units"
@@ -125,8 +126,9 @@ func GetLogDriver(name string) (Creator, error) {
 }
 
 var builtInLogOpts = map[string]bool{
-	"mode":            true,
-	"max-buffer-size": true,
+	"mode":                   true,
+	"max-buffer-size":        true,
+	maxNonBlockingRetriesKey: true,
 }
 
 // ValidateLogOpts checks the options for the given log driver. The
@@ -148,6 +150,15 @@ func ValidateLogOpts(name string, cfg map[string]string) error {
 		}
 		if _, err := units.RAMInBytes(s); err != nil {
 			return errors.Wrap(err, "error parsing option max-buffer-size")
+		}
+	}
+
+	if s, ok := cfg[maxNonBlockingRetriesKey]; ok {
+		if containertypes.LogMode(cfg["mode"]) != containertypes.LogModeNonBlock {
+			return fmt.Errorf("logger: max-non-blocking-retries option is only supported with 'mode=%s'", containertypes.LogModeNonBlock)
+		}
+		if _, err := strconv.Atoi(s); err != nil {
+			return errors.Wrap(err, "error parsing option max-non-blocking-retries")
 		}
 	}
 

@@ -3,22 +3,31 @@ package logger
 import (
 	"context"
 	"errors"
+	"strconv"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 const (
-	defaultRingMaxSize = 1e6 // 1MB
+	defaultRingMaxSize       = 1e6 // 1MB
+	defaultRingMaxRetries    = 5
+	defaultRingRetryBackoff  = 100 * time.Millisecond
+	maxRingRetryBackoff      = 1 * time.Second
+	maxNonBlockingRetriesKey = "max-non-blocking-retries"
 )
 
 // ringLogger is a ring buffer that implements the Logger interface.
 // This is used when lossy logging is OK.
 type ringLogger struct {
-	buffer    *messageRing
-	l         Logger
-	logInfo   Info
-	closeFlag atomic.Bool
-	wg        sync.WaitGroup
+	buffer       *messageRing
+	l            Logger
+	logInfo      Info
+	maxRetries   int
+	retryBackoff time.Duration
+	closeFlag    atomic.Bool
+	closeCh      chan struct{}
+	wg           sync.WaitGroup
 }
 
 var (
@@ -40,10 +49,19 @@ func (r *ringWithReader) ReadLogs(ctx context.Context, cfg ReadConfig) *LogWatch
 }
 
 func newRingLogger(driver Logger, logInfo Info, maxSize int64) *ringLogger {
+	maxRetries := defaultRingMaxRetries
+	if s, ok := logInfo.Config[maxNonBlockingRetriesKey]; ok {
+		if v, err := strconv.Atoi(s); err == nil {
+			maxRetries = v
+		}
+	}
 	l := &ringLogger{
-		buffer:  newRing(maxSize),
-		l:       driver,
-		logInfo: logInfo,
+		buffer:       newRing(maxSize),
+		l:            driver,
+		logInfo:      logInfo,
+		maxRetries:   maxRetries,
+		retryBackoff: defaultRingRetryBackoff,
+		closeCh:      make(chan struct{}),
 	}
 	l.wg.Go(l.run)
 	return l
@@ -89,7 +107,9 @@ func (r *ringLogger) closed() bool {
 }
 
 func (r *ringLogger) setClosed() {
-	r.closeFlag.Store(true)
+	if !r.closeFlag.Swap(true) {
+		close(r.closeCh)
+	}
 }
 
 // Close closes the logger
@@ -116,10 +136,17 @@ func (r *ringLogger) Close() error {
 	return r.l.Close()
 }
 
-// run consumes messages from the ring buffer and forwards them to the underling
+// run consumes messages from the ring buffer and forwards them to the underlying
 // logger.
 // This is run in a goroutine when the ringLogger is created
 func (r *ringLogger) run() {
+	var retryTimer *time.Timer
+	defer func() {
+		if retryTimer != nil {
+			retryTimer.Stop()
+		}
+	}()
+
 	for {
 		if r.closed() {
 			return
@@ -129,9 +156,32 @@ func (r *ringLogger) run() {
 			// buffer is closed
 			return
 		}
-		if err := r.l.Log(msg); err != nil {
+		retries := 0
+		backoff := r.retryBackoff
+		for {
+			if err = r.l.Log(msg); err == nil {
+				break
+			}
 			logDriverError(r.l.Name(), string(msg.Line), err)
-			PutMessage(msg)
+			if r.closed() || (r.maxRetries >= 0 && retries >= r.maxRetries) {
+				PutMessage(msg)
+				break
+			}
+			if backoff > 0 {
+				if retryTimer == nil {
+					retryTimer = time.NewTimer(backoff)
+				} else {
+					retryTimer.Reset(backoff)
+				}
+				select {
+				case <-r.closeCh:
+					PutMessage(msg)
+					return
+				case <-retryTimer.C:
+				}
+				backoff = min(backoff*2, maxRingRetryBackoff)
+			}
+			retries++
 		}
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -494,6 +495,11 @@ func (container *Container) StartLogger() (logger.Logger, error) {
 		if s, exists := cfg.Config["max-buffer-size"]; exists {
 			bufferSize, err = units.RAMInBytes(s)
 			if err != nil {
+				return nil, err
+			}
+		}
+		if s, exists := cfg.Config["max-non-blocking-retries"]; exists {
+			if _, err := strconv.Atoi(s); err != nil {
 				return nil, err
 			}
 		}
