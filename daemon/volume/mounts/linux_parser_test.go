@@ -116,10 +116,11 @@ func TestLinuxParseMountRawSplit(t *testing.T) {
 				Type:        mount.TypeBind,
 				Propagation: "rprivate",
 				Spec: mount.Mount{
-					Source:   "/tmp",
-					Target:   "/tmp1",
-					ReadOnly: false,
-					Type:     mount.TypeBind,
+					Source:      "/tmp",
+					Target:      "/tmp1",
+					ReadOnly:    false,
+					Type:        mount.TypeBind,
+					BindOptions: &mount.BindOptions{CreateMountpoint: true},
 				},
 			},
 		},
@@ -133,10 +134,11 @@ func TestLinuxParseMountRawSplit(t *testing.T) {
 				Mode:        "ro",
 				Propagation: "rprivate",
 				Spec: mount.Mount{
-					Source:   "/tmp",
-					Target:   "/tmp2",
-					ReadOnly: true,
-					Type:     mount.TypeBind,
+					Source:      "/tmp",
+					Target:      "/tmp2",
+					ReadOnly:    true,
+					Type:        mount.TypeBind,
+					BindOptions: &mount.BindOptions{CreateMountpoint: true},
 				},
 			},
 		},
@@ -150,10 +152,11 @@ func TestLinuxParseMountRawSplit(t *testing.T) {
 				Mode:        "rw",
 				Propagation: "rprivate",
 				Spec: mount.Mount{
-					Source:   "/tmp",
-					Target:   "/tmp3",
-					ReadOnly: false,
-					Type:     mount.TypeBind,
+					Source:      "/tmp",
+					Target:      "/tmp3",
+					ReadOnly:    false,
+					Type:        mount.TypeBind,
+					BindOptions: &mount.BindOptions{CreateMountpoint: true},
 				},
 			},
 		},
@@ -261,6 +264,91 @@ func TestLinuxParseMountRawSplit(t *testing.T) {
 
 			assert.NilError(t, err)
 			assert.Check(t, is.DeepEqual(*m, *tc.expected, cmpopts.IgnoreUnexported(MountPoint{})))
+		})
+	}
+}
+
+// A bind string is the Mount that it says: both are taken by the same parser and give the same
+// MountPoint, but for the options of the string (Mode), which a Mount has no place for.
+func TestLinuxParseMountRawIsTheMountItSays(t *testing.T) {
+	tests := []struct {
+		doc    string
+		raw    string
+		driver string
+		mount  mount.Mount
+	}{
+		{
+			doc:   "bind",
+			raw:   "/src:/dst",
+			mount: mount.Mount{Type: mount.TypeBind, Source: "/src", Target: "/dst", BindOptions: &mount.BindOptions{CreateMountpoint: true}},
+		},
+		{
+			doc:   "read-only bind",
+			raw:   "/src:/dst:ro",
+			mount: mount.Mount{Type: mount.TypeBind, Source: "/src", Target: "/dst", ReadOnly: true, BindOptions: &mount.BindOptions{CreateMountpoint: true}},
+		},
+		{
+			doc: "bind with a propagation",
+			raw: "/src:/dst:rshared",
+			mount: mount.Mount{
+				Type: mount.TypeBind, Source: "/src", Target: "/dst",
+				BindOptions: &mount.BindOptions{Propagation: mount.PropagationRShared, CreateMountpoint: true},
+			},
+		},
+		{
+			doc: "read-only bind with a propagation",
+			raw: "/src:/dst:ro,rslave",
+			mount: mount.Mount{
+				Type: mount.TypeBind, Source: "/src", Target: "/dst", ReadOnly: true,
+				BindOptions: &mount.BindOptions{Propagation: mount.PropagationRSlave, CreateMountpoint: true},
+			},
+		},
+		{
+			doc:   "named volume",
+			raw:   "vol:/dst",
+			mount: mount.Mount{Type: mount.TypeVolume, Source: "vol", Target: "/dst"},
+		},
+		{
+			doc:   "read-only named volume",
+			raw:   "vol:/dst:ro",
+			mount: mount.Mount{Type: mount.TypeVolume, Source: "vol", Target: "/dst", ReadOnly: true},
+		},
+		{
+			doc:   "named volume without copy",
+			raw:   "vol:/dst:nocopy",
+			mount: mount.Mount{Type: mount.TypeVolume, Source: "vol", Target: "/dst", VolumeOptions: &mount.VolumeOptions{NoCopy: true}},
+		},
+		{
+			doc:    "named volume with a driver",
+			raw:    "vol:/dst",
+			driver: "custom",
+			mount: mount.Mount{
+				Type: mount.TypeVolume, Source: "vol", Target: "/dst",
+				VolumeOptions: &mount.VolumeOptions{DriverConfig: &mount.Driver{Name: "custom"}},
+			},
+		},
+		{
+			doc:   "anonymous volume",
+			raw:   "/dst",
+			mount: mount.Mount{Type: mount.TypeVolume, Target: "/dst"},
+		},
+		{
+			doc:   "bind relabeled, which a Mount can't say yet",
+			raw:   "/src:/dst:z",
+			mount: mount.Mount{Type: mount.TypeBind, Source: "/src", Target: "/dst", BindOptions: &mount.BindOptions{CreateMountpoint: true}},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			parser := NewLinuxParser()
+			fromString, err := parser.ParseMountRaw(tc.raw, tc.driver)
+			assert.NilError(t, err)
+			fromMount, err := parser.ParseMountSpec(tc.mount)
+			assert.NilError(t, err)
+
+			// the options of the string, that the Mount has no place for
+			fromString.Mode = ""
+			assert.Check(t, is.DeepEqual(*fromString, *fromMount, cmpopts.IgnoreUnexported(MountPoint{})))
 		})
 	}
 }

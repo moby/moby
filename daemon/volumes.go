@@ -100,60 +100,10 @@ func (daemon *Daemon) registerMountPoints(ctr *container.Container, defaultReadO
 		}
 	}
 
-	// 3. Read bind mounts
-	for _, b := range ctr.HostConfig.Binds {
-		bind, err := parser.ParseMountRaw(b, ctr.HostConfig.VolumeDriver)
-		if err != nil {
-			return err
-		}
-		needsSlavePropagation, err := daemon.validateBindDaemonRoot(bind.Spec)
-		if err != nil {
-			return err
-		}
-		if needsSlavePropagation {
-			bind.Propagation = mounttypes.PropagationRSlave
-		}
-
-		// #10618
-		_, tmpfsExists := ctr.HostConfig.Tmpfs[bind.Destination]
-		if binds[bind.Destination] || tmpfsExists {
-			return duplicateMountPointError(bind.Destination)
-		}
-
-		if bind.Type == mounttypes.TypeVolume {
-			// create the volume
-			v, err := daemon.volumes.Create(ctx, bind.Name, bind.Driver, volumeopts.WithCreateReference(ctr.ID))
-			if err != nil {
-				return err
-			}
-			bind.Volume = &volumeWrapper{v: v, s: daemon.volumes}
-			bind.Source = v.Mountpoint
-			// bind.Name is an already existing volume, we need to use that here
-			bind.Driver = v.Driver
-			if bind.Driver == volume.DefaultDriverName {
-				setBindModeIfNull(bind)
-			}
-		}
-
-		if bind.Type == mounttypes.TypeBind && !bind.RW {
-			if defaultReadOnlyNonRecursive {
-				if bind.Spec.BindOptions == nil {
-					bind.Spec.BindOptions = &mounttypes.BindOptions{}
-				}
-				bind.Spec.BindOptions.ReadOnlyNonRecursive = true
-			}
-		}
-
-		binds[bind.Destination] = true
-		dereferenceIfExists(bind.Destination)
-		mountPoints[bind.Destination] = bind
-	}
-
-	for _, cfg := range ctr.HostConfig.Mounts {
-		mp, err := parser.ParseMountSpec(cfg)
-		if err != nil {
-			return errdefs.InvalidParameter(err)
-		}
+	// register is the one way a mount point is set up, whatever the API it was
+	// declared with: a bind string (Binds) is parsed into the mount point of the
+	// Mount it says, and from there it is a Mount like the ones of HostConfig.Mounts.
+	register := func(mp *volumemounts.MountPoint) error {
 		needsSlavePropagation, err := daemon.validateBindDaemonRoot(mp.Spec)
 		if err != nil {
 			return err
@@ -163,27 +113,20 @@ func (daemon *Daemon) registerMountPoints(ctr *container.Container, defaultReadO
 		}
 
 		if binds[mp.Destination] {
-			return duplicateMountPointError(cfg.Target)
+			return duplicateMountPointError(mp.Destination)
 		}
 
 		switch mp.Type {
 		case mounttypes.TypeVolume:
-			var v *volumetypes.Volume
-			if cfg.VolumeOptions != nil {
+			var createOpts []volumeopts.CreateOption
+			if vo := mp.Spec.VolumeOptions; vo != nil {
 				var driverOpts map[string]string
-				if cfg.VolumeOptions.DriverConfig != nil {
-					driverOpts = cfg.VolumeOptions.DriverConfig.Options
+				if vo.DriverConfig != nil {
+					driverOpts = vo.DriverConfig.Options
 				}
-				v, err = daemon.volumes.Create(ctx,
-					mp.Name,
-					mp.Driver,
-					volumeopts.WithCreateReference(ctr.ID),
-					volumeopts.WithCreateOptions(driverOpts),
-					volumeopts.WithCreateLabels(cfg.VolumeOptions.Labels),
-				)
-			} else {
-				v, err = daemon.volumes.Create(ctx, mp.Name, mp.Driver, volumeopts.WithCreateReference(ctr.ID))
+				createOpts = append(createOpts, volumeopts.WithCreateOptions(driverOpts), volumeopts.WithCreateLabels(vo.Labels))
 			}
+			v, err := daemon.volumes.Create(ctx, mp.Name, mp.Driver, append(createOpts, volumeopts.WithCreateReference(ctr.ID))...)
 			if err != nil {
 				return err
 			}
@@ -198,7 +141,7 @@ func (daemon *Daemon) registerMountPoints(ctr *container.Container, defaultReadO
 				setBindModeIfNull(mp)
 			}
 		case mounttypes.TypeBind:
-			if cfg.BindOptions == nil || !cfg.BindOptions.CreateMountpoint {
+			if mp.Spec.BindOptions == nil || !mp.Spec.BindOptions.CreateMountpoint {
 				mp.SkipMountpointCreation = true
 			}
 
@@ -251,6 +194,37 @@ func (daemon *Daemon) registerMountPoints(ctr *container.Container, defaultReadO
 		binds[mp.Destination] = true
 		dereferenceIfExists(mp.Destination)
 		mountPoints[mp.Destination] = mp
+		return nil
+	}
+
+	// 3. Read bind mounts set by the client. Overrides previously configured mount point destinations.
+	for _, b := range ctr.HostConfig.Binds {
+		bind, err := parser.ParseMountRaw(b, ctr.HostConfig.VolumeDriver)
+		if err != nil {
+			return err
+		}
+
+		// #10618
+		// TODO: HostConfig.Mounts doesn't check its destinations against HostConfig.Tmpfs,
+		// which a bind string does: they are to be the same.
+		if _, tmpfsExists := ctr.HostConfig.Tmpfs[bind.Destination]; tmpfsExists {
+			return duplicateMountPointError(bind.Destination)
+		}
+
+		if err := register(bind); err != nil {
+			return err
+		}
+	}
+
+	for _, cfg := range ctr.HostConfig.Mounts {
+		mp, err := parser.ParseMountSpec(cfg)
+		if err != nil {
+			return errdefs.InvalidParameter(err)
+		}
+
+		if err := register(mp); err != nil {
+			return err
+		}
 	}
 
 	ctr.Lock()
