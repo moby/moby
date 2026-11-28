@@ -1,6 +1,9 @@
 package pflag
 
-import "strconv"
+import (
+	"errors"
+	"strconv"
+)
 
 // -- uint64 Value
 type uint64Value uint64
@@ -12,8 +15,11 @@ func newUint64Value(val uint64, p *uint64) *uint64Value {
 
 func (i *uint64Value) Set(s string) error {
 	v, err := strconv.ParseUint(s, 0, 64)
+	if err != nil {
+		return errors.New("must be a non-negative integer")
+	}
 	*i = uint64Value(v)
-	return err
+	return nil
 }
 
 func (i *uint64Value) Type() string {
@@ -27,7 +33,7 @@ func uint64Conv(sval string) (interface{}, error) {
 	if err != nil {
 		return 0, err
 	}
-	return uint64(v), nil
+	return v, nil
 }
 
 // GetUint64 return the uint64 value of a flag with the given name

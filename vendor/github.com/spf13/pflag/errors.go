@@ -10,7 +10,6 @@ type notExistErrorMessageType int
 
 const (
 	flagNotExistMessage notExistErrorMessageType = iota
-	flagNotDefinedMessage
 	flagNoSuchFlagMessage
 	flagUnknownFlagMessage
 	flagUnknownShorthandFlagMessage
@@ -29,9 +28,6 @@ func (e *NotExistError) Error() string {
 	switch e.messageType {
 	case flagNotExistMessage:
 		return fmt.Sprintf("flag %q does not exist", e.name)
-
-	case flagNotDefinedMessage:
-		return fmt.Sprintf("flag accessed but not defined: %s", e.name)
 
 	case flagNoSuchFlagMessage:
 		return fmt.Sprintf("no such flag -%v", e.name)
@@ -142,7 +138,7 @@ func (e *InvalidSyntaxError) Error() string {
 	return fmt.Sprintf("bad flag syntax: %s", e.specifiedFlag)
 }
 
-// GetSpecifiedName returns the exact flag (with dashes) as it
+// GetSpecifiedFlag returns the exact flag (with dashes) as it
 // appeared in the parsed arguments.
 func (e *InvalidSyntaxError) GetSpecifiedFlag() string {
 	return e.specifiedFlag
