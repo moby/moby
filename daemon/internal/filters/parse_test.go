@@ -122,7 +122,7 @@ func TestArgsMatchKVListEmptySources(t *testing.T) {
 		t.Fatalf("Expected true for (%v,created), got true", args)
 	}
 
-	args = Args{map[string]map[string]bool{"created": {"today": true}}}
+	args = Args{fields: map[string]map[string]bool{"created": {"today": true}}}
 	if args.MatchKVList("created", map[string]string{}) {
 		t.Fatalf("Expected false for (%v,created), got true", args)
 	}
@@ -139,13 +139,13 @@ func TestArgsMatchKVList(t *testing.T) {
 	matches := map[*Args]string{
 		{}: "field",
 		{
-			map[string]map[string]bool{
+			fields: map[string]map[string]bool{
 				"created": {"today": true},
 				"labels":  {"key1": true},
 			},
 		}: "labels",
 		{
-			map[string]map[string]bool{
+			fields: map[string]map[string]bool{
 				"created": {"today": true},
 				"labels":  {"key1=value1": true},
 			},
@@ -160,18 +160,18 @@ func TestArgsMatchKVList(t *testing.T) {
 
 	differs := map[*Args]string{
 		{
-			map[string]map[string]bool{
+			fields: map[string]map[string]bool{
 				"created": {"today": true},
 			},
 		}: "created",
 		{
-			map[string]map[string]bool{
+			fields: map[string]map[string]bool{
 				"created": {"today": true},
 				"labels":  {"key4": true},
 			},
 		}: "labels",
 		{
-			map[string]map[string]bool{
+			fields: map[string]map[string]bool{
 				"created": {"today": true},
 				"labels":  {"key1=value3": true},
 			},
@@ -191,27 +191,27 @@ func TestArgsMatch(t *testing.T) {
 	matches := map[*Args]string{
 		{}: "field",
 		{
-			map[string]map[string]bool{
+			fields: map[string]map[string]bool{
 				"created": {"today": true},
 			},
 		}: "today",
 		{
-			map[string]map[string]bool{
+			fields: map[string]map[string]bool{
 				"created": {"to*": true},
 			},
 		}: "created",
 		{
-			map[string]map[string]bool{
+			fields: map[string]map[string]bool{
 				"created": {"to(.*)": true},
 			},
 		}: "created",
 		{
-			map[string]map[string]bool{
+			fields: map[string]map[string]bool{
 				"created": {"tod": true},
 			},
 		}: "created",
 		{
-			map[string]map[string]bool{
+			fields: map[string]map[string]bool{
 				"created": {"anything": true, "to*": true},
 			},
 		}: "created",
@@ -223,27 +223,27 @@ func TestArgsMatch(t *testing.T) {
 
 	differs := map[*Args]string{
 		{
-			map[string]map[string]bool{
+			fields: map[string]map[string]bool{
 				"created": {"tomorrow": true},
 			},
 		}: "created",
 		{
-			map[string]map[string]bool{
+			fields: map[string]map[string]bool{
 				"created": {"to(day": true},
 			},
 		}: "created",
 		{
-			map[string]map[string]bool{
+			fields: map[string]map[string]bool{
 				"created": {"tom(.*)": true},
 			},
 		}: "created",
 		{
-			map[string]map[string]bool{
+			fields: map[string]map[string]bool{
 				"created": {"tom": true},
 			},
 		}: "created",
 		{
-			map[string]map[string]bool{
+			fields: map[string]map[string]bool{
 				"created": {"today1": true},
 				"labels":  {"today": true},
 			},
@@ -253,6 +253,26 @@ func TestArgsMatch(t *testing.T) {
 	for args, field := range differs {
 		assert.Check(t, !args.Match(field, source), "Expected field %s to not match %s", field, source)
 	}
+}
+
+func TestMatchRecompilesAfterAdd(t *testing.T) {
+	args := NewArgs(Arg("name", "foo"))
+	assert.Check(t, !args.Match("name", "zzz"))
+	args.Add("name", "z+")
+	assert.Check(t, args.Match("name", "zzz"))
+	args.Del("name", "z+")
+	assert.Check(t, !args.Match("name", "zzz"))
+
+	cloned := args.Clone()
+	cloned.Add("name", "z+")
+	assert.Check(t, cloned.Match("name", "zzz"))
+	assert.Check(t, !args.Match("name", "zzz"))
+
+	decoded, err := FromJSON(`{"name":{"z+":true,"[":true}}`)
+	assert.Check(t, err)
+	assert.Check(t, decoded.Match("name", "zzz"))
+	assert.Check(t, decoded.Match("name", "["))
+	assert.Check(t, !decoded.Match("name", "abc"))
 }
 
 func TestAddZeroValue(t *testing.T) {

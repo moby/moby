@@ -10,11 +10,18 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 )
 
 // Args stores a mapping of keys to a set of multiple values.
 type Args struct {
 	fields map[string]map[string]bool
+	pats   *patternSet
+}
+
+type patternSet struct {
+	mu sync.Mutex
+	by map[string][]*regexp.Regexp
 }
 
 // KeyValuePair are used to initialize a new Args
@@ -30,7 +37,7 @@ func Arg(key, value string) KeyValuePair {
 
 // NewArgs returns a new Args populated with the initial args
 func NewArgs(initialArgs ...KeyValuePair) Args {
-	args := Args{fields: map[string]map[string]bool{}}
+	args := Args{fields: map[string]map[string]bool{}, pats: &patternSet{}}
 	for _, arg := range initialArgs {
 		args.Add(arg.Key, arg.Value)
 	}
@@ -85,6 +92,9 @@ func FromJSON(p string) (Args, error) {
 
 // UnmarshalJSON populates the Args from JSON encode bytes
 func (args *Args) UnmarshalJSON(raw []byte) error {
+	if args.pats == nil {
+		args.pats = &patternSet{}
+	}
 	return json.Unmarshal(raw, &args.fields)
 }
 
@@ -102,12 +112,16 @@ func (args *Args) Add(key, value string) {
 	if args.fields == nil {
 		args.fields = make(map[string]map[string]bool)
 	}
+	if args.pats == nil {
+		args.pats = &patternSet{}
+	}
 	values := args.fields[key]
 	if values == nil {
 		values = make(map[string]bool)
 		args.fields[key] = values
 	}
 	values[value] = true
+	args.pats.drop(key)
 }
 
 // Del removes a value from the set
@@ -115,6 +129,9 @@ func (args Args) Del(key, value string) {
 	delete(args.fields[key], value)
 	if len(args.fields[key]) == 0 {
 		delete(args.fields, key)
+	}
+	if args.pats != nil {
+		args.pats.drop(key)
 	}
 }
 
@@ -159,12 +176,20 @@ func (args Args) Match(field, source string) bool {
 	}
 
 	fieldValues := args.fields[field]
-	for name2match := range fieldValues {
-		match, err := regexp.MatchString(name2match, source)
-		if err != nil {
-			continue
+	if args.pats == nil {
+		for name2match := range fieldValues {
+			match, err := regexp.MatchString(name2match, source)
+			if err != nil {
+				continue
+			}
+			if match {
+				return true
+			}
 		}
-		if match {
+		return false
+	}
+	for _, re := range args.pats.patterns(field, fieldValues) {
+		if re.MatchString(source) {
 			return true
 		}
 	}
@@ -272,7 +297,34 @@ func (args Args) Clone() Args {
 	for k, values := range fields {
 		fields[k] = maps.Clone(values)
 	}
-	return Args{fields: fields}
+	return Args{fields: fields, pats: &patternSet{}}
+}
+
+func (p *patternSet) drop(field string) {
+	p.mu.Lock()
+	delete(p.by, field)
+	p.mu.Unlock()
+}
+
+func (p *patternSet) patterns(field string, values map[string]bool) []*regexp.Regexp {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if re, ok := p.by[field]; ok {
+		return re
+	}
+	compiled := make([]*regexp.Regexp, 0, len(values))
+	for pattern := range values {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			continue
+		}
+		compiled = append(compiled, re)
+	}
+	if p.by == nil {
+		p.by = make(map[string][]*regexp.Regexp)
+	}
+	p.by[field] = compiled
+	return compiled
 }
 
 func deprecatedArgs(d map[string][]string) map[string]map[string]bool {
