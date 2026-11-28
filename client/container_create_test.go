@@ -9,6 +9,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -80,6 +81,51 @@ func TestContainerCreateAutoRemove(t *testing.T) {
 	resp, err := client.ContainerCreate(t.Context(), ContainerCreateOptions{Config: &container.Config{Image: "test"}, HostConfig: &container.HostConfig{AutoRemove: true}})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(resp.ID, "container_id"))
+}
+
+// TestContainerCreateIDMappingRequiresVersion verifies that an id-mapped bind
+// mount is refused client-side when the daemon's API version predates it,
+// rather than being sent to a daemon that would silently ignore the option.
+func TestContainerCreateIDMappingRequiresVersion(t *testing.T) {
+	hostConfig := &container.HostConfig{
+		Mounts: []mount.Mount{{
+			Type:   mount.TypeBind,
+			Source: "/src",
+			Target: "/dst",
+			BindOptions: &mount.BindOptions{
+				IDMapping: &mount.IDMapping{Source: mount.IDMappingSourceMatchUser},
+			},
+		}},
+	}
+
+	t.Run("old API version", func(t *testing.T) {
+		var requests int
+		client, err := New(
+			WithAPIVersion("1.56"),
+			WithMockClient(func(req *http.Request) (*http.Response, error) {
+				requests++
+				return mockJSONResponse(http.StatusOK, nil, container.CreateResponse{ID: "container_id"})(req)
+			}),
+		)
+		assert.NilError(t, err)
+
+		_, err = client.ContainerCreate(t.Context(), ContainerCreateOptions{Config: &container.Config{Image: "test"}, HostConfig: hostConfig})
+		assert.ErrorContains(t, err, "BindOptions.IDMapping")
+		assert.ErrorContains(t, err, "requires API version 1.57")
+		assert.Check(t, is.Equal(requests, 0))
+	})
+
+	t.Run("supported API version", func(t *testing.T) {
+		client, err := New(
+			WithAPIVersion("1.57"),
+			WithMockClient(mockJSONResponse(http.StatusOK, nil, container.CreateResponse{ID: "container_id"})),
+		)
+		assert.NilError(t, err)
+
+		resp, err := client.ContainerCreate(t.Context(), ContainerCreateOptions{Config: &container.Config{Image: "test"}, HostConfig: hostConfig})
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(resp.ID, "container_id"))
+	})
 }
 
 // TestContainerCreateConnectionError verifies that connection errors occurring

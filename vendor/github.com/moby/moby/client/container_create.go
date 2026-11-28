@@ -35,6 +35,19 @@ func (cli *Client) ContainerCreate(ctx context.Context, options ContainerCreateO
 		return ContainerCreateResult{}, cerrdefs.ErrInvalidArgument.WithMessage("config.Image or Image is required")
 	}
 
+	if options.HostConfig != nil {
+		for _, m := range options.HostConfig.Mounts {
+			if m.BindOptions != nil && m.BindOptions.IDMapping != nil {
+				// An older daemon would silently ignore the option and start
+				// the container with unexpected file ownership.
+				if err := cli.requiresVersion(ctx, "1.57", "BindOptions.IDMapping"); err != nil {
+					return ContainerCreateResult{}, err
+				}
+				break
+			}
+		}
+	}
+
 	query := url.Values{}
 	if options.Platform != nil {
 		if p := formatPlatform(*options.Platform); p != "unknown" {
