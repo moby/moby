@@ -1,6 +1,7 @@
 package container
 
 import (
+	"encoding/json"
 	"math/rand"
 	"net/netip"
 	"os"
@@ -217,6 +218,59 @@ func TestViewWithPortBindings(t *testing.T) {
 			s, err := db.Snapshot().Get(ctr.ID)
 			assert.NilError(t, err)
 			assert.DeepEqual(t, s.Ports, tc.expected, cmpopts.EquateComparable(netip.Addr{}))
+		})
+	}
+}
+
+// TestViewSummaryLabelsNullable verifies that the Labels field of the container
+// summary is serialized as null when the container has no labels, and as a
+// key/value map otherwise. This is what the x-nullable annotation on the Labels
+// field in the API specification documents.
+func TestViewSummaryLabelsNullable(t *testing.T) {
+	tests := []struct {
+		name   string
+		config *container.Config
+		expect string
+	}{
+		{
+			// Containers without a config (or without labels in it) have no
+			// labels, which is serialized as null.
+			name:   "no config",
+			expect: "null",
+		},
+		{
+			name:   "no labels",
+			config: &container.Config{},
+			expect: "null",
+		},
+		{
+			name:   "with labels",
+			config: &container.Config{Labels: map[string]string{"foo": "bar"}},
+			expect: `{"foo":"bar"}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			db, err := NewViewDB()
+			assert.NilError(t, err)
+
+			ctr := newContainer(t, t.TempDir())
+			ctr.Config = tc.config
+			assert.NilError(t, ctr.CheckpointTo(t.Context(), db))
+
+			s, err := db.Snapshot().Get(ctr.ID)
+			assert.NilError(t, err)
+
+			out, err := json.Marshal(s.Summary)
+			assert.NilError(t, err)
+
+			var fields map[string]json.RawMessage
+			assert.NilError(t, json.Unmarshal(out, &fields))
+
+			labels, ok := fields["Labels"]
+			assert.Assert(t, ok, "Labels must be present in %s", out)
+			assert.Equal(t, string(labels), tc.expect)
 		})
 	}
 }
