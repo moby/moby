@@ -24,6 +24,16 @@ keywords: "API, Docker, rcli, REST, documentation"
   stopping the container) or fail to start the container again.
 * The API specification now uses OpenAPI 3.2.0 instead of Swagger 2.0.
   A generated Swagger 2.0 version is still available for existing tooling.
+* `POST /containers/create` now supports `BindOptions.IDMapping` for mounts
+  of type `bind`, which id-maps the mount without changing ownership on the
+  host.
+  With `Source: "match-user"`, the owner of the mount's source appears inside
+  the container as the user named by `User`.
+  By default, that is the container's user, or for containers running as
+  root, the owner of the mount's target in the image if it exists.
+  Files that user creates through the mount are owned by the source's owner
+  on the host, and files with other owners appear owned by the overflow ID.
+  Not supported for swarm services.
 
 ## v1.56 API changes
 

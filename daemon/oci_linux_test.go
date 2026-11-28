@@ -9,12 +9,16 @@ import (
 
 	"github.com/google/go-cmp/cmp/cmpopts"
 	containertypes "github.com/moby/moby/api/types/container"
+	mounttypes "github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/moby/v2/daemon/network"
 	daemonoci "github.com/moby/moby/v2/daemon/pkg/oci"
+	"github.com/moby/sys/user"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go/features"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -402,5 +406,153 @@ func checkResourcesAreUnset(t *testing.T, r *specs.LinuxResources) {
 		if r.Network != nil {
 			assert.Check(t, is.DeepEqual(r.Network, &specs.LinuxNetwork{}, cmpopts.EquateEmpty()))
 		}
+	}
+}
+
+func TestMountIDMappings(t *testing.T) {
+	skip.If(t, rootless.RunningWithRootlessKit(), "id-mapped mounts are rejected on rootless daemons")
+
+	newSpec := func(uid, gid uint32) *specs.Spec {
+		return &specs.Spec{Process: &specs.Process{User: specs.User{UID: uid, GID: gid}}}
+	}
+	// The mount source's ownership is read with a stat: use a directory
+	// owned by the test runner and expect its actual IDs in the mappings.
+	src := t.TempDir()
+	srcUID := uint32(os.Getuid())
+	srcGID := uint32(os.Getgid())
+
+	t.Run("match-user with the container user", func(t *testing.T) {
+		d := &Daemon{}
+		c := &container.Container{HostConfig: &containertypes.HostConfig{}}
+		uidMaps, gidMaps, err := d.mountIDMappings(c, newSpec(1001, 1002), src, "/foo", &mounttypes.IDMapping{Source: mounttypes.IDMappingSourceMatchUser})
+		assert.NilError(t, err)
+		assert.Check(t, is.DeepEqual(uidMaps, []specs.LinuxIDMapping{{ContainerID: srcUID, HostID: 1001, Size: 1}}))
+		assert.Check(t, is.DeepEqual(gidMaps, []specs.LinuxIDMapping{{ContainerID: srcGID, HostID: 1002, Size: 1}}))
+	})
+
+	t.Run("match-user with a numeric user", func(t *testing.T) {
+		d := &Daemon{}
+		c := &container.Container{HostConfig: &containertypes.HostConfig{}}
+		c.Root = t.TempDir()
+		c.BaseFS = c.Root
+		uidMaps, gidMaps, err := d.mountIDMappings(c, newSpec(0, 0), src, "/foo", &mounttypes.IDMapping{Source: mounttypes.IDMappingSourceMatchUser, User: "1234:5678"})
+		assert.NilError(t, err)
+		assert.Check(t, is.DeepEqual(uidMaps, []specs.LinuxIDMapping{{ContainerID: srcUID, HostID: 1234, Size: 1}}))
+		assert.Check(t, is.DeepEqual(gidMaps, []specs.LinuxIDMapping{{ContainerID: srcGID, HostID: 5678, Size: 1}}))
+	})
+
+	t.Run("match-user with userns-remap", func(t *testing.T) {
+		d := &Daemon{
+			idMapping: user.IdentityMapping{
+				UIDMaps: []user.IDMap{{ID: 0, ParentID: 100000, Count: 65536}},
+				GIDMaps: []user.IDMap{{ID: 0, ParentID: 200000, Count: 65536}},
+			},
+		}
+		c := &container.Container{HostConfig: &containertypes.HostConfig{}}
+		uidMaps, gidMaps, err := d.mountIDMappings(c, newSpec(33, 33), src, "/foo", &mounttypes.IDMapping{Source: mounttypes.IDMappingSourceMatchUser})
+		assert.NilError(t, err)
+		// The mount mapping targets the host-side representation of the
+		// container user, which the user namespace maps back to it.
+		assert.Check(t, is.DeepEqual(uidMaps, []specs.LinuxIDMapping{{ContainerID: srcUID, HostID: 100033, Size: 1}}))
+		assert.Check(t, is.DeepEqual(gidMaps, []specs.LinuxIDMapping{{ContainerID: srcGID, HostID: 200033, Size: 1}}))
+	})
+
+	t.Run("match-user with a missing source", func(t *testing.T) {
+		d := &Daemon{}
+		c := &container.Container{HostConfig: &containertypes.HostConfig{}}
+		_, _, err := d.mountIDMappings(c, newSpec(0, 0), filepath.Join(src, "missing"), "/foo", &mounttypes.IDMapping{Source: mounttypes.IDMappingSourceMatchUser})
+		assert.ErrorContains(t, err, "cannot stat mount source")
+	})
+}
+
+func TestSupportsIDMappedMounts(t *testing.T) {
+	skip.If(t, rootless.RunningWithRootlessKit(), "id-mapped mounts are rejected on rootless daemons")
+
+	ptr := func(b bool) *bool { return &b }
+	withIDMap := func(m *features.IDMap) *features.Features {
+		return &features.Features{Linux: &features.Linux{MountExtensions: &features.MountExtensions{IDMap: m}}}
+	}
+	newCfg := func(f *features.Features) *configStore {
+		return &configStore{Runtimes: runtimes{
+			Default:    "runc",
+			configured: map[string]*shimConfig{"runc": {Features: f}},
+		}}
+	}
+
+	t.Run("runtime advertising idmap support", func(t *testing.T) {
+		cfg := newCfg(withIDMap(&features.IDMap{Enabled: ptr(true)}))
+		assert.NilError(t, supportsIDMappedMounts(cfg, ""))
+	})
+	t.Run("runtime with unknown idmap status", func(t *testing.T) {
+		cfg := newCfg(withIDMap(&features.IDMap{}))
+		assert.NilError(t, supportsIDMappedMounts(cfg, "runc"))
+	})
+	t.Run("runtime with idmap support disabled", func(t *testing.T) {
+		cfg := newCfg(withIDMap(&features.IDMap{Enabled: ptr(false)}))
+		assert.ErrorContains(t, supportsIDMappedMounts(cfg, ""), "not compiled in")
+	})
+	t.Run("runtime without mount extensions", func(t *testing.T) {
+		cfg := newCfg(&features.Features{})
+		assert.ErrorContains(t, supportsIDMappedMounts(cfg, ""), "runc 1.2 or newer is required")
+	})
+	t.Run("runtime without OCI features", func(t *testing.T) {
+		cfg := newCfg(nil)
+		assert.ErrorContains(t, supportsIDMappedMounts(cfg, ""), "OCI features struct is not available")
+	})
+	t.Run("rootless daemon", func(t *testing.T) {
+		cfg := newCfg(withIDMap(&features.IDMap{Enabled: ptr(true)}))
+		cfg.Rootless = true
+		assert.ErrorContains(t, supportsIDMappedMounts(cfg, ""), "rootless")
+	})
+}
+
+func TestRootfsOwnerHostRootTarget(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "requires root to create a host-root owned target")
+
+	c := &container.Container{}
+	c.Root = t.TempDir()
+	c.BaseFS = c.Root
+	assert.NilError(t, os.Mkdir(filepath.Join(c.BaseFS, "data"), 0o755))
+
+	// With userns-remap, a target created on the host side by the daemon is
+	// owned by host root, which is outside the remapped range: it is root.
+	d := &Daemon{idMapping: user.IdentityMapping{
+		UIDMaps: []user.IDMap{{ID: 0, ParentID: 100000, Count: 65536}},
+		GIDMaps: []user.IDMap{{ID: 0, ParentID: 200000, Count: 65536}},
+	}}
+	uid, gid, err := d.rootfsOwner(c, "/data")
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(uid, 0))
+	assert.Check(t, is.Equal(gid, 0))
+}
+
+func TestRootfsOwnerMixedHostRoot(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "requires root to chown the target")
+
+	d := &Daemon{idMapping: user.IdentityMapping{
+		UIDMaps: []user.IDMap{{ID: 0, ParentID: 100000, Count: 65536}},
+		GIDMaps: []user.IDMap{{ID: 0, ParentID: 200000, Count: 65536}},
+	}}
+	for _, tc := range []struct {
+		name             string
+		hostUID, hostGID int
+		uid, gid         int
+	}{
+		{name: "root uid, remapped gid", hostUID: 0, hostGID: 200033, uid: 0, gid: 33},
+		{name: "remapped uid, root gid", hostUID: 100033, hostGID: 0, uid: 33, gid: 0},
+		{name: "remapped ids", hostUID: 100033, hostGID: 200034, uid: 33, gid: 34},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := &container.Container{}
+			c.Root = t.TempDir()
+			c.BaseFS = c.Root
+			assert.NilError(t, os.Mkdir(filepath.Join(c.BaseFS, "data"), 0o755))
+			assert.NilError(t, os.Chown(filepath.Join(c.BaseFS, "data"), tc.hostUID, tc.hostGID))
+
+			uid, gid, err := d.rootfsOwner(c, "/data")
+			assert.NilError(t, err)
+			assert.Check(t, is.Equal(uid, tc.uid))
+			assert.Check(t, is.Equal(gid, tc.gid))
+		})
 	}
 }
