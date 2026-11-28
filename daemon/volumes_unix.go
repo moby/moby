@@ -62,6 +62,16 @@ func (daemon *Daemon) setupMounts(ctx context.Context, c *container.Container) (
 			return nil
 		}
 
+		if m.Spec.Type == mounttypes.TypeBind && m.Spec.BindOptions != nil && m.Spec.BindOptions.IDMapping != nil {
+			switch m.Destination {
+			case "/etc/resolv.conf", "/etc/hostname", "/etc/hosts":
+				// These are handled as network files and rebuilt without
+				// the bind options: reject rather than silently starting
+				// the container without the requested mapping.
+				return nil, nil, errors.Errorf("BindOptions.IDMapping is not supported for %s", m.Destination)
+			}
+		}
+
 		uid, gid := daemon.idMapping.RootPair()
 		path, clean, err := m.Setup(ctx, c.MountLabel, idtools.Identity{UID: uid, GID: gid}, checkfunc)
 		if err != nil {

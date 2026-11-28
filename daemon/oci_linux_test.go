@@ -18,6 +18,7 @@ import (
 	daemonoci "github.com/moby/moby/v2/daemon/pkg/oci"
 	"github.com/moby/sys/user"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go/features"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -462,4 +463,96 @@ func TestMountIDMappings(t *testing.T) {
 		_, _, err := d.mountIDMappings(c, newSpec(0, 0), filepath.Join(src, "missing"), "/foo", &mounttypes.IDMapping{Source: mounttypes.IDMappingSourceMatchUser})
 		assert.ErrorContains(t, err, "cannot stat mount source")
 	})
+}
+
+func TestSupportsIDMappedMounts(t *testing.T) {
+	skip.If(t, rootless.RunningWithRootlessKit(), "id-mapped mounts are rejected on rootless daemons")
+
+	ptr := func(b bool) *bool { return &b }
+	withIDMap := func(m *features.IDMap) *features.Features {
+		return &features.Features{Linux: &features.Linux{MountExtensions: &features.MountExtensions{IDMap: m}}}
+	}
+	newCfg := func(f *features.Features) *configStore {
+		return &configStore{Runtimes: runtimes{
+			Default:    "runc",
+			configured: map[string]*shimConfig{"runc": {Features: f}},
+		}}
+	}
+
+	t.Run("runtime advertising idmap support", func(t *testing.T) {
+		cfg := newCfg(withIDMap(&features.IDMap{Enabled: ptr(true)}))
+		assert.NilError(t, supportsIDMappedMounts(cfg, ""))
+	})
+	t.Run("runtime with unknown idmap status", func(t *testing.T) {
+		cfg := newCfg(withIDMap(&features.IDMap{}))
+		assert.NilError(t, supportsIDMappedMounts(cfg, "runc"))
+	})
+	t.Run("runtime with idmap support disabled", func(t *testing.T) {
+		cfg := newCfg(withIDMap(&features.IDMap{Enabled: ptr(false)}))
+		assert.ErrorContains(t, supportsIDMappedMounts(cfg, ""), "not compiled in")
+	})
+	t.Run("runtime without mount extensions", func(t *testing.T) {
+		cfg := newCfg(&features.Features{})
+		assert.ErrorContains(t, supportsIDMappedMounts(cfg, ""), "runc 1.2 or newer is required")
+	})
+	t.Run("runtime without OCI features", func(t *testing.T) {
+		cfg := newCfg(nil)
+		assert.ErrorContains(t, supportsIDMappedMounts(cfg, ""), "OCI features struct is not available")
+	})
+	t.Run("rootless daemon", func(t *testing.T) {
+		cfg := newCfg(withIDMap(&features.IDMap{Enabled: ptr(true)}))
+		cfg.Rootless = true
+		assert.ErrorContains(t, supportsIDMappedMounts(cfg, ""), "rootless")
+	})
+}
+
+func TestRootfsOwnerHostRootTarget(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "requires root to create a host-root owned target")
+
+	c := &container.Container{}
+	c.Root = t.TempDir()
+	c.BaseFS = c.Root
+	assert.NilError(t, os.Mkdir(filepath.Join(c.BaseFS, "data"), 0o755))
+
+	// With userns-remap, a target created on the host side by the daemon is
+	// owned by host root, which is outside the remapped range: it is root.
+	d := &Daemon{idMapping: user.IdentityMapping{
+		UIDMaps: []user.IDMap{{ID: 0, ParentID: 100000, Count: 65536}},
+		GIDMaps: []user.IDMap{{ID: 0, ParentID: 200000, Count: 65536}},
+	}}
+	uid, gid, err := d.rootfsOwner(c, "/data")
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(uid, 0))
+	assert.Check(t, is.Equal(gid, 0))
+}
+
+func TestRootfsOwnerMixedHostRoot(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "requires root to chown the target")
+
+	d := &Daemon{idMapping: user.IdentityMapping{
+		UIDMaps: []user.IDMap{{ID: 0, ParentID: 100000, Count: 65536}},
+		GIDMaps: []user.IDMap{{ID: 0, ParentID: 200000, Count: 65536}},
+	}}
+	for _, tc := range []struct {
+		name             string
+		hostUID, hostGID int
+		uid, gid         int
+	}{
+		{name: "root uid, remapped gid", hostUID: 0, hostGID: 200033, uid: 0, gid: 33},
+		{name: "remapped uid, root gid", hostUID: 100033, hostGID: 0, uid: 33, gid: 0},
+		{name: "remapped ids", hostUID: 100033, hostGID: 200034, uid: 33, gid: 34},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := &container.Container{}
+			c.Root = t.TempDir()
+			c.BaseFS = c.Root
+			assert.NilError(t, os.Mkdir(filepath.Join(c.BaseFS, "data"), 0o755))
+			assert.NilError(t, os.Chown(filepath.Join(c.BaseFS, "data"), tc.hostUID, tc.hostGID))
+
+			uid, gid, err := d.rootfsOwner(c, "/data")
+			assert.NilError(t, err)
+			assert.Check(t, is.Equal(uid, tc.uid))
+			assert.Check(t, is.Equal(gid, tc.gid))
+		})
+	}
 }

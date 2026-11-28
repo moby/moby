@@ -386,21 +386,47 @@ func specMapping(s []user.IDMap) []specs.LinuxIDMapping {
 	return ids
 }
 
-// mountIDMappings derives the effective per-mount ID mappings of an
-// id-mapped bind mount from the intent expressed by idMapping: presenting
-// the owner of source as the container user for "match-user". The OCI
-// runtime performs the actual id-mapped mount setup from the returned spec
-// mappings, and rejects them if it, or the kernel, lacks support.
-func (daemon *Daemon) mountIDMappings(c *container.Container, s *specs.Spec, source, destination string, idMapping *mounttypes.IDMapping) (uidMaps, gidMaps []specs.LinuxIDMapping, _ error) {
-	if rootless.RunningWithRootlessKit() {
+// supportsIDMappedMounts returns an error if id-mapped bind mounts cannot be
+// used by a container running with the given runtime (the default runtime
+// when empty).
+//
+// The OCI runtime silently ignores mount ID mappings it doesn't know about
+// (runtimes older than runc 1.2), which would start an ordinary bind mount
+// with unexpected ownership: only runtimes advertising id-mapped mount
+// support through their OCI features are accepted. The kernel and the backing
+// filesystem are checked by the runtime when it sets the mount up.
+func supportsIDMappedMounts(cfg *configStore, runtime string) error {
+	if cfg.Rootless || rootless.RunningWithRootlessKit() {
 		// Attaching an ID mapping to a mount requires privileges over the
 		// user namespace owning the backing filesystem's superblock, which
 		// a rootless daemon does not have for host filesystems. A rootful
 		// daemon running inside a user namespace may still id-map mounts of
 		// filesystems owned by that namespace, so this is only rejected for
 		// rootless daemons and otherwise left to the runtime and the kernel.
-		return nil, nil, errors.New("id-mapped bind mounts are not supported on rootless daemons")
+		return errors.New("id-mapped bind mounts are not supported on rootless daemons")
 	}
+	if runtime == "" {
+		runtime = cfg.Runtimes.Default
+	}
+	features := cfg.Runtimes.Features(runtime)
+	if features == nil {
+		return fmt.Errorf("id-mapped bind mounts are not supported by runtime %q: OCI features struct is not available", runtime)
+	}
+	if features.Linux == nil || features.Linux.MountExtensions == nil || features.Linux.MountExtensions.IDMap == nil {
+		return fmt.Errorf("id-mapped bind mounts are not supported by runtime %q (runc 1.2 or newer is required)", runtime)
+	}
+	if enabled := features.Linux.MountExtensions.IDMap.Enabled; enabled != nil && !*enabled {
+		return fmt.Errorf("id-mapped bind mounts are not supported by runtime %q: support is not compiled in", runtime)
+	}
+	return nil
+}
+
+// mountIDMappings derives the effective per-mount ID mappings of an
+// id-mapped bind mount from the intent expressed by idMapping: presenting
+// the owner of source as the container user for "match-user". The OCI
+// runtime performs the actual id-mapped mount setup from the returned spec
+// mappings, and rejects them if it, or the kernel, lacks support.
+func (daemon *Daemon) mountIDMappings(c *container.Container, s *specs.Spec, source, destination string, idMapping *mounttypes.IDMapping) (uidMaps, gidMaps []specs.LinuxIDMapping, _ error) {
 	if idMapping.Source != mounttypes.IDMappingSourceMatchUser {
 		// Unknown sources are rejected when the mount is validated.
 		return nil, nil, fmt.Errorf("id-mapped bind mount with unknown Source %q", idMapping.Source)
@@ -487,7 +513,19 @@ func (daemon *Daemon) rootfsOwner(c *container.Container, path string) (uid, gid
 	}
 	// With userns-remap, the root filesystem is owned by host IDs whatever
 	// the container's user namespace mode.
-	return daemon.idMapping.ToContainer(int(st.Uid), int(st.Gid))
+	// Host root is outside the remapped range. Mount targets the daemon
+	// creates on the host side while building a view of the container
+	// filesystem (docker cp) are owned by it: they are root's. Handle each
+	// ID independently, by translating the remapped root in its place.
+	rootUID, rootGID := daemon.idMapping.RootPair()
+	hostUID, hostGID := int(st.Uid), int(st.Gid)
+	if hostUID == 0 {
+		hostUID = rootUID
+	}
+	if hostGID == 0 {
+		hostGID = rootGID
+	}
+	return daemon.idMapping.ToContainer(hostUID, hostGID)
 }
 
 // Get the source mount point of directory passed in as argument. Also return
@@ -742,12 +780,23 @@ func withMounts(daemon *Daemon, daemonCfg *configStore, c *container.Container, 
 			}
 
 			if m.IDMapping != nil {
+				if err := supportsIDMappedMounts(daemonCfg, c.HostConfig.Runtime); err != nil {
+					return err
+				}
 				uidMaps, gidMaps, err := daemon.mountIDMappings(c, s, m.Source, m.Destination, m.IDMapping)
 				if err != nil {
 					return err
 				}
 				mt.UIDMappings = uidMaps
 				mt.GIDMappings = gidMaps
+				// Without "idmap"/"ridmap" the runtime applies the mappings
+				// to the top mount only: follow the bind's own recursiveness
+				// so nested mounts under a recursive bind are id-mapped too.
+				if m.NonRecursive {
+					opts = append(opts, "idmap")
+				} else {
+					opts = append(opts, "ridmap")
+				}
 			}
 
 			mt.Options = opts

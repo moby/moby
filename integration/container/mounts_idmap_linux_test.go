@@ -37,6 +37,7 @@ import (
 func TestContainerBindMountIDMapped(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.IsRootless, "id-mapped mounts require a rootful daemon")
+	skip.If(t, testEnv.IsNonRootClient, "skipping test that requires root on client side")
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.57"), "requires API v1.57")
 	skip.If(t, !kernel.CheckKernelVersion(6, 3, 0), "id-mapped tmpfs mounts require kernel 6.3")
 

@@ -148,6 +148,10 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 			return err
 		}
 
+		if err := checkNotIDMappedPath(container, absPath); err != nil {
+			return err
+		}
+
 		if copyUIDGID {
 			// Resolve the container user and group from the container's filesystem,
 			// then apply the corresponding host-mapped ownership options.
@@ -182,6 +186,26 @@ func checkWritablePath(ctr *container.Container, absPath string) error {
 	}
 	if ctr.HostConfig.ReadonlyRootfs {
 		return errdefs.InvalidParameter(errors.New("container rootfs is marked read-only"))
+	}
+	return nil
+}
+
+// checkNotIDMappedPath returns an error if the path is within an id-mapped
+// bind mount. The filesystem view used to extract archives sees the backing
+// filesystem's ownership rather than the mapped one, so files would be created
+// (or chowned, when copying the UID/GID) with the wrong owner.
+//
+// TODO(idmap): apply the mount's ID mapping to the filesystem view and to the
+// ownership handling of archives instead of rejecting.
+func checkNotIDMappedPath(ctr *container.Container, absPath string) error {
+	parser := volumemounts.NewParser()
+	for _, mnt := range ctr.MountPoints {
+		if mnt.Spec.BindOptions == nil || mnt.Spec.BindOptions.IDMapping == nil {
+			continue
+		}
+		if parser.HasResource(mnt, absPath) {
+			return errdefs.InvalidParameter(errors.New("copying into an id-mapped bind mount is not supported"))
+		}
 	}
 	return nil
 }
