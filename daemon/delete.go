@@ -125,6 +125,14 @@ func (daemon *Daemon) cleanupContainer(ctr *container.Container, config backend.
 
 	// Mark container dead. We don't want anybody to be restarting it.
 	ctr.Lock()
+	if err := daemon.awaitTaskCleanup(context.Background(), ctr); err != nil {
+		ctr.Unlock()
+		return err
+	}
+	if ctr.State.Running {
+		ctr.Unlock()
+		return errdefs.Conflict(errors.New("container started while waiting for task cleanup"))
+	}
 	ctr.State.SetDead()
 
 	// Copy RWLayer for releasing and clear the reference while holding the container lock.

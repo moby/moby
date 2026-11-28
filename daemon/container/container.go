@@ -100,6 +100,11 @@ type Container struct {
 
 	ImagePlatform ocispec.Platform
 
+	// TaskCleanupPID identifies the exited task whose deletion must finish
+	// before this container can be started or removed. It survives a daemon restart.
+	TaskCleanupPID uint32              `json:",omitempty"`
+	TaskCleanup    *TaskCleanupAttempt `json:"-"`
+
 	RestartCount             int
 	HasBeenStartedBefore     bool
 	HasBeenManuallyStopped   bool // used for unless-stopped restart policy
@@ -127,6 +132,14 @@ type Container struct {
 	NetworkSharedContainerID string   `json:"-"`
 	SharedEndpointList       []string `json:"-"`
 	LocalLogCacheMeta        localLogCacheMeta
+}
+
+// TaskCleanupAttempt holds the result of one attempt shared by operations on a
+// container. The cleanup worker sets Err before closing Done.
+type TaskCleanupAttempt struct {
+	Done   chan struct{}
+	Cancel context.CancelFunc
+	Err    error
 }
 
 type SecurityOptions struct {
